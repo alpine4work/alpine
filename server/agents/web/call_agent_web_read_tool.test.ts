@@ -11,7 +11,6 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {NotFoundError} from "~/shared/error/error.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -66,7 +65,9 @@ function createDocumentContentWithDocumentMention(
 test("throws when the link path has not been seen", async () => {
     await expect(
         callAgentWebReadTool(context, {path: "/document/unknown", limit: "10kb"}),
-    ).rejects.toThrow(NotFoundError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t read `/document/unknown`. Nothing found for path `/document/unknown`. You may only read paths you\u2019ve already seen a link for. Please try calling the `read` tool again with a path you\u2019ve seen before. If you\u2019re trying to read something you don\u2019t have a link for then don\u2019t try making up a path. Instead try calling the `search` tool which will help you find what you need and will give you links which you can use with the `read` tool.",
+    );
 });
 
 test("returns full markdown and stores normalized read response", async () => {
@@ -241,15 +242,7 @@ test("throws a redirect error when document title changes for same document id",
 
     await expect(
         callAgentWebReadTool(context, {path: oldPathname, limit: "10kb"}),
-    ).rejects.toMatchObject({
-        message: "Link was redirected",
-        displayMessage: [
-            {type: "Text", text: "This path was redirected to `"},
-            {type: "SensitiveText", text: newPathname},
-            {
-                type: "Text",
-                text: "`. Try calling the `read` tool again with the new path.",
-            },
-        ],
-    });
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t read `/document/engineering-spec`. This path was redirected to `/document/engineering-plan`. Try calling the `read` tool again with the new path.",
+    );
 });

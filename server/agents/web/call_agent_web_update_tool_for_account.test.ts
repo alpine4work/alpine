@@ -5,9 +5,6 @@ import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiAccountResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -50,40 +47,6 @@ function mockGetAccount(accountId: AccountId, responseData: Omit<ApiAccountRespo
     });
 }
 
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    let string = "";
-
-    for (const segment of displayMessage) {
-        switch (segment.type) {
-            case "Text":
-            case "SensitiveText":
-            case "Link":
-                string += segment.text;
-                break;
-            default:
-                throw exhaustive(segment);
-        }
-    }
-
-    return string;
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw new InternalError("Expected error with display message", {cause: error});
-}
-
 test("throws when updating an account", async () => {
     const accountId = generateId<AccountId>();
 
@@ -108,18 +71,14 @@ test("throws when updating an account", async () => {
         limit: "10kb",
     });
 
-    let error: unknown;
-
-    try {
-        await callAgentWebUpdateTool(context, {
+    await expect(
+        callAgentWebUpdateTool(context, {
             path: "/human/alice-smith",
             updates: [{old: "- Role: Member", new: "- Role: Admin", replaceAll: false}],
-        });
-    } catch (actualError) {
-        error = actualError;
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(error))).toEqual(
-        "Can\u2019t update humans or bots using the `update` tool. Try updating another page instead.",
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/human/alice-smith`. Can\u2019t update humans or bots using " +
+            "the `update` tool. " +
+            "Try updating another page instead.",
     );
 });

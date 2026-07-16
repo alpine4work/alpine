@@ -9,17 +9,7 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import type {ApiAccountResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {
-    ErrorBase,
-    FailedPreconditionError,
-    InternalError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
-import type {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import type {AccountId, BotId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -79,80 +69,6 @@ beforeEach(async () => {
 
 function createTextContent(text: string): ApiContentResponseWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
-}
-
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    let string = "";
-
-    for (const segment of displayMessage) {
-        switch (segment.type) {
-            case "Text":
-            case "SensitiveText":
-                string += segment.text;
-                break;
-            case "Link":
-                string += segment.text;
-                break;
-            default:
-                throw exhaustive(segment);
-        }
-    }
-
-    return string;
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw error;
-}
-
-async function expectFailedPreconditionDisplayMessage({
-    content,
-    expected,
-}: {
-    content: string;
-    expected: string;
-}) {
-    const result = await captureResultPromise(
-        async () => await callAgentWebCreateTool(context, {type: "chat", content}),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected create tool call to throw");
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
-    expect(result.error).toBeInstanceOf(FailedPreconditionError);
-}
-
-async function expectInvalidCreateDisplayMessage({
-    content,
-    expected,
-}: {
-    content: string;
-    expected: string;
-}) {
-    const result = await captureResultPromise(
-        async () => await callAgentWebCreateTool(context, {type: "chat", content}),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected create tool call to throw");
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
-    expect(result.error).toBeInstanceOf(InvalidArgumentError);
 }
 
 function mockCreateDirectChat({
@@ -250,7 +166,7 @@ Chat with [Alice](/human/alice) and [Bob](/human/bob).
 End of messages.`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Alice and Bob Empty](/chat/alice-and-bob-empty).\n",
+        "Create was successful. New chat: [Alice and Bob Empty](/chat/alice-and-bob-empty).",
     );
 
     expect(getCreateChatRequests()).toMatchObject([
@@ -283,7 +199,7 @@ test("creates a direct chat without messages and without the end of messages mar
 Chat with [Alice](/human/alice) and [Bob](/human/bob).`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Alice and Bob Empty](/chat/alice-and-bob-empty).\n",
+        "Create was successful. New chat: [Alice and Bob Empty](/chat/alice-and-bob-empty).",
     );
 
     expect(getCreateChatRequests()).toMatchObject([
@@ -331,7 +247,7 @@ I will summarize the open questions next.
 End of messages.`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Alice and Bob Kickoff](/chat/alice-and-bob-kickoff).\n",
+        "Create was successful. New chat: [Alice and Bob Kickoff](/chat/alice-and-bob-kickoff).",
     );
 
     expect(getCreateChatRequests()).toMatchObject([
@@ -384,7 +300,7 @@ I will summarize the open questions next.
 </message>`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Alice and Bob Kickoff](/chat/alice-and-bob-kickoff).\n",
+        "Create was successful. New chat: [Alice and Bob Kickoff](/chat/alice-and-bob-kickoff).",
     );
 
     expect(getCreateChatRequests()).toMatchObject([
@@ -425,7 +341,7 @@ test("creates a direct chat with messages without the end marker and then messag
 Chat with [Alice](/human/alice) and [Bob](/human/bob).`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Alice and Bob Kickoff](/chat/alice-and-bob-kickoff).\n",
+        "Create was successful. New chat: [Alice and Bob Kickoff](/chat/alice-and-bob-kickoff).",
     );
 
     await expect(
@@ -446,7 +362,7 @@ I can help coordinate the handoff.
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -468,7 +384,7 @@ End of messages.`,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateChatRequests()).toMatchObject([
         {
@@ -498,8 +414,10 @@ End of messages.`,
 });
 
 test("does not create a chat when a new message is from another account", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[Alice](/human/alice)">
@@ -509,16 +427,20 @@ This should fail validation before creating the chat.
 </message>
 
 End of messages.`,
-        expected:
-            'You can only add a `<message>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. " +
+            'You can only add a `<message>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+    );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
 test("does not create a chat when a new message has the wrong id", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="3" from="[ChatGPT](/bot/chatgpt)">
@@ -528,16 +450,20 @@ This should fail validation before creating the chat.
 </message>
 
 End of messages.`,
-        expected:
-            'Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is `0`. Try again with `id="0"`.',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. " +
+            'Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 0. Try again with `id=\\"0\\"`.',
+    );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
 test("does not create a chat when a new message sets time", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)" time="3 minutes later">
@@ -547,16 +473,20 @@ This should fail validation before creating the chat.
 </message>
 
 End of messages.`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. " +
             "You can\u2019t add a `<message>` with a `time` attribute. The creation time of the message will be decided by the server. Try again without the `time` attribute.",
-    });
+    );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
 test("does not create a chat when a reply parent is not found", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
@@ -572,16 +502,20 @@ Replying to a parent that is not in the new chat.
 </message>
 
 End of messages.`,
-        expected:
-            'Couldn\u2019t find `<message id="0">` referenced by `<blockquote cite="?message=0">` on the current page. To create a message that replies to another message, the cited message must be visible on the current page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<message>` you\u2019re replying to is on the same page you\u2019re updating.',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. " +
+            'Couldn\u2019t find `<message id=\\"0\\">` referenced by `<blockquote cite=\\"?message=0\\">` on the current page. To create a message that replies to another message, the cited message must be visible on the current page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<message>` you\u2019re replying to is on the same page you\u2019re updating.',
+    );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
 test("does not create a chat when a later reply parent is not found", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
@@ -603,16 +537,20 @@ Replying to a parent that is not in the new chat.
 </message>
 
 End of messages.`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. " +
             "Couldn\u2019t find the quoted content in `<blockquote>` in the current message page. To create a message that replies to another message you must exactly recreate the content you\u2019re replying to in `<blockquote>` so we can find the corresponding range in the messages on this page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Formatting is flexible when matching content so `**needle**` will match `**foo needle bar**` and `- needle` will match `- foo needle bar` because `**needle**` and `- needle` correctly match the word \u201cneedle\u201d and have the right formatting. Simply `needle` without formatting will also match `**foo needle bar**` and `- foo needle bar` however `_needle_` will match neither because it has incorrect formatting. Your content in `<blockquote>` must be valid markdown so `**foo needle` won\u2019t match `**foo needle bar**` because the formatting (`**`) is unterminated, either `**foo needle**` or `foo needle` (without formatting) will match. Try again but make sure to exactly copy the content you want to reply to in the current message page into a `<blockquote>`.",
-    });
+    );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
 test("does not create a chat when a reply parent omits the author prefix", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
@@ -634,16 +572,20 @@ Replying without an author prefix.
 </message>
 
 End of messages.`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. " +
             "`<blockquote>` content on line 11 must start with a link to the message author followed by a colon. For example: `[John](/human/john-doe): quoted text`. Try again with a link to the message author.",
-    });
+    );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
 test("does not create a chat when a reply parent author prefix is wrong", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
@@ -665,9 +607,11 @@ Replying with the wrong author prefix.
 </message>
 
 End of messages.`,
-        expected:
-            'The `<blockquote>` content starts with `[Alice](...): `, but `<message id="0">` is from \u201CChatGPT\u201D. Try again with `[ChatGPT](...): ` before any other `<blockquote>` content.',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. " +
+            'The `<blockquote>` content starts with `[Alice](...): `, but `<message id=\\"0\\">` is from \u201CChatGPT\u201D. Try again with `[ChatGPT](...): ` before any other `<blockquote>` content.',
+    );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -708,7 +652,9 @@ Replying to an ambiguous parent.
 
 End of messages.`,
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
+    );
 
     expect(getCreateChatRequests()).toHaveLength(1);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
@@ -718,8 +664,10 @@ End of messages.`,
 });
 
 test("does not create a chat when a new reply parent has multiple matches without match", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
@@ -741,9 +689,11 @@ Replying to an ambiguous parent.
 </message>
 
 End of messages.`,
-        expected:
-            '2 matches were found for the quoted content in `<blockquote>` in `<message id="0">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. " +
+            '2 matches were found for the quoted content in `<blockquote>` in `<message id=\\"0\\">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
+    );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -752,11 +702,10 @@ test("uses quote match when creating a reply to repeated new parent content", as
     const chatId = mockCreateDirectChat({title: "Alice and Bob Reply"});
     mockCreateMessages({chatId, count: 1});
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebCreateTool(context, {
-                type: "chat",
-                content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
@@ -778,24 +727,11 @@ Replying to the second match.
 </message>
 
 End of messages.`,
-            }),
+        }),
+    ).resolves.toEqual(
+        // NOCOMMIT: Why is there no "Internal error:" here?
+        "Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
     );
-
-    if (result.ok) {
-        throw new InternalError("Expected create tool call to throw");
-    }
-
-    expect(result.error).toBeInstanceOf(UnimplementedError);
-    expect((result.error as UnimplementedError).cause).toMatchObject({
-        cause: {
-            startMessageIndex: 0,
-            endMessageIndex: 1,
-            range: {
-                start: {type: "Inline", index: 7},
-                end: {type: "Inline", index: 13},
-            },
-        },
-    });
     expect(getCreateChatRequests()).toHaveLength(1);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {content: createTextContent("needle needle")},
@@ -832,7 +768,9 @@ Replying to the message we just created.
 
 End of messages.`,
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
+    );
 
     expect(getCreateChatRequests()).toMatchObject([
         {
@@ -865,7 +803,7 @@ test("creates a room chat without messages", async () => {
 End of messages.`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Incident Launch Empty](/chat/incident-launch-empty).\n",
+        "Create was successful. New chat: [Incident Launch Empty](/chat/incident-launch-empty).",
     );
 
     expect(getCreateChatRequests()).toMatchObject([
@@ -910,7 +848,7 @@ Please post blockers here.
 End of messages.`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Incident Launch Room](/chat/incident-launch-room).\n",
+        "Create was successful. New chat: [Incident Launch Room](/chat/incident-launch-room).",
     );
 
     expect(getCreateChatRequests()).toMatchObject([
@@ -960,7 +898,7 @@ Please post blockers here.
 </message>`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Incident Launch Room](/chat/incident-launch-room).\n",
+        "Create was successful. New chat: [Incident Launch Room](/chat/incident-launch-room).",
     );
 
     expect(getCreateChatRequests()).toMatchObject([
@@ -1006,7 +944,7 @@ I opened this room for launch triage.
 End of messages.`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Incident Launch Updates](/chat/incident-launch-updates).\n",
+        "Create was successful. New chat: [Incident Launch Updates](/chat/incident-launch-updates).",
     );
 
     mockCreateMessages({chatId, count: 2, startIndex: 1});
@@ -1022,7 +960,7 @@ End of messages.`,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {content: createTextContent("I opened this room for launch triage.")},
@@ -1063,7 +1001,7 @@ This second message also has no id attribute.
 End of messages.`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Incident Launch No Ids](/chat/incident-launch-no-ids).\n",
+        "Create was successful. New chat: [Incident Launch No Ids](/chat/incident-launch-no-ids).",
     );
 
     mockCreateMessages({chatId, count: 2, startIndex: 2});
@@ -1079,7 +1017,7 @@ End of messages.`,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {content: createTextContent("I opened this room without an id attribute.")},
@@ -1100,8 +1038,10 @@ test("reports unseen messages when creating message in an existing direct chat",
     const existingChatId = mockCreateDirectChat({title: "Alice and Bob Existing Single"});
     mockCreateMessages({chatId: existingChatId, count: 1, startIndex: 20});
 
-    await expectFailedPreconditionDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
@@ -1111,9 +1051,11 @@ I am following up in the existing direct chat.
 </message>
 
 End of messages.`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. " +
             "Create was successful. Found chat: [Alice and Bob Existing Single](/chat/alice-and-bob-existing-single). The message you added was created, but a chat with Alice and Bob already existed so your message was added to the end of the existing chat. If you want to see the previous messages in the chat before the new message you added then call the `read` tool with `/chat/alice-and-bob-existing-single?before=20`. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
-    });
+    );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {content: createTextContent("I am following up in the existing direct chat.")},
@@ -1124,8 +1066,10 @@ test("reports unseen messages when creating messages in an existing direct chat"
     const existingChatId = mockCreateDirectChat({title: "Alice and Bob Existing Multiple"});
     mockCreateMessages({chatId: existingChatId, count: 2, startIndex: 20});
 
-    await expectFailedPreconditionDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
@@ -1141,9 +1085,11 @@ These should land after the existing history.
 </message>
 
 End of messages.`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create chat. " +
             "Create was successful. Found chat: [Alice and Bob Existing Multiple](/chat/alice-and-bob-existing-multiple). The messages you added were created, but a chat with Alice and Bob already existed so your messages were added to the end of the existing chat. If you want to see the previous messages in the chat before the new messages you added then call the `read` tool with `/chat/alice-and-bob-existing-multiple?before=20`. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
-    });
+    );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {content: createTextContent("I am following up in the existing direct chat.")},

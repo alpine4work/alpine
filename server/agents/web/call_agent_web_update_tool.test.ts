@@ -15,11 +15,7 @@ import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_conten
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {
-    FailedPreconditionError,
-    InvalidArgumentError,
-    NotFoundError,
-} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -175,7 +171,9 @@ async function readFull(path: string): Promise<string> {
 test("throws on empty updates", async () => {
     await expect(
         callAgentWebUpdateTool(context, {path: "/document/anything", updates: []}),
-    ).rejects.toThrow("Assertion failure");
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/anything`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Assertion failure: \\\`updates.length > 0\\\`",
+    );
 });
 
 test("throws NotFoundError when no cached read response exists", async () => {
@@ -184,7 +182,9 @@ test("throws NotFoundError when no cached read response exists", async () => {
             path: "/document/missing",
             updates: [{old: "a", new: "b", replaceAll: false}],
         }),
-    ).rejects.toThrow(NotFoundError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/missing`. Can\u2019t call the `update` tool for a path that hasn\u2019t been read recently. Call the `read` tool with the path `/document/missing` then call the `update` tool again.",
+    );
 });
 
 test("throws NotFoundError when cached read response is expired", async () => {
@@ -205,7 +205,9 @@ test("throws NotFoundError when cached read response is expired", async () => {
             path,
             updates: [{old: "Alpha", new: "Beta", replaceAll: false}],
         }),
-    ).rejects.toThrow(NotFoundError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/expired-update`. Can\u2019t call the `update` tool for a path that hasn\u2019t been read recently. Call the `read` tool with the path `/document/expired-update` then call the `update` tool again.",
+    );
 });
 
 test("throws InvalidArgumentError when old and new are equal", async () => {
@@ -219,7 +221,9 @@ test("throws InvalidArgumentError when old and new are equal", async () => {
             path,
             updates: [{old: "Alpha", new: "Alpha", replaceAll: false}],
         }),
-    ).rejects.toThrow(InvalidArgumentError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/equal-strings`. The `old` string and the `new` string must be different. Instead they\u2019re both \u201CAlpha\u201D.",
+    );
 });
 
 test("throws InvalidArgumentError when old string is empty", async () => {
@@ -233,7 +237,9 @@ test("throws InvalidArgumentError when old string is empty", async () => {
             path,
             updates: [{old: "", new: "Beta", replaceAll: false}],
         }),
-    ).rejects.toThrow(InvalidArgumentError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/empty-old-string`. The `old` string is empty. You must search for some string in the path `/document/empty-old-string`.",
+    );
 });
 
 test("throws for no match when replaceAll is false", async () => {
@@ -247,7 +253,9 @@ test("throws for no match when replaceAll is false", async () => {
             path,
             updates: [{old: "Missing", new: "Beta", replaceAll: false}],
         }),
-    ).rejects.toThrow("Couldn\u2019t find a match for the old string");
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/no-match`. Couldn\u2019t find the `old` string \u201CMissing\u201D. Try again. The `old` string must exactly match existing content, including whitespace, indentation, and line endings.",
+    );
 });
 
 test("throws for multiple matches when replaceAll is false", async () => {
@@ -261,7 +269,9 @@ test("throws for multiple matches when replaceAll is false", async () => {
             path,
             updates: [{old: "repeat", new: "done", replaceAll: false}],
         }),
-    ).rejects.toThrow(FailedPreconditionError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/multiple-matches`. Multiple matches were found for the `old` string \u201Crepeat\u201D. Provide more surrounding context to make the match unique.",
+    );
 });
 
 test("updates exactly one match when replaceAll is false", async () => {
@@ -331,7 +341,9 @@ test("replaceAll true with zero matches throws and keeps cached content unchange
             path,
             updates: [{old: "Missing", new: "Beta", replaceAll: true}],
         }),
-    ).rejects.toThrow("Couldn\u2019t find a match for the old string");
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/replace-all-no-match`. Couldn\u2019t find the `old` string \u201CMissing\u201D. Try again. The `old` string must exactly match existing content, including whitespace, indentation, and line endings.",
+    );
 
     const after = await readFull(path);
     expect(after).toEqual(before);
@@ -453,7 +465,10 @@ test("api patch failure bubbles unchanged and keeps cache unchanged", async () =
                 path,
                 updates: [{old: "Body text.", new: "Updated text.", replaceAll: false}],
             }),
-        ).rejects.toBe(patchError);
+        ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/document/patch-failure\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: PATCH failed`);
     } finally {
         api.patch = originalPatch;
     }
@@ -492,7 +507,9 @@ test("does not extend cache expiration after update", async () => {
 
     await expect(
         callAgentWebScrollTool(context, {path, offset: 1, limit: "200kb"}),
-    ).rejects.toThrow(NotFoundError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t scroll `/document/expiration`. Can\u2019t call the `scroll` tool for a path that hasn\u2019t been read recently. Call the `read` tool with the path `/document/expiration` then call the `scroll` tool again.",
+    );
 });
 
 test("serializes concurrent updates for the same path", async () => {

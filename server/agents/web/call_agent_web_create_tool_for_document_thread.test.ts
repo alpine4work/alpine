@@ -9,16 +9,7 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import type {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {
-    ErrorBase,
-    InternalError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
-import type {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import type {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -80,42 +71,6 @@ function createDocumentContentFromMarkdown(markdown: string): ApiContentResponse
     });
 }
 
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    let string = "";
-
-    for (const segment of displayMessage) {
-        switch (segment.type) {
-            case "Text":
-            case "SensitiveText":
-                string += segment.text;
-                break;
-            case "Link":
-                string += segment.text;
-                break;
-            default:
-                throw exhaustive(segment);
-        }
-    }
-
-    return string;
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw error;
-}
-
 function mockCreateDocument({
     id = generateId<DocumentId>(),
     title,
@@ -163,7 +118,7 @@ async function createAndReadDocument({
 
 ${bodyMarkdown}`,
         }),
-    ).resolves.toEqual(`Create was successful. New document: [${title}](${path}).\n`);
+    ).resolves.toEqual(`Create was successful. New document: [${title}](${path}).`);
 
     mockApiGetDocument(api, {spaceId, documentId, version: 1, title, content});
 
@@ -174,30 +129,13 @@ ${bodyMarkdown}`,
     return {documentId, path};
 }
 
-async function expectInvalidCreateDisplayMessage({
-    content,
-    expected,
-}: {
-    content: string;
-    expected: string;
-}) {
-    const result = await captureResultPromise(
-        async () => await callAgentWebCreateTool(context, {type: "document-thread", content}),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected create tool call to throw");
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
-    expect(result.error).toBeInstanceOf(InvalidArgumentError);
-}
-
 test("rejects creating a document thread for a document path that was not read", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec?not-read=1).
 
 <blockquote>
@@ -211,9 +149,11 @@ Quoted launch requirement.
 Please clarify this requirement.
 
 </comment>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "Can\u2019t create a document comment thread for a document that hasn\u2019t been read recently. Call the `read` tool with the path `/document/launch-spec?not-read=1` then call the `create` tool again.",
-    });
+    );
 });
 
 test("rejects creating a document thread for an expired document read", async () => {
@@ -226,8 +166,10 @@ test("rejects creating a document thread for an expired document read", async ()
 
     import.meta.jest.setSystemTime(new Date(t0.getTime() + 61 * 60 * 1000));
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
@@ -241,16 +183,20 @@ Quoted launch requirement.
 Please clarify this requirement.
 
 </comment>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "Can\u2019t create a document comment thread for a document that hasn\u2019t been read recently. Call the `read` tool with the path `/document/launch-spec` then call the `create` tool again.",
-    });
+    );
 });
 
 test("rejects creating a document thread without a blockquote", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <comment>
@@ -258,16 +204,20 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 Please clarify this requirement.
 
 </comment>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "A `<blockquote>` is required when creating a document comment thread. You must add a `<blockquote>` containing the exact document content you\u2019re commenting after the `Document comment thread on [My Document](/document/my-document).` line at the start of the markdown. Try again and add a `<blockquote>`.",
-    });
+    );
 });
 
 test("rejects creating a comments-only document thread with unresolved state", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
@@ -277,16 +227,20 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 Please clarify this requirement.
 
 </comment>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "`- [ ] Unresolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [ ] Unresolved`.",
-    });
+    );
 });
 
 test("rejects creating a comments-only document thread with resolved state", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [x] Resolved
@@ -296,9 +250,11 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 Please clarify this requirement.
 
 </comment>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "`- [x] Resolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [x] Resolved`.",
-    });
+    );
 });
 
 test.each(["- [x] Resolved", "- [x] Unresolved"])(
@@ -306,8 +262,10 @@ test.each(["- [x] Resolved", "- [x] Unresolved"])(
     async resolvedState => {
         await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-        await expectInvalidCreateDisplayMessage({
-            content: `\
+        await expect(
+            callAgentWebCreateTool(context, {
+                type: "document-thread",
+                content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 ${resolvedState}
@@ -323,17 +281,21 @@ Quoted launch requirement.
 Please clarify this requirement.
 
 </comment>`,
-            expected:
+            }),
+        ).resolves.toEqual(
+            "Error: Couldn\u2019t create document comment thread. " +
                 "You can\u2019t create a document comment thread as resolved. New document comment threads must start unresolved. Try again with `- [ ] Unresolved` or remove `- [x] Resolved` entirely.",
-        });
+        );
     },
 );
 
 test("rejects creating a document thread with a next page link", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec). [Next page \u00bb](/document/launch-spec/comments/1?after=blockquote)
 
 <blockquote>
@@ -347,16 +309,20 @@ Quoted launch requirement.
 Please clarify this requirement.
 
 </comment>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "Can\u2019t add \u201cNext page \u00bb\u201d link when creating comments markdown. Try again without the \u201cNext page \u00bb\u201d link.",
-    });
+    );
 });
 
 test("rejects creating a document thread with only a blockquote", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
@@ -364,16 +330,20 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 Quoted launch requirement.
 
 </blockquote>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "When creating a document comment thread you must include at least one `<comment>` to start the thread. Try again and add a `<comment>` after your `<blockquote>`.",
-    });
+    );
 });
 
 test("rejects creating a document thread with a time marker before the first comment", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
@@ -383,16 +353,20 @@ Quoted launch requirement.
 </blockquote>
 
 <time>May 14th at 11:00am EDT</time>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "Unexpected `<time>`, you can only add `<comment>`s. The creation time of comments will be decided by the server. Try again and remove the new `<time>`.",
-    });
+    );
 });
 
 test("rejects quoted content that is not in the document", async () => {
     await createAndReadDocument({bodyMarkdown: "Existing launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
@@ -406,14 +380,16 @@ Missing launch requirement.
 Please clarify this requirement.
 
 </comment>`,
-        expected:
-            "Couldn\u2019t find the quoted content in `<blockquote>` in `/document/launch-spec`. " +
-            "To create a document comment thread you must exactly recreate the content you\u2019re commenting on in `<blockquote>` so we can find the corresponding range in the document. " +
-            "Formatting is flexible when matching content so `**needle**` will match `**foo needle bar**` and `- needle` will match `- foo needle bar` because `**needle**` and `- needle` correctly match the word \u201cneedle\u201d and have the right formatting. " +
-            "Simply `needle` without formatting will also match `**foo needle bar**` and `- foo needle bar` however `_needle_` will match neither because it has incorrect formatting. " +
-            "Your content in `<blockquote>` must be valid markdown so `**foo needle` won\u2019t match `**foo needle bar**` because the formatting (`**`) is unterminated, either `**foo needle**` or `foo needle` (without formatting) will match. " +
-            "Try again but make sure to exactly copy the content you want to comment in `/document/launch-spec` into a `<blockquote>`.",
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
+            ("Couldn\u2019t find the quoted content in `<blockquote>` in `/document/launch-spec`. " +
+                "To create a document comment thread you must exactly recreate the content you\u2019re commenting on in `<blockquote>` so we can find the corresponding range in the document. " +
+                "Formatting is flexible when matching content so `**needle**` will match `**foo needle bar**` and `- needle` will match `- foo needle bar` because `**needle**` and `- needle` correctly match the word \u201cneedle\u201d and have the right formatting. " +
+                "Simply `needle` without formatting will also match `**foo needle bar**` and `- foo needle bar` however `_needle_` will match neither because it has incorrect formatting. " +
+                "Your content in `<blockquote>` must be valid markdown so `**foo needle` won\u2019t match `**foo needle bar**` because the formatting (`**`) is unterminated, either `**foo needle**` or `foo needle` (without formatting) will match. " +
+                "Try again but make sure to exactly copy the content you want to comment in `/document/launch-spec` into a `<blockquote>`."),
+    );
 });
 
 test("rejects quoted content that matches the document more than once", async () => {
@@ -424,8 +400,10 @@ Repeated launch requirement.
 Repeated launch requirement.`,
     });
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
@@ -439,16 +417,20 @@ Repeated launch requirement.
 Please clarify this requirement.
 
 </comment>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             '2 matches were found for the quoted content in `<blockquote>` in `/document/launch-spec`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
-    });
+    );
 });
 
 test("rejects creating a document thread with a non-integer quote match", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote match="second">
@@ -462,16 +444,20 @@ Quoted launch requirement.
 Please clarify this requirement.
 
 </comment>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             'Invalid `<blockquote>` `match` attribute on line 3. Try again with a 1-indexed integer like `match="2"`.',
-    });
+    );
 });
 
 test("rejects creating a document thread with an out-of-bounds quote match for one match", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote match="2">
@@ -485,9 +471,11 @@ Quoted launch requirement.
 Please clarify this requirement.
 
 </comment>`,
-        expected:
-            'The `<blockquote>` `match` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was `match="2"`. Try again but omit the `match` attribute.',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
+            'The `<blockquote>` `match` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was `match=\\"2\\"`. Try again but omit the `match` attribute.',
+    );
 });
 
 test("uses quote match to choose between repeated document content", async () => {
@@ -516,14 +504,19 @@ Please clarify this requirement.
 
 </comment>`,
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t create document comment thread. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Document comment thread creation API endpoint hasn\u2019t been implemented yet`);
 });
 
 test("rejects creating a document thread with a deleted quote match", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote match="deleted">
@@ -537,9 +530,11 @@ Quoted launch requirement.
 Please clarify this requirement.
 
 </comment>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             'You can\u2019t use `match="deleted"` when creating a document comment thread. `match="deleted"` is only used when reading an unresolved document comment thread whose commented content has been removed from the document. Try again with a 1-indexed integer `match` attribute or omit the `match` attribute.',
-    });
+    );
 });
 
 test("rejects quote match zero as out of bounds for multiple matches", async () => {
@@ -550,8 +545,10 @@ Repeated launch requirement.
 Repeated launch requirement.`,
     });
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote match="0">
@@ -565,16 +562,20 @@ Repeated launch requirement.
 Please clarify this requirement.
 
 </comment>`,
-        expected:
-            'The `<blockquote>` `match` attribute must be between 1 and 2, instead it was `match="0"`. Try again with a valid 1-indexed `match` attribute.',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
+            'The `<blockquote>` `match` attribute must be between 1 and 2, instead it was `match=\\"0\\"`. Try again with a valid 1-indexed `match` attribute.',
+    );
 });
 
 test("rejects a second blockquote after the first comment", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
@@ -594,16 +595,20 @@ Please clarify this requirement.
 Quoted launch requirement.
 
 </blockquote>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "There must be only one `<blockquote>` and it must be placed immediately after the first line which states what document the thread is on (e.g. `Document thread on [My Document](/document/my-document).`). Try again with one `<blockquote>` at the start of the markdown.",
-    });
+    );
 });
 
 test("rejects a time marker after the first comment before creating the thread", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
@@ -619,16 +624,20 @@ Please clarify this requirement.
 </comment>
 
 <time>May 14th at 11:05am EDT</time>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "Unexpected `<time>`, you can only add `<comment>`s. The creation time of comments will be decided by the server. Try again and remove the new `<time>`.",
-    });
+    );
 });
 
 test("rejects an additional comment from another account before creating the thread", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
@@ -648,16 +657,20 @@ Please clarify this requirement.
 Not from the bot.
 
 </comment>`,
-        expected:
-            'You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
+            'You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+    );
 });
 
 test("rejects an additional comment with an incorrect id before creating the thread", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
@@ -677,16 +690,20 @@ Please clarify this requirement.
 Wrong id.
 
 </comment>`,
-        expected:
-            'Invalid `id` attribute for new `<comment>`. The `<comment>` `id` attribute is an integer sequence so the next valid `id` is `1`. Try again with `id="1"`.',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
+            'Invalid `id` attribute for new `<comment>`. The `<comment>` `id` attribute is an integer sequence so the next valid `id` is 1. Try again with `id=\\"1\\"`.',
+    );
 });
 
 test("rejects an additional comment with a time attribute before creating the thread", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
@@ -706,9 +723,11 @@ Please clarify this requirement.
 Server should choose the comment time.
 
 </comment>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create document comment thread. " +
             "You can\u2019t add a `<comment>` with a `time` attribute. The creation time of the comment will be decided by the server. Try again without the `time` attribute.",
-    });
+    );
 });
 
 test("throws UnimplementedError after a valid document thread create reaches creation", async () => {
@@ -732,7 +751,10 @@ Please clarify this requirement.
 
 </comment>`,
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t create document comment thread. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Document comment thread creation API endpoint hasn\u2019t been implemented yet`);
 });
 
 test("throws UnimplementedError after a valid document thread create with explicit unresolved state reaches creation", async () => {
@@ -758,7 +780,10 @@ Please clarify this requirement.
 
 </comment>`,
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t create document comment thread. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Document comment thread creation API endpoint hasn\u2019t been implemented yet`);
 });
 
 test.each([
@@ -795,5 +820,8 @@ Please clarify this requirement.
 
 </comment>`,
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t create document comment thread. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Document comment thread creation API endpoint hasn\u2019t been implemented yet`);
 });

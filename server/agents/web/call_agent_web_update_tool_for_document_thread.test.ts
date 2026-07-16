@@ -16,16 +16,7 @@ import {
     ApiContentResponse,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {
-    ErrorBase,
-    InternalError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -137,65 +128,6 @@ beforeEach(async () => {
         bot: bobAccount.bot,
     });
 });
-
-type UpdateToolUpdate = Parameters<typeof callAgentWebUpdateTool>[1]["updates"][number];
-
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    let string = "";
-
-    for (const segment of displayMessage) {
-        switch (segment.type) {
-            case "Text":
-            case "SensitiveText":
-                string += segment.text;
-                break;
-            case "Link":
-                string += segment.text;
-                break;
-            default:
-                throw exhaustive(segment);
-        }
-    }
-
-    return string;
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw error;
-}
-
-async function expectInvalidUpdateDisplayMessage({
-    path = documentThreadPath,
-    updates,
-    expected,
-}: {
-    path?: string;
-    updates: ReadonlyArray<UpdateToolUpdate>;
-    expected: string;
-}) {
-    const result = await captureResultPromise(
-        async () => await callAgentWebUpdateTool(context, {path, updates}),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected update tool call to throw");
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
-    expect(result.error).toBeInstanceOf(InvalidArgumentError);
-}
 
 function createTextContent(text: string): ApiContentResponseWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
@@ -444,7 +376,7 @@ test("creates the first comment on a document thread", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateCommentRequests().map(request => request.body)).toEqual([
         {
@@ -468,7 +400,7 @@ test("creates comment without author on a document thread", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateCommentRequests().map(request => request.body)).toEqual([
         {
@@ -480,76 +412,96 @@ test("creates comment without author on a document thread", async () => {
 test("rejects edits to the document preview content", async () => {
     await readDocumentThread({totalCommentCount: 0});
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "current", new: "changed", replaceAll: false}],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: documentThreadPath,
+            updates: [{old: "current", new: "changed", replaceAll: false}],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/launch-spec/comments/1`. " +
             "You can\u2019t update the `<blockquote>` in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment. Try again with a more specific update that only changes the content of comments from you or adds new comments. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
-    });
+    );
 });
 
 test("rejects edits to the document preview formatting", async () => {
     await readDocumentThread({totalCommentCount: 0});
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "current",
-                new: "**current**",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: documentThreadPath,
+            updates: [
+                {
+                    old: "current",
+                    new: "**current**",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/launch-spec/comments/1`. " +
             "You can\u2019t update the `<blockquote>` in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment. Try again with a more specific update that only changes the content of comments from you or adds new comments. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
-    });
+    );
 });
 
 test("rejects edits to the document preview match attribute", async () => {
     await readDocumentThread({totalCommentCount: 0});
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "<blockquote>",
-                new: '<blockquote match="2">',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: documentThreadPath,
+            updates: [
+                {
+                    old: "<blockquote>",
+                    new: '<blockquote match="2">',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/launch-spec/comments/1`. " +
             "You can\u2019t update the `<blockquote>` `match` attribute in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment and `match` is added when content in a document is repeated multiple times so you know which instance of the content the comment is for. Try again with a more specific update that only changes the content of comments from you or adds new comments. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
-    });
+    );
 });
 
 test("rejects changing the document preview match attribute", async () => {
     await readDocumentThread({totalCommentCount: 0});
     await addMatchAttributeToStoredDocumentPreview();
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: '<blockquote match="2">',
-                new: '<blockquote match="3">',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: documentThreadPath,
+            updates: [
+                {
+                    old: '<blockquote match="2">',
+                    new: '<blockquote match="3">',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/launch-spec/comments/1`. " +
             "You can\u2019t update the `<blockquote>` `match` attribute in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment and `match` is added when content in a document is repeated multiple times so you know which instance of the content the comment is for. Try again with a more specific update that only changes the content of comments from you or adds new comments. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
-    });
+    );
 });
 
 test("rejects changing which document the document thread belongs to", async () => {
     await readDocumentThread({totalCommentCount: 0});
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "Document comment thread on [Launch Spec](/document/launch-spec).",
-                new: "Document comment thread on [Roadmap](/document/roadmap).",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: documentThreadPath,
+            updates: [
+                {
+                    old: "Document comment thread on [Launch Spec](/document/launch-spec).",
+                    new: "Document comment thread on [Roadmap](/document/roadmap).",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/launch-spec/comments/1`. " +
             "You can only update your `<comment>`s. You can\u2019t change which document the document comment thread belongs to on line 1. Try again with a more specific update that only changes the content of comments from you or adds new comments.",
-    });
+    );
 });
 
 test.each(["- [x] Resolved", "- [x] Unresolved"])(
@@ -568,7 +520,10 @@ test.each(["- [x] Resolved", "- [x] Unresolved"])(
                     },
                 ],
             }),
-        ).rejects.toThrow(UnimplementedError);
+        ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/document/launch-spec/comments/1\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Document comment thread resolve/unresolve API endpoint hasn\u2019t been implemented yet`);
     },
 );
 
@@ -588,7 +543,10 @@ test.each(["- [ ] Resolved", "- [ ] Unresolved"])(
                     },
                 ],
             }),
-        ).rejects.toThrow(UnimplementedError);
+        ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/document/launch-spec/comments/1\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Document comment thread resolve/unresolve API endpoint hasn\u2019t been implemented yet`);
     },
 );
 
@@ -606,7 +564,10 @@ test("throws UnimplementedError when resolving a legacy document thread without 
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/document/launch-spec/comments/1\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Document comment thread resolve/unresolve API endpoint hasn\u2019t been implemented yet`);
 });
 
 test("rejects creating comments before the end of document thread comments", async () => {
@@ -614,34 +575,40 @@ test("rejects creating comments before the end of document thread comments", asy
     const response = await readDocumentThread({path, limit: "650b", totalCommentCount: 20});
     const lastCommentBlock = getLastCommentBlock(response);
 
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: lastCommentBlock,
-                new: `${lastCommentBlock}\n\n<comment from="[ChatGPT](/bot/chatgpt)">\n\nToo early.\n\n</comment>`,
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: lastCommentBlock,
+                    new: `${lastCommentBlock}\n\n<comment from="[ChatGPT](/bot/chatgpt)">\n\nToo early.\n\n</comment>`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
             "You can only add a `<comment>` after all other comments (comments are in chronological order). Look for \u201cEnd of comments\u201d to know when you\u2019re at the end of a comment section. Call the `read` tool with `/document/launch-spec/comments/1?end` to jump to the end of a comment section.",
-    });
+    );
 });
 
 test("rejects creating comments from another account", async () => {
     await readDocumentThread({totalCommentCount: 0});
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "</blockquote>",
-                new: '</blockquote>\n\n<comment from="[Alice](/human/alice)">\n\nNot from the bot.\n\n</comment>',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: documentThreadPath,
+            updates: [
+                {
+                    old: "</blockquote>",
+                    new: '</blockquote>\n\n<comment from="[Alice](/human/alice)">\n\nNot from the bot.\n\n</comment>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/document/launch-spec/comments/1`. You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+    );
 });
 
 test("throws UnimplementedError when updating existing bot comment content", async () => {
@@ -656,5 +623,8 @@ test("throws UnimplementedError when updating existing bot comment content", asy
             path: documentThreadPath,
             updates: [{old: "Bot original", new: "Bot edited", replaceAll: false}],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/document/launch-spec/comments/1\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Message update API endpoint hasn\u2019t been implemented yet`);
 });

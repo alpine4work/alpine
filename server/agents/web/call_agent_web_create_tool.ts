@@ -88,7 +88,7 @@ async function actuallyCallAgentWebCreateTool(
     if (actualType === null) {
         throw new InvalidArgumentError("Can\u2019t create unrecognized `type`", {
             // NOCOMMIT: Include a link to a skill that says all the stuff you can create!
-            displayMessage: errorDisplayMessage`Unrecognized \`type\` ${quote(type)}.`,
+            displayMessage: errorDisplayMessage`Unrecognized type ${quote(type)}.`,
         });
     }
 

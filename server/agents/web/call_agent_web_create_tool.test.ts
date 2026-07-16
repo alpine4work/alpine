@@ -11,7 +11,6 @@ import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -105,7 +104,7 @@ Created with type ${type}.`,
         });
 
         expect(responseString).toEqual(
-            "Create was successful. New document: [Alias Support](/document/alias-support).\n",
+            "Create was successful. New document: [Alias Support](/document/alias-support).",
         );
         expect(api.getCallCount("POST", "/documents")).toBe(1);
     },
@@ -137,7 +136,7 @@ Created after a pathname collision.`,
     });
 
     expect(responseString).toEqual(
-        "Create was successful. New document: [Product Spec](/document/product-spec-2).\n",
+        "Create was successful. New document: [Product Spec](/document/product-spec-2).",
     );
     expect(await context.storage.pageStoredLinkByPathname.get("/document/product-spec")).toEqual({
         type: "Document",
@@ -220,7 +219,7 @@ test("throws for unsupported create types before calling the API", async () => {
 
 Body.`,
         }),
-    ).rejects.toThrow(InvalidArgumentError);
+    ).resolves.toEqual("Error: Couldn\u2019t create. Unrecognized type `spreadsheet`.");
 
     expect(api.getCallCount("POST", "/documents")).toBe(0);
 });

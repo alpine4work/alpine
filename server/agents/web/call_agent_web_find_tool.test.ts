@@ -2,11 +2,6 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {
-    FailedPreconditionError,
-    InvalidArgumentError,
-    NotFoundError,
-} from "~/shared/error/error.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -388,7 +383,9 @@ needle
 });
 
 test("throws NotFoundError when the cached read response does not exist", async () => {
-    await expect(callFindTool({path: "/document/missing"})).rejects.toThrow(NotFoundError);
+    await expect(callFindTool({path: "/document/missing"})).resolves.toEqual(
+        "Error: Couldn\u2019t find pattern in `/document/missing`. Can\u2019t call the `find` tool for a path that hasn\u2019t been read recently. Call the `read` tool with the path `/document/missing` then call the `find` tool again. Or call the `search` tool if you don\u2019t know the exact path where the content you\u2019re looking for is.",
+    );
 });
 
 test("throws NotFoundError when the cached read response is expired", async () => {
@@ -404,7 +401,9 @@ test("throws NotFoundError when the cached read response is expired", async () =
         expirationTime: new Date(now.getTime() - 1),
     });
 
-    await expect(callFindTool({path})).rejects.toThrow(NotFoundError);
+    await expect(callFindTool({path})).resolves.toEqual(
+        "Error: Couldn\u2019t find pattern in `/document/expired`. Can\u2019t call the `find` tool for a path that hasn\u2019t been read recently. Call the `read` tool with the path `/document/expired` then call the `find` tool again. Or call the `search` tool if you don\u2019t know the exact path where the content you\u2019re looking for is.",
+    );
 });
 
 test.each([
@@ -419,7 +418,9 @@ test.each([
         response: "needle\nneedle",
     });
 
-    await expect(callFindTool({path, offset})).rejects.toThrow(FailedPreconditionError);
+    await expect(callFindTool({path, offset})).resolves.toEqual(
+        `Error: Couldn\u2019t find pattern in \`${path}\`. Found 2 matches so \`offset\` must be between 0 and 1. Instead \`offset\` is ${offset}.`,
+    );
 });
 
 test.each([
@@ -431,11 +432,15 @@ test.each([
 
     await seedReadResponse({path, response: "needle"});
 
-    await expect(callFindTool({path, limit})).rejects.toThrow(FailedPreconditionError);
+    await expect(callFindTool({path, limit})).resolves.toEqual(
+        `Error: Couldn\u2019t find pattern in \`${path}\`. \`limit\` must be greater than 0. Instead \`limit\` is ${limit}.`,
+    );
 });
 
 test("throws InvalidArgumentError when the match limit is malformed", async () => {
     await expect(
         callFindTool({path: "/document/anything", matchLimit: "not-a-byte-count"}),
-    ).rejects.toThrow(InvalidArgumentError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t find pattern in `/document/anything`. Couldn\u2019t parse byte count from: \u201Cnot-a-byte-count\u201D. Byte count must be formatted as a number followed by a unit (e.g. 2.4kb) where the acceptable units are \u201Cb\u201D (bytes), \u201Ckb\u201D (kilobytes), \u201Cmb\u201D (megabytes), or \u201Cgb\u201D (gigabytes).",
+    );
 });

@@ -32,17 +32,7 @@ import {
     ApiMessageContentPayloadFileResponse,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {
-    ErrorBase,
-    FailedPreconditionError,
-    InternalError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -99,86 +89,6 @@ beforeEach(async () => {
     });
     assert(chatPathname === chatPath);
 });
-
-type UpdateToolUpdate = Parameters<typeof callAgentWebUpdateTool>[1]["updates"][number];
-
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    let string = "";
-
-    for (const segment of displayMessage) {
-        switch (segment.type) {
-            case "Text":
-            case "SensitiveText":
-                string += segment.text;
-                break;
-            case "Link":
-                string += segment.text;
-                break;
-            default:
-                throw exhaustive(segment);
-        }
-    }
-
-    return string;
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw error;
-}
-
-async function expectInvalidUpdateDisplayMessage({
-    path = chatPath,
-    updates,
-    expected,
-}: {
-    path?: string;
-    updates: ReadonlyArray<UpdateToolUpdate>;
-    expected: string;
-}) {
-    const result = await captureResultPromise(
-        async () => await callAgentWebUpdateTool(context, {path, updates}),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected update tool call to throw");
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
-    expect(result.error).toBeInstanceOf(InvalidArgumentError);
-}
-
-async function expectFailedPreconditionDisplayMessage({
-    path = chatPath,
-    updates,
-    expected,
-}: {
-    path?: string;
-    updates: ReadonlyArray<UpdateToolUpdate>;
-    expected: string;
-}) {
-    const result = await captureResultPromise(
-        async () => await callAgentWebUpdateTool(context, {path, updates}),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected update tool call to throw");
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
-    expect(result.error).toBeInstanceOf(FailedPreconditionError);
-}
 
 function createTextContent(text: string): ApiContentResponseWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
@@ -334,7 +244,7 @@ test("creates the first message in an empty chat", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -358,7 +268,7 @@ test("creates a message without a from attribute", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -388,7 +298,10 @@ test("throws UnimplementedError when creating a message with a file", async () =
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Sending messages with files as agent isn\u2019t implemented yet`);
 
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -416,7 +329,7 @@ test("creates a message with the next valid id after existing messages", async (
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -443,7 +356,7 @@ test("creates multiple messages in one update in order", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -470,7 +383,9 @@ test("allows a later new message to quote an earlier new message", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)",
+    );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -483,17 +398,22 @@ test("reports unseen messages after creating one message in an empty chat", asyn
     await readChat({totalMessageCount: 0});
     mockCreateMessages({count: 1, startIndex: 1});
 
-    await expectFailedPreconditionDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nNew message after unseen message.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nNew message after unseen message.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        // NOCOMMIT: Can we do better at all here? Maybe not call it an "Error"?
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             "Update was successful, the message you added was created. But between the last message you read and the message you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?start`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)",
-    });
+    );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -506,17 +426,21 @@ test("reports unseen messages after creating multiple messages in an empty chat"
     await readChat({totalMessageCount: 0});
     mockCreateMessages({count: 2, startIndex: 1});
 
-    await expectFailedPreconditionDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="0" from="[ChatGPT](/bot/chatgpt)">\n\nFirst new message after unseen message.\n\n</message>\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nSecond new message after unseen message.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="0" from="[ChatGPT](/bot/chatgpt)">\n\nFirst new message after unseen message.\n\n</message>\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nSecond new message after unseen message.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             "Update was successful, the messages you added were created. But between the last message you read and the messages you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?start`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)",
-    });
+    );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -540,17 +464,21 @@ test("reports unseen messages after creating one message with existing messages"
     });
     mockCreateMessages({count: 1, startIndex: 3});
 
-    await expectFailedPreconditionDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\nNew message after unseen existing message.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\nNew message after unseen existing message.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             'Update was successful, the message you added was created. But between the last message you read (`<message id="1">`) and the message you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?after=2`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)',
-    });
+    );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -571,17 +499,21 @@ test("reports unseen messages after creating multiple messages with existing mes
     });
     mockCreateMessages({count: 2, startIndex: 3});
 
-    await expectFailedPreconditionDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\nFirst new message after unseen existing messages.\n\n</message>\n\n<message id="3" from="[ChatGPT](/bot/chatgpt)">\n\nSecond new message after unseen existing messages.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\nFirst new message after unseen existing messages.\n\n</message>\n\n<message id="3" from="[ChatGPT](/bot/chatgpt)">\n\nSecond new message after unseen existing messages.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             'Update was successful, the messages you added were created. But between the last message you read (`<message id="1">`) and the messages you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?after=2`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)',
-    });
+    );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -614,7 +546,7 @@ test("creates a message on the final page when earlier messages are paginated", 
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -654,7 +586,7 @@ test("counts newly-created messages without ids when validating the next id", as
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -684,17 +616,20 @@ test("counts newly-created messages without ids when validating the next id (err
         ],
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="3" from="[ChatGPT](/bot/chatgpt)">\n\nNew message after null id.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is `2`. Try again with `id="2"`.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="3" from="[ChatGPT](/bot/chatgpt)">\n\nNew message after null id.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 2. Try again with `id=\\"2\\"`.',
+    );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -721,17 +656,20 @@ test("counts newly-created messages without ids when validating the next id (err
         ],
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nNew message after null id.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is `2`. Try again with `id="2"`.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nNew message after null id.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 2. Try again with `id=\\"2\\"`.',
+    );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -748,17 +686,21 @@ test("rejects pagination link edits", async () => {
     });
     expect(response).toContain("[Previous page »](/chat/incident-response?before=");
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "?before=3",
-                new: "?before=7",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "?before=3",
+                    new: "?before=7",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             "You can only update your `<message>`s. You can\u2019t update the previous/next page links in the messages markdown. Try again with a more specific update that only changes the content of messages from you or adds new messages.",
-    });
+    );
 });
 
 test("rejects time marker edits", async () => {
@@ -767,17 +709,21 @@ test("rejects time marker edits", async () => {
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "11:00am",
-                new: "12:00pm",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "11:00am",
+                    new: "12:00pm",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             "You can only update your `<message>`s. You can\u2019t update `<time>`s which indicate when previous `<message>`s were sent. Try again with a more specific update that only changes the content of messages from you or adds new messages.",
-    });
+    );
 });
 
 test("rejects edits to messages from another account", async () => {
@@ -787,11 +733,14 @@ test("rejects edits to messages from another account", async () => {
             createMessage({index, author: aliceAccount, content: "Alice original"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "Alice original", new: "Alice edited by ChatGPT", replaceAll: false}],
-        expected:
-            'You can only update your `<message>`s. You can\u2019t update a `<message>` created by Alice. `<message id="0" from="Alice">` was changed by this update. Try again with a more specific update that only changes the content of messages from you or adds new messages.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [{old: "Alice original", new: "Alice edited by ChatGPT", replaceAll: false}],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update your `<message>`s. You can\u2019t update a `<message>` created by Alice. `<message id=\\"0\\" from=\\"Alice\\">` was changed by this update. Try again with a more specific update that only changes the content of messages from you or adds new messages.',
+    );
 });
 
 test("rejects changing an existing bot message into another account\u2019s message", async () => {
@@ -803,17 +752,20 @@ test("rejects changing an existing bot message into another account\u2019s messa
                 : createMessage({index, author: botApiAccount, content: "Bot original"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: '<message id="1" from="[ChatGPT](/bot/chatgpt)" time="5 minutes later">\n\nBot original\n\n</message>',
-                new: '<message id="1" from="[Alice](/human/alice)" time="5 minutes later">\n\nBot original\n\n</message>',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="1">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: '<message id="1" from="[ChatGPT](/bot/chatgpt)" time="5 minutes later">\n\nBot original\n\n</message>',
+                    new: '<message id="1" from="[Alice](/human/alice)" time="5 minutes later">\n\nBot original\n\n</message>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id=\\"1\\">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
+    );
 });
 
 test("rejects edits to existing message metadata", async () => {
@@ -823,17 +775,20 @@ test("rejects edits to existing message metadata", async () => {
             createMessage({index, author: botApiAccount, content: "Bot original"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: 'id="0" from="[ChatGPT',
-                new: 'id="7" from="[ChatGPT',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="0">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: 'id="0" from="[ChatGPT',
+                    new: 'id="7" from="[ChatGPT',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id=\\"0\\">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
+    );
 });
 
 test("rejects edits to an existing bot message blockquote parent", async () => {
@@ -854,17 +809,20 @@ test("rejects edits to an existing bot message blockquote parent", async () => {
                   }),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: '<blockquote cite="?message=0">',
-                new: '<blockquote cite="?message=1">',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="1">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: '<blockquote cite="?message=0">',
+                    new: '<blockquote cite="?message=1">',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id=\\"1\\">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
+    );
 });
 
 test("rejects removing message blocks", async () => {
@@ -878,35 +836,42 @@ test("rejects removing message blocks", async () => {
             }),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: '\n\n<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nMessage 1\n\n</message>',
-                new: "",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: '\n\n<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nMessage 1\n\n</message>',
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             "You can\u2019t remove `<message>`s. If you want to delete one of your `<message>`s, then delete all the content of your `<message>`. You can only delete your own `<message>`s. Try again with a more specific update that only changes the content of messages from you.",
-    });
+    );
 });
 
 test("rejects creating messages before the end of the chat", async () => {
     const path = `${chatPath}?start`;
     await readChat({path, limit: "1kb", totalMessageCount: 31});
 
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "Message 9\n\n</message>",
-                new: 'Message 9\n\n</message>\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nToo early.\n\n</message>',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "Message 9\n\n</message>",
+                    new: 'Message 9\n\n</message>\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nToo early.\n\n</message>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
             "You can only add a `<message>` after all other messages (messages are in chronological order). Look for \u201CEnd of messages\u201D to know when you\u2019re at the end of a message list. Call the `read` tool with `/chat/incident-response?end` to jump to the end of a message list.",
-    });
+    );
 });
 
 test.each([
@@ -932,18 +897,21 @@ test.each([
             return lastMessage;
         }
 
-        await expectInvalidUpdateDisplayMessage({
-            path,
-            updates: [
-                {
-                    old: lastMessage,
-                    new: `${lastMessage}\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nToo early after truncation.\n\n</message>`,
-                    replaceAll: false,
-                },
-            ],
-            expected:
+        await expect(
+            callAgentWebUpdateTool(context, {
+                path: path,
+                updates: [
+                    {
+                        old: lastMessage,
+                        new: `${lastMessage}\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nToo early after truncation.\n\n</message>`,
+                        replaceAll: false,
+                    },
+                ],
+            }),
+        ).resolves.toEqual(
+            `Error: Couldn\u2019t update \`${path}\`. ` +
                 "You can only add a `<message>` after all other messages (messages are in chronological order). Look for \u201CEnd of messages\u201D to know when you\u2019re at the end of a message list. Call the `read` tool with `/chat/incident-response?end` to jump to the end of a message list.",
-        });
+        );
 
         expect(getCreateMessageRequests()).toEqual([]);
     },
@@ -956,17 +924,20 @@ test("rejects creating messages from another account", async () => {
             createMessage({index, author: aliceAccount, content: "Alice original"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message from="[Alice](/human/alice)">\n\nNot from the bot.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'You can only add a `<message>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message from="[Alice](/human/alice)">\n\nNot from the bot.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only add a `<message>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+    );
 });
 
 test("rejects creating messages with an incorrect id", async () => {
@@ -975,17 +946,20 @@ test("rejects creating messages with an incorrect id", async () => {
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="3" from="[ChatGPT](/bot/chatgpt)">\n\nWrong id.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is `1`. Try again with `id="1"`.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="3" from="[ChatGPT](/bot/chatgpt)">\n\nWrong id.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 1. Try again with `id=\\"1\\"`.',
+    );
 });
 
 test("rejects creating messages with a time attribute", async () => {
@@ -994,17 +968,21 @@ test("rejects creating messages with a time attribute", async () => {
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message from="[ChatGPT](/bot/chatgpt)" time="3 minutes later">\n\nServer should choose the time.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message from="[ChatGPT](/bot/chatgpt)" time="3 minutes later">\n\nServer should choose the time.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             "You can\u2019t add a `<message>` with a `time` attribute. The creation time of the message will be decided by the server. Try again without the `time` attribute.",
-    });
+    );
 });
 
 test("rejects creating time markers", async () => {
@@ -1013,17 +991,21 @@ test("rejects creating time markers", async () => {
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: "\n\n<time>May 14th at 11:05am EDT</time>\n\nEnd of messages.",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: "\n\n<time>May 14th at 11:05am EDT</time>\n\nEnd of messages.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             "Unexpected `<time>`, you can only add `<message>`s. The creation time of messages will be decided by the server. Try again and remove the new `<time>`.",
-    });
+    );
 });
 
 test("rejects creating non-message custom blocks", async () => {
@@ -1043,27 +1025,17 @@ test("rejects creating non-message custom blocks", async () => {
         blocks: [{type: "Custom", tagName: "status", timeAttribute: null}],
     };
 
-    const result = await captureResultPromise(
-        async () =>
-            await updateAgentWebMessagingPage(context, {
-                messageNouns: agentWebMessagingPageMessageNouns,
-                pathname: chatPath,
-                room: {type: "Chat", id: chatId},
-                oldPageMetadata: {isStartOfMessages: true, isEndOfMessages: true, messages: []},
-                oldPage,
-                newPage,
-                prepareCustomBlockUpdate: () => ({update: async () => {}}),
-            }),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected update to throw");
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(
-        "Unexpected `<status>`, you can only add `<message>`s. Try again and remove the new `<status>`.",
-    );
-    expect(result.error).toBeInstanceOf(InvalidArgumentError);
+    await expect(
+        updateAgentWebMessagingPage(context, {
+            messageNouns: agentWebMessagingPageMessageNouns,
+            pathname: chatPath,
+            room: {type: "Chat", id: chatId},
+            oldPageMetadata: {isStartOfMessages: true, isEndOfMessages: true, messages: []},
+            oldPage,
+            newPage,
+            prepareCustomBlockUpdate: () => ({update: async () => {}}),
+        }),
+    ).rejects.toThrow("Can only create messages");
 });
 
 test("allows removing the end marker while creating messages", async () => {
@@ -1084,7 +1056,7 @@ test("allows removing the end marker while creating messages", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -1111,7 +1083,7 @@ test("allows removing the end marker while creating messages and then allows cre
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -1124,7 +1096,7 @@ test("allows removing the end marker while creating messages and then allows cre
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {content: createTextContent("Test message 1")},
@@ -1150,7 +1122,7 @@ test("allows removing the end marker while creating messages and then allows cre
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -1163,7 +1135,7 @@ test("allows removing the end marker while creating messages and then allows cre
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {content: createTextContent("Test message 1")},
@@ -1188,25 +1160,28 @@ test("allows removing the end marker without creating messages", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 });
 
 test("rejects adding the end marker to a non-final page", async () => {
     const path = `${chatPath}?start`;
     await readChat({path, limit: "1kb", totalMessageCount: 31});
 
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: '<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nMessage 9\n\n</message>',
-                new: '<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nMessage 9\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: '<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nMessage 9\n\n</message>',
+                    new: '<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nMessage 9\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
             "Can\u2019t add the \u201CEnd of messages\u201D marker in an update. Only a `read` tool call can tell you whether you\u2019re at the end of a message list or not. Try again without adding the \u201CEnd of messages\u201D marker.",
-    });
+    );
 });
 
 test("throws UnimplementedError when updating existing bot message content", async () => {
@@ -1221,7 +1196,10 @@ test("throws UnimplementedError when updating existing bot message content", asy
             path: chatPath,
             updates: [{old: "Bot original", new: "Bot edited", replaceAll: false}],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Message update API endpoint hasn\u2019t been implemented yet`);
 });
 
 test("throws UnimplementedError when updating existing bot message content with unchanged files", async () => {
@@ -1241,7 +1219,10 @@ test("throws UnimplementedError when updating existing bot message content with 
             path: chatPath,
             updates: [{old: "Bot original", new: "Bot edited", replaceAll: false}],
         }),
-    ).rejects.toThrow("Message update API endpoint");
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Message update API endpoint hasn\u2019t been implemented yet`);
 });
 
 test("rejects removing files from an existing bot message", async () => {
@@ -1256,11 +1237,14 @@ test("rejects removing files from an existing bot message", async () => {
             }),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "\n\n![](/file/image.png)", new: "", replaceAll: false}],
-        expected:
-            'You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id="0">` exactly as they appeared.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [{old: "\n\n![](/file/image.png)", new: "", replaceAll: false}],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id=\\"0\\">` exactly as they appeared.',
+    );
 });
 
 test("rejects adding files to an existing bot message", async () => {
@@ -1282,17 +1266,20 @@ test("rejects adding files to an existing bot message", async () => {
         contentLength: 200,
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "![](/file/image.png)",
-                new: `![](/file/image.png)\n\n![](${addedFilePathname})`,
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id="0">` exactly as they appeared.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "![](/file/image.png)",
+                    new: `![](/file/image.png)\n\n![](${addedFilePathname})`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id=\\"0\\">` exactly as they appeared.',
+    );
 });
 
 test("rejects reordering files in an existing bot message", async () => {
@@ -1307,17 +1294,20 @@ test("rejects reordering files in an existing bot message", async () => {
             }),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: '<img src="/file/image.png" />\n<img src="/file/image-2.png" />',
-                new: '<img src="/file/image-2.png" />\n<img src="/file/image.png" />',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id="0">` exactly as they appeared.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: '<img src="/file/image.png" />\n<img src="/file/image-2.png" />',
+                    new: '<img src="/file/image-2.png" />\n<img src="/file/image.png" />',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id=\\"0\\">` exactly as they appeared.',
+    );
 });
 
 test("throws UnimplementedError when deleting existing bot message content", async () => {
@@ -1332,7 +1322,10 @@ test("throws UnimplementedError when deleting existing bot message content", asy
             path: chatPath,
             updates: [{old: "Bot original", new: "", replaceAll: false}],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Message delete API endpoint hasn\u2019t been implemented yet`);
 });
 
 test("throws UnimplementedError when creating a reply with a blockquote parent", async () => {
@@ -1353,7 +1346,10 @@ test("throws UnimplementedError when creating a reply with a blockquote parent",
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Creating message with parent as agent isn\u2019t implemented yet`);
 });
 
 test("throws UnimplementedError when creating a reply to a bullet list item", async () => {
@@ -1384,35 +1380,21 @@ test("throws UnimplementedError when creating a reply to a bullet list item", as
             }),
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: chatPath,
-                updates: [
-                    {
-                        old: "\n\nEnd of messages.",
-                        new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice):\n\n- quoted\n\n</blockquote>\n\nReplying to the parent list item.\n\n</message>\n\nEnd of messages.',
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice):\n\n- quoted\n\n</blockquote>\n\nReplying to the parent list item.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
-    if (result.ok) {
-        throw new InternalError("Expected update tool call to throw");
-    }
-
-    expect(result.error).toMatchObject({
-        cause: {
-            startMessageIndex: 0,
-            endMessageIndex: 1,
-            range: {
-                start: {type: "Inline", key: "bullet-parent", index: 0},
-                end: {type: "Inline", key: "bullet-parent", index: "quoted".length},
-            },
-        },
-    });
-    expect(result.error).toBeInstanceOf(UnimplementedError);
+> Internal error: Creating message with parent as agent isn\u2019t implemented yet`);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
@@ -1423,17 +1405,21 @@ test("rejects creating a reply when the quoted parent content is not found", asy
             createMessage({index, author: aliceAccount, content: "Parent message"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice): Missing parent message\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice): Missing parent message\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             "Couldn\u2019t find the quoted content in `<blockquote>` in the current message page. To create a message that replies to another message you must exactly recreate the content you\u2019re replying to in `<blockquote>` so we can find the corresponding range in the messages on this page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Formatting is flexible when matching content so `**needle**` will match `**foo needle bar**` and `- needle` will match `- foo needle bar` because `**needle**` and `- needle` correctly match the word \u201cneedle\u201d and have the right formatting. Simply `needle` without formatting will also match `**foo needle bar**` and `- foo needle bar` however `_needle_` will match neither because it has incorrect formatting. Your content in `<blockquote>` must be valid markdown so `**foo needle` won\u2019t match `**foo needle bar**` because the formatting (`**`) is unterminated, either `**foo needle**` or `foo needle` (without formatting) will match. Try again but make sure to exactly copy the content you want to reply to in the current message page into a `<blockquote>`.",
-    });
+    );
 
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -1445,17 +1431,20 @@ test("rejects creating a reply when the cited parent message is not on the page"
             createMessage({index, author: aliceAccount, content: "Parent message"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=4">\n\n[Alice](/human/alice): Parent message\n\n</blockquote>\n\nReplying to a parent that is not on this page.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'Couldn\u2019t find `<message id="4">` referenced by `<blockquote cite="?message=4">` on the current page. To create a message that replies to another message, the cited message must be visible on the current page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<message>` you\u2019re replying to is on the same page you\u2019re updating.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=4">\n\n[Alice](/human/alice): Parent message\n\n</blockquote>\n\nReplying to a parent that is not on this page.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. Couldn\u2019t find `<message id=\\"4\\">` referenced by `<blockquote cite=\\"?message=4\\">` on the current page. To create a message that replies to another message, the cited message must be visible on the current page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<message>` you\u2019re replying to is on the same page you\u2019re updating.',
+    );
 
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -1468,17 +1457,20 @@ test("rejects creating a reply when the blockquote author prefix is wrong", asyn
     });
     await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(bobAccount));
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Bob](/human/bob): Parent message\n\n</blockquote>\n\nReplying with the wrong author prefix.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'The `<blockquote>` content starts with `[Bob](...): `, but `<message id="0">` is from \u201CAlice\u201D. Try again with `[Alice](...): ` before any other `<blockquote>` content.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Bob](/human/bob): Parent message\n\n</blockquote>\n\nReplying with the wrong author prefix.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` content starts with `[Bob](...): `, but `<message id=\\"0\\">` is from \u201CAlice\u201D. Try again with `[Alice](...): ` before any other `<blockquote>` content.',
+    );
 
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -1490,17 +1482,20 @@ test("rejects creating a reply when the quoted parent content matches twice in o
             createMessage({index, author: aliceAccount, content: "needle needle"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice): needle\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            '2 matches were found for the quoted content in `<blockquote>` in `<message id="0">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice): needle\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. 2 matches were found for the quoted content in `<blockquote>` in `<message id=\\"0\\">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
+    );
 
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -1512,17 +1507,20 @@ test("rejects creating a reply when the quote match is out of bounds for one mat
             createMessage({index, author: aliceAccount, content: "Parent message"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0" match="2">\n\n[Alice](/human/alice): Parent message\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'The `<blockquote>` `match` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was `match="2"`. Try again but omit the `match` attribute.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0" match="2">\n\n[Alice](/human/alice): Parent message\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` `match` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was `match=\\"2\\"`. Try again but omit the `match` attribute.',
+    );
 
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -1534,17 +1532,20 @@ test("rejects creating a reply when the quote match is out of bounds for multipl
             createMessage({index, author: aliceAccount, content: "needle needle"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0" match="3">\n\n[Alice](/human/alice): needle\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'The `<blockquote>` `match` attribute must be between 1 and 2, instead it was `match="3"`. Try again with a valid 1-indexed `match` attribute.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0" match="3">\n\n[Alice](/human/alice): needle\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` `match` attribute must be between 1 and 2, instead it was `match=\\"3\\"`. Try again with a valid 1-indexed `match` attribute.',
+    );
 
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -1568,35 +1569,21 @@ test("uses quote match when creating a reply to repeated parent content", async 
             }),
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: chatPath,
-                updates: [
-                    {
-                        old: "\n\nEnd of messages.",
-                        new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0" match="2">\n\n[Alice](/human/alice): needle\n\n</blockquote>\n\nReplying to the second match.\n\n</message>\n\nEnd of messages.',
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0" match="2">\n\n[Alice](/human/alice): needle\n\n</blockquote>\n\nReplying to the second match.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
-    if (result.ok) {
-        throw new InternalError("Expected update tool call to throw");
-    }
-
-    expect(result.error).toMatchObject({
-        cause: {
-            startMessageIndex: 0,
-            endMessageIndex: 1,
-            range: {
-                start: {type: "Inline", key: "repeated-parent", index: 7},
-                end: {type: "Inline", key: "repeated-parent", index: 13},
-            },
-        },
-    });
-    expect(result.error).toBeInstanceOf(UnimplementedError);
+> Internal error: Creating message with parent as agent isn\u2019t implemented yet`);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
@@ -1622,7 +1609,10 @@ test("only searches the cited message when creating a reply", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Creating message with parent as agent isn\u2019t implemented yet`);
 
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -1640,17 +1630,20 @@ test("rejects creating a reply when cite overlaps but does not match a merged me
     });
     assert(page.includes('<message id="0-1" from="[Alice](/human/alice)">'));
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=1">\n\n[Alice](/human/alice): Second merged parent.\n\n</blockquote>\n\nReplying to one message inside a merged block.\n\n</message>\n\nEnd of messages.',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'The `<blockquote>` `cite` attribute must exactly match a `<message>` `id` on the current page. `cite="?message=1"` overlaps with `<message id="0-1">`, but doesn\u2019t exactly match it. Try again with `cite="?message=0-1"`.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=1">\n\n[Alice](/human/alice): Second merged parent.\n\n</blockquote>\n\nReplying to one message inside a merged block.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` `cite` attribute must exactly match a `<message>` `id` on the current page. `cite=\\"?message=1\\"` overlaps with `<message id=\\"0-1\\">`, but doesn\u2019t exactly match it. Try again with `cite=\\"?message=0-1\\"`.',
+    );
 
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -1687,39 +1680,21 @@ test("throws UnimplementedError when replying to content spanning a merged messa
     });
     assert(page.includes('<message id="0-1" from="[Alice](/human/alice)">'));
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: chatPath,
-                updates: [
-                    {
-                        old: "\n\nEnd of messages.",
-                        new: `\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0-1">\n\n[Alice](/human/alice): ${firstMergedParentParagraph}\n\n${secondMergedParentParagraph}\n\n</blockquote>\n\nReplying to both merged messages.\n\n</message>\n\nEnd of messages.`,
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected update tool call to throw");
-    }
-
-    expect(result.error).toMatchObject({
-        cause: {
-            startMessageIndex: 0,
-            endMessageIndex: 2,
-            range: {
-                start: {type: "Inline", key: "merged-parent-0", index: 0},
-                end: {
-                    type: "Inline",
-                    key: "merged-parent-1",
-                    index: secondMergedParentParagraph.length,
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: `\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0-1">\n\n[Alice](/human/alice): ${firstMergedParentParagraph}\n\n${secondMergedParentParagraph}\n\n</blockquote>\n\nReplying to both merged messages.\n\n</message>\n\nEnd of messages.`,
+                    replaceAll: false,
                 },
-            },
-        },
-    });
-    expect(result.error).toBeInstanceOf(UnimplementedError);
+            ],
+        }),
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Creating message with parent as agent isn\u2019t implemented yet`);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
@@ -1740,7 +1715,9 @@ test("throws UnimplementedError when creating a message with a timezone attribut
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\\`TimeZone\\\` type hasn\u2019t been implemented",
+    );
 });
 
 test("throws UnimplementedError without creating when updating and creating together", async () => {
@@ -1762,7 +1739,10 @@ test("throws UnimplementedError without creating when updating and creating toge
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Message update API endpoint hasn\u2019t been implemented yet`);
 
     expect(getCreateMessageRequests()).toEqual([]);
 });
@@ -1796,7 +1776,10 @@ test("throws UnimplementedError when updating a cached new message without an id
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Message update API endpoint hasn\u2019t been implemented yet`);
 });
 
 test("throws UnimplementedError when updating a cached new message without a from attribute", async () => {
@@ -1828,7 +1811,10 @@ test("throws UnimplementedError when updating a cached new message without a fro
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Message update API endpoint hasn\u2019t been implemented yet`);
 });
 
 test("allows adding the current account from attribute to a cached message without a from attribute", async () => {
@@ -1860,7 +1846,7 @@ test("allows adding the current account from attribute to a cached message witho
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -1887,15 +1873,18 @@ test("rejects adding another account from attribute to a cached message without 
         ],
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: '<message id="1">',
-                new: '<message id="1" from="[Alice](/human/alice)">',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            'You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="1">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: '<message id="1">',
+                    new: '<message id="1" from="[Alice](/human/alice)">',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id=\\"1\\">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
+    );
 });

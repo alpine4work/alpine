@@ -811,20 +811,22 @@ test("throws on invalid channel search parameters", async () => {
     const cases = [
         {
             query: "before=2026-05-14T15%3A05%3A00.000Z",
-            error: "Unsupported channel page search param",
+            expected:
+                "Error: Couldn\u2019t read `/channel/announcements?before=2026-05-14T15%3A05%3A00.000Z`. Expected only the `?after` URL search param for channel pages. Try again with `?after` or omit pagination search params.",
         },
         {
             query: "after=not-a-cursor",
-            error: "Expected `after` search param to be a cursor",
+            expected:
+                "Error: Couldn\u2019t read `/channel/announcements?after=not-a-cursor`. Expected `?after` URL search param to be an ISO 8601 cursor. Try again with a cursor from a channel page \u201CNext page »\u201D link or omit `?after`.",
         },
     ] as const;
 
-    for (const {query, error} of cases) {
+    for (const {query, expected} of cases) {
         await expect(
             callAgentWebReadTool(context, {
                 path: `/channel/announcements?${query}`,
                 limit: "10kb",
             }),
-        ).rejects.toThrow(error);
+        ).resolves.toEqual(expected);
     }
 });

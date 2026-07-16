@@ -16,16 +16,7 @@ import {
     ApiContentResponse,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {
-    ErrorBase,
-    InternalError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -76,65 +67,6 @@ beforeEach(async () => {
     });
     assert(chatPathname === chatPath);
 });
-
-type UpdateToolUpdate = Parameters<typeof callAgentWebUpdateTool>[1]["updates"][number];
-
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    let string = "";
-
-    for (const segment of displayMessage) {
-        switch (segment.type) {
-            case "Text":
-            case "SensitiveText":
-                string += segment.text;
-                break;
-            case "Link":
-                string += segment.text;
-                break;
-            default:
-                throw exhaustive(segment);
-        }
-    }
-
-    return string;
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw error;
-}
-
-async function expectInvalidUpdateDisplayMessage({
-    path = chatPath,
-    updates,
-    expected,
-}: {
-    path?: string;
-    updates: ReadonlyArray<UpdateToolUpdate>;
-    expected: string;
-}) {
-    const result = await captureResultPromise(
-        async () => await callAgentWebUpdateTool(context, {path, updates}),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected update tool call to throw");
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
-    expect(result.error).toBeInstanceOf(InvalidArgumentError);
-}
 
 function createMessage({
     index,
@@ -267,40 +199,50 @@ test("throws UnimplementedError when converting a direct chat to a room chat", a
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/alice-and-bob\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Convert direct chat to room chat API endpoint hasn\u2019t been implemented`);
 });
 
 test("rejects changing direct chat members", async () => {
     const {path} = await readDirectChat({totalMessageCount: 1});
 
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "Chat with [Alice](/human/alice) and [Bob](/human/bob).",
-                new: "Chat with [Alice](/human/alice).",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "Chat with [Alice](/human/alice) and [Bob](/human/bob).",
+                    new: "Chat with [Alice](/human/alice).",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
             "Can\u2019t add or remove members from a chat. Instead try calling the `create` tool to create a new chat instead. If you must preserve the chat message history then try using the `update` tool to convert this chat into a named chat room by replacing the chat member list with a markdown h1 with the new chat room name. In most cases it\u2019s better to use the `create` tool to create a new chat because converting to a named chat room is an irreversible decision.",
-    });
+    );
 });
 
 test("rejects converting a room chat to a direct chat", async () => {
     await readChat({totalMessageCount: 2});
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "# Incident Response",
-                new: "Chat with [Alice](/human/alice) and [Bob](/human/bob).",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "# Incident Response",
+                    new: "Chat with [Alice](/human/alice) and [Bob](/human/bob).",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             "A named chat room can\u2019t be converted into a direct chat. Try calling the `create` tool to create a new direct chat instead.",
-    });
+    );
 });
 
 test("throws UnimplementedError when renaming a room chat", async () => {
@@ -317,7 +259,10 @@ test("throws UnimplementedError when renaming a room chat", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Update room chat name API endpoint hasn\u2019t been implemented`);
 });
 
 test("rejects preamble edits", async () => {
@@ -326,15 +271,19 @@ test("rejects preamble edits", async () => {
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "# Incident Response",
-                new: "## Incident Response",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "# Incident Response",
+                    new: "## Incident Response",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. " +
             "Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g. `Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).` or for chats with 2+ members `Chat with A, B, and C.`). Chat markdown for named chat rooms must start with a markdown h1 (e.g. `# My Chat Room`). Try again with a proper start to chat markdown on line 1.",
-    });
+    );
 });

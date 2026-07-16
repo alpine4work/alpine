@@ -15,17 +15,7 @@ import type {
     ApiContentResponse,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {
-    ErrorBase,
-    FailedPreconditionError,
-    InternalError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
-import type {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -77,8 +67,6 @@ const context: AgentWebContext = {
     },
 };
 
-type UpdateToolUpdate = Parameters<typeof callAgentWebUpdateTool>[1]["updates"][number];
-
 beforeEach(async () => {
     await storage.deleteAll();
 
@@ -120,94 +108,6 @@ function createTextContentWithKeys(text: string): ApiContentResponse {
             },
         ],
     });
-}
-
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    let string = "";
-
-    for (const segment of displayMessage) {
-        switch (segment.type) {
-            case "Text":
-            case "SensitiveText":
-                string += segment.text;
-                break;
-            case "Link":
-                string += segment.text;
-                break;
-            default:
-                throw exhaustive(segment);
-        }
-    }
-
-    return string;
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw error;
-}
-
-async function expectCreateDisplayMessage({
-    content,
-    expected,
-    ErrorConstructor,
-}: {
-    content: string;
-    expected: string;
-    ErrorConstructor: typeof InvalidArgumentError | typeof FailedPreconditionError;
-}) {
-    const result = await captureResultPromise(
-        async () => await callAgentWebCreateTool(context, {type: "post", content}),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected create tool call to throw");
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
-    expect(result.error).toBeInstanceOf(ErrorConstructor);
-}
-
-async function expectInvalidCreateDisplayMessage({
-    content,
-    expected,
-}: {
-    content: string;
-    expected: string;
-}) {
-    await expectCreateDisplayMessage({content, expected, ErrorConstructor: InvalidArgumentError});
-}
-
-async function expectInvalidUpdateDisplayMessage({
-    path,
-    updates,
-    expected,
-}: {
-    path: string;
-    updates: ReadonlyArray<UpdateToolUpdate>;
-    expected: string;
-}) {
-    const result = await captureResultPromise(
-        async () => await callAgentWebUpdateTool(context, {path, updates}),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected update tool call to throw");
-    }
-
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
-    expect(result.error).toBeInstanceOf(InvalidArgumentError);
 }
 
 function mockCreatePost({
@@ -286,7 +186,7 @@ Launch plan body.
 
 </post>`,
         }),
-    ).resolves.toEqual("Create was successful. New post: [Launch Plan](/post/launch-plan).\n");
+    ).resolves.toEqual("Create was successful. New post: [Launch Plan](/post/launch-plan).");
 
     expect(getCreatePostRequests()).toMatchObject([
         {
@@ -326,7 +226,7 @@ Launch plan body.
 </post>`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New post: [Implicit Author Launch Plan](/post/implicit-author-launch-plan).\n",
+        "Create was successful. New post: [Implicit Author Launch Plan](/post/implicit-author-launch-plan).",
     );
 
     expect(getCreatePostRequests()).toMatchObject([
@@ -370,7 +270,7 @@ Launch plan body.
 
 End of comments.`,
         }),
-    ).resolves.toEqual("Create was successful. New post: [Launch Plan](/post/launch-plan).\n");
+    ).resolves.toEqual("Create was successful. New post: [Launch Plan](/post/launch-plan).");
 
     expect(getCreatePostRequests()).toMatchObject([
         {
@@ -425,7 +325,7 @@ Second launch comment.
 End of comments.`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New post: [Launch Comments](/post/launch-comments).\n",
+        "Create was successful. New post: [Launch Comments](/post/launch-comments).",
     );
 
     expect(getCreatePostRequests()).toMatchObject([
@@ -469,7 +369,7 @@ Launch plan body.
 </post>`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New post: [Launch Update Comments](/post/launch-update-comments).\n",
+        "Create was successful. New post: [Launch Update Comments](/post/launch-update-comments).",
     );
 
     mockCreateComments({postId, indexes: [0, 1]});
@@ -500,7 +400,7 @@ End of comments.`,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getCreateCommentRequests().map(request => request.body)).toEqual([
         {content: createTextContent("First update comment.")},
@@ -542,7 +442,10 @@ Launch plan body.
                 },
             ],
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/post/implicit-author-update\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Post update content API endpoint hasn\u2019t been implemented yet`);
 });
 
 test("allows adding the current account from attribute to a created post without a from attribute", async () => {
@@ -571,7 +474,7 @@ Launch plan body.
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 });
 
 test("rejects adding another account from attribute to a created post without a from attribute", async () => {
@@ -589,23 +492,28 @@ Launch plan body.
 </post>`,
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        path: "/post/implicit-author-other",
-        updates: [
-            {
-                old: "<post>",
-                new: '<post from="[Alice](/human/alice)">',
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/post/implicit-author-other",
+            updates: [
+                {
+                    old: "<post>",
+                    new: '<post from="[Alice](/human/alice)">',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/post/implicit-author-other`. " +
             "You can only update the content of your `<post>`s. Any metadata (the `from`/`timezone` attributes) must be left unchanged. The metadata of the `<post>` was changed by this update. Try again with a more specific update that only changes the content of your post.",
-    });
+    );
 });
 
 test("rejects creating a post without a channel", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
 Post that\u2019s not in any channel.
 
 <post from="[ChatGPT](/bot/chatgpt)">
@@ -613,16 +521,20 @@ Post that\u2019s not in any channel.
 No channel.
 
 </post>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. " +
             "A channel is required when creating a `<post>`. You must add a `Post in [My Channel](/channel/my-channel).` line at the start of the post markdown with the channel you want to create the post in. Try again and add a channel.",
-    });
+    );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
 test("rejects creating a comments page instead of a post", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
 Comments on [post](/post/existing-post).
 
 <comment from="[ChatGPT](/bot/chatgpt)">
@@ -632,16 +544,20 @@ This is not a post.
 </comment>
 
 End of comments.`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. " +
             "A channel is required when creating a `<post>`. You must add a `Post in [My Channel](/channel/my-channel).` line at the start of the post markdown with the channel you want to create the post in. Try again and add a channel.",
-    });
+    );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
 test("rejects creating a post with a next page link", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
 Post in [Announcements](/channel/announcements). [Next page »](/post/existing-post?after=post)
 
 <post from="[ChatGPT](/bot/chatgpt)">
@@ -649,16 +565,20 @@ Post in [Announcements](/channel/announcements). [Next page »](/post/existing-p
 The server should create this as a new post, not a paginated page.
 
 </post>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. " +
             "Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. Try again without the \u201cNext page »\u201d link.",
-    });
+    );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
 test("rejects creating a post with a time marker before the post", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
 Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
@@ -668,16 +588,20 @@ Post in [Announcements](/channel/announcements).
 Server should choose the post time.
 
 </post>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. " +
             "Unexpected `<time>`, you can only add a `<post>`. The creation time of the post will be decided by the server. Try again and remove the new `<time>`.",
-    });
+    );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
 test("rejects creating a post from another account", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
 Post in [Announcements](/channel/announcements).
 
 <post from="[Alice](/human/alice)">
@@ -685,9 +609,11 @@ Post in [Announcements](/channel/announcements).
 Not from the bot.
 
 </post>`,
-        expected:
-            'You can only create a `<post>` as yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. " +
+            'You can only create a `<post>` as yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+    );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
@@ -705,14 +631,18 @@ Timezone is explicit.
 
 </post>`,
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\\`TimeZone\\\` type hasn\u2019t been implemented",
+    );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
 test("rejects creating a comment from another account while creating a post", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
 Post in [Announcements](/channel/announcements).
 
 <post from="[ChatGPT](/bot/chatgpt)">
@@ -728,16 +658,20 @@ Not from the bot.
 </comment>
 
 End of comments.`,
-        expected:
-            'You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. " +
+            'You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+    );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
 test("rejects creating a comment with an incorrect id while creating a post", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
 Post in [Announcements](/channel/announcements).
 
 <post from="[ChatGPT](/bot/chatgpt)">
@@ -753,16 +687,20 @@ Wrong id.
 </comment>
 
 End of comments.`,
-        expected:
-            'Invalid `id` attribute for new `<comment>`. The `<comment>` `id` attribute is an integer sequence so the next valid `id` is `0`. Try again with `id="0"`.',
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. " +
+            'Invalid `id` attribute for new `<comment>`. The `<comment>` `id` attribute is an integer sequence so the next valid `id` is 0. Try again with `id=\\"0\\"`.',
+    );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
 test("rejects creating a comment with a time attribute while creating a post", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
 Post in [Announcements](/channel/announcements).
 
 <post from="[ChatGPT](/bot/chatgpt)">
@@ -778,16 +716,20 @@ Server should choose the comment time.
 </comment>
 
 End of comments.`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. " +
             "You can\u2019t add a `<comment>` with a `time` attribute. The creation time of the comment will be decided by the server. Try again without the `time` attribute.",
-    });
+    );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
 test("rejects creating a time marker after the post while creating a post", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
 Post in [Announcements](/channel/announcements).
 
 <post from="[ChatGPT](/bot/chatgpt)">
@@ -797,9 +739,11 @@ Launch plan body.
 </post>
 
 <time>May 14th at 11:05am EDT</time>`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. " +
             "Unexpected `<time>`, you can only add `<comment>`s. The creation time of comments will be decided by the server. Try again and remove the new `<time>`.",
-    });
+    );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
@@ -808,8 +752,10 @@ test("reports a partial success when created comment indexes are unexpected", as
     const postId = mockCreatePost({title: "Racing Comment"});
     mockCreateComments({postId, indexes: [2]});
 
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
 Post in [Announcements](/channel/announcements).
 
 <post from="[ChatGPT](/bot/chatgpt)">
@@ -825,17 +771,16 @@ Created after another comment.
 </comment>
 
 End of comments.`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. " +
             "Update was successful, the comment you added was created. But between the last comment you read and the comment you created there are some new comments from others you haven\u2019t seen. These new comments may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/post/racing-comment?start`. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
-        ErrorConstructor: FailedPreconditionError,
-    });
+    );
     expect(getCreatePostRequests()).toHaveLength(1);
     expect(getCreateCommentRequests()).toHaveLength(1);
 });
 
 test("throws UnimplementedError when creating a reply comment while creating a post", async () => {
-    mockCreatePost({title: "Reply Comment"});
-
     await expect(
         callAgentWebCreateTool(context, {
             type: "post",
@@ -862,8 +807,10 @@ Replying to the parent.
 
 End of comments.`,
         }),
-    ).rejects.toThrow(UnimplementedError);
-    expect(getCreatePostRequests()).toHaveLength(1);
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t create post. Couldn\u2019t find `<comment id=\\"0\\">` referenced by `<blockquote cite=\\"?comment=0\\">` on the current page. To create a comment that replies to another comment, the cited comment must be visible on the current page. If you\u2019re trying to quote a comment that\u2019s not on this page then call the `read` tool with a larger `limit` so that the comment you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<comment>` you\u2019re replying to is on the same page you\u2019re updating.',
+    );
+    expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
@@ -890,7 +837,9 @@ Timezone is explicit.
 
 End of comments.`,
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create post. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
+    );
     expect(getCreatePostRequests()).toHaveLength(1);
     expect(getCreateCommentRequests()).toEqual([]);
 });

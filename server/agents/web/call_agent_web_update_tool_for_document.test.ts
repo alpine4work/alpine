@@ -11,8 +11,6 @@ import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_conten
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -177,48 +175,6 @@ async function readFull(path: string): Promise<string> {
     return stripEndOfFileSuffix(response);
 }
 
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    return displayMessage.map(segment => segment.text).join("");
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw error;
-}
-
-async function expectInvalidUpdateDisplayMessage({
-    path,
-    updates,
-    expected,
-}: {
-    path: string;
-    updates: Parameters<typeof callAgentWebUpdateTool>[1]["updates"];
-    expected: string;
-}) {
-    let error: unknown;
-
-    try {
-        await callAgentWebUpdateTool(context, {path, updates});
-    } catch (actualError) {
-        error = actualError;
-    }
-
-    if (error === undefined) throw new InternalError("Expected update tool call to throw");
-
-    expect(printDisplayMessage(getDisplayMessage(error))).toEqual(expected);
-}
-
 function expectLastDocumentPatchContent(content: ApiContentResponseWithoutKeys) {
     const patchRequests = getDocumentPatchRequests();
     const lastPatchRequest = patchRequests[patchRequests.length - 1] as any;
@@ -239,7 +195,9 @@ test("parse failure for missing title bubbles and keeps cache unchanged", async 
             path,
             updates: [{old: "# Main Title", new: "Main Title", replaceAll: false}],
         }),
-    ).rejects.toThrow("Missing title in document");
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/main-title`. A title is required for documents. Try again but make sure the document starts with a markdown h1 (e.g. `# My Document`).",
+    );
 
     const after = await readFull(path);
     expect(after).toEqual(before);
@@ -259,7 +217,9 @@ test("parse failure for second h1 bubbles and keeps cache unchanged", async () =
             path,
             updates: [{old: "Body text.", new: "# Extra\n\nBody text.", replaceAll: false}],
         }),
-    ).rejects.toThrow("Documents can only have a single heading level 1");
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/document/main-title`. A document can only have one markdown h1 (e.g. `# My Document`) and the h1 must be placed at the start of the document. You added an additional markdown h1 \u201CExtra\u201D. Try again but remove the additional markdown h1 or make it an h2 (e.g. `## My Sub-heading`).",
+    );
 
     const after = await readFull(path);
     expect(after).toEqual(before);
@@ -275,22 +235,25 @@ test("unseen comment ids in document updates are rejected", async () => {
     const before = await readFull(path);
     const patchRequestCount = getDocumentPatchRequests().length;
 
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "Review this section.",
-                new: '<comment id="1">Review this section.</comment>',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Can only create a new comment thread by using the `create` tool with type " +
-            '`document-thread`. Can\u2019t create a new comment by adding `<comment id="1">` ' +
-            "to the document. Try again by calling the `create` tool with a `type` of " +
-            "`document-thread` and a `<blockquote>` containing the exact content you want to " +
-            "leave a comment on (an `id` for the comment thread will be assigned automatically).",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "Review this section.",
+                    new: '<comment id="1">Review this section.</comment>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
+            ("Can only create a new comment thread by using the `create` tool with type " +
+                '`document-thread`. Can\u2019t create a new comment by adding `<comment id="1">` ' +
+                "to the document. Try again by calling the `create` tool with a `type` of " +
+                "`document-thread` and a `<blockquote>` containing the exact content you want to " +
+                "leave a comment on (an `id` for the comment thread will be assigned automatically)."),
+    );
 
     const after = await readFull(path);
     expect(after).toEqual(before);
@@ -366,22 +329,25 @@ test("rejects new comment ids when existing comment ids are valid", async () => 
     const before = await readFull(path);
     const patchRequestCount = getDocumentPatchRequests().length;
 
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "Beta",
-                new: '<comment id="2">Beta</comment>',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Can only create a new comment thread by using the `create` tool with type " +
-            '`document-thread`. Can\u2019t create a new comment by adding `<comment id="2">` ' +
-            "to the document. Try again by calling the `create` tool with a `type` of " +
-            "`document-thread` and a `<blockquote>` containing the exact content you want to " +
-            "leave a comment on (an `id` for the comment thread will be assigned automatically).",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "Beta",
+                    new: '<comment id="2">Beta</comment>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
+            ("Can only create a new comment thread by using the `create` tool with type " +
+                '`document-thread`. Can\u2019t create a new comment by adding `<comment id="2">` ' +
+                "to the document. Try again by calling the `create` tool with a `type` of " +
+                "`document-thread` and a `<blockquote>` containing the exact content you want to " +
+                "leave a comment on (an `id` for the comment thread will be assigned automatically)."),
+    );
 
     const after = await readFull(path);
     expect(after).toEqual(before);

@@ -375,7 +375,9 @@ test("throws when read response does not exist", async () => {
             offset: 0,
             limit: "10kb",
         }),
-    ).rejects.toThrow("Read response not found or expired");
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t scroll `/document/missing`. Can\u2019t call the `scroll` tool for a path that hasn\u2019t been read recently. Call the `read` tool with the path `/document/missing` then call the `scroll` tool again.",
+    );
 });
 
 test("throws when read response is expired", async () => {
@@ -391,7 +393,9 @@ test("throws when read response is expired", async () => {
             offset: 0,
             limit: "10kb",
         }),
-    ).rejects.toThrow("Read response not found or expired");
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t scroll `/document/expired`. Can\u2019t call the `scroll` tool for a path that hasn\u2019t been read recently. Call the `read` tool with the path `/document/expired` then call the `scroll` tool again.",
+    );
 });
 
 test.each([-1, 1.5, 3])("throws for invalid offset %s", async offset => {
@@ -407,7 +411,9 @@ test.each([-1, 1.5, 3])("throws for invalid offset %s", async offset => {
             offset,
             limit: "10kb",
         }),
-    ).rejects.toThrow("Invalid offset line number");
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t scroll \`/document/offset\`. The \`offset\` line number must be between 0 and 0. Instead \`offset\` is ${offset}.`,
+    );
 });
 
 describe("truncateAgentWebReadResponse", () => {

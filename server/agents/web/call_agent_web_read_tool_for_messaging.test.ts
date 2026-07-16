@@ -668,58 +668,43 @@ End of messages.`);
 });
 
 test("throws on invalid pagination search parameters", async () => {
-    const cases = [
-        {
-            query: "before=abc",
-            error: "Expected `before` search param to be an integer",
-        },
-        {
-            query: "before",
-            error: "Expected `before` search param to be an integer",
-        },
-        {
-            query: "after=-01",
-            error: "Expected `after` search param to be an integer",
-        },
-        {
-            query: "after=01",
-            error: "Expected `after` search param to be an integer",
-        },
-        {
-            query: "message=abc",
-            error: "Expected `message` search param to be an integer or range",
-        },
-        {
-            query: "message=7-4",
-            error: "Expected `message` search param to be an integer or range",
-        },
-        {
-            query: "start=0",
-            error: "Expected `start` search param to be empty",
-        },
-        {
-            query: "end=0",
-            error: "Expected `end` search param to be empty",
-        },
-        {
-            query: "before=3&after=4",
-            error: "Expected only one pagination search param",
-        },
-        {
-            query: "start&end",
-            error: "Expected only one pagination search param",
-        },
+    const queries = [
+        "before=abc",
+        "before",
+        "after=-01",
+        "after=01",
+        "message=abc",
+        "message=7-4",
+        "start=0",
+        "end=0",
+        "before=3&after=4",
+        "start&end",
     ] as const;
 
-    for (const {query, error} of cases) {
+    const responses: Array<string> = [];
+
+    for (const query of queries) {
         mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
-        await expect(
-            callAgentWebReadTool(context, {
+        responses.push(
+            await callAgentWebReadTool(context, {
                 path: `/chat/incident-response?${query}`,
                 limit: "10kb",
             }),
-        ).rejects.toThrow(error);
+        );
     }
+
+    expect(responses).toEqual([
+        "Error: Couldn\u2019t read `/chat/incident-response?before=abc`. Expected `?before` URL search param to be an integer, but got `abc`. Try again with an integer or try omitting `?before`. We recommend using a value for `?before` from a `<message>`\u2019s `id` attribute.",
+        "Error: Couldn\u2019t read `/chat/incident-response?before`. Expected `?before` URL search param to be an integer, but got ``. Try again with an integer or try omitting `?before`. We recommend using a value for `?before`from a`<message>`\u2019s `id` attribute.",
+        "Error: Couldn\u2019t read `/chat/incident-response?after=-01`. Expected `?after` URL search param to be an integer, but got `-01`. Try again with an integer or try omitting `?after`. We recommend using a value for `?after` from a `<message>`\u2019s `id` attribute.",
+        "Error: Couldn\u2019t read `/chat/incident-response?after=01`. Expected `?after` URL search param to be an integer, but got `01`. Try again with an integer or try omitting `?after`. We recommend using a value for `?after` from a `<message>`\u2019s `id` attribute.",
+        "Error: Couldn\u2019t read `/chat/incident-response?message=abc`. Expected `?message` URL search param to be an integer or integer range, but got `abc`. Try again with an integer, an integer range, or try omitting `?message`. We recommend using a value for `?message` from a `<message>`\u2019s `id` attribute.",
+        "Error: Couldn\u2019t read `/chat/incident-response?message=7-4`. Expected `?message` URL search param to be an integer or integer range, but got `7-4`. Try again with an integer, an integer range, or try omitting `?message`. We recommend using a value for `?message` from a `<message>`\u2019s `id` attribute.",
+        "Error: Couldn\u2019t read `/chat/incident-response?start=0`. Expected `?start` URL search param to not have a value, but got `0`. Try again without a value (no `?start=...`, just `?start`).",
+        "Error: Couldn\u2019t read `/chat/incident-response?end=0`. Expected `?end` URL search param to not have a value, but got `0`. Try again without a value (no `?end=...`, just `?end`).",
+        "Error: Couldn\u2019t read `/chat/incident-response?before=3&after=4`. Expected only one of `?before`, `?after`, `?message`, `?start`, or `?end` URL search params. Try again with only one of `?before`, `?after`, `?message`, `?start`, or `?end`. We recommend using a value for `?before`, `?after`, or `?message` from a `<message>`\u2019s `id` attribute.",
+        "Error: Couldn\u2019t read `/chat/incident-response?start&end`. Expected only one of `?before`, `?after`, `?message`, `?start`, or `?end` URL search params. Try again with only one of `?before`, `?after`, `?message`, `?start`, or `?end`. We recommend using a value for `?before`, `?after`, or `?message` from a `<message>`\u2019s `id` attribute.",
+    ]);
 });
 
 test("caches the full chat read response for scroll", async () => {
