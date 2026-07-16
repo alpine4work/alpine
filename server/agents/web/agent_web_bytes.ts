@@ -1,7 +1,7 @@
 import prettyBytes from "pretty-bytes";
-import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
  * Prints a byte count to a string for use by agents.
@@ -50,5 +50,5 @@ export function parseAgentWebBytes(string: string): number {
 }
 
 function createErrorDisplayMessage(string: string) {
-    return errorDisplayMessage`Couldn\u2019t parse byte count from: ${curlyQuote(string)}. Byte count must be formatted as a number followed by a unit (e.g. 2.4kb) where the acceptable units are \u201Cb\u201D (bytes), \u201Ckb\u201D (kilobytes), \u201Cmb\u201D (megabytes), or \u201Cgb\u201D (gigabytes).`;
+    return errorDisplayMessage`Couldn\u2019t parse byte count from: ${quote(string)}. Byte count must be formatted as a number followed by a unit (e.g. 2.4kb) where the acceptable units are \u201Cb\u201D (bytes), \u201Ckb\u201D (kilobytes), \u201Cmb\u201D (megabytes), or \u201Cgb\u201D (gigabytes).`;
 }
