@@ -10,17 +10,18 @@ import type {WorkerActionContext} from "~/server/cloudflare/context/worker_actio
  * It is _not_ a data-authority check — `serviceName` is the signed issuer of the
  * actor's token, so a browser (which arrives re-signed as `EdgeService`) can't
  * forge it, but per-table access is enforced separately in
- * `DatabaseServer.executeAction`. `Test` is unreachable in production (not a
- * signing service). `DatabaseGroupService` is deliberately excluded — nothing
- * self-issues internal requests.
+ * `DatabaseServer.executeAction`. `Test` is trusted only in the test environment.
+ * `DatabaseGroupService` is deliberately excluded — nothing self-issues internal
+ * requests.
  */
 export function isInternalDatabaseServiceActor(actor: WorkerActionContext["actor"]): boolean {
     switch (actor.serviceName) {
         case "AppService":
         case "JobQueueService":
         case "ApiService":
-        case "Test":
             return true;
+        case "Test":
+            return process.env.NODE_ENV === "test";
         default:
             return false;
     }

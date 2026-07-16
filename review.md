@@ -594,19 +594,6 @@ suffix implies the wrong contract.
 Use a distinct suffix such as `Record`, `Handle`, or `Node` for the row-backed database types, and
 rename the scoped base types consistently.
 
-### [ ] Keep the `Test` service bypass test-only
-
-`server/databases/is_internal_database_service_actor.ts:22`
-
-The new provenance gate always treats `serviceName === "Test"` as trusted for internal database
-actions and metadata broadcasts. The established RPC gate at
-`server/rpc/internal/implement_rpcs.ts:169` constrains that bypass to
-`process.env.NODE_ENV === "test"`. Relying on the claim that `Test` is unreachable in production
-leaves the database gate weaker if token or context construction changes.
-
-Require the test environment in this case, or omit `Test` and arrange tests through an already
-trusted service.
-
 ```ts
 // Existing RPC convention
 process.env.NODE_ENV === "test" && context.actor.serviceName === "Test"
