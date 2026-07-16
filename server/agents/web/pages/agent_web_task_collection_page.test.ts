@@ -134,6 +134,40 @@ Color: Red
             },
         },
         {
+            name: "task collection page with a new link-less task",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+- Draft launch brief (Open)
+  - Priority: High
+  - Due date: July 12th, 2027
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [
+                    {
+                        taskId: null,
+                        title: "Draft launch brief",
+                        status: {type: "Open", isActive: false},
+                        parent: null,
+                        subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                        assignee: null,
+                        collections: [],
+                        additionalCollectionsCount: 0,
+                        priority: {type: "High"},
+                        dueDateString: "July 12th, 2027",
+                    },
+                ],
+            },
+        },
+        {
             name: "active task status is parsed case insensitively",
             pageLink: collectionId,
             markdown: `\
@@ -1437,7 +1471,7 @@ Default filters:
                 "after the task collection name.",
         },
         {
-            name: "task list item without a link",
+            name: "link-less task list item without a status",
             pageLink: collectionId,
             markdown: `\
 # Roadmap
@@ -1445,9 +1479,9 @@ Default filters:
 - Write spec
 `,
             parseError:
-                "Unexpected markdown in the task list item on line 3. Try again with a single " +
-                "task link (e.g. `- [My Task (Open)](/task/my-task)`) in each task list item, " +
-                "optionally followed by a nested list of task fields (e.g. `- Priority: Medium`).",
+                "Missing status at the end of task label on line 3. Task labels must end with " +
+                "\u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task " +
+                "like `My Task (Open)`.",
         },
         {
             name: "task list item with extra content after the link",
