@@ -66,8 +66,11 @@ export function quote(
  * codebase.
  */
 function quoteValue(value: string) {
-    // Escapes a bunch of characters like `\n`.
-    value = JSON.stringify(value).slice(1, -1);
+    // Escapes a bunch of characters like `\n`. Except we don't want to escape string
+    // double quotes! Those are totally ok in Markdown inline code.
+    //
+    // eslint-disable-next-line cyberworlds/string-quotes
+    value = JSON.stringify(value).slice(1, -1).replaceAll('\\"', '"');
 
     let sequence = "`";
 
