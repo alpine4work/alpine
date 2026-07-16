@@ -29,8 +29,8 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
  * Convert content from the API back into ProseMirror nodes.
