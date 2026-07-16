@@ -610,12 +610,6 @@ export class DatabaseClient {
         if (anyWritten) {
             this.scheduleInvalidation();
         }
-        // No per-table pager refresh is needed here: the client runs
-        // `locking_mode = NORMAL`, so SQLite re-reads each file's header change counter
-        // (bumped by the replicated write we just applied) at the next transaction and
-        // re-stats via `xFileSize`, observing appended or truncated pages before the
-        // optimistic queue replays. A tombstoned page still misses into a server fallback
-        // through `OpfsDatabaseStorage.readPage` regardless of attach state.
         this.replayOptimisticQueue();
     }
 
