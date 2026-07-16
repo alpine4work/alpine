@@ -1,4 +1,4 @@
-import {parseDate, today} from "@internationalized/date";
+import {today} from "@internationalized/date";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
@@ -6,25 +6,18 @@ import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from
 import {
     getApiMentionTitleWithStrongConsistency,
     getApiTaskMentionTitleWithStrongConsistency,
-    intoApiContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
 import {ApiTaskConverter} from "~/server/api/internal/tasks/internal/api_task_converter.js";
+import {commitTaskPatchesFromApi} from "~/server/api/internal/tasks/internal/commit_task_patches_from_api.js";
 import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
-import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
-import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {getApiTaskNotes} from "~/server/api/internal/tasks/internal/get_api_task_notes.js";
 import {intoApiTaskCollection} from "~/server/api/internal/tasks/internal/into_api_task_collection.js";
 import {loadTasksFromApiQuery} from "~/server/api/internal/tasks/internal/load_tasks_from_api_query.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
-import {
-    updateTaskWithoutNotesFromApi,
-    updateTasksWithoutNotesFromApi,
-} from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
-import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {
@@ -39,9 +32,6 @@ import {
     putTaskCommentMessageApprovalDecisions,
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_messaging.js";
-import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
-import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {fromApiThemeColor} from "~/shared/api/content/closed_source/from_api_theme_color.js";
 import {fromApiTaskQueryFilter} from "~/shared/api/content/closed_source/into_api_task_query_filter.js";
@@ -54,23 +44,17 @@ import {
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
-import {
-    TaskNotesContentProsemirrorSchema,
-    assertTaskNotesContent,
-    emptyTaskNotesContent,
-} from "~/shared/tasks/task_notes_content_schema.js";
 
 export const apiTasksPaths: Pick<
     ApiPaths,
@@ -81,123 +65,44 @@ export const apiTasksPaths: Pick<
         patch: async (context, {requestBody}) => {
             const {spaceId, patches} = requestBody;
 
-            const {updatedTasks, updateEvent, results} = await updateTasksWithoutNotesFromApi(
-                context,
-                {spaceId, patches},
-            );
+            const {tasks, updateEvent, results} = await commitTaskPatchesFromApi(context, {
+                spaceId,
+                patches,
+            });
 
             const converter = new ApiTaskConverter(updateEvent);
 
             return {
                 content: {
                     spaceId,
-                    tasks: updatedTasks.map(task => converter.into(task)),
-                    results: results.map(result => ({type: "Update", result})),
+                    tasks: tasks.map(task => converter.into(task)),
+                    results,
                 },
             };
         },
 
         post: async (context, {requestBody}) => {
             const spaceId = context.actor.getSpaceId();
-            const {task: taskInput} = requestBody;
-            const consistency = "StrongWithinCache" as const;
-            const title = taskInput.title ?? "";
 
-            const notesContent = taskInput.content
-                ? assertTaskNotesContent(
-                      fromApiContent(TaskNotesContentProsemirrorSchema, taskInput.content),
-                  )
-                : undefined;
-
-            const dueDate = taskInput.due ? parseDate(taskInput.due.date) : undefined;
-
-            const taskId = generateId<TaskId>();
-            const accessPolicyPromise = createAccessPolicyForContentCreatedByBot(context, spaceId, {
-                consistency,
+            const {tasks, updateEvent} = await commitTaskPatchesFromApi(context, {
+                spaceId,
+                patches: [{type: "Create", task: requestBody.task}],
             });
 
-            let accessPolicy: LocalAccessPolicy;
+            const task = assertExists(tasks[0]);
 
-            // Attach files referenced in the content before creating the task so there's no
-            // race where a reader sees the task before its files are attached.
-            //
-            // We intentionally keep file attachment in `api_*_paths.ts` instead of moving it
-            // into `createTaskFromApi()`. Attaching files is adjacent to task creation, but it
-            // is not part of the task write itself, and we've agreed this one-off pre-step
-            // does not need to be atomic with the task transaction.
-            if (taskInput.content) {
-                const fileIds = extractFileIdsFromApiContent(taskInput.content);
-                [accessPolicy] = await runAllPromises([
-                    accessPolicyPromise,
-                    runAllPromises(
-                        [...fileIds].map(fileId =>
-                            attachFileToTargetAsBot(
-                                context,
-                                fileId,
-                                FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
-                            ),
-                        ),
-                    ),
-                ]);
-            } else {
-                accessPolicy = await accessPolicyPromise;
-            }
-
-            const [{task, referencedAccounts}, content, resultResult] = await runAllPromises([
-                createTaskFromApi(context, {
-                    taskId,
-                    spaceId,
-                    accessPolicy,
-                    creatorId: taskInput.creator?.id,
-                    title,
-                    notesContent,
-                    assigneeId: taskInput.assignee?.id,
-                    status: taskInput.status,
-                    dueDate,
-                    priority: taskInput.priority?.type,
-                    layout: taskInput.layout ? fromApiTaskLayout(taskInput.layout) : undefined,
-                    parentTaskId: taskInput.parent?.task.id,
-                    collectionIds: taskInput.collections?.map(item => item.collection.id),
-                }),
-                intoApiContentWithReferences(context, {
-                    spaceId,
-                    fileAuthorizer: FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
-                    content: notesContent ?? emptyTaskNotesContent,
-                    contentKeyEncoder: new ApiContentKeyEncoder({
-                        entityId: `Task:${taskId}`,
-                        version: 0,
-                    }),
-                }),
-                // If you don't have access to the parent task or `collectionIds` then
-                // `createTaskFromApi()` will throw and we want to use that error.
-                captureResultPromise(
-                    context.tasks.loadQueries(
-                        // NOCOMMIT: What happens if task exists but in a different space? We should throw
-                        // some kind of error.
-                        context.actor.getSpaceId(),
-                        {
-                            queries: [],
-                            taskIds: taskInput.parent?.task.id ? [taskInput.parent?.task.id] : [],
-                            // NOCOMMIT: Test what happens if you don't have access to the parent task or
-                            // collections?
-                            collectionIds:
-                                taskInput.collections?.map(item => item.collection.id) ?? [],
-                        },
-                        {consistency: "StrongWithinCache"},
-                    ),
-                ),
-            ]);
-
-            const result = unwrapResult(resultResult);
+            // Read the notes back so the response includes the initial notes content committed
+            // with the task.
+            const {notes} = await getApiTaskNotes(context, task.id, {
+                consistency: "StrongWithinCache",
+            });
 
             return {
                 content: {
                     spaceId,
                     task: {
-                        ...new ApiTaskConverter(result.updateEvent).into(task, {
-                            referencedAccounts,
-                        }),
-                        notes: {version: 0, content},
+                        ...new ApiTaskConverter(updateEvent).into(task),
+                        notes,
                     },
                 },
             };
@@ -209,21 +114,24 @@ export const apiTasksPaths: Pick<
             const spaceId = context.actor.getSpaceId();
             const taskId = pathParameters.id;
 
-            const {updatedTask, updateEvent, results} = await updateTaskWithoutNotesFromApi(
-                context,
-                {
-                    spaceId,
-                    taskId,
-                    actorId: requestBody.actor?.id,
-                    patches: requestBody.patches,
-                },
-            );
+            const {tasks, updateEvent, results} = await commitTaskPatchesFromApi(context, {
+                spaceId,
+                actorId: requestBody.actor?.id,
+                patches: requestBody.patches.map(patch => ({
+                    type: "Update",
+                    id: taskId,
+                    patch,
+                })),
+            });
 
             return {
                 content: {
                     spaceId,
-                    task: new ApiTaskConverter(updateEvent).into(updatedTask),
-                    results,
+                    task: new ApiTaskConverter(updateEvent).into(assertExists(tasks[0])),
+                    results: results.map(result => {
+                        assert(result.type === "Update");
+                        return result.result;
+                    }),
                 },
             };
         },
