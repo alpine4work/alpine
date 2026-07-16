@@ -871,11 +871,7 @@ function parseAgentWebTaskQueryPageTaskLabel(
             throw exhaustive(statusText);
     }
 
-    return {
-        taskId: pageLinkResult.pageLink.id,
-        title: statusMatch[1]!,
-        status,
-    };
+    return {title: statusMatch[1]!, status};
 }
 
 export function normalizeAgentWebTaskQueryPage(
