@@ -77,14 +77,33 @@ export interface DatabaseClientConnection {
  * pass an in-memory mock.
  */
 export class DatabaseClient {
+    // The wrapped SQLite database. Every read and optimistic write routes through it;
+    // it reaches pages through `storage` via the OPFS-backed VFS.
     private readonly database: Database;
+    // Durable OPFS-backed page storage the `Database` reads through, and the handle
+    // used to open and enumerate per-table stores.
     private readonly storage: OpfsDatabaseStorage;
+    // The group's OPFS directory. Each table's page store lives in a `{tableId}/`
+    // subdirectory inside it.
     private readonly groupDir: OpfsDirectoryHandle;
+    // Tables the server has confirmed this client may serve locally in the current
+    // connection epoch. `storage`'s read gate rejects any unregistered table,
+    // diverting its reads to a server fallback.
     private readonly registeredTables: Set<DatabaseTableId>;
+    // Working set carried across a disconnect: `beginDisconnectedConnectionEpoch`
+    // moves the registered tables here so `registerTablesAfterReconnect` can
+    // re-register them.
     private tablesToReregister = new Set<DatabaseTableId>();
+    // Bumped on every disconnect. Async work captures it up front and bails if it no
+    // longer matches, so results that span a reconnect are discarded, not applied.
     private connectionEpoch = 0;
+    // Memoizes the one-time lazy enumeration of the group dir's cached table stores.
     private cachedTableIdsPromise: Promise<ReadonlySet<DatabaseTableId>> | undefined;
+    // Optimistic mutations executed locally but not yet confirmed by the server, in
+    // apply order. Replayed on top of realtime page diffs and removed as the server
+    // confirms or rejects each one.
     private optimisticQueue: Array<OptimisticMutation> = [];
+    // Test-only monotonic page version for `commitOptimisticPagesForTests`.
     private nextTestCommitVersion = 0;
     /**
      * The account's per-table access map, pushed by the server: merged from table
