@@ -264,42 +264,6 @@ the same pattern to `writeLoaderPages` and `executeActionViaServer` using the ex
 `openStore()` helper. Keep the main store creation ordered before `Database.create`, but do not
 serialize the remaining independent table opens.
 
-### [x] Fetch table metadata alongside the dependent cursor/page chain
-
-`app/routes/_space.databases.$spaceId.$tableOrViewId.tsx:66`
-
-**Callers affected:** The interactive SSR loader for every database table/view. **Time impact:**
-After `getViewSchema` resolves, the metadata item is independent of the cursor lookup and page
-fetch, but it waits until both Durable Object calls complete. Caleb's merge removes the redundant
-space-to-group lookup and permits a `StrongWithinCache` metadata read, but site-backed policies
-still add another preview fetch to the serial tail. Time-to-first-render remains the sum of the
-cursor/page Durable Object chain and the metadata/site-preview chain. **Cost impact:** No extra
-service calls, but avoidable App Service and Durable Object request occupancy on every table
-navigation.
-
-```ts
-const cursorResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-    name: "getViewRowsPageCursor",
-    input: {tableOrViewId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
-});
-const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-    name: "getViewRowsPage",
-    input: {tableOrViewId, afterCursor: null, endCursor: cursorResult.result.endCursor},
-});
-// Independent once schemaResult supplies tableId, but starts only now.
-const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(
-    context,
-    schemaResult.result.tableId,
-    {consistency: "StrongWithinCache"},
-);
-```
-
-**Recommendation:** After the canonical-URL check, use `runAllPromises()` to run the
-metadata/site-preview chain alongside the cursor-then-page chain. Keep cursor and page ordered
-because the page boundary depends on the cursor. A combined server action that returns
-`{endCursor, rows}` would further remove one Durable Object round trip, but parallelizing the
-independent chain is the smaller change.
-
 ## Call-Site Impact
 
 ### [ ] Filter realtime page diffs by the pages each browser can actually hold
