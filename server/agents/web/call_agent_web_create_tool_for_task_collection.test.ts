@@ -538,7 +538,6 @@ test("creates a task collection with multiple tasks in their written order", asy
             tasks: [launchTask, secondTask],
             results: [
                 {type: "Update", result: {type: "AddCollection"}},
-                {type: "Update", result: {type: "AddCollection"}},
                 {
                     type: "Update",
                     result: {
@@ -546,6 +545,7 @@ test("creates a task collection with multiple tasks in their written order", asy
                         cursor: printApiTaskQueryCursorMock(10),
                     },
                 },
+                {type: "Update", result: {type: "AddCollection"}},
                 {
                     type: "Update",
                     result: {
@@ -594,19 +594,19 @@ test("creates a task collection with multiple tasks in their written order", asy
                     },
                     {
                         type: "Update",
-                        id: secondTask.id,
-                        patch: {
-                            type: "AddCollection",
-                            item: {collection: {id: collectionId}},
-                        },
-                    },
-                    {
-                        type: "Update",
                         id: launchTask.id,
                         patch: {
                             type: "MoveInCollection",
                             collectionId,
                             position: {type: "End"},
+                        },
+                    },
+                    {
+                        type: "Update",
+                        id: secondTask.id,
+                        patch: {
+                            type: "AddCollection",
+                            item: {collection: {id: collectionId}},
                         },
                     },
                     {
