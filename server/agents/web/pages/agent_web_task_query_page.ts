@@ -905,7 +905,7 @@ export async function updateAgentWebTaskQueryPage(
 
     if (!isDeepEqual(oldPage.pagination, newPage.pagination)) {
         throw new InvalidArgumentError("Can\u2019t update task query pagination", {
-            displayMessage: errorDisplayMessage`You can\u2019t update the \u201c${agentWebTaskQueryPageNextPageLinkText}\u201d link in ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown. Try again with a more specific update that leaves the \u201c${agentWebTaskQueryPageNextPageLinkText}\u201d link unchanged.`,
+            displayMessage: errorDisplayMessage`You can\u2019t update the \u201C${agentWebTaskQueryPageNextPageLinkText}\u201D link in ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown. Try again with a more specific update that leaves the \u201C${agentWebTaskQueryPageNextPageLinkText}\u201D link unchanged.`,
         });
     }
 
@@ -914,7 +914,7 @@ export async function updateAgentWebTaskQueryPage(
     // tasks you can't add the end of tasks marker!
     if (oldPageMetadata.beforeCursor !== null && newPage.isEndOfTasks) {
         throw new InvalidArgumentError("Can\u2019t change whether this page is the end of tasks", {
-            displayMessage: errorDisplayMessage`Can\u2019t add the \u201cEnd of tasks\u201d marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a task list or not. Try again without adding the \u201cEnd of tasks\u201d marker.`,
+            displayMessage: errorDisplayMessage`Can\u2019t add the \u201CEnd of tasks\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a task list or not. Try again without adding the \u201CEnd of tasks\u201D marker.`,
         });
     }
 
@@ -1007,7 +1007,7 @@ export async function updateAgentWebTaskQueryPage(
             throw new InvalidArgumentError(
                 "Can\u2019t add tasks in an automatically ordered query",
                 {
-                    displayMessage: errorDisplayMessage`Tasks may only be added to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown when the ${{TaskCollection: errorDisplayMessage`collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[pageLink.type]} sorted manually. ${{TaskCollection: errorDisplayMessage`A collection is`, TaskSubtasks: errorDisplayMessage`Subtasks are`}[pageLink.type]} manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To add tasks to ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[pageLink.type]}, use the \`read\` tool to read an individual task and ${{TaskCollection: errorDisplayMessage`add a collection to the task\u2019s \u201cCollections\u201d field`, TaskSubtasks: errorDisplayMessage`set the parent in the task\u2019s \u201cParent\u201d field`}[pageLink.type]} with the \`update\` tool. Try again without adding new tasks.`,
+                    displayMessage: errorDisplayMessage`Tasks may only be added to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown when the ${{TaskCollection: errorDisplayMessage`collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[pageLink.type]} sorted manually. ${{TaskCollection: errorDisplayMessage`A collection is`, TaskSubtasks: errorDisplayMessage`Subtasks are`}[pageLink.type]} manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To add tasks to ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[pageLink.type]}, use the \`read\` tool to read an individual task and ${{TaskCollection: errorDisplayMessage`add a collection to the task\u2019s \u201CCollections\u201D field`, TaskSubtasks: errorDisplayMessage`set the parent in the task\u2019s \u201CParent\u201D field`}[pageLink.type]} with the \`update\` tool. Try again without adding new tasks.`,
                 },
             );
         }
