@@ -4,6 +4,7 @@ import type {ServerActionContext} from "~/server/context/server_action_context.j
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
 import {resolveDatabaseTableAccessPolicyForDurableObject} from "~/server/databases/data/resolve_database_table_access_policy_for_durable_object.js";
+import type {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
@@ -24,6 +25,8 @@ import type {
     DatabaseViewId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+
+type DatabaseTableMetadataReadConsistency = Exclude<DynamoCacheReadConsistency, "Eventual">;
 
 export async function createDatabaseTable(
     context: ServerActionContext,
@@ -145,9 +148,15 @@ export async function updateDatabaseTableAccessPolicy(
     return {events: [await getEvent(context)]};
 }
 
+/**
+ * Reads and authorizes table metadata. Eventual consistency is intentionally
+ * excluded because the stored access policy is itself part of the authorization
+ * decision; a stale item could preserve revoked access.
+ */
 export async function getDatabaseTableMetadataItem(
     context: ServerActionContext,
     tableId: DatabaseTableId,
+    {consistency}: {consistency: DatabaseTableMetadataReadConsistency},
 ): Promise<RynamoItem<DatabaseTableMetadataModel>> {
     const item = await DatabaseTablesTable.getRealtimeItemIfExists(
         context,
@@ -156,7 +165,7 @@ export async function getDatabaseTableMetadataItem(
             sortRangeType: "Attributes",
             tableId,
         },
-        {consistency: "Strong"},
+        {consistency},
     );
 
     if (item === null) {
@@ -166,7 +175,7 @@ export async function getDatabaseTableMetadataItem(
     await authorizeSpaceAccess(context, spaceId);
     if (
         !(await evaluateAccessPolicy(context, spaceId, item.model.accessPolicy, "View", {
-            consistency: "Strong",
+            consistency,
         }))
     ) {
         throw new PermissionDeniedError(
@@ -180,8 +189,9 @@ export async function getDatabaseTableMetadataItem(
 export async function getDatabaseTableMetadata(
     context: ServerActionContext,
     tableId: DatabaseTableId,
+    options: {consistency: DatabaseTableMetadataReadConsistency},
 ): Promise<DatabaseTableMetadataModel> {
-    return (await getDatabaseTableMetadataItem(context, tableId)).model;
+    return (await getDatabaseTableMetadataItem(context, tableId, options)).model;
 }
 
 export async function getDatabaseTableMetadataRealtimeEvent(
@@ -232,7 +242,7 @@ export async function getDatabaseTableMetadataRealtimeEvent(
                         event.item.model.spaceId,
                         event.item.model.accessPolicy,
                         "View",
-                        {consistency: "Strong"},
+                        {consistency: "StrongWithinCache"},
                     );
                     break;
                 }
@@ -259,7 +269,9 @@ export async function getDatabaseTableMetadataForSearchIndex(
     context: ServerActionContext,
     tableId: DatabaseTableId,
 ): Promise<DatabaseTableMetadataModel> {
-    return await getDatabaseTableMetadata(context, tableId);
+    return await getDatabaseTableMetadata(context, tableId, {
+        consistency: "StrongWithinCache",
+    });
 }
 
 export async function syncDatabaseTableMetadataToDurableObject(

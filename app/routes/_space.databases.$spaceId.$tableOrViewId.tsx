@@ -79,6 +79,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(
         context,
         schemaResult.result.tableId,
+        {consistency: "StrongWithinCache"},
     );
     const accessPolicy = tableMetadataItem.model.accessPolicy;
     const accessPolicySiteById =

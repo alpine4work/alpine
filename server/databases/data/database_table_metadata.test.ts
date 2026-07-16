@@ -142,7 +142,9 @@ test("database table realtime events cannot cross database groups", async () => 
         name: "Projects",
         accessPolicy,
     });
-    const item = await getDatabaseTableMetadataItem(session.action(), tableId);
+    const item = await getDatabaseTableMetadataItem(session.action(), tableId, {
+        consistency: "StrongWithinCache",
+    });
 
     await expect(
         getDatabaseTableMetadataRealtimeEvent(session.action(), otherDatabaseGroupId, [

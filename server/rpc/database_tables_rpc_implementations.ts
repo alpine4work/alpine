@@ -29,6 +29,7 @@ export default implementRpcs(definitions, {
                 item: await getDatabaseTableMetadataItem(
                     context.actor.authorizeSession(),
                     input.tableId,
+                    {consistency: "Strong"},
                 ),
             };
         },

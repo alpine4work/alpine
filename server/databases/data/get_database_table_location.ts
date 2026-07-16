@@ -7,14 +7,24 @@ export async function getDatabaseTableLocation(
     context: ServerActionContext,
     tableId: DatabaseTableId,
 ): Promise<{databaseGroupId: DatabaseGroupId; spaceId: SpaceId}> {
-    const item = await DatabaseTablesTable.getItemIfExists(
+    let item = await DatabaseTablesTable.getItemIfExists(
         context,
         {partitionType: "Table", sortRangeType: "Attributes", tableId},
-        {consistency: "Strong"},
+        {consistency: "Eventual", allowsEventualReadConsistency: true},
     );
 
+    // Location attributes never change. An eventual hit is authoritative, but a miss
+    // may be replication lag immediately after creation and needs a strong retry.
     if (item === null) {
-        throw new NotFoundError(`Database table ${tableId} not found`);
+        item = await DatabaseTablesTable.getItemIfExists(
+            context,
+            {partitionType: "Table", sortRangeType: "Attributes", tableId},
+            {consistency: "Strong"},
+        );
+
+        if (item === null) {
+            throw new NotFoundError(`Database table ${tableId} not found`);
+        }
     }
 
     return {
