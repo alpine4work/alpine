@@ -4874,6 +4874,13 @@ components:
                     const: Create
                 task:
                     $ref: "#/components/schemas/TaskCreateRequest"
+                # Allows applying additional patches to the task at the same time as when we
+                # create the task. Importantly, we should be able to move the task using
+                # `MoveInCollection` or `MoveInParent` at the same time as we add the patch.
+                patches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskPatch"
 
         TaskBatchUpdatePatch:
             type: object
@@ -4889,17 +4896,17 @@ components:
 
         TaskBatchPatchResult:
             oneOf:
-                - $ref: "#/components/schemas/TaskCreateBatchPatchResult"
-                - $ref: "#/components/schemas/TaskUpdateBatchPatchResult"
+                - $ref: "#/components/schemas/TaskBatchCreatePatchResult"
+                - $ref: "#/components/schemas/TaskBatchUpdatePatchResult"
             discriminator:
                 propertyName: type
                 mapping:
-                    Create: "#/components/schemas/TaskCreateBatchPatchResult"
-                    Update: "#/components/schemas/TaskUpdateBatchPatchResult"
+                    Create: "#/components/schemas/TaskBatchCreatePatchResult"
+                    Update: "#/components/schemas/TaskBatchUpdatePatchResult"
 
-        TaskCreateBatchPatchResult:
+        TaskBatchCreatePatchResult:
             type: object
-            required: [type]
+            required: [type, task, results]
             additionalProperties: false
             properties:
                 type:
@@ -4911,8 +4918,12 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/TaskId"
+                results:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskPatchResult"
 
-        TaskUpdateBatchPatchResult:
+        TaskBatchUpdatePatchResult:
             type: object
             required: [type, result]
             additionalProperties: false

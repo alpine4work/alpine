@@ -4657,6 +4657,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Create";
                 readonly task: components["schemas"]["TaskCreateRequest"];
+                readonly patches?: readonly components["schemas"]["TaskPatch"][];
             };
             readonly TaskBatchUpdatePatch: {
                 /**
@@ -4668,19 +4669,20 @@ export namespace ApiSpecification {
                 readonly patch: components["schemas"]["TaskPatch"];
             };
             readonly TaskBatchPatchResult:
-                | components["schemas"]["TaskCreateBatchPatchResult"]
-                | components["schemas"]["TaskUpdateBatchPatchResult"];
-            readonly TaskCreateBatchPatchResult: {
+                | components["schemas"]["TaskBatchCreatePatchResult"]
+                | components["schemas"]["TaskBatchUpdatePatchResult"];
+            readonly TaskBatchCreatePatchResult: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Create";
-                readonly task?: {
+                readonly task: {
                     readonly id: components["schemas"]["TaskId"];
                 };
+                readonly results: readonly components["schemas"]["TaskPatchResult"][];
             };
-            readonly TaskUpdateBatchPatchResult: {
+            readonly TaskBatchUpdatePatchResult: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -6570,6 +6572,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Create";
                 readonly task: components["schemas"]["TaskCreateRequest_Response"];
+                readonly patches?: readonly components["schemas"]["TaskPatch_Response"][];
             };
             readonly TaskAddCollectionPatch_Response: {
                 /**

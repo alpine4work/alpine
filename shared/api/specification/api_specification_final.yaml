@@ -5578,6 +5578,10 @@ components:
                     const: Create
                 task:
                     $ref: "#/components/schemas/TaskCreateRequest"
+                patches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskPatch"
         TaskBatchUpdatePatch:
             type: object
             required:
@@ -5594,17 +5598,19 @@ components:
                     $ref: "#/components/schemas/TaskPatch"
         TaskBatchPatchResult:
             oneOf:
-                - $ref: "#/components/schemas/TaskCreateBatchPatchResult"
-                - $ref: "#/components/schemas/TaskUpdateBatchPatchResult"
+                - $ref: "#/components/schemas/TaskBatchCreatePatchResult"
+                - $ref: "#/components/schemas/TaskBatchUpdatePatchResult"
             discriminator:
                 propertyName: type
                 mapping:
-                    Create: "#/components/schemas/TaskCreateBatchPatchResult"
-                    Update: "#/components/schemas/TaskUpdateBatchPatchResult"
-        TaskCreateBatchPatchResult:
+                    Create: "#/components/schemas/TaskBatchCreatePatchResult"
+                    Update: "#/components/schemas/TaskBatchUpdatePatchResult"
+        TaskBatchCreatePatchResult:
             type: object
             required:
                 - type
+                - task
+                - results
             additionalProperties: false
             properties:
                 type:
@@ -5617,7 +5623,11 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/TaskId"
-        TaskUpdateBatchPatchResult:
+                results:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskPatchResult"
+        TaskBatchUpdatePatchResult:
             type: object
             required:
                 - type
@@ -9399,6 +9409,10 @@ components:
                     const: Create
                 task:
                     $ref: "#/components/schemas/TaskCreateRequest_Response"
+                patches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskPatch_Response"
         TaskAddCollectionPatch_Response:
             type: object
             required:

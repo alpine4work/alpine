@@ -445,11 +445,11 @@ export type ApiTaskBatchUpdatePatch =
 export type ApiTaskBatchPatchResult =
     ApiSpecification.components["schemas"]["TaskBatchPatchResult"];
 
-export type ApiTaskCreateBatchPatchResult =
-    ApiSpecification.components["schemas"]["TaskCreateBatchPatchResult"];
+export type ApiTaskBatchCreatePatchResult =
+    ApiSpecification.components["schemas"]["TaskBatchCreatePatchResult"];
 
-export type ApiTaskUpdateBatchPatchResult =
-    ApiSpecification.components["schemas"]["TaskUpdateBatchPatchResult"];
+export type ApiTaskBatchUpdatePatchResult =
+    ApiSpecification.components["schemas"]["TaskBatchUpdatePatchResult"];
 
 export type ApiTaskCollectionPatch = ApiSpecification.components["schemas"]["TaskCollectionPatch"];
 
