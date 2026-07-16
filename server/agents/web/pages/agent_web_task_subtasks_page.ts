@@ -25,7 +25,7 @@ import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdo
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {
     ApiTaskReferenceResponse,
-    ApiTaskWithoutNotesResponse,
+    ApiTaskResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -60,66 +60,66 @@ export async function readAgentWebTaskSubtasksPage(
         printPage: (page: AgentWebTaskSubtasksPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebTaskSubtasksPageMetadata}> {
-    const result = await readAgentWebTaskQueryPage<
-        ApiTaskWithoutNotesResponse,
-        AgentWebTaskSubtasksPage
-    >(context, {
-        pageLink: {type: "TaskSubtasks", task: {id: taskId}},
-        searchParams,
-        limitLength,
-        readTaskBatch: async ({cursor, query, limit}) => {
-            const tasksResult =
-                query.filters.length === 0 && query.sorts.length === 0
-                    ? await context.api.get(context.span, "/tasks/{id}/subtasks", {
-                          params: {path: {id: taskId}, query: {limit, cursor}},
-                      })
-                    : await context.api.post(context.span, "/tasks/{id}/subtasks-query", {
-                          params: {path: {id: taskId}},
-                          body: {
-                              limit,
-                              cursor,
-                              filters: query.filters,
-                              sorts: query.sorts,
-                          },
-                      });
+    const result = await readAgentWebTaskQueryPage<ApiTaskResponse, AgentWebTaskSubtasksPage>(
+        context,
+        {
+            pageLink: {type: "TaskSubtasks", task: {id: taskId}},
+            searchParams,
+            limitLength,
+            readTaskBatch: async ({cursor, query, limit}) => {
+                const tasksResult =
+                    query.filters.length === 0 && query.sorts.length === 0
+                        ? await context.api.get(context.span, "/tasks/{id}/subtasks", {
+                              params: {path: {id: taskId}, query: {limit, cursor}},
+                          })
+                        : await context.api.post(context.span, "/tasks/{id}/subtasks-query", {
+                              params: {path: {id: taskId}},
+                              body: {
+                                  limit,
+                                  cursor,
+                                  filters: query.filters,
+                                  sorts: query.sorts,
+                              },
+                          });
 
-            return {
-                pageLink: {
-                    type: "TaskSubtasks",
-                    task: {
-                        type: "Task",
-                        id: taskId,
-                        title: tasksResult.data.task.title,
-                        status: tasksResult.data.task.status,
+                return {
+                    pageLink: {
+                        type: "TaskSubtasks",
+                        task: {
+                            type: "Task",
+                            id: taskId,
+                            title: tasksResult.data.task.title,
+                            status: tasksResult.data.task.status,
+                        },
                     },
-                },
-                resource: tasksResult.data.task,
-                isManuallyOrdered: query.filters.length === 0 && query.sorts.length === 0,
-                nextCursor: tasksResult.data.nextCursor,
-                tasks: tasksResult.data.tasks,
-            };
-        },
-        intoPageTask: ({task, contextDate}) =>
-            intoAgentWebTaskQueryPageTask({
-                timeZone: context.timeZone,
-                contextDate,
-                // We know all the tasks are children of our parent task. So don't include the
-                // `- Parent` field.
-                omittedParentTaskId: taskId,
-                task,
-            }),
-        buildPage: ({queryPage, resource: task}): AgentWebTaskSubtasksPage => ({
-            type: "TaskSubtasks",
-            task: {
-                type: "Task",
-                id: task.id,
-                title: task.title,
-                status: task.status,
+                    resource: tasksResult.data.task,
+                    isManuallyOrdered: query.filters.length === 0 && query.sorts.length === 0,
+                    nextCursor: tasksResult.data.nextCursor,
+                    tasks: tasksResult.data.tasks,
+                };
             },
-            ...queryPage,
-        }),
-        printPage,
-    });
+            intoPageTask: ({task, contextDate}) =>
+                intoAgentWebTaskQueryPageTask({
+                    timeZone: context.timeZone,
+                    contextDate,
+                    // We know all the tasks are children of our parent task. So don't include the
+                    // `- Parent` field.
+                    omittedParentTaskId: taskId,
+                    task,
+                }),
+            buildPage: ({queryPage, resource: task}): AgentWebTaskSubtasksPage => ({
+                type: "TaskSubtasks",
+                task: {
+                    type: "Task",
+                    id: task.id,
+                    title: task.title,
+                    status: task.status,
+                },
+                ...queryPage,
+            }),
+            printPage,
+        },
+    );
 
     return {
         response: result.response,

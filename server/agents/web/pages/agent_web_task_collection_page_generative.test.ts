@@ -10,7 +10,7 @@ import {
 import {
     AgentWebTaskQueryPagePaginationArbitrary,
     AgentWebTaskQueryPageQueryArbitrary,
-    AgentWebTaskQueryPageTasksArbitrary,
+    AgentWebTaskQueryPageUniqueTasksArbitrary,
 } from "~/server/agents/web/test_helpers/agent_web_task_query_page_arbitrary.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {
@@ -45,7 +45,7 @@ const AgentWebTaskCollectionHeadPageArbitrary: Arbitrary<AgentWebTaskCollectionP
         {weight: 2, arbitrary: fc.constant(null)},
         {weight: 1, arbitrary: AgentWebTaskQueryPagePaginationArbitrary},
     ),
-    tasks: AgentWebTaskQueryPageTasksArbitrary,
+    tasks: AgentWebTaskQueryPageUniqueTasksArbitrary,
     isEndOfTasks: fc.boolean(),
 });
 
@@ -57,7 +57,7 @@ const AgentWebTaskCollectionTailPageArbitrary: Arbitrary<AgentWebTaskCollectionP
         {weight: 2, arbitrary: fc.constant(null)},
         {weight: 1, arbitrary: AgentWebTaskQueryPagePaginationArbitrary},
     ),
-    tasks: AgentWebTaskQueryPageTasksArbitrary,
+    tasks: AgentWebTaskQueryPageUniqueTasksArbitrary,
     isEndOfTasks: fc.boolean(),
 });
 

@@ -136,6 +136,36 @@ End of tasks.
             },
         },
         {
+            name: "task subtasks page with a new link-less task",
+            pageLink: parentTaskReference.id,
+            markdown: `\
+Subtasks for [Plan launch (Open)](/task/plan-launch).
+
+- Draft launch brief (Closed)
+  - Priority: Medium
+`,
+            page: {
+                type: "TaskSubtasks",
+                task: parentTaskReference,
+                pagination: null,
+                tasks: [
+                    {
+                        taskId: null,
+                        title: "Draft launch brief",
+                        status: {type: "Closed"},
+                        parent: null,
+                        subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                        assignee: null,
+                        collections: [],
+                        additionalCollectionsCount: 0,
+                        priority: {type: "Medium"},
+                        dueDateString: null,
+                    },
+                ],
+                isEndOfTasks: false,
+            },
+        },
+        {
             name: "task subtasks preamble without a period",
             pageLink: parentTaskReference.id,
             markdown: `\

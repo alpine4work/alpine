@@ -47,6 +47,10 @@ const AgentWebTaskQueryPageTaskArbitrary: Arbitrary<AgentWebTaskQueryPageTask> =
     .tuple(
         fc.record({
             task: ApiTaskReferenceArbitrary,
+            isLinked: fc.oneof(
+                {weight: 10, arbitrary: fc.constant(true)},
+                {weight: 1, arbitrary: fc.constant(false)},
+            ),
             parent: fc.oneof(ApiTaskReferenceArbitrary, fc.constant(null)),
             subtasks: fc.record({
                 openTaskCount: fc.nat({max: 20}),
@@ -62,10 +66,10 @@ const AgentWebTaskQueryPageTaskArbitrary: Arbitrary<AgentWebTaskQueryPageTask> =
         AgentWebTaskQueryPageTaskCollectionsArbitrary,
     )
     .map(([pageTask, collections]) => {
-        const {task, ...fields} = pageTask;
+        const {task, isLinked, ...fields} = pageTask;
 
         return {
-            taskId: task.id,
+            taskId: isLinked ? task.id : null,
             title: task.title,
             status: task.status,
             ...fields,
@@ -73,55 +77,11 @@ const AgentWebTaskQueryPageTaskArbitrary: Arbitrary<AgentWebTaskQueryPageTask> =
         };
     });
 
-function canonicalizeAgentWebTaskQueryPageReference<Reference extends {readonly id: string}>(
-    referenceById: Map<string, Reference>,
-    reference: Reference,
-): Reference {
-    const canonicalReference = referenceById.get(reference.id);
-    if (canonicalReference !== undefined) return canonicalReference;
-
-    referenceById.set(reference.id, reference);
-    return reference;
-}
-
-export const AgentWebTaskQueryPageTasksArbitrary: Arbitrary<
+export const AgentWebTaskQueryPageUniqueTasksArbitrary: Arbitrary<
     ReadonlyArray<AgentWebTaskQueryPageTask>
-> = fc
-    .uniqueArray(AgentWebTaskQueryPageTaskArbitrary, {
-        selector: task => task.taskId,
-    })
-    .map(tasks => {
-        const taskReferenceById = new Map<string, ApiTaskReferenceResponse>();
-        const accountReferenceById = new Map<string, ApiAccountReferenceResponse>();
-        const collectionReferenceById = new Map<string, ApiTaskCollectionReferenceResponse>();
-
-        for (const task of tasks) {
-            taskReferenceById.set(task.taskId, {
-                type: "Task",
-                id: task.taskId,
-                title: task.title,
-                status: task.status,
-            });
-        }
-
-        return tasks.map(task => ({
-            ...task,
-            parent:
-                task.parent === null
-                    ? null
-                    : canonicalizeAgentWebTaskQueryPageReference(taskReferenceById, task.parent),
-            assignee:
-                task.assignee === null
-                    ? null
-                    : canonicalizeAgentWebTaskQueryPageReference(
-                          accountReferenceById,
-                          task.assignee,
-                      ),
-            collections: task.collections.map(collection =>
-                canonicalizeAgentWebTaskQueryPageReference(collectionReferenceById, collection),
-            ),
-        }));
-    });
+> = fc.uniqueArray(AgentWebTaskQueryPageTaskArbitrary, {
+    selector: task => task.taskId ?? task.title,
+});
 
 const ApiTaskQueryFilterResponsesArbitrary: Arbitrary<ReadonlyArray<ApiTaskQueryFilterResponse>> =
     fc.constantFrom(

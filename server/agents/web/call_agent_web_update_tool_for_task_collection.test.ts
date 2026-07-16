@@ -4,12 +4,12 @@ import {
     createApiTaskIdMock,
     createApiTaskMock,
 } from "~/server/agents/api/test_helpers/create_api_task_mock.js";
-import {mockApiGetTaskWithNotes} from "~/server/agents/api/test_helpers/mock_api_get_task_with_notes.js";
+import {mockApiGetTask} from "~/server/agents/api/test_helpers/mock_api_get_task.js";
 import {
     mockGetApiTaskCollectionTasks,
     printApiTaskQueryCursorMock,
 } from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
-import {mockApiGetTask} from "~/server/agents/api/test_helpers/mock_api_get_task.js";
+import {mockApiGetTaskWithNotes} from "~/server/agents/api/test_helpers/mock_api_get_task_with_notes.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {
     createAgentWebTaskQueryCursorHash,
@@ -25,8 +25,7 @@ import {
     ApiTaskPatchResult,
     ApiTaskWithoutNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
-import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
+import {InternalError} from "~/shared/error/error.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
@@ -102,30 +101,6 @@ function getApiGetTaskWithoutNotesRequestHistory() {
         .map(({params}) => params);
 }
 
-async function expectInvalidUpdateDisplayMessage({
-    path = "/task-collection/test-task-collection",
-    updates,
-    expected,
-}: {
-    path?: string;
-    updates: Parameters<typeof callAgentWebUpdateTool>[1]["updates"];
-    expected: string;
-}) {
-    const result = await captureResultPromise(
-        async () => await callAgentWebUpdateTool(context, {path, updates}),
-    );
-
-    if (result.ok) {
-        throw new InternalError("Expected update tool call to throw");
-    }
-
-    if (!(result.error instanceof InvalidArgumentError) || !result.error.displayMessage) {
-        throw result.error;
-    }
-
-    expect(result.error.displayMessage.map(({text}) => text).join("")).toEqual(expected);
-}
-
 test("updates the task collection name", async () => {
     const {collection} = mockGetApiTaskCollectionTasks(api, {
         spaceId,
@@ -157,7 +132,7 @@ test("updates the task collection name", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTaskCollectionRequestHistory()).toEqual([
         {patches: [{type: "SetName", name: "Test Task Collection 2026"}]},
@@ -190,7 +165,7 @@ test("updates the task collection color", async () => {
             path: "/task-collection/test-task-collection",
             updates: [{old: "Color: Red", new: "Color: Blue", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTaskCollectionRequestHistory()).toEqual([
         {patches: [{type: "SetColor", color: "Blue"}]},
@@ -228,7 +203,7 @@ test("adds a task collection color", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTaskCollectionRequestHistory()).toEqual([
         {patches: [{type: "SetColor", color: "Green"}]},
@@ -261,7 +236,7 @@ test("removes the task collection color by removing the color line", async () =>
             path: "/task-collection/test-task-collection",
             updates: [{old: "\n\nColor: Red", new: "", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTaskCollectionRequestHistory()).toEqual([
         {patches: [{type: "SetColor", color: null}]},
@@ -294,7 +269,7 @@ test("removes the task collection color with a none color", async () => {
             path: "/task-collection/test-task-collection",
             updates: [{old: "Color: Red", new: "Color: None", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTaskCollectionRequestHistory()).toEqual([
         {patches: [{type: "SetColor", color: null}]},
@@ -337,7 +312,7 @@ test("updates the task collection name and color together", async () => {
                 {old: "Color: Red", new: "Color: Blue", replaceAll: false},
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTaskCollectionRequestHistory()).toEqual([
         {
@@ -392,7 +367,7 @@ test("updates a task title in its link label", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -453,7 +428,7 @@ test("updates a 200 character task title without truncating it", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -511,7 +486,7 @@ test("updates a task status in its link label", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -570,7 +545,7 @@ test("sets an assigned open task as active", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -632,13 +607,13 @@ test("sets an open task as active while assigning it", async () => {
                 {
                     old: "- [Test Task 1 (Open)](/task/test-task-1)",
                     new:
-                        "- [Test Task 1 (Open, active)](/task/test-task-1)\n" +
+                        "- [Test Task 1 (Open, active)](/task/test-task-1)" +
                         "  - Assignee: [Alice](/human/alice)",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toMatchObject([
         {
@@ -684,21 +659,25 @@ test("rejects setting an unassigned open task as active", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "[Test Task 1 (Open)](/task/test-task-1)",
-                new: "[Test Task 1 (Open, active)](/task/test-task-1)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Can\u2019t set the task \u201CTest Task 1\u201D as active if there\u2019s no assignee. We don\u2019t " +
-            "recommend setting a task as active unless you\u2019re about to work on the task or " +
-            "you know someone else is currently working on the task. Try again and either " +
-            "set the task as open but inactive (e.g. `(Open)`) or set an assignee " +
-            "(e.g. `- Assignee: [ChatGPT](/bot/chatgpt)`).",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "[Test Task 1 (Open)](/task/test-task-1)",
+                    new: "[Test Task 1 (Open, active)](/task/test-task-1)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Can\u2019t set the task \u201CTest Task 1\u201D as active if there\u2019s no assignee. We don\u2019t " +
+                "recommend setting a task as active unless you\u2019re about to work on the task or " +
+                "you know someone else is currently working on the task. Try again and either " +
+                "set the task as open but inactive (e.g. `(Open)`) or set an assignee " +
+                "(e.g. `- Assignee: [ChatGPT](/bot/chatgpt)`)."),
+    );
 });
 
 test("preserves active status when updating a task title in its link label", async () => {
@@ -748,7 +727,7 @@ test("preserves active status when updating a task title in its link label", asy
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -811,7 +790,7 @@ test("sets an active task as inactive", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -853,20 +832,24 @@ test("rejects removing the assignee from an active task", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n  - Assignee: [Alice](/human/alice)",
-                new: "",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Can\u2019t remove the assignee from the active task \u201CTest Task 1\u201D. An active task " +
-            "implies someone is currently working on the task and so an assignee is required " +
-            "so we know who that is. Try again but set the task as inactive first (e.g. " +
-            "`(Open)`).",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "\n  - Assignee: [Alice](/human/alice)",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Can\u2019t remove the assignee from the active task \u201CTest Task 1\u201D. An active task " +
+                "implies someone is currently working on the task and so an assignee is required " +
+                "so we know who that is. Try again but set the task as inactive first (e.g. " +
+                "`(Open)`)."),
+    );
 });
 
 test("changes the assignee of an active task", async () => {
@@ -917,7 +900,7 @@ test("changes the assignee of an active task", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toMatchObject([
         {
@@ -982,14 +965,14 @@ test("sets an active task as inactive while removing its assignee", async () => 
             updates: [
                 {
                     old:
-                        "- [Test Task 1 (Open, active)](/task/test-task-1)\n" +
+                        "- [Test Task 1 (Open, active)](/task/test-task-1)" +
                         "  - Assignee: [Alice](/human/alice)",
                     new: "- [Test Task 1 (Open, inactive)](/task/test-task-1)",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -1055,7 +1038,7 @@ test("reopens a task as inactive from its link label", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -1140,17 +1123,17 @@ test("updates task fields", async () => {
                 {
                     old: "- [Test Task 0 (Open)](/task/test-task-0)",
                     new:
-                        "- [Test Task 0 (Open)](/task/test-task-0)\n" +
-                        "  - Parent: [Other task](/task/other-task)\n" +
-                        "  - Assignee: [Alice](/human/alice)\n" +
-                        "  - Collections: [Other collection](/task-collection/other-collection)\n" +
-                        "  - Priority: High\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)" +
+                        "  - Parent: [Other task](/task/other-task)" +
+                        "  - Assignee: [Alice](/human/alice)" +
+                        "  - Collections: [Other collection](/task-collection/other-collection)" +
+                        "  - Priority: High" +
                         "  - Due date: July 12, 2027",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toMatchObject([
         {
@@ -1250,7 +1233,7 @@ test("updates only a task parent while leaving its other fields unchanged", asyn
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -1317,7 +1300,7 @@ test("updates only a task assignee while leaving its other fields unchanged", as
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toMatchObject([
         {
@@ -1386,7 +1369,7 @@ test("updates only a task due date while leaving its other fields unchanged", as
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -1424,19 +1407,23 @@ test("includes the task title when rejecting an invalid task due date", async ()
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "Due date: July 12th, 2027",
-                new: "Due date: sometime after launch",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Unexpected task due date \u201Csometime after launch\u201D for task " +
-            "\u201CInvalid due date task\u201D. Try again with a date like \u201CJuly 12, 2027\u201D (not " +
-            "including the time, just the date).",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "Due date: July 12th, 2027",
+                    new: "Due date: sometime after launch",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Unexpected task due date \u201Csometime after launch\u201D for task " +
+                "\u201CInvalid due date task\u201D. Try again with a date like \u201CJuly 12, 2027\u201D (not " +
+                "including the time, just the date)."),
+    );
 });
 
 test("updates only a task priority while leaving its other fields unchanged", async () => {
@@ -1483,7 +1470,7 @@ test("updates only a task priority while leaving its other fields unchanged", as
             path: "/task-collection/test-task-collection",
             updates: [{old: "Priority: High", new: "Priority: Low", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -1569,7 +1556,7 @@ test("updates only task collections while leaving its other fields unchanged", a
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toMatchObject([
         {
@@ -1621,14 +1608,18 @@ test("rejects updating the additional task collection count", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "and 2 more", new: "and 3 more", replaceAll: false}],
-        expected:
-            "Can\u2019t change a task\u2019s collections by updating \u201Cand 2 more\u201D to \u201Cand 3 more\u201D " +
-            "since we don\u2019t know which underlying collections you\u2019re trying to add. Instead " +
-            "call the `read` tool for the task \u201CTest Task 1\u201D which will give you the full " +
-            "collection list for the task which you can update with the `update` tool.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [{old: "and 2 more", new: "and 3 more", replaceAll: false}],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Can\u2019t change a task\u2019s collections by updating \u201Cand 2 more\u201D to \u201Cand 3 more\u201D " +
+                "since we don\u2019t know which underlying collections you\u2019re trying to add. Instead " +
+                "call the `read` tool for the task \u201CTest Task 1\u201D which will give you the full " +
+                "collection list for the task which you can update with the `update` tool."),
+    );
 });
 
 test("rejects decreasing the additional task collection count", async () => {
@@ -1659,14 +1650,18 @@ test("rejects decreasing the additional task collection count", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "and 3 more", new: "and 2 more", replaceAll: false}],
-        expected:
-            "Can\u2019t change a task\u2019s collections by updating \u201Cand 3 more\u201D to \u201Cand 2 more\u201D " +
-            "since we don\u2019t know which underlying collections you\u2019re trying to remove. Instead " +
-            "call the `read` tool for the task \u201CTest Task 1\u201D which will give you the full " +
-            "collection list for the task which you can update with the `update` tool.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [{old: "and 3 more", new: "and 2 more", replaceAll: false}],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Can\u2019t change a task\u2019s collections by updating \u201Cand 3 more\u201D to \u201Cand 2 more\u201D " +
+                "since we don\u2019t know which underlying collections you\u2019re trying to remove. Instead " +
+                "call the `read` tool for the task \u201CTest Task 1\u201D which will give you the full " +
+                "collection list for the task which you can update with the `update` tool."),
+    );
 });
 
 test("rejects updating task subtask counts", async () => {
@@ -1690,20 +1685,24 @@ test("rejects updating task subtask counts", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "Subtasks: 3 open, 4 closed",
-                new: "Subtasks: 2 open, 5 closed",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Can\u2019t change the task \u201CTest Task 1\u201D\u2019s subtasks by updating " +
-            "\u201CSubtasks: 3 open, 4 closed\u201D to \u201CSubtasks: 2 open, 5 closed\u201D since we don\u2019t " +
-            "know which underlying subtasks you\u2019re trying to add, remove, open, or close. " +
-            "Try again with an update that leaves the `Subtasks` field unchanged.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "Subtasks: 3 open, 4 closed",
+                    new: "Subtasks: 2 open, 5 closed",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Can\u2019t change the task \u201CTest Task 1\u201D\u2019s subtasks by updating " +
+                "\u201CSubtasks: 3 open, 4 closed\u201D to \u201CSubtasks: 2 open, 5 closed\u201D since we don\u2019t " +
+                "know which underlying subtasks you\u2019re trying to add, remove, open, or close. " +
+                "Try again with an update that leaves the `Subtasks` field unchanged."),
+    );
 });
 
 test("removes a task from a manually ordered collection", async () => {
@@ -1743,7 +1742,7 @@ test("removes a task from a manually ordered collection", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -1753,6 +1752,162 @@ test("removes a task from a manually ordered collection", async () => {
                     type: "Update",
                     id: task2.id,
                     patch: {type: "RemoveCollection", collectionId: collection.id},
+                },
+            ],
+        },
+    ]);
+});
+
+test("adds a task to an empty manually ordered collection at the end", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 0,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const {task: newTask} = mockApiGetTask(api, {spaceId, index: 0});
+    mockApiPatchTasks({
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: newTask,
+                    results: [
+                        {type: "AddCollection"},
+                        {type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(0)},
+                    ],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, [collection, newTask]);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "End of tasks.",
+                    new: "- [Test Task 0 (Open)](/task/test-task-0)\n\nEnd of tasks.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    type: "Update",
+                    id: newTask.id,
+                    patch: {
+                        type: "AddCollection",
+                        item: {collection: {id: collection.id}},
+                    },
+                },
+                {
+                    type: "Update",
+                    id: newTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "End"},
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("creates a task in an empty manually ordered collection at the end", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 0,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const createdTask = createApiTaskMock({
+        index: 20,
+        title: "New task",
+        status: "Closed",
+        priority: "High",
+        due: "2027-07-12",
+    });
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [createdTask],
+            results: [
+                {
+                    type: "Create",
+                    task: {id: createdTask.id},
+                    results: [
+                        {
+                            type: "MoveInCollection",
+                            cursor: printApiTaskQueryCursorMock(20),
+                        },
+                    ],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "End of tasks.",
+                    new: `\
+- New task (Closed)
+  - Priority: High
+  - Due date: July 12th, 2027
+
+End of tasks.`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    type: "Create",
+                    task: {
+                        title: "New task",
+                        status: {type: "Closed"},
+                        collections: [{collection: {id: collection.id}}],
+                        priority: {type: "High"},
+                        due: {date: "2027-07-12"},
+                    },
+                    patches: [
+                        {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {type: "End"},
+                        },
+                    ],
                 },
             ],
         },
@@ -1796,13 +1951,13 @@ test("adds a task at the end of a manually ordered collection", async () => {
                 {
                     old: "- [Test Task 1 (Open)](/task/test-task-1)",
                     new:
-                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
                         "- [Test Task 2 (Open)](/task/test-task-2)",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toMatchObject([
         {
@@ -1872,13 +2027,13 @@ test("adds a task at the start of a manually ordered collection", async () => {
                 {
                     old: "- [Test Task 0 (Open)](/task/test-task-0)",
                     new:
-                        "- [Test Task 2 (Open)](/task/test-task-2)\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)\n" +
                         "- [Test Task 0 (Open)](/task/test-task-0)",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toMatchObject([
         {
@@ -1948,13 +2103,13 @@ test("adds a task in the middle of a manually ordered collection", async () => {
                 {
                     old: "- [Test Task 1 (Open)](/task/test-task-1)",
                     new:
-                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
                         "- [Test Task 5 (Open)](/task/test-task-5)",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2070,7 +2225,7 @@ test("adds a task with its existing fields", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toMatchObject([
         {
@@ -2130,28 +2285,22 @@ test("rejects adding a task without its existing fields", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
-                    "- [Test Task 2 (Open)](/task/test-task-2)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "You can\u2019t change the task \u201CTest Task 2\u201D\u2019s title or fields while adding it " +
-            "to task collection markdown. Add the task with its current title and fields, " +
-            "then call the `update` tool again if you want to change its title or fields. " +
-            "Try again with this exact markdown for the task: `- [Test Task 2 " +
-            "(Open)](/task/test-task-2)\\n  - Parent: " +
-            "[Parent task](/task/parent-task)\\n  - Subtasks: 3 open, 4 closed\\n  - " +
-            "Assignee: [Alice](/human/alice)\\n  - Collections: " +
-            "[Engineering](/task-collection/engineering), " +
-            "[Design](/task-collection/design), [Product](/task-collection/product), and 2 " +
-            "more\\n  - Priority: High\\n  - Due date: July 12th, 2027`",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. You can\u2019t change the task \u201CTest Task 2\u201D\u2019s title or fields while adding it to task collection markdown. Add the task with its current title and fields, then call the `update` tool again if you want to change its title or fields. Try again with this exact markdown for the task: `- [Test Task 2 (Open)](/task/test-task-2)\\\\n  - Parent: [Parent task](/task/parent-task)\\\\n  - Subtasks: 3 open, 4 closed\\\\n  - Assignee: [Alice](/human/alice)\\\\n  - Collections: [Engineering](/task-collection/engineering), [Design](/task-collection/design), [Product](/task-collection/product), and 2 more\\\\n  - Priority: High\\\\n  - Due date: July 12th, 2027`",
+    );
 });
 
 test("rejects changing a task link while adding the task", async () => {
@@ -2174,23 +2323,27 @@ test("rejects changing a task link while adding the task", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
-                    "- [Renamed task (Open)](/task/new-task)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "You can\u2019t change the task \u201CRenamed task\u201D\u2019s title or fields while adding it " +
-            "to task collection markdown. Add the task with its current title and fields, " +
-            "then call the `update` tool again if you want to change its title or fields. " +
-            "Try again with this exact markdown for the task: `- [New task " +
-            "(Closed)](/task/new-task)`",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Renamed task (Open)](/task/new-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("You can\u2019t change the task \u201CRenamed task\u201D\u2019s title or fields while adding it " +
+                "to task collection markdown. Add the task with its current title and fields, " +
+                "then call the `update` tool again if you want to change its title or fields. " +
+                "Try again with this exact markdown for the task: `- [New task " +
+                "(Closed)](/task/new-task)`"),
+    );
 });
 
 test("rejects moving a task while changing a nested field", async () => {
@@ -2211,25 +2364,29 @@ test("rejects moving a task while changing a nested field", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old:
-                    "- [Test Task 0 (Open)](/task/test-task-0)\n" +
-                    "  - Priority: High\n\n" +
-                    "- [Test Task 1 (Open)](/task/test-task-1)",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
-                    "- [Test Task 0 (Open)](/task/test-task-0)\n" +
-                    "  - Priority: Low",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "You can\u2019t move the task \u201CTest Task 0\u201D and change its title or fields in the " +
-            "same `update` tool call. Try again with two separate `update` tool calls, one " +
-            "to change the task\u2019s title/fields and another to move the task.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old:
+                        "- [Test Task 0 (Open)](/task/test-task-0)\n" +
+                        "  - Priority: High\n\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)\n" +
+                        "  - Priority: Low",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("You can\u2019t move the task \u201CTest Task 0\u201D and change its title or fields in the " +
+                "same `update` tool call. Try again with two separate `update` tool calls, one " +
+                "to change the task\u2019s title/fields and another to move the task."),
+    );
 });
 
 test("rejects moving a task while changing its link fields", async () => {
@@ -2250,23 +2407,27 @@ test("rejects moving a task while changing its link fields", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old:
-                    "- [Test Task 0 (Open)](/task/test-task-0)\n\n" +
-                    "- [Test Task 1 (Open)](/task/test-task-1)",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
-                    "- [Renamed task (Closed)](/task/test-task-0)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "You can\u2019t move the task \u201CTest Task 0\u201D and change its title or fields in the " +
-            "same `update` tool call. Try again with two separate `update` tool calls, one " +
-            "to change the task\u2019s title/fields and another to move the task.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old:
+                        "- [Test Task 0 (Open)](/task/test-task-0)\n\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Renamed task (Closed)](/task/test-task-0)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("You can\u2019t move the task \u201CTest Task 0\u201D and change its title or fields in the " +
+                "same `update` tool call. Try again with two separate `update` tool calls, one " +
+                "to change the task\u2019s title/fields and another to move the task."),
+    );
 });
 
 test("updates a stable task while moving a different task", async () => {
@@ -2323,7 +2484,7 @@ test("updates a stable task while moving a different task", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2394,7 +2555,7 @@ test("moves a task to the end of a manually ordered collection", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2460,7 +2621,7 @@ test("moves a task to the end of a manually ordered collection with many tasks",
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2524,7 +2685,7 @@ test("moves a task to the start of a manually ordered collection with many tasks
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2591,7 +2752,7 @@ test("moves the last task near the middle of a large manually ordered collection
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2662,7 +2823,7 @@ test("moves a task from the bottom fourth to the top fourth of a large collectio
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2733,7 +2894,7 @@ test("moves a task from the top fourth to the bottom fourth of a large collectio
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2808,7 +2969,7 @@ test("moves a task to the start of a manually ordered tail page", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2881,7 +3042,7 @@ test("moves a task to the end of a manually ordered tail page", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2953,7 +3114,7 @@ test("moves a task past four other tasks to the end of a manually ordered tail p
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -3025,7 +3186,7 @@ test("moves a task into the middle of a manually ordered tail page", async () =>
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -3109,7 +3270,7 @@ test("moves a task to the end of a manually ordered tail page with a next page",
     }).toEqual({
         responseLength: 1446,
         hasNextPageLink: true,
-        updateResponse: "Update was successful.\n",
+        updateResponse: "Update was successful.",
         patchRequests: [
             {
                 spaceId,
@@ -3185,7 +3346,7 @@ test("moves a task to the end of a truncated manually ordered page", async () =>
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -3266,7 +3427,7 @@ test("moves a task past five other tasks to the end of a truncated page", async 
         includesLastVisibleTask: true,
         includesFirstHiddenTask: false,
         hasNextPageLink: true,
-        updateResponse: "Update was successful.\n",
+        updateResponse: "Update was successful.",
         patchRequests: [
             {
                 spaceId,
@@ -3352,7 +3513,7 @@ test("moves a task past five other tasks to the end of a truncated tail page", a
         includesLastVisibleTask: true,
         includesFirstHiddenTask: false,
         hasNextPageLink: true,
-        updateResponse: "Update was successful.\n",
+        updateResponse: "Update was successful.",
         patchRequests: [
             {
                 spaceId,
@@ -3433,7 +3594,7 @@ test("moves a task to the end of a page that exactly meets the read limit", asyn
         responseLength: 1419,
         hasNextPageLink: true,
         includesInvisibleTask: false,
-        updateResponse: "Update was successful.\n",
+        updateResponse: "Update was successful.",
         patchRequests: [
             {
                 spaceId,
@@ -3529,7 +3690,7 @@ test("moves a task to the end after loading and truncating more than thirty task
         includesLastVisibleTask: true,
         includesFirstHiddenTask: false,
         hasNextPageLink: true,
-        updateResponse: "Update was successful.\n",
+        updateResponse: "Update was successful.",
         patchRequests: [
             {
                 spaceId,
@@ -3610,7 +3771,7 @@ test("atomically moves tasks with the same position in page order", async () => 
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect({
         batchRequestBodies: getApiPatchTasksRequestHistory(),
@@ -3686,26 +3847,26 @@ test("atomically moves multiple tasks into the middle in page order", async () =
             path: "/task-collection/test-task-collection",
             updates: [
                 {
-                    old: "- [Test Task 7 (Open)](/task/test-task-7)\n\n",
+                    old: "- [Test Task 7 (Open)](/task/test-task-7)\n",
                     new: "",
                     replaceAll: false,
                 },
                 {
-                    old: "- [Test Task 8 (Open)](/task/test-task-8)\n\n",
+                    old: "- [Test Task 8 (Open)](/task/test-task-8)\n",
                     new: "",
                     replaceAll: false,
                 },
                 {
                     old: "- [Test Task 2 (Open)](/task/test-task-2)",
                     new:
-                        "- [Test Task 2 (Open)](/task/test-task-2)\n\n" +
-                        "- [Test Task 7 (Open)](/task/test-task-7)\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)\n" +
+                        "- [Test Task 7 (Open)](/task/test-task-7)\n" +
                         "- [Test Task 8 (Open)](/task/test-task-8)",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     const position = {
         type: "Between",
@@ -3780,7 +3941,7 @@ test("atomically moves multiple tasks to the start in page order", async () => {
             updates: [
                 {
                     old:
-                        "\n\n- [Test Task 6 (Open)](/task/test-task-6)\n\n" +
+                        "\n\n- [Test Task 6 (Open)](/task/test-task-6)\n" +
                         "- [Test Task 7 (Open)](/task/test-task-7)",
                     new: "",
                     replaceAll: false,
@@ -3788,14 +3949,14 @@ test("atomically moves multiple tasks to the start in page order", async () => {
                 {
                     old: "- [Test Task 0 (Open)](/task/test-task-0)",
                     new:
-                        "- [Test Task 6 (Open)](/task/test-task-6)\n\n" +
-                        "- [Test Task 7 (Open)](/task/test-task-7)\n\n" +
+                        "- [Test Task 6 (Open)](/task/test-task-6)\n" +
+                        "- [Test Task 7 (Open)](/task/test-task-7)\n" +
                         "- [Test Task 0 (Open)](/task/test-task-0)",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -3886,7 +4047,7 @@ test("atomically swaps two tasks at distant locations", async () => {
             path: "/task-collection/test-task-collection",
             updates: [{old: oldTaskList, new: newTaskList, replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -3985,7 +4146,7 @@ test("atomically moves two tasks to different locations", async () => {
             path: "/task-collection/test-task-collection",
             updates: [{old: oldTaskList, new: newTaskList, replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4089,7 +4250,7 @@ test("atomically moves three tasks to different locations", async () => {
             path: "/task-collection/test-task-collection",
             updates: [{old: oldTaskList, new: newTaskList, replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4218,7 +4379,7 @@ test("atomically moves five tasks to different locations", async () => {
             path: "/task-collection/test-task-collection",
             updates: [{old: oldTaskList, new: newTaskList, replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4329,7 +4490,7 @@ test("moves only task 4 when moving it after task 8", async () => {
             path: "/task-collection/test-task-collection",
             updates: [
                 {
-                    old: "- [Task 4 (Open)](/task/task-4)\n\n",
+                    old: "- [Task 4 (Open)](/task/task-4)\n",
                     new: "",
                     replaceAll: false,
                 },
@@ -4340,7 +4501,7 @@ test("moves only task 4 when moving it after task 8", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4433,16 +4594,16 @@ test("uses a moved cursor in a later task move", async () => {
                 {
                     old: taskListAfterFirstMove,
                     new:
-                        "- [Test Task 2 (Open)](/task/test-task-2)\n\n" +
-                        "- [Test Task 3 (Open)](/task/test-task-3)\n\n" +
-                        "- [Test Task 4 (Open)](/task/test-task-4)\n\n" +
-                        "- [Test Task 0 (Open)](/task/test-task-0)\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)\n" +
+                        "- [Test Task 3 (Open)](/task/test-task-3)\n" +
+                        "- [Test Task 4 (Open)](/task/test-task-4)\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)\n" +
                         "- [Test Task 1 (Open)](/task/test-task-1)",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4520,7 +4681,7 @@ test("removes a task from a collection with a default sort", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4584,7 +4745,7 @@ test("removes a task from a collection with a default sort using manual order", 
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4645,7 +4806,7 @@ test("removes a task from a collection with a sort in search params", async () =
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4706,7 +4867,7 @@ test("removes a task from a collection with a default filter", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4767,7 +4928,7 @@ test("removes a task from a collection with a filter in search params", async ()
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4806,25 +4967,29 @@ test("rejects adding a task to a collection with a default sort", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
-                    "- [Test Task 2 (Open)](/task/test-task-2)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Tasks may only be added to task collection markdown when the collection is " +
-            "sorted manually. A collection is manually sorted when no automatic sorts are " +
-            "applied. That means there are no default sorts/filters and there is no " +
-            "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
-            "automatically sorted collection, use the `read` tool to read an individual " +
-            "task and add a collection to the task\u2019s \u201CCollections\u201D field with the " +
-            "`update` tool. Try again without adding new tasks.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Tasks may only be added to task collection markdown when the collection is " +
+                "sorted manually. A collection is manually sorted when no automatic sorts are " +
+                "applied. That means there are no default sorts/filters and there is no " +
+                "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
+                "automatically sorted collection, use the `read` tool to read an individual " +
+                "task and add a collection to the task\u2019s \u201CCollections\u201D field with the " +
+                "`update` tool. Try again without adding new tasks."),
+    );
 });
 
 test("adds a task to a collection with a default sort using manual order", async () => {
@@ -4880,13 +5045,13 @@ test("adds a task to a collection with a default sort using manual order", async
                 {
                     old: "- [Test Task 1 (Open)](/task/test-task-1)",
                     new:
-                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
                         "- [Test Task 2 (Open)](/task/test-task-2)",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -4946,26 +5111,22 @@ test("rejects adding a task to a collection with a sort in search params", async
 
     await callAgentWebReadTool(context, {path, limit: "50kb"});
 
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
-                    "- [Test Task 2 (Open)](/task/test-task-2)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Tasks may only be added to task collection markdown when the collection is " +
-            "sorted manually. A collection is manually sorted when no automatic sorts are " +
-            "applied. That means there are no default sorts/filters and there is no " +
-            "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
-            "automatically sorted collection, use the `read` tool to read an individual " +
-            "task and add a collection to the task\u2019s \u201CCollections\u201D field with the " +
-            "`update` tool. Try again without adding new tasks.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection?sort=created`. Tasks may only be added to task collection markdown when the collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no `?sort` (or filter) in the path passed to the `read` tool. To add tasks to an automatically sorted collection, use the `read` tool to read an individual task and add a collection to the task\u2019s \u201CCollections\u201D field with the `update` tool. Try again without adding new tasks.",
+    );
 });
 
 test("rejects adding a task to a collection with a default filter", async () => {
@@ -4996,27 +5157,31 @@ test("rejects adding a task to a collection with a default filter", async () => 
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n" +
-                    "  - Priority: High\n\n" +
-                    "- [Test Task 2 (Open)](/task/test-task-2)\n" +
-                    "  - Priority: High",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Tasks may only be added to task collection markdown when the collection is " +
-            "sorted manually. A collection is manually sorted when no automatic sorts are " +
-            "applied. That means there are no default sorts/filters and there is no " +
-            "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
-            "automatically sorted collection, use the `read` tool to read an individual " +
-            "task and add a collection to the task\u2019s \u201CCollections\u201D field with the " +
-            "`update` tool. Try again without adding new tasks.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                        "  - Priority: High\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)\n" +
+                        "  - Priority: High",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Tasks may only be added to task collection markdown when the collection is " +
+                "sorted manually. A collection is manually sorted when no automatic sorts are " +
+                "applied. That means there are no default sorts/filters and there is no " +
+                "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
+                "automatically sorted collection, use the `read` tool to read an individual " +
+                "task and add a collection to the task\u2019s \u201CCollections\u201D field with the " +
+                "`update` tool. Try again without adding new tasks."),
+    );
 });
 
 test("rejects adding a task to a collection with a filter in search params", async () => {
@@ -5046,28 +5211,24 @@ test("rejects adding a task to a collection with a filter in search params", asy
 
     await callAgentWebReadTool(context, {path, limit: "50kb"});
 
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n" +
-                    "  - Priority: High\n\n" +
-                    "- [Test Task 2 (Open)](/task/test-task-2)\n" +
-                    "  - Priority: High",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Tasks may only be added to task collection markdown when the collection is " +
-            "sorted manually. A collection is manually sorted when no automatic sorts are " +
-            "applied. That means there are no default sorts/filters and there is no " +
-            "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
-            "automatically sorted collection, use the `read` tool to read an individual " +
-            "task and add a collection to the task\u2019s \u201CCollections\u201D field with the " +
-            "`update` tool. Try again without adding new tasks.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                        "  - Priority: High\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)\n" +
+                        "  - Priority: High",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection?priority=high`. Tasks may only be added to task collection markdown when the collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no `?sort` (or filter) in the path passed to the `read` tool. To add tasks to an automatically sorted collection, use the `read` tool to read an individual task and add a collection to the task\u2019s \u201CCollections\u201D field with the `update` tool. Try again without adding new tasks.",
+    );
 });
 
 test("rejects moving a task in a collection with a default sort", async () => {
@@ -5092,35 +5253,39 @@ test("rejects moving a task in a collection with a default sort", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
-                new: "",
-                replaceAll: false,
-            },
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
-                    "- [Test Task 0 (Open)](/task/test-task-0)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Tasks may only be reordered in task collection markdown when the collection " +
-            "is sorted manually. A collection is manually sorted when no automatic sorts " +
-            "are applied. That means there are no default sorts/filters and there is no " +
-            "`?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in " +
-            "an automatically sorted collection, look at the collection\u2019s sorts and " +
-            "update the corresponding fields in the task (for example, if a collection is " +
-            "sorted by `?sort=priority` then updating a task\u2019s priority will move it). If " +
-            "you are updating a task\u2019s fields in an automatically sorted collection, you " +
-            "shouldn\u2019t move the task yourself with the `update` tool because the task will " +
-            "be moved automatically. Instead read the collection again with the `read` " +
-            "tool after your update to see the new order. Try again without reordering " +
-            "tasks.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Tasks may only be reordered in task collection markdown when the collection " +
+                "is sorted manually. A collection is manually sorted when no automatic sorts " +
+                "are applied. That means there are no default sorts/filters and there is no " +
+                "`?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in " +
+                "an automatically sorted collection, look at the collection\u2019s sorts and " +
+                "update the corresponding fields in the task (for example, if a collection is " +
+                "sorted by `?sort=priority` then updating a task\u2019s priority will move it). If " +
+                "you are updating a task\u2019s fields in an automatically sorted collection, you " +
+                "shouldn\u2019t move the task yourself with the `update` tool because the task will " +
+                "be moved automatically. Instead read the collection again with the `read` " +
+                "tool after your update to see the new order. Try again without reordering " +
+                "tasks."),
+    );
 });
 
 test("moves a task in a collection with a default sort using manual order", async () => {
@@ -5171,20 +5336,20 @@ test("moves a task in a collection with a default sort using manual order", asyn
             path,
             updates: [
                 {
-                    old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)\n",
                     new: "",
                     replaceAll: false,
                 },
                 {
                     old: "- [Test Task 1 (Open)](/task/test-task-1)",
                     new:
-                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
                         "- [Test Task 0 (Open)](/task/test-task-0)",
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -5231,36 +5396,27 @@ test("rejects moving a task in a collection with a sort in search params", async
 
     await callAgentWebReadTool(context, {path, limit: "50kb"});
 
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
-                new: "",
-                replaceAll: false,
-            },
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
-                    "- [Test Task 0 (Open)](/task/test-task-0)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Tasks may only be reordered in task collection markdown when the collection " +
-            "is sorted manually. A collection is manually sorted when no automatic sorts " +
-            "are applied. That means there are no default sorts/filters and there is no " +
-            "`?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in " +
-            "an automatically sorted collection, look at the collection\u2019s sorts and " +
-            "update the corresponding fields in the task (for example, if a collection is " +
-            "sorted by `?sort=priority` then updating a task\u2019s priority will move it). If " +
-            "you are updating a task\u2019s fields in an automatically sorted collection, you " +
-            "shouldn\u2019t move the task yourself with the `update` tool because the task will " +
-            "be moved automatically. Instead read the collection again with the `read` " +
-            "tool after your update to see the new order. Try again without reordering " +
-            "tasks.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection?sort=created`. Tasks may only be reordered in task collection markdown when the collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no `?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in an automatically sorted collection, look at the collection\u2019s sorts and update the corresponding fields in the task (for example, if a collection is sorted by `?sort=priority` then updating a task\u2019s priority will move it). If you are updating a task\u2019s fields in an automatically sorted collection, you shouldn\u2019t move the task yourself with the `update` tool because the task will be moved automatically. Instead read the collection again with the `read` tool after your update to see the new order. Try again without reordering tasks.",
+    );
 });
 
 test("rejects moving a task in a collection with a default filter", async () => {
@@ -5290,37 +5446,41 @@ test("rejects moving a task in a collection with a default filter", async () => 
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "- [Test Task 0 (Open)](/task/test-task-0)\n  - Priority: High\n\n",
-                new: "",
-                replaceAll: false,
-            },
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n" +
-                    "  - Priority: High\n\n" +
-                    "- [Test Task 0 (Open)](/task/test-task-0)\n" +
-                    "  - Priority: High",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Tasks may only be reordered in task collection markdown when the collection " +
-            "is sorted manually. A collection is manually sorted when no automatic sorts " +
-            "are applied. That means there are no default sorts/filters and there is no " +
-            "`?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in " +
-            "an automatically sorted collection, look at the collection\u2019s sorts and " +
-            "update the corresponding fields in the task (for example, if a collection is " +
-            "sorted by `?sort=priority` then updating a task\u2019s priority will move it). If " +
-            "you are updating a task\u2019s fields in an automatically sorted collection, you " +
-            "shouldn\u2019t move the task yourself with the `update` tool because the task will " +
-            "be moved automatically. Instead read the collection again with the `read` " +
-            "tool after your update to see the new order. Try again without reordering " +
-            "tasks.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)\n  - Priority: High\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                        "  - Priority: High\n\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)\n" +
+                        "  - Priority: High",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Tasks may only be reordered in task collection markdown when the collection " +
+                "is sorted manually. A collection is manually sorted when no automatic sorts " +
+                "are applied. That means there are no default sorts/filters and there is no " +
+                "`?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in " +
+                "an automatically sorted collection, look at the collection\u2019s sorts and " +
+                "update the corresponding fields in the task (for example, if a collection is " +
+                "sorted by `?sort=priority` then updating a task\u2019s priority will move it). If " +
+                "you are updating a task\u2019s fields in an automatically sorted collection, you " +
+                "shouldn\u2019t move the task yourself with the `update` tool because the task will " +
+                "be moved automatically. Instead read the collection again with the `read` " +
+                "tool after your update to see the new order. Try again without reordering " +
+                "tasks."),
+    );
 });
 
 test("rejects moving a task in a collection with a filter in search params", async () => {
@@ -5349,38 +5509,29 @@ test("rejects moving a task in a collection with a filter in search params", asy
 
     await callAgentWebReadTool(context, {path, limit: "50kb"});
 
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "- [Test Task 0 (Open)](/task/test-task-0)\n  - Priority: High\n\n",
-                new: "",
-                replaceAll: false,
-            },
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
-                new:
-                    "- [Test Task 1 (Open)](/task/test-task-1)\n" +
-                    "  - Priority: High\n\n" +
-                    "- [Test Task 0 (Open)](/task/test-task-0)\n" +
-                    "  - Priority: High",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Tasks may only be reordered in task collection markdown when the collection " +
-            "is sorted manually. A collection is manually sorted when no automatic sorts " +
-            "are applied. That means there are no default sorts/filters and there is no " +
-            "`?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in " +
-            "an automatically sorted collection, look at the collection\u2019s sorts and " +
-            "update the corresponding fields in the task (for example, if a collection is " +
-            "sorted by `?sort=priority` then updating a task\u2019s priority will move it). If " +
-            "you are updating a task\u2019s fields in an automatically sorted collection, you " +
-            "shouldn\u2019t move the task yourself with the `update` tool because the task will " +
-            "be moved automatically. Instead read the collection again with the `read` " +
-            "tool after your update to see the new order. Try again without reordering " +
-            "tasks.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)\n  - Priority: High\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                        "  - Priority: High\n\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)\n" +
+                        "  - Priority: High",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection?priority=high`. Tasks may only be reordered in task collection markdown when the collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no `?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in an automatically sorted collection, look at the collection\u2019s sorts and update the corresponding fields in the task (for example, if a collection is sorted by `?sort=priority` then updating a task\u2019s priority will move it). If you are updating a task\u2019s fields in an automatically sorted collection, you shouldn\u2019t move the task yourself with the `update` tool because the task will be moved automatically. Instead read the collection again with the `read` tool after your update to see the new order. Try again without reordering tasks.",
+    );
 });
 
 test("throws unimplemented when changing the default filters and sorts", async () => {
@@ -5416,28 +5567,21 @@ test("throws unimplemented when changing the default filters and sorts", async (
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old: "status=open&sort=-priority,due",
-                        new: "status=open,closed&sort=-priority,due",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "status=open&sort=-priority,due",
+                    new: "status=open,closed&sort=-priority,due",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/task-collection/test-task-collection\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect(result.error).toMatchObject({
-        message:
-            "Changing the default filters and sorts of a task collection hasn\u2019t been " +
-            "implemented yet",
-    });
-    expect(result.error).toBeInstanceOf(UnimplementedError);
+> Internal error: Changing the default filters and sorts of a task collection hasn\u2019t been implemented yet`);
 });
 
 test("throws unimplemented when removing the default filters and sorts", async () => {
@@ -5473,30 +5617,23 @@ test("throws unimplemented when removing the default filters and sorts", async (
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old:
-                            "\n\nDefault filters and sorts:\n\n```\n" +
-                            "status=open&sort=-priority,due\n```",
-                        new: "",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old:
+                        "\n\nDefault filters and sorts:\n\n```\n" +
+                        "status=open&sort=-priority,due\n```",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/task-collection/test-task-collection\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect(result.error).toMatchObject({
-        message:
-            "Changing the default filters and sorts of a task collection hasn\u2019t been " +
-            "implemented yet",
-    });
-    expect(result.error).toBeInstanceOf(UnimplementedError);
+> Internal error: Changing the default filters and sorts of a task collection hasn\u2019t been implemented yet`);
 });
 
 test("rejects an unknown status filter in the default filters", async () => {
@@ -5532,13 +5669,17 @@ test("rejects an unknown status filter in the default filters", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "status=open", new: "status=done", replaceAll: false}],
-        expected:
-            "Unexpected task status filter `status=done`. Try again with `open`, " +
-            "`open-inactive`, `open-active`, or `closed` (e.g. `status=open` or " +
-            "`status[not]=closed`).",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [{old: "status=open", new: "status=done", replaceAll: false}],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Unexpected task status filter `status=done`. Try again with `open`, " +
+                "`open-inactive`, `open-active`, or `closed` (e.g. `status=open` or " +
+                "`status[not]=closed`)."),
+    );
 });
 
 test("rejects changing a task link to an unknown task", async () => {
@@ -5559,21 +5700,25 @@ test("rejects changing a task link to an unknown task", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "[Test Task 1 (Open)](/task/test-task-1)",
-                new: "[Missing task](/task/missing-task)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 5. You may only " +
-            "add a task you\u2019ve previously seen to a collection. Try calling the `create` " +
-            "tool to create a new task and then add that new task to the collection, or " +
-            "try calling the `search` tool to find an existing task you want to add to " +
-            "the collection.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "[Test Task 1 (Open)](/task/test-task-1)",
+                    new: "[Missing task](/task/missing-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 5. You may only " +
+                "add a task you\u2019ve previously seen to a collection. Try calling the `create` " +
+                "tool to create a new task and then add that new task to the collection, or " +
+                "try calling the `search` tool to find an existing task you want to add to " +
+                "the collection."),
+    );
 });
 
 test("rejects replacing a task link path with a duplicate task", async () => {
@@ -5594,19 +5739,23 @@ test("rejects replacing a task link path with a duplicate task", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "- [Test Task 0 (Open)](/task/test-task-0)",
-                new: "- [Test Task 0 (Open)](/task/test-task-1)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "The task \u201CTest Task 1\u201D appears more than once on this task collection page. " +
-            "Each task may only appear once. Try again after removing the duplicate task " +
-            "link.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)",
+                    new: "- [Test Task 0 (Open)](/task/test-task-1)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("The task \u201CTest Task 1\u201D appears more than once on this task collection page. " +
+                "Each task may only appear once. Try again after removing the duplicate task " +
+                "link."),
+    );
 });
 
 test("rejects duplicating a task link path", async () => {
@@ -5627,19 +5776,23 @@ test("rejects duplicating a task link path", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "- [Test Task 0 (Open)](/task/test-task-0)",
-                new: "- [Test Task 0 (Open)](/task/test-task-0)\n\n- [Test Task 1 (Open)](/task/test-task-1)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "The task \u201CTest Task 1\u201D appears more than once on this task collection page. " +
-            "Each task may only appear once. Try again after removing the duplicate task " +
-            "link.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)",
+                    new: "- [Test Task 0 (Open)](/task/test-task-0)\n\n- [Test Task 1 (Open)](/task/test-task-1)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("The task \u201CTest Task 1\u201D appears more than once on this task collection page. " +
+                "Each task may only appear once. Try again after removing the duplicate task " +
+                "link."),
+    );
 });
 
 test("rejects an unexpected task collection color", async () => {
@@ -5658,13 +5811,17 @@ test("rejects an unexpected task collection color", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "Color: Red", new: "Color: Magenta", replaceAll: false}],
-        expected:
-            "Unexpected task collection color \u201CMagenta\u201D on line 3. Try again with " +
-            "\u201CRed\u201D, \u201COrange\u201D, \u201CYellow\u201D, \u201CGreen\u201D, \u201CCyan\u201D, " +
-            "\u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, \u201CPink\u201D, or remove the color entirely.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [{old: "Color: Red", new: "Color: Magenta", replaceAll: false}],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Unexpected task collection color \u201CMagenta\u201D on line 3. Try again with " +
+                "\u201CRed\u201D, \u201COrange\u201D, \u201CYellow\u201D, \u201CGreen\u201D, \u201CCyan\u201D, " +
+                "\u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, \u201CPink\u201D, or remove the color entirely."),
+    );
 });
 
 test("rejects unexpected markdown after the task list", async () => {
@@ -5685,19 +5842,23 @@ test("rejects unexpected markdown after the task list", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "- [Test Task 1 (Open)](/task/test-task-1)",
-                new: "- [Test Task 1 (Open)](/task/test-task-1)\n\nThe end.",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Unexpected markdown on line 7. Try again with only a color (e.g. `Color: Red`) " +
-            "followed by a task list (an unordered list where every item is a task link) after " +
-            "the task collection name.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new: "- [Test Task 1 (Open)](/task/test-task-1)\n\nThe end.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Unexpected markdown on line 7. Try again with only a color (e.g. `Color: Red`) " +
+                "followed by a task list (an unordered list where every item is a task link) after " +
+                "the task collection name."),
+    );
 });
 
 test("makes no API calls when removing the end of tasks marker", async () => {
@@ -5720,7 +5881,7 @@ test("makes no API calls when removing the end of tasks marker", async () => {
             path: "/task-collection/test-task-collection",
             updates: [{old: "\n\nEnd of tasks.", new: "", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(api.getRequestHistory().filter(request => request.method === "PATCH")).toHaveLength(0);
 });
@@ -5746,19 +5907,23 @@ test("rejects changing the next page link cursor", async () => {
     }
 
     const nextPagePath = nextPagePathMatch[1]!;
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: nextPagePath,
-                new: nextPagePath.replace(/after=[^&]+/, "after=d4e5f6"),
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "You can\u2019t update the \u201CNext page »\u201D link in task collection " +
-            "markdown. Try again with a more specific update that leaves the " +
-            "\u201CNext page »\u201D link unchanged.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: nextPagePath,
+                    new: nextPagePath.replace(/after=[^&]+/, "after=d4e5f6"),
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("You can\u2019t update the \u201CNext page »\u201D link in task collection " +
+                "markdown. Try again with a more specific update that leaves the " +
+                "\u201CNext page »\u201D link unchanged."),
+    );
 });
 
 test("rejects removing the next page link", async () => {
@@ -5782,19 +5947,23 @@ test("rejects removing the next page link", async () => {
     }
 
     const nextPagePath = nextPagePathMatch[1]!;
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: `[Next page »](${nextPagePath})`,
-                new: "",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "You can\u2019t update the \u201CNext page »\u201D link in task collection " +
-            "markdown. Try again with a more specific update that leaves the " +
-            "\u201CNext page »\u201D link unchanged.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: `[Next page »](${nextPagePath})`,
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("You can\u2019t update the \u201CNext page »\u201D link in task collection " +
+                "markdown. Try again with a more specific update that leaves the " +
+                "\u201CNext page »\u201D link unchanged."),
+    );
 });
 
 test("rejects adding the end of tasks marker", async () => {
@@ -5813,19 +5982,23 @@ test("rejects adding the end of tasks marker", async () => {
         limit: "100b",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "- [Test Task 0 (Open)](/task/test-task-0)",
-                new: "- [Test Task 0 (Open)](/task/test-task-0)\n\nEnd of tasks.",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Can\u2019t add the \u201CEnd of tasks\u201D marker in an update. Only a `read` tool " +
-            "call can tell you whether you\u2019re at the end of a task list or not. Try " +
-            "again without adding the \u201CEnd of tasks\u201D marker.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)",
+                    new: "- [Test Task 0 (Open)](/task/test-task-0)\n\nEnd of tasks.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Can\u2019t add the \u201CEnd of tasks\u201D marker in an update. Only a `read` tool " +
+                "call can tell you whether you\u2019re at the end of a task list or not. Try " +
+                "again without adding the \u201CEnd of tasks\u201D marker."),
+    );
 });
 
 test("rejects renaming the task collection on a later page", async () => {
@@ -5881,20 +6054,23 @@ test("rejects renaming the task collection on a later page", async () => {
         limit: "50kb",
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        path: nextPagePath,
-        updates: [
-            {
-                old: "Tasks in Test Task Collection.",
-                new: "Tasks in Test Task Collection 2026.",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "You can only update the task collection name on the first page of the " +
-            "collection. You must leave the `Tasks in My Collection.` line at the start of " +
-            "the collection markdown in place. Try calling the `read` tool to navigate to " +
-            "the first page of the collection and you can call the `update` tool on that " +
-            "page to update the name.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: nextPagePath,
+            updates: [
+                {
+                    old: "Tasks in Test Task Collection.",
+                    new: "Tasks in Test Task Collection 2026.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${nextPagePath}\`. ` +
+            ("You can only update the task collection name on the first page of the " +
+                "collection. You must leave the `Tasks in My Collection.` line at the start of " +
+                "the collection markdown in place. Try calling the `read` tool to navigate to " +
+                "the first page of the collection and you can call the `update` tool on that " +
+                "page to update the name."),
+    );
 });

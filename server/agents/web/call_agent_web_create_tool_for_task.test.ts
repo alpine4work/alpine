@@ -10,9 +10,6 @@ import {
     ApiTaskResponse,
     ApiTaskWithoutNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
@@ -104,61 +101,6 @@ function getCreateTaskRequests() {
         .filter(request => request.method === "POST" && request.path === "/tasks");
 }
 
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    let string = "";
-
-    for (const segment of displayMessage) {
-        switch (segment.type) {
-            case "Text":
-            case "SensitiveText":
-            case "Link": {
-                string += segment.text;
-                break;
-            }
-            default:
-                throw exhaustive(segment);
-        }
-    }
-
-    return string;
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw error;
-}
-
-async function expectCreateDisplayMessage({
-    content,
-    expected,
-}: {
-    content: string;
-    expected: string;
-}) {
-    let error: unknown;
-
-    try {
-        await callAgentWebCreateTool(context, {type: "task", content});
-    } catch (actualError) {
-        error = actualError;
-    }
-
-    if (!error) throw new InternalError("Expected create tool call to throw");
-
-    expect(printDisplayMessage(getDisplayMessage(error))).toEqual(expected);
-}
-
 test("creates a minimal task with default open status", async () => {
     mockCreateTask({
         title: "Minimal task",
@@ -170,7 +112,7 @@ test("creates a minimal task with default open status", async () => {
             type: "task",
             content: "# Minimal task",
         }),
-    ).resolves.toEqual("Create was successful. New task: [Minimal task](/task/minimal-task).\n");
+    ).resolves.toEqual("Create was successful. New task: [Minimal task](/task/minimal-task).");
 
     expect(getCreateTaskRequests()).toHaveLength(1);
     expect(getCreateTaskRequests()[0]?.body).toEqual({
@@ -203,7 +145,7 @@ test("creates a task with explicit inactive open status", async () => {
 - Status: Open (Inactive)`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New task: [Explicit inactive task](/task/explicit-inactive-task).\n",
+        "Create was successful. New task: [Explicit inactive task](/task/explicit-inactive-task).",
     );
 
     expect(getCreateTaskRequests()[0]?.body).toEqual({
@@ -243,7 +185,7 @@ test("creates a task with every supported field", async () => {
 - due date: 2027-07-12`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New task: [Create everything](/task/create-everything).\n",
+        "Create was successful. New task: [Create everything](/task/create-everything).",
     );
 
     expect(getCreateTaskRequests()).toHaveLength(1);
@@ -321,7 +263,7 @@ test("creates a task with a subtask section", async () => {
         createTask: getCreateTaskRequests()[0]?.body,
         taskListPatch: taskListPatch?.body,
     }).toEqual({
-        result: "Create was successful. New task: [Create with subtasks](/task/create-with-subtasks).\n",
+        result: "Create was successful. New task: [Create with subtasks](/task/create-with-subtasks).",
         createTask: {
             spaceId,
             task: {
@@ -348,9 +290,110 @@ test("creates a task with a subtask section", async () => {
     });
 });
 
-test("rejects a subtasks See more link on create without calling the API", async () => {
-    await expectCreateDisplayMessage({
+test("creates a task with a new subtask and all its fields", async () => {
+    const taskId = mockCreateTask({
+        title: "Create with a new subtask",
+        status: {type: "Open", isActive: false},
+    });
+    const createdTask = createApiTaskMock({id: taskId, title: "Create with a new subtask"});
+    const createdSubtask = createApiTaskMock({
+        index: 702,
+        title: "Draft launch brief",
+        parent: createdTask,
+        assignee: aliceAccount,
+        priority: "Urgent",
+        due: "2027-07-12",
+    });
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [withoutNotes(createdSubtask)],
+            results: [
+                {
+                    type: "Create",
+                    task: {id: createdSubtask.id},
+                    results: [
+                        {
+                            type: "MoveInParent",
+                            cursor: printApiTaskQueryCursorMock(702),
+                        },
+                    ],
+                },
+            ],
+        },
+    });
+
+    const result = await callAgentWebCreateTool(context, {
+        type: "task",
         content: `\
+# Create with a new subtask
+
+## Subtasks
+
+- Draft launch brief (Open, active)
+  - Assignee: [Alice](/human/alice)
+  - Collections: [Engineering](/task-collection/engineering)
+  - Priority: Urgent
+  - Due date: July 12th, 2027`,
+    });
+
+    expect({
+        result,
+        requests: api.getRequestHistory().map(request => ({
+            method: request.method,
+            path: request.path,
+            body: request.body,
+        })),
+    }).toEqual({
+        result:
+            "Create was successful. New task: " +
+            "[Create with a new subtask](/task/create-with-a-new-subtask).",
+        requests: [
+            {
+                method: "POST",
+                path: "/tasks",
+                body: {
+                    spaceId,
+                    task: {
+                        title: "Create with a new subtask",
+                        status: {type: "Open", isActive: false},
+                        collections: [],
+                    },
+                },
+            },
+            {
+                method: "PATCH",
+                path: "/tasks",
+                body: {
+                    spaceId,
+                    patches: [
+                        {
+                            type: "Create",
+                            task: {
+                                title: "Draft launch brief",
+                                status: {type: "Open", isActive: true},
+                                parent: {task: {id: taskId}},
+                                assignee: {id: aliceAccount.id},
+                                collections: [{collection: {id: engineeringCollectionId}}],
+                                priority: {type: "Urgent"},
+                                due: {date: "2027-07-12"},
+                            },
+                            patches: [{type: "MoveInParent", position: {type: "End"}}],
+                        },
+                    ],
+                },
+            },
+        ],
+    });
+});
+
+test("rejects a subtasks See more link on create without calling the API", async () => {
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 # Create with subtasks pagination
 
 ## Subtasks
@@ -358,10 +401,12 @@ test("rejects a subtasks See more link on create without calling the API", async
 - [Parent task (Open)](/task/parent-task)
 
 [See more (2 remaining) »](/task/parent-task/subtasks?after=abcdef)`,
-        expected:
-            "You can\u2019t create a task with a \u201cSee more\u201d subtasks link. Try again after " +
-            "removing the link.",
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
+            ("You can\u2019t create a task with a \u201cSee more\u201d subtasks link. Try again after " +
+                "removing the link."),
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
@@ -382,7 +427,7 @@ test("creates a task with parent and priority", async () => {
 - Priority: Medium`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New task: [Create parent field](/task/create-parent-field).\n",
+        "Create was successful. New task: [Create parent field](/task/create-parent-field).",
     );
 
     expect(getCreateTaskRequests()[0]?.body).toEqual({
@@ -420,7 +465,7 @@ Create notes body.
 
 Use beta data.`,
         }),
-    ).resolves.toEqual("Create was successful. New task: [Create notes](/task/create-notes).\n");
+    ).resolves.toEqual("Create was successful. New task: [Create notes](/task/create-notes).");
 
     expect(getCreateTaskRequests()[0]?.body).toEqual({
         spaceId,
@@ -470,7 +515,7 @@ test("creates a task with empty notes section without sending notes content", as
 ## Notes`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New task: [Create empty notes](/task/create-empty-notes).\n",
+        "Create was successful. New task: [Create empty notes](/task/create-empty-notes).",
     );
 
     expect(getCreateTaskRequests()[0]?.body).toEqual({
@@ -504,7 +549,7 @@ test("creates a task with assignee and priority", async () => {
 - Priority: Medium`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New task: [Create mixed fields](/task/create-mixed-fields).\n",
+        "Create was successful. New task: [Create mixed fields](/task/create-mixed-fields).",
     );
 
     expect(getCreateTaskRequests()[0]?.body).toEqual({
@@ -538,7 +583,7 @@ test("creates a task with status and inline collections", async () => {
 - Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New task: [Create collection fields](/task/create-collection-fields).\n",
+        "Create was successful. New task: [Create collection fields](/task/create-collection-fields).",
     );
 
     expect(getCreateTaskRequests()[0]?.body).toEqual({
@@ -578,7 +623,7 @@ test("creates a task with yearless due date using context year", async () => {
 - Due date: July 12th`,
             }),
         ).resolves.toEqual(
-            "Create was successful. New task: [Create yearless due date](/task/create-yearless-due-date).\n",
+            "Create was successful. New task: [Create yearless due date](/task/create-yearless-due-date).",
         );
     } finally {
         import.meta.jest.useRealTimers();
@@ -637,12 +682,16 @@ test.each([
 );
 
 test("rejects a missing task title without calling the API", async () => {
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 - Status: Open`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
             "A title is required for tasks. Try again but make sure the task starts with a markdown h1 (e.g. `# My Task`).",
-    });
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
@@ -652,107 +701,139 @@ function withoutNotes(task: ApiTaskResponse): ApiTaskWithoutNotesResponse {
 }
 
 test("rejects an unknown assignee link without calling the API", async () => {
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 # Unknown assignee
 
 - status: open
 - assignee: [Missing](/human/missing)`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
             "Unexpected task assignee link \u201CMissing\u201D on line 4. Try again with a link to a human or bot you\u2019ve seen before (e.g. `[John](/human/john-doe)`).",
-    });
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
 test("rejects an unknown parent link without calling the API", async () => {
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 # Unknown parent
 
 - Parent: [Missing](/task/missing)`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
             "Unexpected task parent link \u201CMissing\u201D on line 3. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
-    });
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
 test("rejects a parent link to another entity type without calling the API", async () => {
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 # Wrong parent
 
 - Parent: [Engineering](/task-collection/engineering)`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
             "Unexpected task parent link \u201CEngineering\u201D on line 3. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
-    });
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
 test("rejects an unknown collection link without calling the API", async () => {
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 # Unknown collection
 
 - Collections: [Missing](/task-collection/missing)`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
             "Unexpected task collection link \u201CMissing\u201D on line 3. Try again with a link to a task collection you\u2019ve seen before (e.g. `[My Collection](/task-collection/my-collection)`).",
-    });
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
 test("rejects a collections more count on create without calling the API", async () => {
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 # More collections
 
 - Collections: [Engineering](/task-collection/engineering), and 2 more`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
             "Can\u2019t use \u201Cand 2 more\u201D in the \u201CCollections\u201D task field on line 3 since we wouldn\u2019t know which collections those are. Try again with a link to every collection (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
-    });
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
 test("rejects invalid task status without calling the API", async () => {
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 # Invalid status
 
 - Status: Pending`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
             "Unexpected task status \u201CPending\u201D on line 3. Try again with \u201COpen\u201D, \u201COpen (Active)\u201D, or \u201CClosed\u201D.",
-    });
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
 test("rejects invalid task priority without calling the API", async () => {
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 # Invalid priority
 
 - Status: Open
 - Priority: Immediate`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
             "Unexpected task priority \u201CImmediate\u201D on line 4. Try again with \u201CLow\u201D, \u201CMedium\u201D, or \u201CHigh\u201D.",
-    });
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
 test("rejects active task without assignee on create without calling the API", async () => {
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 # Active task
 
 - Status: Open (Active)`,
-        expected:
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
             "Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. `- Status: Open`) or set an assignee (e.g. `- Assignee: [ChatGPT](/bot/chatgpt)`).",
-    });
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
@@ -763,14 +844,19 @@ test.each([
     ["multiple dates", "July 12th, 2025 and July 13th, 2025"],
     ["not a date", "sometime after launch"],
 ])("rejects improperly formatted due date on create: %s", async (_name, dueDate) => {
-    await expectCreateDisplayMessage({
-        content: `\
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
 # Invalid due date
 
 - Status: Open
 - Due date: ${dueDate}`,
-        expected: `Unexpected task due date \u201C${dueDate}\u201D. Try again with a date like \u201CJuly 12, 2027\u201D (not including the time, just the date).`,
-    });
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create task. " +
+            `Unexpected task due date \u201C${dueDate}\u201D. Try again with a date like \u201CJuly 12, 2027\u201D (not including the time, just the date).`,
+    );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });

@@ -15,9 +15,6 @@ import {
     ApiTaskResponse,
     ApiTaskWithoutNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -185,63 +182,6 @@ function mockGetTask(
     });
 }
 
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    let string = "";
-
-    for (const segment of displayMessage) {
-        switch (segment.type) {
-            case "Text":
-            case "SensitiveText":
-            case "Link": {
-                string += segment.text;
-                break;
-            }
-            default:
-                throw exhaustive(segment);
-        }
-    }
-
-    return string;
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw error;
-}
-
-async function expectUpdateDisplayMessage({
-    path,
-    updates,
-    expected,
-}: {
-    path: string;
-    updates: Parameters<typeof callAgentWebUpdateTool>[1]["updates"];
-    expected: string;
-}) {
-    let error: unknown;
-
-    try {
-        await callAgentWebUpdateTool(context, {path, updates});
-    } catch (actualError) {
-        error = actualError;
-    }
-
-    if (!error) throw new InternalError("Expected update tool call to throw");
-
-    expect(printDisplayMessage(getDisplayMessage(error))).toEqual(expected);
-}
-
 async function readTask({
     taskId = generateId<TaskId>(),
     title,
@@ -337,7 +277,7 @@ test("updates task title", async () => {
             path,
             updates: [{old: "# Original title", new: "# New title", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetTitle", title: "New title"}]},
@@ -383,7 +323,7 @@ test("adds a subtask section when the task previously had no subtasks", async ()
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskListPatchRequests().map(request => request.body)).toEqual([
         {
@@ -398,6 +338,76 @@ test("adds a subtask section when the task previously had no subtasks", async ()
                     type: "Update",
                     id: subtask.id,
                     patch: {type: "MoveInParent", position: {type: "End"}},
+                },
+            ],
+        },
+    ]);
+});
+
+test("adds a new task in a subtask section", async () => {
+    const {taskId, path} = await readTask({title: "Parent task without subtasks"});
+    const parent = createApiTaskMock({id: taskId, title: "Parent task without subtasks"});
+    const createdSubtask = createApiTaskMock({
+        index: 802,
+        title: "New subtask",
+        status: "Closed",
+        parent,
+        priority: "Medium",
+    });
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [withoutNotes(createdSubtask)],
+            results: [
+                {
+                    type: "Create",
+                    task: {id: createdSubtask.id},
+                    results: [
+                        {
+                            type: "MoveInParent",
+                            cursor: printApiTaskQueryCursorMock(1_002),
+                        },
+                    ],
+                },
+            ],
+        },
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Status: Open",
+                    new: `\
+- Status: Open
+
+## Subtasks
+
+- New subtask (Closed)
+  - Priority: Medium`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.");
+
+    expect(getTaskListPatchRequests().map(request => request.body)).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    type: "Create",
+                    task: {
+                        title: "New subtask",
+                        status: {type: "Closed"},
+                        parent: {task: {id: taskId}},
+                        collections: [],
+                        priority: {type: "Medium"},
+                    },
+                    patches: [{type: "MoveInParent", position: {type: "End"}}],
                 },
             ],
         },
@@ -433,7 +443,7 @@ test("removes a task from the subtask section", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskListPatchRequests().map(request => request.body)).toEqual([
         {
@@ -491,7 +501,7 @@ test("reorders tasks in the subtask section", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskListPatchRequests().map(request => request.body)).toEqual([
         {
@@ -532,7 +542,7 @@ test("moves a task to the end of the visible subtasks before See more", async ()
             path,
             updates: [
                 {
-                    old: "- [Subtask 1 (Open)](/task/subtask-1)\n\n",
+                    old: "- [Subtask 1 (Open)](/task/subtask-1)\n",
                     new: "",
                     replaceAll: false,
                 },
@@ -546,7 +556,7 @@ test("moves a task to the end of the visible subtasks before See more", async ()
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskListPatchRequests().map(request => request.body)).toEqual([
         {
@@ -585,20 +595,23 @@ test("rejects updating the subtasks See more link", async () => {
         })),
     });
 
-    await expectUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "See more (10 remaining)",
-                new: "See more (9 remaining)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "You can\u2019t update the \u201cSee more\u201d link in a task\u2019s subtasks section. " +
-            "Try again with a more specific update that leaves the \u201cSee more\u201d link " +
-            "unchanged.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "See more (10 remaining)",
+                    new: "See more (9 remaining)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
+            ("You can\u2019t update the \u201cSee more\u201d link in a task\u2019s subtasks section. " +
+                "Try again with a more specific update that leaves the \u201cSee more\u201d link " +
+                "unchanged."),
+    );
 });
 
 test("adds task notes", async () => {
@@ -627,7 +640,7 @@ test("adds task notes", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect({
         taskPatches: getTaskPatchRequests().map(request => request.body),
@@ -666,7 +679,7 @@ test("adds task notes with heading", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskNotesPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetContent", version: 0, content: notesContent}]},
@@ -694,7 +707,7 @@ test("clears task notes after reading task with notes set", async () => {
             path,
             updates: [{old: "\n\n## Notes\n\nOld notes.", new: "", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskNotesPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetContent", version: 6, content: emptyNotesContent}]},
@@ -730,7 +743,7 @@ test("changes task notes after reading task with notes set", async () => {
             path,
             updates: [{old: "Old notes.", new: "New notes.", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskNotesPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetContent", version: 10, content: newNotesContent}]},
@@ -761,7 +774,7 @@ test("updates task fields and notes", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect({
         taskPatches: getTaskPatchRequests().map(request => request.body),
@@ -812,7 +825,7 @@ test("updates task status to explicit inactive open", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetStatus", status: {type: "Open", isActive: false}}]},
@@ -831,7 +844,7 @@ test("removes task status after reading task with status set", async () => {
             path,
             updates: [{old: "- Status: Closed", new: "", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetStatus", status: {type: "Open", isActive: false}}]},
@@ -857,7 +870,7 @@ test("changes task status after reading task with status set", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetStatus", status: {type: "Open", isActive: true}}]},
@@ -867,18 +880,21 @@ test("changes task status after reading task with status set", async () => {
 test("rejects setting task active without assignee on update", async () => {
     const {path} = await readTask({title: "Status task"});
 
-    await expectUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "- Status: Open",
-                new: "- Status: Open (Active)",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "- Status: Open",
+                    new: "- Status: Open (Active)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
             "Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. `- Status: Open`) or set an assignee (e.g. `- Assignee: [ChatGPT](/bot/chatgpt)`).",
-    });
+    );
 
     expect(getTaskPatchRequests()).toHaveLength(0);
 });
@@ -932,7 +948,7 @@ test("removes task parent after reading task with parent set", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetParent", parent: null}]},
@@ -957,7 +973,7 @@ test("changes task parent after reading task with parent set", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetParent", parent: {task: {id: otherParentTaskId}}}]},
@@ -967,18 +983,21 @@ test("changes task parent after reading task with parent set", async () => {
 test("rejects an unknown task parent link on update", async () => {
     const {path} = await readTask({title: "Parent task child"});
 
-    await expectUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "- Status: Open",
-                new: "- Status: Open\n- Parent: [Missing](/task/missing)",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "- Status: Open",
+                    new: "- Status: Open\n- Parent: [Missing](/task/missing)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
             "Unexpected task parent link \u201CMissing\u201D on line 4. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
-    });
+    );
 
     expect(getTaskPatchRequests()).toHaveLength(0);
 });
@@ -986,18 +1005,21 @@ test("rejects an unknown task parent link on update", async () => {
 test("rejects task parent link to another entity type on update", async () => {
     const {path} = await readTask({title: "Parent task child"});
 
-    await expectUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "- Status: Open",
-                new: "- Status: Open\n- Parent: [Engineering](/task-collection/engineering)",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "- Status: Open",
+                    new: "- Status: Open\n- Parent: [Engineering](/task-collection/engineering)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
             "Unexpected task parent link \u201CEngineering\u201D on line 4. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
-    });
+    );
 
     expect(getTaskPatchRequests()).toHaveLength(0);
 });
@@ -1082,7 +1104,7 @@ test("removes task assignee after reading task with assignee set", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetAssignee", assignee: null}]},
@@ -1107,7 +1129,7 @@ test("changes task assignee after reading task with assignee set", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetAssignee", assignee: intoApiAccountReference(bobAccount)}]},
@@ -1121,18 +1143,21 @@ test("rejects removing assignee from active task on update", async () => {
         assignee: aliceAccount,
     });
 
-    await expectUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "\n- Assignee: [Alice](/human/alice)",
-                new: "",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "\n- Assignee: [Alice](/human/alice)",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
             "Can\u2019t remove the assignee from an active task. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. `- Status: Open`).",
-    });
+    );
 
     expect(getTaskPatchRequests()).toHaveLength(0);
 });
@@ -1174,7 +1199,7 @@ test("removes task priority after reading task with priority set", async () => {
             path,
             updates: [{old: "\n- Priority: Urgent", new: "", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetPriority", priority: null}]},
@@ -1193,7 +1218,7 @@ test("changes task priority after reading task with priority set", async () => {
             path,
             updates: [{old: "- Priority: Urgent", new: "- Priority: Low", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetPriority", priority: {type: "Low"}}]},
@@ -1247,7 +1272,7 @@ test.each([
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetDue", due: {date: expectedDate}}]},
@@ -1273,7 +1298,7 @@ test("sets task due date without year using context year", async () => {
                     },
                 ],
             }),
-        ).resolves.toEqual("Update was successful.\n");
+        ).resolves.toEqual("Update was successful.");
     } finally {
         import.meta.jest.useRealTimers();
     }
@@ -1295,7 +1320,7 @@ test("removes task due date after reading task with due date set", async () => {
             path,
             updates: [{old: "\n- Due date: July 12th, 2027", new: "", replaceAll: false}],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetDue", due: null}]},
@@ -1320,7 +1345,7 @@ test("changes task due date after reading task with due date set", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetDue", due: {date: "2025-07-12"}}]},
@@ -1335,17 +1360,21 @@ test.each([
 ])("rejects improperly formatted due date on update: %s", async (_name, dueDate) => {
     const {path} = await readTask({title: "Invalid due date task"});
 
-    await expectUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "- Status: Open",
-                new: `- Status: Open\n- Due date: ${dueDate}`,
-                replaceAll: false,
-            },
-        ],
-        expected: `Unexpected task due date \u201C${dueDate}\u201D. Try again with a date like \u201CJuly 12, 2027\u201D (not including the time, just the date).`,
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "- Status: Open",
+                    new: `- Status: Open\n- Due date: ${dueDate}`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
+            `Unexpected task due date \u201C${dueDate}\u201D. Try again with a date like \u201CJuly 12, 2027\u201D (not including the time, just the date).`,
+    );
 
     expect(getTaskPatchRequests()).toHaveLength(0);
 });
@@ -1406,7 +1435,7 @@ test("adds task collection after reading task with collection set", async () => 
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {
@@ -1438,7 +1467,7 @@ test("removes task collection after reading task with two collections set", asyn
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "RemoveCollection", collectionId: roadmapCollectionId}]},
@@ -1463,7 +1492,7 @@ test("removes task collections after reading task with collection set", async ()
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "RemoveCollection", collectionId: engineeringCollectionId}]},
@@ -1488,7 +1517,7 @@ test("changes task collections after reading task with collection set", async ()
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {
@@ -1520,7 +1549,7 @@ test("does not patch task when collections are reordered", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.\n");
+    ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests()).toHaveLength(0);
 });
@@ -1531,18 +1560,21 @@ test("rejects a collections more count on update without calling the API", async
         collectionIds: [engineeringCollectionId],
     });
 
-    await expectUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "- Collections: [Engineering](/task-collection/engineering)",
-                new: "- Collections: [Engineering](/task-collection/engineering), and 2 more",
-                replaceAll: false,
-            },
-        ],
-        expected:
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: path,
+            updates: [
+                {
+                    old: "- Collections: [Engineering](/task-collection/engineering)",
+                    new: "- Collections: [Engineering](/task-collection/engineering), and 2 more",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t update \`${path}\`. ` +
             "Can\u2019t use \u201Cand 2 more\u201D in the \u201CCollections\u201D task field on line 4 since we wouldn\u2019t know which collections those are. Try again with a link to every collection (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
-    });
+    );
 
     expect(getTaskPatchRequests()).toHaveLength(0);
 });
