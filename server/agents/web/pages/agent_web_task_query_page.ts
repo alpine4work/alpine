@@ -644,15 +644,20 @@ export async function printAgentWebTaskQueryPageTaskListItem(
     storage: AgentWebSessionStorage,
     pageTask: AgentWebTaskQueryPageTask,
 ): Promise<ListItem> {
-    const taskReference: ApiTaskReferenceResponse = {
-        type: "Task",
-        id: pageTask.taskId,
-        title: pageTask.title,
-        status: pageTask.status,
-    };
+    const taskReference: ApiTaskReferenceResponse | null =
+        pageTask.taskId === null
+            ? null
+            : {
+                  type: "Task",
+                  id: pageTask.taskId,
+                  title: pageTask.title,
+                  status: pageTask.status,
+              };
 
     const [taskPathname, fieldListItems] = await runAllPromises([
-        createAgentWebPageStoredLinkPathname(storage, taskReference),
+        taskReference === null
+            ? null
+            : createAgentWebPageStoredLinkPathname(storage, taskReference),
         runAllPromises(
             printAgentWebTaskFieldListItems(storage, {
                 parent: pageTask.parent,
@@ -666,18 +671,21 @@ export async function printAgentWebTaskQueryPageTaskListItem(
         ),
     ]);
 
+    const taskTitle = `${pageTask.title} ${pageTask.status.type === "Open" ? (pageTask.status.isActive ? "(Open, active)" : "(Open)") : "(Closed)"}`;
+
     const children: ListItem["children"] = [
         {
             type: "paragraph",
-            children: [
-                {
-                    type: "link",
-                    url: taskPathname,
-                    children: [
-                        {type: "text", value: printAgentWebPageStoredLinkLabel(taskReference)},
-                    ],
-                },
-            ],
+            children:
+                taskPathname === null
+                    ? [{type: "text", value: taskTitle}]
+                    : [
+                          {
+                              type: "link",
+                              url: taskPathname,
+                              children: [{type: "text", value: taskTitle}],
+                          },
+                      ],
         },
     ];
 
