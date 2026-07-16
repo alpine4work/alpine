@@ -1099,277 +1099,314 @@ export async function updateAgentWebTaskQueryPage(
         ]),
     );
     const oldPageTaskById = new Map(oldPageTasks.map(pageTask => [pageTask.taskId, pageTask]));
-    const newPageTaskById = new Map(
-        filterMapIterable(newPageTasks, pageTask => {
-            if (pageTask.taskId === null) return;
-            return [pageTask.taskId, pageTask];
-        }),
-    );
-    const batchPatches: Array<ApiTaskBatchPatch> = [];
-    const createTaskRequestByPageTaskIndex = new Map<number, ApiTaskCreateRequest>();
 
-    // NOCOMMIT: Test moving a task and creating a task right after (what is the
-    // position?). Test moving a task and creating a task right before (what is the
-    // position?). The new task should probably get a `MoveInCollection` patch.
-    //
-    // NOCOMMIT: When creating tasks, we should ideally add links to the newly created
-    // tasks in the output.
-    for (const {index: taskIndex, task: pageTask} of createdPageTasks) {
-        if (pageTask.additionalCollectionsCount !== 0) {
-            const quotedTitle = curlyQuote(pageTask.title);
+    type NewPageTaskExecution =
+        | {
+              type: "Create";
+              task: ApiTaskCreateRequest;
+          }
+        | {
+              type: "Add";
+              taskId: TaskId;
+          }
+        | {
+              type: "Update";
+              taskId: TaskId;
+              patches: Array<ApiTaskPatch>;
+          };
 
-            throw new InvalidArgumentError(
-                "Can\u2019t create task with additional collection count",
-                {
-                    // NOCOMMIT: Make sure this is tested
-                    displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} with an \u201Cand ${pageTask.additionalCollectionsCount} more\u201D collection count since we don\u2019t know which underlying collections you\u2019re trying to add. Try again after removing the count or replacing it with links to the underlying collections.`,
-                },
-            );
-        }
+    const executions = await runAllPromises(
+        newPageTasks.map(async (newPageTask): Promise<NewPageTaskExecution> => {
+            /* ========================================================================== *\
+             *                              Create new task                               *
+            \* ========================================================================== */
 
-        if (pageTask.subtasks.openTaskCount !== 0 || pageTask.subtasks.closedTaskCount !== 0) {
-            const quotedTitle = curlyQuote(pageTask.title);
+            // NOCOMMIT: Test moving a task and creating a task right after (what is the
+            // position?). Test moving a task and creating a task right before (what is the
+            // position?). The new task should probably get a `MoveInCollection` patch.
+            //
+            // NOCOMMIT: When creating tasks, we should ideally add links to the newly created
+            // tasks in the output.
 
-            throw new InvalidArgumentError("Can\u2019t create task with subtask counts", {
-                // NOCOMMIT: Make sure this is tested
-                displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} with a \u201CSubtasks\u201D field since we don't know what the underlying subtasks are. Try again after removing the \u201CSubtasks\u201D field, then call the \`read\` tool on the newly created task and use the \`update\` tool to add subtasks to the newly created task.`,
-            });
-        }
+            if (newPageTask.taskId === null) {
+                if (newPageTask.additionalCollectionsCount !== 0) {
+                    const quotedTitle = curlyQuote(newPageTask.title);
 
-        if (
-            pageTask.status.type === "Open" &&
-            pageTask.status.isActive &&
-            pageTask.assignee === null
-        ) {
-            const quotedTitle = curlyQuote(pageTask.title);
+                    throw new InvalidArgumentError(
+                        "Can\u2019t create task with additional collection count",
+                        {
+                            // NOCOMMIT: Make sure this is tested
+                            displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} with an \u201Cand ${newPageTask.additionalCollectionsCount} more\u201D collection count since we don\u2019t know which underlying collections you\u2019re trying to add. Try again after removing the count or replacing it with links to the underlying collections.`,
+                        },
+                    );
+                }
 
-            const assigneeLink: Link = {
-                type: "link",
-                url: context.botAccount.pathname,
-                children: [{type: "text", value: context.botAccount.shortName}],
-            };
+                if (
+                    newPageTask.subtasks.openTaskCount !== 0 ||
+                    newPageTask.subtasks.closedTaskCount !== 0
+                ) {
+                    const quotedTitle = curlyQuote(newPageTask.title);
 
-            throw new InvalidArgumentError(
-                "Can\u2019t create active task if there\u2019s no assignee",
-                {
-                    displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either create the task as open but inactive (e.g. \u201C(Open)\u201D) or set an assignee (e.g. ${quote(`- Assignee: ${printMarkdownTree(assigneeLink).trim()}`)}).`,
-                },
-            );
-        }
+                    throw new InvalidArgumentError("Can\u2019t create task with subtask counts", {
+                        // NOCOMMIT: Make sure this is tested
+                        displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} with a \u201CSubtasks\u201D field since we don't know what the underlying subtasks are. Try again after removing the \u201CSubtasks\u201D field, then call the \`read\` tool on the newly created task and use the \`update\` tool to add subtasks to the newly created task.`,
+                    });
+                }
 
-        const due =
-            pageTask.dueDateString === null
-                ? undefined
-                : {
-                      date: parseAgentWebTaskPageDueDateStringForUpdate(
-                          contextDate,
-                          pageTask.dueDateString,
-                          () => errorDisplayMessage` for task ${curlyQuote(pageTask.title)}`,
-                      ).toString(),
-                  };
+                if (
+                    newPageTask.status.type === "Open" &&
+                    newPageTask.status.isActive &&
+                    newPageTask.assignee === null
+                ) {
+                    const quotedTitle = curlyQuote(newPageTask.title);
 
-        createTaskRequestByPageTaskIndex.set(taskIndex, {
-            title: pageTask.title,
-            status: pageTask.status,
-            parent: pageTask.parent ? {task: {id: pageTask.parent.id}} : undefined,
-            assignee: pageTask.assignee ? {id: pageTask.assignee.id} : undefined,
-            collections: pageTask.collections.map(collection => ({
-                collection: {id: collection.id},
-            })),
-            priority: pageTask.priority ?? undefined,
-            due,
-        });
-    }
+                    const assigneeLink: Link = {
+                        type: "link",
+                        url: context.botAccount.pathname,
+                        children: [{type: "text", value: context.botAccount.shortName}],
+                    };
 
-    // Verify that we're adding a task with the correct fields.
-    await runAllPromises(
-        addedTaskIds.map(async taskId => {
-            const {
-                data: {task},
-            } = await context.api.get(context.span, "/tasks/{id}", {
-                params: {path: {id: taskId}},
-            });
+                    throw new InvalidArgumentError(
+                        "Can\u2019t create active task if there\u2019s no assignee",
+                        {
+                            displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either create the task as open but inactive (e.g. \u201C(Open)\u201D) or set an assignee (e.g. ${quote(`- Assignee: ${printMarkdownTree(assigneeLink).trim()}`)}).`,
+                        },
+                    );
+                }
 
-            const expectedPageTask = intoAgentWebTaskQueryPageTask({
-                timeZone: context.timeZone,
-                contextDate,
-                omittedCollectionId:
-                    pageLink.type === "TaskCollection" ? (pageLink.id ?? undefined) : undefined,
-                omittedParentTaskId:
-                    pageLink.type === "TaskSubtasks" ? (pageLink.task.id ?? undefined) : undefined,
-                task,
-            });
+                const due =
+                    newPageTask.dueDateString === null
+                        ? undefined
+                        : {
+                              date: parseAgentWebTaskPageDueDateStringForUpdate(
+                                  contextDate,
+                                  newPageTask.dueDateString,
+                                  () =>
+                                      errorDisplayMessage` for task ${curlyQuote(newPageTask.title)}`,
+                              ).toString(),
+                          };
 
-            const actualPageTask = assertExists(newPageTaskById.get(taskId));
-
-            // Is our actual page task equal to what was expected?
-            if (areAgentWebTaskQueryPageTasksEqual(expectedPageTask, actualPageTask)) return;
-
-            const quotedTitle = curlyQuote(actualPageTask.title);
-
-            const taskMarkdown = printMarkdownTree({
-                type: "list",
-                ordered: false,
-                spread: false,
-                children: [
-                    await printAgentWebTaskQueryPageTaskListItem(context.storage, expectedPageTask),
-                ],
-            })
-                .trim()
-                .replaceAll("\n", "\\n");
-
-            throw new InvalidArgumentError("Can\u2019t update task fields while adding task", {
-                displayMessage: errorDisplayMessage`You can\u2019t change the task ${quotedTitle}\u2019s title or fields while adding it to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown. Add the task with its current title and fields, then call the \`update\` tool again if you want to change its title or fields. Try again with this exact markdown for the task: ${quote(taskMarkdown)}`,
-            });
-        }),
-    );
-
-    // NOCOMMIT: Maybe we should aim for an `AggregateError` in `newPageTasks` order
-    // for all the errors across the tasks in the page.
-    for (const newPageTask of newPageTasks) {
-        // Tasks that are created are handled in the `createdPageTasks` loop above.
-        if (newPageTask.taskId === null) continue;
-
-        const oldPageTask = oldPageTaskById.get(newPageTask.taskId);
-
-        // Newly added tasks are handled in the `addedTaskIds` loop above.
-        if (oldPageTask === undefined) continue;
-
-        // Don't allow moving a task and updating its fields at the same time. Since the
-        // agent needs to completely rewrite the task to move it we believe a common error
-        // mode for agents will be to rewrite the task with incorrect fields. Which is why
-        // we force a move + update to be done in two separate `update` tool calls.
-        if (
-            movedTaskIds.has(oldPageTask.taskId) &&
-            !areAgentWebTaskQueryPageTasksEqual(oldPageTask, newPageTask)
-        ) {
-            const quotedTitle = curlyQuote(oldPageTask.title);
-
-            throw new InvalidArgumentError("Can\u2019t move and update task fields together", {
-                displayMessage: errorDisplayMessage`You can\u2019t move the task ${quotedTitle} and change its title or fields in the same \`update\` tool call. Try again with two separate \`update\` tool calls, one to change the task\u2019s title/fields and another to move the task.`,
-            });
-        }
-
-        if (oldPageTask.additionalCollectionsCount !== newPageTask.additionalCollectionsCount) {
-            const quotedTitle = curlyQuote(oldPageTask.title);
-
-            throw new InvalidArgumentError(
-                "Can\u2019t change task collections by updating additional count",
-                {
-                    displayMessage: errorDisplayMessage`Can\u2019t change a task\u2019s collections by updating ${curlyQuote(`and ${oldPageTask.additionalCollectionsCount} more`)} to ${curlyQuote(`and ${newPageTask.additionalCollectionsCount} more`)} since we don\u2019t know which underlying collections you\u2019re trying to ${oldPageTask.additionalCollectionsCount < newPageTask.additionalCollectionsCount ? "add" : "remove"}. Instead call the \`read\` tool for the task ${quotedTitle} which will give you the full collection list for the task which you can update with the \`update\` tool.`,
-                },
-            );
-        }
-
-        if (!isDeepEqual(oldPageTask.subtasks, newPageTask.subtasks)) {
-            const quotedTitle = curlyQuote(oldPageTask.title);
-
-            throw new InvalidArgumentError("Can\u2019t change task subtasks by updating counts", {
-                displayMessage: errorDisplayMessage`Can\u2019t change the task ${quotedTitle}\u2019s subtasks by updating ${curlyQuote(`Subtasks: ${oldPageTask.subtasks.openTaskCount} open, ${oldPageTask.subtasks.closedTaskCount} closed`)} to ${curlyQuote(`Subtasks: ${newPageTask.subtasks.openTaskCount} open, ${newPageTask.subtasks.closedTaskCount} closed`)} since we don\u2019t know which underlying subtasks you\u2019re trying to add, remove, open, or close. Try again with an update that leaves the \`Subtasks\` field unchanged.`,
-            });
-        }
-
-        // Force the agent to set an assignee if they're marking a task as active. By
-        // default our API sets the bot as active when they make the task active if there's
-        // no assignee, we want the agent to make this choice explicitly.
-        //
-        // NOCOMMIT: Integration test that makes sure the bot can update a task to active
-        // when the task is already assigned to another account. Also that the bot can
-        // update a task to active and update the assignee at the same time.
-        if (
-            newPageTask.status.type === "Open" &&
-            newPageTask.status.isActive &&
-            !newPageTask.assignee
-        ) {
-            const quotedTitle = curlyQuote(oldPageTask.title);
-
-            const assigneeLink: Link = {
-                type: "link",
-                url: context.botAccount.pathname,
-                children: [{type: "text", value: context.botAccount.shortName}],
-            };
-
-            if (oldPageTask.status.type !== "Open" || !oldPageTask.status.isActive) {
-                throw new InvalidArgumentError(
-                    "Can\u2019t set task as active if there\u2019s no assignee",
-                    {
-                        displayMessage: errorDisplayMessage`Can\u2019t set the task ${quotedTitle} as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`(Open)\`) or set an assignee (e.g. ${quote(`- Assignee: ${printMarkdownTree(assigneeLink).trim()}`)}).`,
+                return {
+                    type: "Create",
+                    task: {
+                        title: newPageTask.title,
+                        status: newPageTask.status,
+                        parent: newPageTask.parent
+                            ? {task: {id: newPageTask.parent.id}}
+                            : undefined,
+                        assignee: newPageTask.assignee ? {id: newPageTask.assignee.id} : undefined,
+                        collections: newPageTask.collections.map(collection => ({
+                            collection: {id: collection.id},
+                        })),
+                        priority: newPageTask.priority ?? undefined,
+                        due,
                     },
-                );
-            } else {
-                throw new InvalidArgumentError("Can\u2019t remove assignee from an active task", {
-                    displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from the active task ${quotedTitle}. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. \`(Open)\`).`,
+                };
+            }
+
+            /* ========================================================================== *\
+             *                             Add existing task                              *
+            \* ========================================================================== */
+
+            const oldPageTask = oldPageTaskById.get(newPageTask.taskId);
+
+            // This task was newly added:
+            if (oldPageTask === undefined) {
+                const {
+                    data: {task},
+                } = await context.api.get(context.span, "/tasks/{id}", {
+                    params: {path: {id: newPageTask.taskId}},
+                });
+
+                const expectedPageTask = intoAgentWebTaskQueryPageTask({
+                    timeZone: context.timeZone,
+                    contextDate,
+                    omittedCollectionId:
+                        pageLink.type === "TaskCollection" ? (pageLink.id ?? undefined) : undefined,
+                    omittedParentTaskId:
+                        pageLink.type === "TaskSubtasks"
+                            ? (pageLink.task.id ?? undefined)
+                            : undefined,
+                    task,
+                });
+
+                // Is our actual page task equal to what was expected?
+                if (areAgentWebTaskQueryPageTasksEqual(expectedPageTask, newPageTask))
+                    return {type: "Add", taskId: newPageTask.taskId};
+
+                const quotedTitle = curlyQuote(newPageTask.title);
+
+                const taskMarkdown = printMarkdownTree({
+                    type: "list",
+                    ordered: false,
+                    spread: false,
+                    children: [
+                        await printAgentWebTaskQueryPageTaskListItem(
+                            context.storage,
+                            expectedPageTask,
+                        ),
+                    ],
+                })
+                    .trim()
+                    .replaceAll("\n", "\\n");
+
+                throw new InvalidArgumentError("Can\u2019t update task fields while adding task", {
+                    displayMessage: errorDisplayMessage`You can\u2019t change the task ${quotedTitle}\u2019s title or fields while adding it to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown. Add the task with its current title and fields, then call the \`update\` tool again if you want to change its title or fields. Try again with this exact markdown for the task: ${quote(taskMarkdown)}`,
                 });
             }
-        }
 
-        const patches: Array<ApiTaskPatch> = [];
+            /* ========================================================================== *\
+             *                                Update task                                 *
+            \* ========================================================================== */
 
-        if (oldPageTask.title !== newPageTask.title) {
-            patches.push({type: "SetTitle", title: newPageTask.title});
-        }
+            // Don't allow moving a task and updating its fields at the same time. Since the
+            // agent needs to completely rewrite the task to move it we believe a common error
+            // mode for agents will be to rewrite the task with incorrect fields. Which is why
+            // we force a move + update to be done in two separate `update` tool calls.
+            if (
+                movedTaskIds.has(oldPageTask.taskId) &&
+                !areAgentWebTaskQueryPageTasksEqual(oldPageTask, newPageTask)
+            ) {
+                const quotedTitle = curlyQuote(oldPageTask.title);
 
-        if (
-            oldPageTask.status.type !== newPageTask.status.type ||
-            (oldPageTask.status.type === "Open" &&
-                newPageTask.status.type === "Open" &&
-                oldPageTask.status.isActive !== newPageTask.status.isActive)
-        ) {
-            patches.push({type: "SetStatus", status: newPageTask.status});
-        }
+                throw new InvalidArgumentError("Can\u2019t move and update task fields together", {
+                    displayMessage: errorDisplayMessage`You can\u2019t move the task ${quotedTitle} and change its title or fields in the same \`update\` tool call. Try again with two separate \`update\` tool calls, one to change the task\u2019s title/fields and another to move the task.`,
+                });
+            }
 
-        if (oldPageTask.parent?.id !== newPageTask.parent?.id) {
-            patches.push({
-                type: "SetParent",
-                parent: newPageTask.parent ? {task: {id: newPageTask.parent.id}} : null,
-            });
-        }
+            if (oldPageTask.additionalCollectionsCount !== newPageTask.additionalCollectionsCount) {
+                const quotedTitle = curlyQuote(oldPageTask.title);
 
-        if (oldPageTask.assignee?.id !== newPageTask.assignee?.id) {
-            patches.push({type: "SetAssignee", assignee: newPageTask.assignee ?? null});
-        }
-
-        if (oldPageTask.dueDateString !== newPageTask.dueDateString) {
-            if (newPageTask.dueDateString === null) {
-                patches.push({type: "SetDue", due: null});
-            } else {
-                const date = parseAgentWebTaskPageDueDateStringForUpdate(
-                    contextDate,
-                    newPageTask.dueDateString,
-                    () => {
-                        const quotedTitle = curlyQuote(oldPageTask.title);
-
-                        return errorDisplayMessage` for task ${quotedTitle}`;
+                throw new InvalidArgumentError(
+                    "Can\u2019t change task collections by updating additional count",
+                    {
+                        displayMessage: errorDisplayMessage`Can\u2019t change a task\u2019s collections by updating ${curlyQuote(`and ${oldPageTask.additionalCollectionsCount} more`)} to ${curlyQuote(`and ${newPageTask.additionalCollectionsCount} more`)} since we don\u2019t know which underlying collections you\u2019re trying to ${oldPageTask.additionalCollectionsCount < newPageTask.additionalCollectionsCount ? "add" : "remove"}. Instead call the \`read\` tool for the task ${quotedTitle} which will give you the full collection list for the task which you can update with the \`update\` tool.`,
                     },
-                ).toString();
-
-                patches.push({type: "SetDue", due: {date}});
+                );
             }
-        }
 
-        if (oldPageTask.priority?.type !== newPageTask.priority?.type) {
-            patches.push({type: "SetPriority", priority: newPageTask.priority});
-        }
+            if (!isDeepEqual(oldPageTask.subtasks, newPageTask.subtasks)) {
+                const quotedTitle = curlyQuote(oldPageTask.title);
 
-        const oldCollectionIds = new Set(oldPageTask.collections.map(collection => collection.id));
-        const newCollectionIds = new Set(newPageTask.collections.map(collection => collection.id));
-
-        for (const collection of oldPageTask.collections) {
-            if (!newCollectionIds.has(collection.id)) {
-                patches.push({type: "RemoveCollection", collectionId: collection.id});
+                throw new InvalidArgumentError(
+                    "Can\u2019t change task subtasks by updating counts",
+                    {
+                        displayMessage: errorDisplayMessage`Can\u2019t change the task ${quotedTitle}\u2019s subtasks by updating ${curlyQuote(`Subtasks: ${oldPageTask.subtasks.openTaskCount} open, ${oldPageTask.subtasks.closedTaskCount} closed`)} to ${curlyQuote(`Subtasks: ${newPageTask.subtasks.openTaskCount} open, ${newPageTask.subtasks.closedTaskCount} closed`)} since we don\u2019t know which underlying subtasks you\u2019re trying to add, remove, open, or close. Try again with an update that leaves the \`Subtasks\` field unchanged.`,
+                    },
+                );
             }
-        }
 
-        for (const collection of newPageTask.collections) {
-            if (!oldCollectionIds.has(collection.id)) {
-                patches.push({type: "AddCollection", item: {collection}});
+            // Force the agent to set an assignee if they're marking a task as active. By
+            // default our API sets the bot as active when they make the task active if there's
+            // no assignee, we want the agent to make this choice explicitly.
+            //
+            // NOCOMMIT: Integration test that makes sure the bot can update a task to active
+            // when the task is already assigned to another account. Also that the bot can
+            // update a task to active and update the assignee at the same time.
+            if (
+                newPageTask.status.type === "Open" &&
+                newPageTask.status.isActive &&
+                !newPageTask.assignee
+            ) {
+                const quotedTitle = curlyQuote(oldPageTask.title);
+
+                const assigneeLink: Link = {
+                    type: "link",
+                    url: context.botAccount.pathname,
+                    children: [{type: "text", value: context.botAccount.shortName}],
+                };
+
+                if (oldPageTask.status.type !== "Open" || !oldPageTask.status.isActive) {
+                    throw new InvalidArgumentError(
+                        "Can\u2019t set task as active if there\u2019s no assignee",
+                        {
+                            displayMessage: errorDisplayMessage`Can\u2019t set the task ${quotedTitle} as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`(Open)\`) or set an assignee (e.g. ${quote(`- Assignee: ${printMarkdownTree(assigneeLink).trim()}`)}).`,
+                        },
+                    );
+                } else {
+                    throw new InvalidArgumentError(
+                        "Can\u2019t remove assignee from an active task",
+                        {
+                            displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from the active task ${quotedTitle}. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. \`(Open)\`).`,
+                        },
+                    );
+                }
             }
-        }
 
-        for (const patch of patches) {
-            batchPatches.push({type: "Update", id: oldPageTask.taskId, patch});
-        }
-    }
+            const patches: Array<ApiTaskPatch> = [];
+
+            if (oldPageTask.title !== newPageTask.title) {
+                patches.push({type: "SetTitle", title: newPageTask.title});
+            }
+
+            if (
+                oldPageTask.status.type !== newPageTask.status.type ||
+                (oldPageTask.status.type === "Open" &&
+                    newPageTask.status.type === "Open" &&
+                    oldPageTask.status.isActive !== newPageTask.status.isActive)
+            ) {
+                patches.push({type: "SetStatus", status: newPageTask.status});
+            }
+
+            if (oldPageTask.parent?.id !== newPageTask.parent?.id) {
+                patches.push({
+                    type: "SetParent",
+                    parent: newPageTask.parent ? {task: {id: newPageTask.parent.id}} : null,
+                });
+            }
+
+            if (oldPageTask.assignee?.id !== newPageTask.assignee?.id) {
+                patches.push({type: "SetAssignee", assignee: newPageTask.assignee ?? null});
+            }
+
+            if (oldPageTask.dueDateString !== newPageTask.dueDateString) {
+                if (newPageTask.dueDateString === null) {
+                    patches.push({type: "SetDue", due: null});
+                } else {
+                    const date = parseAgentWebTaskPageDueDateStringForUpdate(
+                        contextDate,
+                        newPageTask.dueDateString,
+                        () => {
+                            const quotedTitle = curlyQuote(oldPageTask.title);
+
+                            return errorDisplayMessage` for task ${quotedTitle}`;
+                        },
+                    ).toString();
+
+                    patches.push({type: "SetDue", due: {date}});
+                }
+            }
+
+            if (oldPageTask.priority?.type !== newPageTask.priority?.type) {
+                patches.push({type: "SetPriority", priority: newPageTask.priority});
+            }
+
+            const oldCollectionIds = new Set(
+                oldPageTask.collections.map(collection => collection.id),
+            );
+            const newCollectionIds = new Set(
+                newPageTask.collections.map(collection => collection.id),
+            );
+
+            for (const collection of oldPageTask.collections) {
+                if (!newCollectionIds.has(collection.id)) {
+                    patches.push({type: "RemoveCollection", collectionId: collection.id});
+                }
+            }
+
+            for (const collection of newPageTask.collections) {
+                if (!oldCollectionIds.has(collection.id)) {
+                    patches.push({type: "AddCollection", item: {collection}});
+                }
+            }
+
+            return {
+                type: "Update",
+                taskId: newPageTask.taskId,
+                patches,
+            };
+        }),
+    );
 
     const originalPageLink = pageLink;
 
