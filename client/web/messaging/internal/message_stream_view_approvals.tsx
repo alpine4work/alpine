@@ -10,6 +10,11 @@ import {Button} from "~/client/web/design/button.js";
 import {Checkbox} from "~/client/web/design/checkbox.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
+import {Tooltip} from "~/client/web/design/tooltip.js";
+import {
+    addResizeListenerForElement,
+    removeResizeListenerForElement,
+} from "~/client/web/helpers/use_resize_observer.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
@@ -268,6 +273,32 @@ function MessageStreamViewApprovalCard({
 
     const decisionValue = approval.decision.value;
 
+    const [summaryElement, setSummaryElement] = useState<HTMLDivElement | null>(null);
+    const [isSummaryTruncated, setIsSummaryTruncated] = useState(false);
+
+    // The summary tooltip repeats the summary line so it's only useful when the line
+    // is actually truncated, which we can only know by measuring the rendered element.
+    useEffect(() => {
+        // NOTE(ifitzsimmons, 2026-07-16): The summary element renders `summaryText` so
+        // re-measure when it changes. As of writing, the summary text is fixed and really
+        // shouldn't change. We'll leave this here for now in case it does in the future.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        summaryText;
+
+        if (summaryElement === null) return;
+
+        const measureIsSummaryTruncated = () => {
+            setIsSummaryTruncated(summaryElement.scrollWidth > summaryElement.clientWidth);
+        };
+
+        measureIsSummaryTruncated();
+
+        // Resizing the element changes how much text fits on the summary's single line.
+        addResizeListenerForElement(summaryElement, measureIsSummaryTruncated);
+        return () => removeResizeListenerForElement(summaryElement, measureIsSummaryTruncated);
+    }, [summaryElement, summaryText]);
+
     return (
         <div
             className={sprinkles({
@@ -279,46 +310,68 @@ function MessageStreamViewApprovalCard({
                 backgroundColor: "grey-0",
                 boxShadow: "elevation-5-with-grey-10-border",
                 borderRadius: "1.5",
+                userSelect: "text",
             })}
         >
             <div
                 className={sprinkles({
                     display: "flex",
-                    alignItems: "flex-start",
+                    alignItems: "center",
                     gap: "3",
                 })}
             >
                 <div
                     className={sprinkles({
                         display: "flex",
-                        alignItems: "flex-start",
+                        alignItems: "center",
                         gap: "1.5",
                         flexGrow: "1",
                         minWidth: "flex-fit",
-                        fontSize: contentStyles.paragraphActualFontSize,
+                        fontSize: "75",
                     })}
-                    style={{lineHeight: contentStyles.paragraphLineHeightVar}}
+                    style={{lineHeight: spacing["4"]}}
                 >
-                    {/* Center the badge on the summary's first line of text. Keeping the badge
-                        in its own column also keeps wrapped summary lines aligned with the text
-                        instead of the badge. */}
+                    {/* Center the badge on the truncated summary line. */}
                     <div
                         className={sprinkles({
                             display: "flex",
                             alignItems: "center",
                             flexShrink: "0",
                             color: darkerGreyAccentColor,
+                            marginTop: "-0.5",
                         })}
-                        style={{height: contentStyles.paragraphLineHeightVar}}
+                        style={{height: spacing["4"]}}
                     >
                         <ShieldCheck size={spacing["4"]} />
                     </div>
-                    <div>
-                        <span className={sprinkles({color: darkerGreyAccentColor})}>
-                            <AccountShortName account={author} /> wants to:
-                        </span>{" "}
-                        {summaryText}
-                    </div>
+                    <Tooltip
+                        isDisabled={!isSummaryTruncated}
+                        // Place the tooltip on the right, next to the truncation ellipsis, and let it grow
+                        // wide enough to comfortably fit a full summary line.
+                        placement="top-end"
+                        maxWidth="128"
+                        content={
+                            <>
+                                <AccountShortName account={author} isTooltipDisabled={true} /> wants
+                                to: {summaryText}
+                            </>
+                        }
+                    >
+                        <div
+                            ref={setSummaryElement}
+                            className={sprinkles({
+                                flexGrow: "1",
+                                minWidth: "flex-fit",
+                                fontStyle: "truncate",
+                            })}
+                        >
+                            <span className={sprinkles({color: darkerGreyAccentColor})}>
+                                <AccountShortName account={author} isTooltipDisabled={true} /> wants
+                                to:
+                            </span>{" "}
+                            {summaryText}
+                        </div>
+                    </Tooltip>
                 </div>
                 {paginationNode}
             </div>
