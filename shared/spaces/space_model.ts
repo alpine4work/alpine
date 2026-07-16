@@ -54,9 +54,8 @@ export class SpaceModel extends Model(
         themeColor: Schema.enum(themeColors).default(defaultThemeColor),
         /**
          * The workspace's database group — the SQLite instance (backed by a Cloudflare
-         * Durable Object) that holds all of the workspace's database tables. Populated
-         * lazily on first access via `getDatabaseGroupIdForSpace`, so older spaces may not
-         * have it yet.
+         * Durable Object) that holds all of the workspace's database tables. Assigned when
+         * the first database is created, so spaces without databases do not have it.
          */
         databaseGroupId: Schema.id<DatabaseGroupId>().optional(),
     }),

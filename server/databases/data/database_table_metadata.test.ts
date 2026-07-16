@@ -3,8 +3,9 @@ import {
     createDatabaseTableMetadataForTest,
     updateDatabaseTableAccessPolicy,
 } from "~/server/databases/data/database_table_metadata.js";
+import {getDatabaseTableLocation} from "~/server/databases/data/get_database_table_location.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {getDatabaseGroupIdForSpaceIfExists} from "~/server/spaces/get_database_group_id_for_space.js";
+import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
@@ -35,9 +36,16 @@ test("creating the first database assigns its space a database group ID", async 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    await createDatabaseTable(session.action(), {spaceId: space.id, name: "Projects"});
+    const {tableId} = await createDatabaseTable(session.action(), {
+        spaceId: space.id,
+        name: "Projects",
+    });
+    const databaseGroupId = await getDatabaseGroupIdForSpace(session.action(), space.id);
 
-    expect(await getDatabaseGroupIdForSpaceIfExists(session.action(), space.id)).not.toBeNull();
+    expect(await getDatabaseTableLocation(session.action(), tableId)).toEqual({
+        databaseGroupId,
+        spaceId: space.id,
+    });
 });
 
 test("updating a database table access policy requires Manage access", async () => {
@@ -64,7 +72,6 @@ test("updating a database table access policy requires Manage access", async () 
 
     await expect(
         updateDatabaseTableAccessPolicy(editor.action(), {
-            spaceId: space.id,
             tableId,
             accessPolicy: {
                 ...originalAccessPolicy,
@@ -101,7 +108,6 @@ test("database table access policy updates enforce manager generations", async (
 
     await expect(
         updateDatabaseTableAccessPolicy(juniorManager.action(), {
-            spaceId: space.id,
             tableId,
             accessPolicy: {
                 ...originalAccessPolicy,

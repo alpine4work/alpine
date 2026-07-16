@@ -31,7 +31,6 @@ export const updateDatabaseTableAccessPolicy = defineRpc({
     // Access policy updates are applied as a full replacement.
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
         tableId: Schema.id<DatabaseTableId>(),
         accessPolicy: CreateOrUpdateAccessPolicySchema,
     },
@@ -44,7 +43,6 @@ export const getDatabaseTableMetadataItem = defineRpc({
     name: "getDatabaseTableMetadataItem",
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
         tableId: Schema.id<DatabaseTableId>(),
     },
     output: {

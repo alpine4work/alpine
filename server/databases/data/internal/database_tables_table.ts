@@ -117,6 +117,18 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
     },
 });
 
+/** Strongly consistent reverse lookup from a globally unique table ID. */
+export const DatabaseTableIdsIndex = DatabaseTablesTable.addStrongConsistencyIndexWithQueryJoin({
+    name: "DatabaseTableIds",
+    itemTypes: [{partitionType: "DatabaseGroup", sortRangeType: "Table"}],
+    partitionKeyAttributes: {
+        tableId: DynamoKeyAttributeSchema.id<DatabaseTableId>(),
+    },
+    sortKeyAttributes: {
+        databaseGroupId: DynamoKeyAttributeSchema.id<DatabaseGroupId>(),
+    },
+});
+
 export type DatabaseTableItem = RynamoTableItemType<
     typeof DatabaseTablesTable,
     "DatabaseGroup",

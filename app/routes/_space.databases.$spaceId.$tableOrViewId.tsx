@@ -76,10 +76,10 @@ export async function loader({request, params, context: unauthenticatedContext}:
             endCursor: cursorResult.result.endCursor,
         },
     });
-    const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(context, {
-        spaceId,
-        tableId: schemaResult.result.tableId,
-    });
+    const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(
+        context,
+        schemaResult.result.tableId,
+    );
     const accessPolicy = tableMetadataItem.model.accessPolicy;
     const accessPolicySiteById =
         accessPolicy.type === "Site"
@@ -140,11 +140,10 @@ export default function DatabaseViewRoute() {
             ),
             reloadItemWithStrongReadConsistency: useCallback(async () => {
                 const {item} = await getDatabaseTableMetadataItem(context, {
-                    spaceId: loaderData.spaceId,
                     tableId: loaderData.tableMetadataItem.model.tableId,
                 });
                 return item;
-            }, [context, loaderData.spaceId, loaderData.tableMetadataItem.model.tableId]),
+            }, [context, loaderData.tableMetadataItem.model.tableId]),
         },
     );
 

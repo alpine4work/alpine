@@ -3745,6 +3745,55 @@ export const dynamoGeneratedSchemaDescription: {
                             "childSortRangeByType": {}
                         }
                     }
+                },
+                "DatabaseTableIds": {
+                    "id": 3,
+                    "partitionKeyAttributeByKey": {
+                        "tableId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Index": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "databaseGroupId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "actualPartitionType": {
+                                        "valueSchema": {
+                                            "type": "Enum",
+                                            "values": [
+                                                "DatabaseGroup"
+                                            ]
+                                        },
+                                        "optional": false
+                                    },
+                                    "actualSortRangeType": {
+                                        "valueSchema": {
+                                            "type": "Enum",
+                                            "values": [
+                                                "Table"
+                                            ]
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
                 }
             },
             "indexes": []

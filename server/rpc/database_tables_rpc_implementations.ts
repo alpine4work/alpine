@@ -26,7 +26,10 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         async execute(context, input) {
             return {
-                item: await getDatabaseTableMetadataItem(context.actor.authorizeSession(), input),
+                item: await getDatabaseTableMetadataItem(
+                    context.actor.authorizeSession(),
+                    input.tableId,
+                ),
             };
         },
     },
