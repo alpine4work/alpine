@@ -988,6 +988,51 @@ Remember to check the API shape.
                 "Unexpected markdown on line 9. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list).",
         },
         {
+            name: "task page with a new link-less subtask",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- Draft launch brief (Open, active)
+  - Assignee: [Alice](/human/alice)
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+            },
+            page: {
+                type: "Task",
+                title: "Task with subtasks",
+                status: {type: "Open", isActive: false},
+                parent: null,
+                assignee: null,
+                collections: [],
+                priority: null,
+                dueDateString: null,
+                notes: emptyNotes,
+                subtasks: {
+                    tasks: [
+                        {
+                            taskId: null,
+                            title: "Draft launch brief",
+                            status: {type: "Open", isActive: true},
+                            parent: null,
+                            subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                            assignee: aliceReference,
+                            collections: [],
+                            additionalCollectionsCount: 0,
+                            priority: null,
+                            dueDateString: null,
+                        },
+                    ],
+                    seeMore: null,
+                },
+            },
+        },
+        {
             name: "task page subtasks with non-link content after the task list",
             pageLink: taskId,
             markdown: `\
