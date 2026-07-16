@@ -3552,28 +3552,30 @@ export const dynamoGeneratedSchemaDescription: {
                 }
             ]
         },
-        "DatabaseTables": {
-            "name": "DatabaseTables",
+        "DatabaseTableMetadata": {
+            "name": "DatabaseTableMetadata",
             "partitionByType": {
-                "DatabaseGroup": {
+                "Table": {
                     "id": 0,
                     "partitionKeyAttributeByKey": {
-                        "databaseGroupId": {
+                        "tableId": {
                             "type": "Id"
                         }
                     },
                     "sortRangeByType": {
-                        "Table": {
+                        "Attributes": {
                             "id": 0,
                             "orderKey": "a0",
-                            "sortKeyAttributeByKey": {
-                                "tableId": {
-                                    "type": "Id"
-                                }
-                            },
+                            "sortKeyAttributeByKey": {},
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
+                                    "databaseGroupId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
                                     "name": {
                                         "valueSchema": {
                                             "type": "Nullable",
@@ -3585,10 +3587,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "spaceId": {
                                         "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Id"
-                                            }
+                                            "type": "Id"
                                         },
                                         "optional": false
                                     },
@@ -3693,7 +3692,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                     }
                                                 }
                                             },
-                                            "referenceId": "164d0749"
+                                            "referenceId": "baf94167"
                                         },
                                         "optional": false
                                     },
@@ -3734,55 +3733,6 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
-                                    "updateLockVersion": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": true
-                                    }
-                                }
-                            },
-                            "childSortRangeByType": {}
-                        }
-                    }
-                },
-                "DatabaseTableIds": {
-                    "id": 3,
-                    "partitionKeyAttributeByKey": {
-                        "tableId": {
-                            "type": "Id"
-                        }
-                    },
-                    "sortRangeByType": {
-                        "Index": {
-                            "id": 0,
-                            "orderKey": "a0",
-                            "sortKeyAttributeByKey": {
-                                "databaseGroupId": {
-                                    "type": "Id"
-                                }
-                            },
-                            "attributesSchema": {
-                                "type": "Object",
-                                "propertySchemaByKey": {
-                                    "actualPartitionType": {
-                                        "valueSchema": {
-                                            "type": "Enum",
-                                            "values": [
-                                                "DatabaseGroup"
-                                            ]
-                                        },
-                                        "optional": false
-                                    },
-                                    "actualSortRangeType": {
-                                        "valueSchema": {
-                                            "type": "Enum",
-                                            "values": [
-                                                "Table"
-                                            ]
-                                        },
-                                        "optional": false
-                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -10767,7 +10717,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "164d0749"
+                                            "reuseReferenceId": "baf94167"
                                         },
                                         "optional": false
                                     },
@@ -11681,7 +11631,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "164d0749"
+                                            "reuseReferenceId": "baf94167"
                                         },
                                         "optional": false
                                     },
@@ -13892,7 +13842,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "164d0749"
+                                            "reuseReferenceId": "baf94167"
                                         },
                                         "optional": false
                                     },
@@ -14668,7 +14618,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "164d0749"
+                                            "reuseReferenceId": "baf94167"
                                         },
                                         "optional": false
                                     },

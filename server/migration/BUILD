@@ -9,7 +9,6 @@ ts_project(
         "//server/accounts",
         "//server/bots",
         "//server/chat/data",
-        "//server/databases/data",
         "//server/documents/data",
         "//server/files/data",
         "//server/forum/data",

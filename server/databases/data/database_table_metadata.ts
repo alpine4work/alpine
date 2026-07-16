@@ -2,7 +2,6 @@ import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
-import {getDatabaseTableLocation} from "~/server/databases/data/get_database_table_location.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
 import {resolveDatabaseTableAccessPolicyForDurableObject} from "~/server/databases/data/resolve_database_table_access_policy_for_durable_object.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
@@ -39,13 +38,13 @@ export async function createDatabaseTable(
 
     await DatabaseTablesTable.updateItem(
         context,
-        {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
+        {partitionType: "Table", sortRangeType: "Attributes", tableId},
         item =>
             DynamoItem.createOrUpdate(item, {
-                partitionType: "DatabaseGroup",
-                sortRangeType: "Table",
-                databaseGroupId,
+                partitionType: "Table",
+                sortRangeType: "Attributes",
                 tableId,
+                databaseGroupId,
                 spaceId,
                 name,
                 isDeleted: false,
@@ -86,18 +85,17 @@ export async function updateDatabaseTableAccessPolicy(
     const sessionContext = context.actor.authorizeSession();
 
     const {getEvent, spaceId} = await sessionContext.dynamo.retryTransaction(async context => {
-        const {databaseGroupId, spaceId} = await getDatabaseTableLocation(context, tableId);
-        await authorizeSpaceAccess(context, spaceId, "Member");
         const item = await DatabaseTablesTable.getItemIfExists(
             context,
-            {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
+            {partitionType: "Table", sortRangeType: "Attributes", tableId},
             {consistency: "Strong"},
         );
 
         if (item === null || item.name === null) {
             throw new NotFoundError(`Database table ${tableId} not found`);
         }
-        assert(item.spaceId === spaceId);
+        const {spaceId} = item;
+        await authorizeSpaceAccess(context, spaceId, "Member");
         if (
             !(await evaluateAccessPolicy(context, spaceId, item.accessPolicy, "Manage", {
                 consistency: "Strong",
@@ -151,14 +149,11 @@ export async function getDatabaseTableMetadataItem(
     context: ServerActionContext,
     tableId: DatabaseTableId,
 ): Promise<RynamoItem<DatabaseTableMetadataModel>> {
-    const {databaseGroupId, spaceId} = await getDatabaseTableLocation(context, tableId);
-    await authorizeSpaceAccess(context, spaceId);
     const item = await DatabaseTablesTable.getRealtimeItemIfExists(
         context,
         {
-            partitionType: "DatabaseGroup",
-            sortRangeType: "Table",
-            databaseGroupId,
+            partitionType: "Table",
+            sortRangeType: "Attributes",
             tableId,
         },
         {consistency: "Strong"},
@@ -167,6 +162,8 @@ export async function getDatabaseTableMetadataItem(
     if (item === null) {
         throw new NotFoundError(`Database table ${tableId} not found`);
     }
+    const {spaceId} = item.model;
+    await authorizeSpaceAccess(context, spaceId);
     if (
         !(await evaluateAccessPolicy(context, spaceId, item.model.accessPolicy, "View", {
             consistency: "Strong",
@@ -198,11 +195,7 @@ export async function getDatabaseTableMetadataRealtimeEvent(
     const eventStubs = events.map(eventStub => {
         const itemKey = DatabaseTablesTable.deserializeOpaqueItemKey(eventStub.item.key);
 
-        if (
-            itemKey.partitionType === "DatabaseGroup" &&
-            itemKey.databaseGroupId === databaseGroupId &&
-            itemKey.sortRangeType === "Table"
-        ) {
+        if (itemKey.partitionType === "Table" && itemKey.sortRangeType === "Attributes") {
             return {...eventStub, itemKey};
         }
 
@@ -218,8 +211,9 @@ export async function getDatabaseTableMetadataRealtimeEvent(
     // Redact rather than reject: a database group mixes tables the actor can and can't
     // see, so a denied event must not tear down the actor's realtime connection.
     // Withheld table ids are returned so receivers can update their access maps (a
-    // denial doubles as the revocation signal). Deleted metadata has no policy left to
-    // evaluate \u2014 treat it as inaccessible too.
+    // denial doubles as the revocation signal). Hard deletion is disabled for database
+    // table metadata because a delete event doesn't contain the group ID required to
+    // validate its routing.
     const visibleEvents: Array<RynamoEvent<DatabaseTableMetadataModel>> = [];
     const deniedTableIds: Array<DatabaseTableId> = [];
 
@@ -227,17 +221,25 @@ export async function getDatabaseTableMetadataRealtimeEvent(
         actualEvents.map(async (event, index) => {
             let isAuthorized = false;
             switch (event.type) {
-                case "PutItem":
+                case "PutItem": {
+                    if (event.item.model.databaseGroupId !== databaseGroupId) {
+                        throw new PermissionDeniedError(
+                            "Can\u2019t get realtime event for a table outside the designated database group",
+                        );
+                    }
                     isAuthorized = await evaluateAccessPolicy(
                         context,
                         event.item.model.spaceId,
                         event.item.model.accessPolicy,
                         "View",
+                        {consistency: "Strong"},
                     );
                     break;
+                }
                 case "DeleteItem":
-                    isAuthorized = false;
-                    break;
+                    throw new PermissionDeniedError(
+                        "Can\u2019t validate a deleted database table against the designated database group",
+                    );
                 default:
                     throw exhaustive(event);
             }
@@ -263,16 +265,17 @@ export async function getDatabaseTableMetadataForSearchIndex(
 export async function syncDatabaseTableMetadataToDurableObject(
     context: ServerActionContext,
     {
+        databaseGroupId,
         tableId,
         name,
         accessPolicy,
     }: {
+        databaseGroupId: DatabaseGroupId;
         tableId: DatabaseTableId;
         name: string;
         accessPolicy: AccessPolicy;
     },
 ): Promise<void> {
-    const {databaseGroupId} = await getDatabaseTableLocation(context, tableId);
     const localAccessPolicy = await resolveDatabaseTableAccessPolicyForDurableObject(
         context,
         accessPolicy,
@@ -306,13 +309,13 @@ export async function createDatabaseTableMetadataForTest(
 
     await DatabaseTablesTable.updateItem(
         context,
-        {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
+        {partitionType: "Table", sortRangeType: "Attributes", tableId},
         item =>
             DynamoItem.createOrUpdate(item, {
-                partitionType: "DatabaseGroup",
-                sortRangeType: "Table",
-                databaseGroupId,
+                partitionType: "Table",
+                sortRangeType: "Attributes",
                 tableId,
+                databaseGroupId,
                 spaceId,
                 name,
                 isDeleted,

@@ -1540,6 +1540,7 @@ async function getDatabaseTableSearchEntity(
     const accessPolicyModel = await state.getAccessPolicy(accessPolicy);
     state.registerAdditionalWrite(context =>
         syncDatabaseTableMetadataToDurableObject(context, {
+            databaseGroupId: table.databaseGroupId,
             tableId,
             name,
             accessPolicy,

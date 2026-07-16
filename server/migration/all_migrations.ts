@@ -7,7 +7,6 @@ import {
     SitesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
-import {runIndexDatabaseTableIdsMigration} from "~/server/databases/data/run_index_database_table_ids_migration.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {runMigrateFilesToGlobalPartitionMigration} from "~/server/files/data/migrate_files_to_global_id.js";
 import {runIndexChannelPosts2Migration} from "~/server/forum/data/run_index_channel_posts2_migration.js";
@@ -64,5 +63,4 @@ export const allMigrations: {
     UpdateKnownBotSettings: runUpdateKnownBotSettingsMigration,
     MigrateFilesToGlobalPartition: runMigrateFilesToGlobalPartitionMigration,
     IndexChannelPosts2: runIndexChannelPosts2Migration,
-    IndexDatabaseTableIds: runIndexDatabaseTableIdsMigration,
 };

@@ -1,6 +1,8 @@
 import {
     createDatabaseTable,
     createDatabaseTableMetadataForTest,
+    getDatabaseTableMetadataItem,
+    getDatabaseTableMetadataRealtimeEvent,
     updateDatabaseTableAccessPolicy,
 } from "~/server/databases/data/database_table_metadata.js";
 import {getDatabaseTableLocation} from "~/server/databases/data/get_database_table_location.js";
@@ -118,5 +120,38 @@ test("database table access policy updates enforce manager generations", async (
         }),
     ).rejects.toThrow(
         "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+    );
+});
+
+test("database table realtime events cannot cross database groups", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const otherDatabaseGroupId = generateId<DatabaseGroupId>();
+    const space = await TestSpace.create(context, {databaseGroupId});
+    const session = await space.createSession();
+    const tableId = generateChronologicalId<DatabaseTableId>();
+    const accessPolicy: LocalAccessPolicy = {
+        type: "Local",
+        accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+    await createDatabaseTableMetadataForTest(space.systemAction(), {
+        databaseGroupId,
+        tableId,
+        spaceId: space.id,
+        name: "Projects",
+        accessPolicy,
+    });
+    const item = await getDatabaseTableMetadataItem(session.action(), tableId);
+
+    await expect(
+        getDatabaseTableMetadataRealtimeEvent(session.action(), otherDatabaseGroupId, [
+            {
+                type: "PutItem",
+                item: {key: item.key, version: item.version},
+            },
+        ]),
+    ).rejects.toThrow(
+        "Can\u2019t get realtime event for a table outside the designated database group",
     );
 });
