@@ -324,22 +324,52 @@ export async function readAgentWebMessagingPageInDirection<
     let messages: Array<ApiMessageResponse> = [];
 
     while (true) {
+        const remainingRangeMessageCount =
+            untilCursor === null
+                ? agentWebMessagingPageApiMessagesBatchCount
+                : direction === "Start"
+                  ? untilCursor - Math.max(0, assertExists(cursor) + 1)
+                  : assertExists(cursor) - Math.max(0, untilCursor + 1);
+
+        const apiMessagesLimit = Math.min(
+            agentWebMessagingPageApiMessagesBatchCount,
+            remainingRangeMessageCount,
+        );
+        assert(apiMessagesLimit > 0);
+
         const {
-            data: {nextCursor, messages: currentMessages, totalMessageCount},
+            data: {nextCursor, messages: apiMessages, totalMessageCount},
         } =
             direction === "Start"
                 ? await getApiMessagesFromStart(context.span, context.api, room, {
-                      limit: agentWebMessagingPageApiMessagesBatchCount,
+                      limit: apiMessagesLimit,
                       cursor,
-                      untilCursor,
                   })
                 : await getApiMessagesFromEnd(context.span, context.api, room, {
-                      limit: agentWebMessagingPageApiMessagesBatchCount,
+                      limit: apiMessagesLimit,
                       cursor,
-                      untilCursor,
                   });
 
-        cursor = nextCursor;
+        // The limit is enough to enforce the range when both cursors are in the room.
+        // Filter as well so a cursor beyond the end of the room can't pull messages from
+        // outside the requested range when the API clamps it to the room's message count.
+        const currentMessages =
+            untilCursor === null
+                ? apiMessages
+                : apiMessages.filter(message =>
+                      direction === "Start"
+                          ? message.index < untilCursor
+                          : message.index > untilCursor,
+                  );
+
+        const reachedUntilCursor =
+            untilCursor !== null &&
+            (direction === "Start"
+                ? currentMessages[currentMessages.length - 1]?.index === untilCursor - 1
+                : currentMessages[0]?.index === untilCursor + 1 ||
+                  untilCursor >= totalMessageCount - 1);
+
+        cursor = reachedUntilCursor ? null : nextCursor;
 
         // Add messages in the right order.
         if (direction === "Start") {
@@ -374,6 +404,7 @@ export async function readAgentWebMessagingPageInDirection<
                 direction,
                 roomMetadata,
                 messages,
+                hasMoreMessagesInDirection: cursor !== null,
                 isStartOfMessages,
                 isEndOfMessages,
             });
@@ -596,6 +627,7 @@ function buildAgentWebMessagingPageFromApiMessages<
         direction,
         roomMetadata,
         messages,
+        hasMoreMessagesInDirection,
         isStartOfMessages,
         isEndOfMessages,
     }: {
@@ -610,6 +642,7 @@ function buildAgentWebMessagingPageFromApiMessages<
             } | null;
         };
         messages: ReadonlyArray<ApiMessageResponse>;
+        hasMoreMessagesInDirection?: boolean;
         isStartOfMessages: boolean;
         isEndOfMessages: boolean;
     },
@@ -757,7 +790,7 @@ function buildAgentWebMessagingPageFromApiMessages<
     if (messages.length > 0) {
         switch (direction) {
             case "Start": {
-                if (!isEndOfMessages) {
+                if (hasMoreMessagesInDirection) {
                     pagination = {
                         pageLink: roomMetadata.pageLink,
                         previousLink: null,
@@ -770,7 +803,7 @@ function buildAgentWebMessagingPageFromApiMessages<
                 break;
             }
             case "End": {
-                if (!isStartOfMessages) {
+                if (hasMoreMessagesInDirection) {
                     pagination = {
                         pageLink: roomMetadata.pageLink,
                         previousLink: {
