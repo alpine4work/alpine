@@ -38,15 +38,17 @@ import {intoApiAccountReference} from "~/shared/api/specification/into_api_accou
 import {
     ApiAccountReferenceResponse,
     ApiTaskBatchPatch,
+    ApiTaskBatchPatchResult,
     ApiTaskCollectionReferenceResponse,
+    ApiTaskCreateRequest,
     ApiTaskMoveInQueryPatchPosition,
     ApiTaskPatch,
     ApiTaskPriority,
     ApiTaskQuerySort,
     ApiTaskReferenceResponse,
+    ApiTaskResponse,
     ApiTaskStatus,
     ApiTaskSubtasks,
-    ApiTaskWithoutNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -106,12 +108,11 @@ export type AgentWebTaskQueryPage = {
 };
 
 /**
- * A task in a task query page. The task link is printed as a list item with the
- * task fields (a subset of the fields on the task page) nested under it in a
- * sub-list.
+ * A task in a task query page. The task title is printed as a list item, linked
+ * when `taskId` is present, with a subset of task fields nested under it.
  */
 export type AgentWebTaskQueryPageTask = {
-    readonly taskId: TaskId;
+    readonly taskId: TaskId | null;
     readonly title: string;
     readonly status: ApiTaskStatus;
     readonly parent: ApiTaskReferenceResponse | null;
@@ -145,6 +146,12 @@ export type AgentWebTaskQueryPageMetadata = {
 
     readonly tasks: ReadonlyArray<{
         readonly cursor: ApiTaskQueryCursor;
+
+        /**
+         * The ID created for a link-less task. This lets a later update to the same stored
+         * response update the created task instead of creating it again.
+         */
+        readonly newTaskId: TaskId | null;
     }>;
 };
 
@@ -159,7 +166,7 @@ export function intoAgentWebTaskQueryPageTask({
     contextDate: CalendarDate;
     omittedCollectionId?: TaskCollectionId;
     omittedParentTaskId?: TaskId;
-    task: ApiTaskWithoutNotesResponse;
+    task: ApiTaskResponse;
 }): AgentWebTaskQueryPageTask {
     const taskCollections = filterMapArray(
         task.collections ?? emptyArray,
@@ -234,11 +241,11 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
             nextCursor: ApiTaskQueryCursor | null;
             tasks: ReadonlyArray<{
                 cursor: ApiTaskQueryCursor;
-                task: ApiTaskWithoutNotesResponse;
+                task: ApiTaskResponse;
             }>;
         }>;
         intoPageTask: (options: {
-            task: ApiTaskWithoutNotesResponse;
+            task: ApiTaskResponse;
             contextDate: CalendarDate;
         }) => AgentWebTaskQueryPageTask;
         buildPage: (options: {
@@ -292,7 +299,7 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
             task,
         }: {
             cursor: ApiTaskQueryCursor;
-            task: ApiTaskWithoutNotesResponse;
+            task: ApiTaskResponse;
         }): void {
             tasks.push(intoPageTask({task, contextDate}));
             taskMetadata.push({cursor: taskCursor});
