@@ -264,7 +264,7 @@ the same pattern to `writeLoaderPages` and `executeActionViaServer` using the ex
 `openStore()` helper. Keep the main store creation ordered before `Database.create`, but do not
 serialize the remaining independent table opens.
 
-### [ ] Fetch table metadata alongside the dependent cursor/page chain
+### [x] Fetch table metadata alongside the dependent cursor/page chain
 
 `app/routes/_space.databases.$spaceId.$tableOrViewId.tsx:66`
 

@@ -24,6 +24,7 @@ import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_pro
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import type {DatabaseGroupId, DatabaseRowId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getDatabaseTableMetadataItem} from "~/shared/rpc/database_tables_rpc_definitions.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
@@ -62,30 +63,48 @@ export async function loader({request, params, context: unauthenticatedContext}:
         return redirect(url.pathname + url.search);
     }
 
-    // Discover the cursor for the first page then fetch the page rows.
-    const cursorResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "getViewRowsPageCursor",
-        input: {tableOrViewId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
-    });
+    const [{cursorResult, pageResult}, {tableMetadataItem, accessPolicySiteById}] =
+        await runAllPromises([
+            // The page boundary depends on the cursor, so keep these requests ordered.
+            (async () => {
+                const cursorResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
+                    name: "getViewRowsPageCursor",
+                    input: {
+                        tableOrViewId,
+                        afterCursor: null,
+                        limit: databaseViewTargetRowsPerPage,
+                    },
+                });
 
-    const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "getViewRowsPage",
-        input: {
-            tableOrViewId,
-            afterCursor: null,
-            endCursor: cursorResult.result.endCursor,
-        },
-    });
-    const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(
-        context,
-        schemaResult.result.tableId,
-        {consistency: "StrongWithinCache"},
-    );
-    const accessPolicy = tableMetadataItem.model.accessPolicy;
-    const accessPolicySiteById =
-        accessPolicy.type === "Site"
-            ? new Map([[accessPolicy.siteId, await getSitePreview(context, accessPolicy.siteId)]])
-            : new Map<SiteId, SitePreviewModel>();
+                const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
+                    name: "getViewRowsPage",
+                    input: {
+                        tableOrViewId,
+                        afterCursor: null,
+                        endCursor: cursorResult.result.endCursor,
+                    },
+                });
+                return {cursorResult, pageResult};
+            })(),
+            (async () => {
+                const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(
+                    context,
+                    schemaResult.result.tableId,
+                    {consistency: "StrongWithinCache"},
+                );
+                const accessPolicy = tableMetadataItem.model.accessPolicy;
+                const accessPolicySiteById =
+                    accessPolicy.type === "Site"
+                        ? new Map([
+                              [
+                                  accessPolicy.siteId,
+                                  await getSitePreview(context, accessPolicy.siteId),
+                              ],
+                          ])
+                        : new Map<SiteId, SitePreviewModel>();
+                return {tableMetadataItem, accessPolicySiteById};
+            })(),
+        ]);
 
     return jsonWithSchema(LoaderSchema, {
         spaceId,
