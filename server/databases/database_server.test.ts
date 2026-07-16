@@ -92,7 +92,7 @@ describe("DatabaseServer — storage failure recovery", () => {
     test("a failed buffer drain does not wedge later executes", async () => {
         const server = await DatabaseServer.create(createStorage());
         openServers.push(server);
-        server.execute(testContext, sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
+        server.executeForTests(testContext, sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
         });
 
@@ -102,7 +102,7 @@ describe("DatabaseServer — storage failure recovery", () => {
             throw new InternalError("simulated storage failure");
         });
         expect(() =>
-            server.execute(
+            server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -117,7 +117,7 @@ describe("DatabaseServer — storage failure recovery", () => {
         // The failed drain must not leave the buffer dirty: a subsequent execute should
         // succeed, not throw "\_runAndPersist requires an empty buffer".
         expect(() =>
-            server.execute(
+            server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -215,7 +215,7 @@ describe("DatabaseServer — storage failure recovery", () => {
             writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]])),
         );
         execSpy.mockRestore();
-        const snapshotVersion = server.execute(
+        const snapshotVersion = server.executeForTests(
             testContext,
             sql`
                 SELECT
@@ -260,7 +260,7 @@ describe("DatabaseServer", () => {
             return result;
         };
 
-        server.execute(
+        server.executeForTests(
             testContext,
             sql`
                 SELECT
@@ -286,7 +286,7 @@ describe("DatabaseServer", () => {
             `,
         );
 
-        const result = server.execute(
+        const result = server.executeForTests(
             testContext,
             sql`
                 SELECT
@@ -314,7 +314,7 @@ describe("DatabaseServer", () => {
         `);
         const storedVersion = server.readPage(databaseMainTableId, 0)!.version;
 
-        const result = server.execute(
+        const result = server.executeForTests(
             testContext,
             sql`
                 SELECT
@@ -345,7 +345,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -371,7 +371,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -398,7 +398,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -465,7 +465,7 @@ describe("DatabaseServer", () => {
             `.selectAll(db, {name: Schema.string, rootpage: Schema.integer});
 
             for (const {name, rootpage} of schema) {
-                const result = server.execute(
+                const result = server.executeForTests(
                     testContext,
                     sql`
                         SELECT
@@ -498,7 +498,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const result1 = server.execute(
+            const result1 = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -508,7 +508,7 @@ describe("DatabaseServer", () => {
                 `,
                 {allowWrites: "none"},
             );
-            const result2 = server.execute(
+            const result2 = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -545,7 +545,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const before = server.execute(
+            const before = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -568,7 +568,7 @@ describe("DatabaseServer", () => {
             `.exec(db);
             server.commitBufferForTests();
 
-            const after = server.execute(
+            const after = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -596,7 +596,7 @@ describe("DatabaseServer", () => {
 
             // Authorizer rejection.
             expect(() =>
-                server.execute(
+                server.executeForTests(
                     testContext,
                     sql`
                         INSERT INTO
@@ -609,7 +609,7 @@ describe("DatabaseServer", () => {
             ).toThrow();
             // Reference to non-existent table.
             expect(() =>
-                server.execute(
+                server.executeForTests(
                     testContext,
                     sql`
                         SELECT
@@ -622,7 +622,7 @@ describe("DatabaseServer", () => {
             ).toThrow();
             // Constraint violation under writes.
             expect(() =>
-                server.execute(
+                server.executeForTests(
                     testContext,
                     sql`
                         INSERT INTO
@@ -636,7 +636,7 @@ describe("DatabaseServer", () => {
 
             // After all of the above, the server should still serve queries and accept new
             // writes.
-            const after = server.execute(
+            const after = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -647,7 +647,7 @@ describe("DatabaseServer", () => {
                 {allowWrites: "none"},
             );
             expect(after.rows).toEqual([{id: 1}]);
-            server.execute(
+            server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -657,7 +657,7 @@ describe("DatabaseServer", () => {
                 `,
                 {allowWrites: "data"},
             );
-            const final = server.execute(
+            const final = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -680,10 +680,10 @@ describe("DatabaseServer", () => {
             const server = await createServerWithSchema();
 
             expect(() =>
-                server.execute(testContext, sql`NOT VALID SQL`, {allowWrites: "none"}),
+                server.executeForTests(testContext, sql`NOT VALID SQL`, {allowWrites: "none"}),
             ).toThrow();
             expect(() =>
-                server.execute(testContext, sql`NOT VALID SQL`, {allowWrites: "data"}),
+                server.executeForTests(testContext, sql`NOT VALID SQL`, {allowWrites: "data"}),
             ).toThrow();
         });
     });
@@ -723,7 +723,7 @@ describe("DatabaseServer", () => {
             `.exec(db);
             server.commitBufferForTests();
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -751,7 +751,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -775,7 +775,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -799,7 +799,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -821,7 +821,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -857,7 +857,7 @@ describe("DatabaseServer", () => {
                 prePages.set(i, new Uint8Array(server.readPage(databaseMainTableId, i)!.data));
             }
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -887,7 +887,7 @@ describe("DatabaseServer", () => {
             `.exec(db);
             server.commitBufferForTests();
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -910,7 +910,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -937,7 +937,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -979,7 +979,7 @@ describe("DatabaseServer", () => {
             server.commitBufferForTests();
             const sizeBefore = server.getFileSize(databaseMainTableId);
 
-            server.execute(testContext, sql`VACUUM`, {allowWrites: "schema+data"});
+            server.executeForTests(testContext, sql`VACUUM`, {allowWrites: "schema+data"});
 
             expect(server.getFileSize(databaseMainTableId)).toBeLessThan(sizeBefore);
         });

@@ -212,11 +212,18 @@ export class DatabaseServer {
         return server;
     }
 
-    execute(
+    /**
+     * Run raw SQL against the canonical database and drain the buffer, returning the
+     * full page/version envelope. Test-only: production runs typed actions through
+     * {@link executeAction}, so this exists purely to let tests exercise the
+     * run-and-persist path with arbitrary SQL and write levels.
+     */
+    executeForTests(
         context: WorkerActionContext,
         query: SqlQuery,
         options: {allowWrites: SqliteWriteLevel},
     ): DatabaseServerResult {
+        assert(import.meta.jest, "executeForTests is test-only");
         const {result, readPages, changedPages, snapshotVersion} = this._runAndPersist(
             context,
             () => {

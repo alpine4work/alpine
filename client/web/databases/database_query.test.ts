@@ -350,7 +350,7 @@ describe("DatabaseQuery loadInitialPage", () => {
         await insertRows(conn, tableName, 5);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         expect(getTreeItemCount(query)).toBe(5);
@@ -363,7 +363,7 @@ describe("DatabaseQuery loadInitialPage", () => {
         const {conn, viewId} = await setupTestDatabase();
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         expect(getTreeItemCount(query)).toBe(0);
@@ -377,7 +377,7 @@ describe("DatabaseQuery loadInitialPage", () => {
         await insertRows(conn, tableName, 3);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         const countBefore = getTreeItemCount(query);
@@ -397,7 +397,7 @@ describe("DatabaseQuery loadMore", () => {
         await insertRows(conn, tableName, totalRows);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         expect(getTreeItemCount(query)).toBe(databaseViewTargetRowsPerPage);
@@ -416,7 +416,7 @@ describe("DatabaseQuery loadMore", () => {
         await insertRows(conn, tableName, 5);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         expect(query.needsMoreStore.getSnapshot()).toBe(false);
@@ -435,7 +435,7 @@ describe("DatabaseQuery reactive updates", () => {
         await insertRows(conn, tableName, 3);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         expect(getTreeItemCount(query)).toBe(3);
@@ -458,7 +458,7 @@ describe("DatabaseQuery reactive updates", () => {
         await insertRows(conn, tableName, 5);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         expect(getTreeItemCount(query)).toBe(5);
@@ -484,7 +484,7 @@ describe("DatabaseQuery reactive updates", () => {
         await insertRows(conn, tableName, 2);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         expect(getTreeItemCount(query)).toBe(2);
@@ -508,7 +508,7 @@ describe("DatabaseQuery reactive updates", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         expect(getTreeItemCount(query)).toBe(3);
@@ -541,7 +541,7 @@ describe("DatabaseQuery reactive updates", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
         await query.loadMore();
         await flush();
@@ -578,7 +578,7 @@ describe("DatabaseQuery reactive updates", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
         await query.loadMore();
         await flush();
@@ -607,7 +607,7 @@ describe("DatabaseQuery dispose", () => {
         await insertRows(conn, tableName, 5);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         const countBeforeDispose = getTreeItemCount(query);
@@ -625,7 +625,7 @@ describe("DatabaseQuery dispose", () => {
         await insertRows(conn, tableName, 5);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         query.dispose();
@@ -718,7 +718,7 @@ describe("DatabaseQuery rebalance — split", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         expect(getTreeItemCount(query)).toBe(10);
@@ -753,7 +753,7 @@ describe("DatabaseQuery rebalance — split", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         expect(getTreeItemCount(query)).toBe(3);
@@ -786,7 +786,7 @@ describe("DatabaseQuery rebalance — merge", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
         await query.loadMore();
         await flush();
@@ -824,7 +824,7 @@ describe("DatabaseQuery rebalance — merge", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
         await flushWithRebalance();
 
@@ -848,7 +848,7 @@ describe("DatabaseQuery rebalance — merge forward", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
         await query.loadMore();
         await flush();
@@ -886,7 +886,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         // Add enough rows to trigger split (15 total)
@@ -911,7 +911,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
         await query.loadMore();
         await flush();
@@ -942,7 +942,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
             tableOrViewId: viewId,
             _targetRowsPerPage: 10,
         });
-        query.listen({conn});
+        query.listen(conn);
         await query.loadInitialPage();
 
         // Insert 5 within range → 15 → split

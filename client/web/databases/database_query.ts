@@ -102,8 +102,8 @@ export class DatabaseQuery {
      * Start reactive subscriptions. Call from an effect after the connection is
      * available and begins watching the initial page.
      */
-    listen(options: {conn: DatabaseWorkerConnection}): void {
-        this.conn = options.conn;
+    listen(connection: DatabaseWorkerConnection): void {
+        this.conn = connection;
         this._disposed = false;
 
         // If an initial page was provided, start watching the first page reactively. Reuse
