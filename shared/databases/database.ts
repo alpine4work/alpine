@@ -317,7 +317,9 @@ export class Database {
         });
 
         this.db = new sqlite3.oo1.DB(`/${databaseMainTableId}`, "c", vfsName);
-        installTracing(this.db);
+        if (process.env.NODE_ENV !== "production") {
+            installTracing(this.db);
+        }
         this.installAttachOnMiss();
 
         capi.sqlite3_set_authorizer(
