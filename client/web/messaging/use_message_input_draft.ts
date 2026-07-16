@@ -23,7 +23,6 @@ import {FileId} from "~/shared/id/types/id_types.js";
 import {
     MessageDraft,
     MessageDraftWithFiles,
-    emptyMessageDraft,
     isMessageDraftWithHydratedFiles,
 } from "~/shared/messaging/message_draft_schema.js";
 import {
@@ -74,7 +73,6 @@ export function useMessageInputDraft({
     isDisabled,
     shouldFlushOnUnmount,
     draftContentWriteDebounceMs,
-    onDraftChange,
 }: {
     draftSurface?: MessageDraftSurface;
     serverDraft?: MessageDraft | MessageDraftWithFiles;
@@ -86,7 +84,6 @@ export function useMessageInputDraft({
     isDisabled: boolean;
     shouldFlushOnUnmount: boolean;
     draftContentWriteDebounceMs: number;
-    onDraftChange?: (draft: MessageDraft) => void;
 }): {
     resolvedServerDraft: MessageDraftWithFiles | undefined;
     flushDraft: Memo<() => void>;
@@ -239,8 +236,6 @@ export function useMessageInputDraft({
                 default:
                     throw exhaustive(operation);
             }
-
-            onDraftChange?.(getMessageDraftForWriteOperation(operation));
         })()
             .catch(error => {
                 switch (operation.type) {
@@ -367,7 +362,6 @@ export function useMessageInputDraft({
                         fileIds: operation.fileIds,
                         version: operation.version,
                     });
-                    onDraftChange?.(getMessageDraftForWriteOperation(operation));
                     break;
                 }
                 case "Clear": {
@@ -381,7 +375,6 @@ export function useMessageInputDraft({
                         spaceId,
                         surface: operation.surface,
                     });
-                    onDraftChange?.(getMessageDraftForWriteOperation(operation));
                     break;
                 }
                 default:
@@ -399,7 +392,6 @@ export function useMessageInputDraft({
         getPendingDraftWriteOperation,
         hasAccessibleDraftSurface,
         isDisabled,
-        onDraftChange,
         spaceId,
     ]);
 
@@ -437,22 +429,6 @@ export function useMessageInputDraft({
     }, [shouldFlushOnUnmount, flushDraft]);
 
     return {resolvedServerDraft, flushDraft, clearDraft, clearDraftOptimistically};
-}
-
-function getMessageDraftForWriteOperation(operation: MessageDraftWriteOperation): MessageDraft {
-    switch (operation.type) {
-        case "Update":
-            return {
-                content: operation.state.getContent(),
-                parent: operation.parent,
-                fileIds: operation.fileIds,
-                version: operation.version,
-            };
-        case "Clear":
-            return emptyMessageDraft;
-        default:
-            throw exhaustive(operation);
-    }
 }
 
 function createMessageDraftVersionClock() {
