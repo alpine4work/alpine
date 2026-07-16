@@ -1,6 +1,6 @@
 import {CalendarDate, fromDate, toCalendarDate} from "@internationalized/date";
 import {original, produce} from "immer";
-import {Link, List, ListItem} from "mdast";
+import {Link, List, ListItem, Node} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {printAgentWebPageStoredLinkLabel} from "~/server/agents/web/agent_web_page_stored_link.js";
@@ -729,6 +729,7 @@ async function parseAgentWebTaskQueryPageTask(
     if (paragraph?.type !== "paragraph") throw createError();
 
     let link: Link | null = null;
+    let hasNonWhitespaceText = false;
 
     for (const child of paragraph.children) {
         if (child.type === "link" && link === null) {
@@ -740,10 +741,15 @@ async function parseAgentWebTaskQueryPageTask(
             continue;
         }
 
+        if (child.type === "text") {
+            hasNonWhitespaceText = true;
+            continue;
+        }
+
         throw createError();
     }
 
-    if (link === null) throw createError();
+    if (link !== null && hasNonWhitespaceText) throw createError();
 
     // The task link paragraph may be followed by a single nested unordered list
     // holding the task's fields.
@@ -758,10 +764,20 @@ async function parseAgentWebTaskQueryPageTask(
     }
 
     const [taskReference, fields] = await runAllPromises([
-        parseAgentWebTaskQueryPageTaskReference(storage, link, pageType),
+        link === null
+            ? {
+                  taskId: null,
+                  ...parseAgentWebTaskQueryPageTaskLabel(
+                      taskListItem.position,
+                      printMarkdownPhrasingContentText(paragraph.children),
+                  ),
+              }
+            : parseAgentWebTaskQueryPageTaskReference(storage, link, pageType),
         fieldList !== null
             ? parseAgentWebTaskFieldListItems(storage, fieldList.children, [
                   "parent",
+                  // NOCOMMIT: Can we not require subtasks when adding a task to a collection? Maybe
+                  // `additionalCollectionsCount` too?
                   "subtasks",
                   "assignee",
                   "collections",
@@ -812,12 +828,24 @@ export async function parseAgentWebTaskQueryPageTaskReference(
         });
     }
 
-    const label = printMarkdownPhrasingContentText(link.children);
+    return {
+        taskId: pageLinkResult.pageLink.id,
+        ...parseAgentWebTaskQueryPageTaskLabel(
+            link.position,
+            printMarkdownPhrasingContentText(link.children),
+        ),
+    };
+}
+
+function parseAgentWebTaskQueryPageTaskLabel(
+    position: Node["position"],
+    label: string,
+): {status: ApiTaskStatus; title: string} {
     const statusMatch = label.match(/^([\s\S]*) \((open|open, active|open, inactive|closed)\)$/i);
 
     if (statusMatch === null) {
-        throw new InvalidArgumentError("Missing status in task query task link label", {
-            displayMessage: errorDisplayMessage`Missing status at the end of task link label on line ${link.position?.start.line ?? "unknown"}. Task link labels must end with \u201c (Open)\u201d, \u201c (Open, active)\u201d, or \u201c (Closed)\u201d. Try again with a task link like \`[My Task (Open)](/task/my-task)\`.`,
+        throw new InvalidArgumentError("Missing status in task query task label", {
+            displayMessage: errorDisplayMessage`Missing status at the end of task label on line ${position?.start.line ?? "unknown"}. Task$ labels must end with \u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task label like \u201CMy Task (Open)\u201D.`,
         });
     }
 
