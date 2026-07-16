@@ -23,9 +23,9 @@ import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_ty
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 
 type RemoveSpace<Value> = Value extends JsonScalarValue | undefined
     ? Value

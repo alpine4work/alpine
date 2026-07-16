@@ -40,10 +40,10 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 
 export type AgentWebMarkdownStreamPart = {
     readonly index: number;
