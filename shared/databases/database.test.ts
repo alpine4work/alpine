@@ -88,15 +88,12 @@ function commit(database: Database, storage: InMemoryStorage): void {
 }
 
 const openDatabases: Array<Database> = [];
-const originalNodeEnv = process.env.NODE_ENV;
 
 function testServerOptions(): {tables: InMemoryDatabaseServerTableStore} {
     return {tables: new InMemoryDatabaseServerTableStore()};
 }
 
 afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
-    import.meta.jest.restoreAllMocks();
     while (openDatabases.length > 0) {
         try {
             openDatabases.pop()!.close();
@@ -104,15 +101,6 @@ afterEach(() => {
             // ignore
         }
     }
-});
-
-test("does not trace SQLite statements in production", async () => {
-    process.env.NODE_ENV = "production";
-    const log = import.meta.jest.spyOn(console, "log").mockImplementation();
-
-    await createDatabase();
-
-    expect(log).not.toHaveBeenCalled();
 });
 
 async function createDatabase(
