@@ -1,16 +1,26 @@
 import {useEffect, useMemo, useRef, useState} from "react";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {DatabaseRawResultTable} from "~/client/web/databases/database_raw_result_table.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
 
 interface WatchEntry {
     readonly id: DatabaseReactiveActionId;
     readonly sql: string;
+}
+
+export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    await getDatabaseGroupIdForSpace(context, spaceId);
+    return null;
 }
 
 function WatchedQuery(props: {sql: string; onClose: () => void}) {

@@ -4,11 +4,10 @@
 
 This branch adds linked-record editing, per-table access policies, a multi-table
 SQLite page protocol, client connection management, and database-table search.
-The authorization and storage changes are not ready to merge: an ordinary space
-member can replace another table's policy, server-rendered HTTP actions bypass the
-space boundary assumed by the policy evaluator, optimistic mutations can be
-reported as failed after the server commits them, and the storage rewrite has both
-an unbounded-growth problem and a deterministic truncate/re-extend collision.
+The remaining storage and realtime changes are not ready to merge: optimistic
+mutations can be reported as failed after the server commits them, policy replicas
+can preserve or restore stale grants, and the storage rewrite has both an
+unbounded-growth problem and a deterministic truncate/re-extend collision.
 
 The rollout is also unsafe for existing data and old clients. The new Durable
 Object page tables do not migrate the legacy store, existing tables are absent
@@ -162,23 +161,6 @@ query seeds row pages before the first watch creates the client. Each callback
 replaces `initialPages`, so only the last seed survives. Merge by table/page while
 keeping the highest version in this path and `writeInitialPages()`.
 
-### [ ] GET loaders create and persist database groups
-
-`app/routes/_space.databases.$spaceId.tsx:31`
-
-```ts
-//////////////
-// This loader handles an idempotent GET, but `getDatabaseGroupIdForSpace()` calls
-// `SpacesTable.updateItem()` and `createOrReplaceItem()` to lazily create both group
-// mappings. Browser prefetches, crawlers, and retries can therefore mutate storage
-// merely by reading this route; the table/view loader repeats the same call at line
-// 47. Move group creation to space creation or an authorized action/job, and make
-// loaders use `getExistingDatabaseGroupIdForSpace()`. If legacy spaces require lazy
-// backfill, expose that as a retryable mutation rather than hiding it in GET.
-//////////////
-const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
-```
-
 ### [ ] Preserve metadata event order while resolving policies in parallel
 
 `server/databases/data/internal/database_tables_table.ts:64`
@@ -186,14 +168,12 @@ const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
 ```ts
 await runAllPromises(
     events.map(async ({itemKey, eventStub, getEvent}) => {
-        if (itemKey.partitionType !== "DatabaseGroup") return;
+        if (itemKey.partitionType !== "Table") return;
         const event = await getEvent(context);
         // ...await policy resolution...
-        getOrSetDefaultMapValue(
-            eventsByDatabaseGroupId,
-            itemKey.databaseGroupId,
-            () => [],
-        ).push(eventStub);
+        const {databaseGroupId} = event.item.model;
+        getOrSetDefaultMapValue(eventsByDatabaseGroupId, databaseGroupId, () => [])
+            .push(eventStub);
     }),
 );
 ```
@@ -205,7 +185,7 @@ whichever policy resolves last. Resolve indexed result objects in parallel, then
 build arrays and maps synchronously in original order.
 
 `getDatabaseTableMetadataRealtimeEvent()` at
-`server/databases/data/database_table_metadata.ts:185` repeats the unordered-push
+`server/databases/data/database_table_metadata.ts:228` repeats the unordered-push
 pattern for `visibleEvents`/`deniedTableIds` and should be fixed with it.
 
 ### [ ] Table creation can permanently commit only half of the table
@@ -215,15 +195,16 @@ pattern for `visibleEvents`/`deniedTableIds` and should be fixed with it.
 ```ts
 await DatabaseTablesTable.updateItem(
     context,
-    {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
+    {partitionType: "Table", sortRangeType: "Attributes", tableId},
     item => DynamoItem.createOrUpdate(item, {/* ... */}),
 );
 
 //////////////
-// The Dynamo record (and its realtime broadcast) commits before the durable
-// object's SQLite table/file is created. If this request fails, the metadata stays
-// visible but the generated id is lost to the caller; because the RPC is explicitly
-// non-idempotent, retrying creates a second id instead of repairing the first table.
+// Database-group assignment is now atomic, but the Dynamo metadata record (and its
+// realtime broadcast) still commits before the durable object's SQLite table/file
+// is created. If the second step fails, the metadata stays visible but the generated
+// id is lost to the caller; because the RPC is explicitly non-idempotent, retrying
+// creates a second id instead of repairing the first table.
 //
 // Model creation as a retryable saga with an idempotency key / persisted creation
 // state, or add explicit compensation and reconciliation. Whichever store commits
@@ -293,9 +274,10 @@ the remaining independent table opens.
 **Callers affected:** The interactive SSR loader for every database table/view.
 **Time impact:** After `getViewSchema` resolves, the metadata item is independent
 of the cursor lookup and page fetch, but it waits until both Durable Object calls
-complete. Site-backed policies add another preview fetch to the serial tail, so
-time-to-first-render is the sum of two Durable Object round trips plus DynamoDB
-metadata/group reads plus the optional site preview.
+complete. Caleb's merge removes the redundant space-to-group lookup and permits a
+`StrongWithinCache` metadata read, but site-backed policies still add another
+preview fetch to the serial tail. Time-to-first-render remains the sum of the
+cursor/page Durable Object chain and the metadata/site-preview chain.
 **Cost impact:** No extra service calls, but avoidable App Service and Durable
 Object request occupancy on every table navigation.
 
@@ -309,10 +291,11 @@ const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
     input: {tableOrViewId, afterCursor: null, endCursor: cursorResult.result.endCursor},
 });
 // Independent once schemaResult supplies tableId, but starts only now.
-const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(context, {
-    spaceId,
-    tableId: schemaResult.result.tableId,
-});
+const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(
+    context,
+    schemaResult.result.tableId,
+    {consistency: "StrongWithinCache"},
+);
 ```
 
 **Recommendation:** After the canonical-URL check, use `runAllPromises()` to run
@@ -320,102 +303,6 @@ the metadata/site-preview chain alongside the cursor-then-page chain. Keep curso
 and page ordered because the page boundary depends on the cursor. A combined
 server action that returns `{endCursor, rows}` would further remove one Durable
 Object round trip, but parallelizing the independent chain is the smaller change.
-
-## DynamoDB Capacity and Consistency
-
-### [ ] Avoid rewriting the database-group reverse mapping on every lookup
-
-`server/spaces/get_database_group_id_for_space.ts:28`
-
-**Read consistency:** The `updateItem` read uses the implicit eventual-consistency
-default. `getExistingDatabaseGroupIdForSpace` separately uses strong consistency.
-**RCU impact:** One logical read of the full `Space/Attributes` item per helper call,
-even when `databaseGroupId` is already present. A database-table navigation invokes
-the helper from both the parent and child loaders; the child then performs another
-strong group lookup while loading table metadata.
-**WCU impact:** `createOrReplaceItem` unconditionally writes the reverse-mapping
-item on every call. Thus every ordinary page load pays one WCU per helper invocation
-even though the mapping is immutable after allocation.
-**Callers affected:**
-`app/routes/_space.databases.$spaceId.tsx:31`,
-`app/routes/_space.databases.$spaceId.$tableOrViewId.tsx:47`, and table creation.
-
-```ts
-const updatedItem = await SpacesTable.updateItem(context, key, item => {
-    if (item === null) return null;
-    if (item.databaseGroupId !== undefined) return item;
-    return {...item, databaseGroupId: generateId<DatabaseGroupId>()};
-});
-
-// This PutItem executes even when updateItem returned the existing mapping.
-await SpacesTable.createOrReplaceItem(context, {
-    partitionType: "DatabaseGroup",
-    sortRangeType: "Space",
-    databaseGroupId: updatedItem.databaseGroupId,
-    spaceId,
-});
-```
-
-**Recommendation:** Make the normal path a read-only lookup. Only when the space
-lacks a group ID should the allocation path atomically write the space attribute
-and reverse mapping. Prefer a transaction for that one-time initialization; a
-background repair/backfill can handle historical partial mappings. Pass the
-already-resolved `databaseGroupId` into the table-metadata loader instead of
-strongly re-reading the same space item.
-
-### [ ] Use a strong read for the just-created reverse lookup
-
-`server/spaces/get_database_group_id_for_space.ts:81`
-
-**Read consistency:** Implicitly eventually consistent, despite the reverse item
-existing to support strongly consistent database-group-to-space authorization.
-**RCU impact:** A strong read costs roughly twice an eventual read, but a stale
-miss causes the WebSocket client to reconnect and repeat authorization reads.
-**WCU impact:** None directly; the stale window follows the awaited reverse-map
-write in the allocation path.
-**Callers affected:** `authorizeDatabaseGroupAccess()` during initial WebSocket
-connection and periodic reauthorization. An initial stale miss triggers the
-browser's 2.5-second reconnect delay.
-
-```ts
-const item = (await SpacesTable.getItemIfExists(context, {
-    partitionType: "DatabaseGroup",
-    sortRangeType: "Space",
-    databaseGroupId,
-})) as SpaceDatabaseGroupItem | null;
-```
-
-**Recommendation:** Pass `{consistency: "Strong"}` or use a proven strongly
-consistent cached variant. This is specifically a read-after-write path where the
-eventual-read saving can become user-visible reconnect latency and repeated work.
-
-### [ ] Do not force strong consistency for every table-metadata consumer
-
-`server/databases/data/database_table_metadata.ts:127`
-
-**Read consistency:** Strongly consistent, hardcoded for all callers.
-**RCU impact:** Strong reads consume roughly twice the read capacity of eventual
-reads for the metadata item, in addition to the strong space-to-group lookup at
-line 126.
-**WCU impact:** None.
-**Callers affected:** The interactive SSR table loader, table-metadata RPC reloads,
-and the background search-indexing path through
-`getDatabaseTableMetadataForSearchIndex`.
-
-```ts
-const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
-const item = await DatabaseTablesTable.getRealtimeItemIfExists(
-    context,
-    {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
-    {consistency: "Strong"},
-);
-```
-
-**Recommendation:** Accept an explicit consistency option. Preserve strong reads
-for read-after-policy-write/search-index paths that require them, but let the
-initial UI loader use eventual or `StrongWithinCache` consistency after verifying
-its freshness requirement. The UI already has an explicitly named strong reload
-callback for reconnect recovery.
 
 ## Call-Site Impact
 
@@ -799,22 +686,11 @@ function DatabaseGridViewAddRowButton({onCreateRow}: {onCreateRow: () => void}) 
 ## Summary
 
 `origin/main...HEAD` contains the entire databases feature (272 changed files),
-so the historical review focused on the public table-metadata paths and the
-permission-specific commits. The core SQLite enforcement has been iterated on
-carefully and now reuses Alpine's shared access-policy primitives. However, two
-older HTTP/RPC paths still reflect the feature's pre-enforcement phase and do not
-follow the authorization conventions used by chat, forum, sites, or the newer
-database realtime path.
-
-The two actionable historical findings are merged into the corresponding
-Security findings below to avoid duplicate checkboxes. In particular:
-
-- `updateDatabaseTableAccessPolicy` dates to `308b39cf6`, whose recorded prompt
-  explicitly said enforcement was not needed yet. Mature chat/forum policy update
-  paths require `Manage` and call `validateAccessPolicyUpdateForServer`.
-- The AppClient metadata getter predates table permissions. The later realtime
-  path added `View` evaluation but did not retrofit the older direct getter, unlike
-  established site/chat getters.
+so the historical review focused on reusable utilities and conventions in the
+database implementation. The merged `calebmer/databases` changes now align the
+public metadata mutation/read paths with the mature access-policy patterns. The
+remaining findings below concern duplicated abstractions, inconsistent modeling
+patterns, and stale branch artifacts.
 
 ## Existing Utilities
 
@@ -953,127 +829,44 @@ into maintained documentation near the implementation.
 
 ## Summary
 
-This change is not safe to merge in its current form. The per-SQLite-table
-authorizer is generally fail-closed, but several surrounding authorization
-boundaries do not uphold the assumptions it relies on. The highest-risk issue
-lets any ordinary space member replace any database table's access policy and
-grant themselves access. Separately, metadata reads and server-rendered database
-routes omit required authorization, and resolved `Site` policies can remain stale
-in the durable object after access is revoked. Overall risk is **High**.
+The merged changes now require `Manage` plus canonical policy validation for ACL
+updates, authorize metadata reads at `View`, and enforce space membership at the
+Durable Object HTTP action boundary. The remaining High-severity risk is the
+unversioned, asynchronously refreshed access-policy replica: a stale or reordered
+broadcast can preserve or restore a revoked grant. Loader-only group lookups still
+omit an explicit space check, but their remaining exposure is limited to existence
+probing rather than table data. Overall residual risk is **High**.
 
 ## Authorization & Permissions
 
-### [ ] Require `Manage` access and validate database-table policy updates
-
-`server/databases/data/database_table_metadata.ts:87`
-**Severity: High**
-
-```ts
-const sessionContext = context.actor.authorizeSession();
-await authorizeSpaceAccess(sessionContext, spaceId, "Member");
-
-const databaseGroupId = await getExistingDatabaseGroupIdForSpace(sessionContext, spaceId);
-
-const {getEvent} = await DatabaseTablesTable.updateItem(
-    context,
-    {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
-    item => item.update({accessPolicy}),
-);
-```
-
-The only permission check is ordinary space membership. Consequently, a member
-with no access (or only `View`/`Edit`) on a table can call the AppClient RPC with
-that table ID and replace its policy, grant themselves `Manage`, expose the table
-to the whole space, or remove lower-generation managers. Table IDs are available
-from the deliberately public main registry, so they are not a meaningful barrier.
-
-This path also bypasses the standard server-side access-policy validation. That
-validation enforces `Manage` on the old policy, generation rules, bot/account
-restrictions, access on a destination site, and the related site-entry
-transactions. Accepting a complete `AccessPolicySchema` value directly makes all
-of those invariants client-controlled.
-
-**Historical evidence:** Blame traces this to `308b39cf6`, when enforcement was
-explicitly deferred. Mature chat and forum update paths now require `Manage` and
-use `validateAccessPolicyUpdateForServer`.
-
-**Recommendation:** Strongly read the existing item, require `Manage` against its
-current policy, and run the equivalent of `validateAccessPolicyUpdateForServer()`
-before writing. Apply the metadata and any site-entry changes in one DynamoDB retry
-transaction. If database tables are not yet supported site items, reject `Site`
-policies until they are added to the site-item model rather than accepting a
-partially implemented state.
-
-### [ ] Authorize metadata reads against both the space and table policy
-
-`server/databases/data/database_table_metadata.ts:122`
-**Severity: High**
-
-```ts
-export async function getDatabaseTableMetadataItem(
-    context: ServerActionContext,
-    {spaceId, tableId}: {spaceId: SpaceId; tableId: DatabaseTableId},
-): Promise<RynamoItem<DatabaseTableMetadataModel>> {
-    const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
-    const item = await DatabaseTablesTable.getRealtimeItemIfExists(context, /* ... */);
-    return item;
-}
-```
-
-This publicly exported server function performs no authorization. Its AppClient
-RPC wrapper only calls `authorizeSession()`, so any signed-in account that knows a
-`spaceId` and `tableId` can retrieve the table name and full access policy,
-including account IDs and grants. Even within a space, a member can enumerate
-table IDs from the main database and inspect metadata for tables they cannot view.
-This also violates the repository rule that public server data functions must
-authorize or be explicitly named `dangerously...`.
-
-**Historical evidence:** The getter predates table permissions. The later realtime
-path added `View` authorization, but the AppClient getter was never retrofitted.
-
-**Recommendation:** After loading the item through an internal/dangerous helper,
-call `authorizeSpaceAccess()` and require `View` against the item's current access
-policy before returning it. Keep search-index/system access in a separately named
-`dangerously...WithoutAuthorization` function whose callers are restricted to a
-system context.
-
-### [ ] Enforce space access before server-side database actions
+### [ ] Authorize loader-only database-group lookups
 
 `app/routes/_space.databases.$spaceId.tsx:28`
-**Severity: High**
+**Severity: Low**
 
 ```ts
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
-    const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
+    const databaseGroupId = await getDatabaseGroupIdForSpaceIfExists(context, spaceId);
 
-    const {readPages} = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "listTableIds",
-        input: {},
-    });
+    if (databaseGroupId === null) {
+        return jsonWithSchema(LoaderSchema, {databaseGroupId: null, pages: new Map()});
+    }
 ```
 
-The parent loader and table/view loader call a helper that explicitly says the
-caller must authorize the space, but neither calls `authorizeSpaceAccess()`. The
-child loader then fetches schemas and row pages through the service-only HTTP
-action route. That route checks only that AppService signed the forwarded token;
-it does not verify the actor's access to the database group's space.
+The Durable Object `/action` boundary now re-authorizes the forwarded actor, so
+the previous cross-tenant schema/row read is fixed. However, the parent loader
+returns the no-database state before any authorized action, and the SQL loader
+only calls `getDatabaseGroupIdForSpace()` before returning. Direct Remix data
+requests can therefore distinguish a valid space with/without a database group
+from an unknown space without being a member. The child loader similarly resolves
+the group before its first protected action.
 
-This is security-sensitive because `DatabaseServer` evaluates copied local
-policies with `getAccountAccessLevelAssumingSpaceAccess()`. If an account is
-removed from a space while an explicit table grant remains, a request containing
-the known space and view IDs can still pass the copied table policy and receive
-the table's rows. The WebSocket path has a space gate, but Remix loaders use the
-separate HTTP path and bypass it.
-
-**Recommendation:** Call `authorizeSpaceAccess(context, spaceId)` before resolving
-the database group in every loader. More importantly, enforce the same check at
-the `/action` trust boundary by resolving the durable object's group to its space
-and authorizing the real forwarded actor before `executeAction()`. Rename
-`fetchDatabaseGroupAction()` to a `dangerously...` name if it intentionally leaves
-authorization to callers, so future call sites cannot mistake service provenance
-for data authorization.
+**Recommendation:** Call `authorizeSpaceAccess(context, spaceId)` at the start of
+all database loaders. This closes the remaining existence probe and makes the
+route boundary explicit even though all data-bearing Durable Object actions are
+now independently protected.
 
 ### [ ] Synchronize and version the durable object's policy replica
 
@@ -1331,33 +1124,37 @@ and tombstones. Define a rollback window with dual read/write or a reversible
 table/view bridge; do not accept new-only writes until rollback preserves them.
 Add upgrade and rollback tests using a populated `336479be9` storage image.
 
-### [ ] Backfill both new metadata stores for existing tables before enforcing access
+### [ ] Backfill the renamed Dynamo metadata store and Durable Object registrations
 
 `server/databases/data/internal/database_tables_table.ts:16`
 **Risk: Breaking**
 
 ```ts
 export const DatabaseTablesTable = RynamoTableSchema.new({
-    name: "DatabaseTables",
-    // table name, space, deletion state, and access policy
+    name: "DatabaseTableMetadata",
+    partitions: [{name: "Table", /* keyed directly by tableId */}],
 });
 ```
 
-The new Dynamo table is populated only by the new create flow. Separately, the new
-Durable Object registration table needs table kind/name/schema, policy, and join
-topology, but its migration creates no rows for legacy page IDs. A page-only
-migration is insufficient: unknown registrations fail closed, and the new loader
-throws when the Dynamo item is absent.
+The merged changes replace the prior `DatabaseTables` group-keyed table with a
+`DatabaseTableMetadata` table keyed directly by table ID, but provide no migration
+for items written by the earlier branch implementation. More broadly, metadata is
+still populated only by the new create flow. The Durable Object registration table
+also needs table kind/name/schema, policy, and join topology, but its migration
+creates no rows for legacy page IDs. A page-only migration is insufficient:
+unknown registrations fail closed, and the new loader throws when metadata is
+absent.
 
 **Impact on old clients:** Old and new clients cannot open or mutate pre-existing
 user and join tables after enforcement is enabled.
 
-**Recommendation:** First reconstruct Durable Object registrations and backfill a
-`DatabaseTables` item for every existing table with an explicit transitional
-policy. Verify counts and IDs before enabling fail-closed enforcement. Keep any
-legacy space-member fallback strictly bounded to the migration window. Add an
-upgrade test covering user tables and join tables through both old page access and
-the new metadata loader.
+**Recommendation:** Migrate any group-keyed `DatabaseTables` items into the new
+table-ID-keyed `DatabaseTableMetadata` store, then reconstruct missing Durable
+Object registrations and metadata for every legacy table with an explicit
+transitional policy. Verify counts and IDs before enabling fail-closed enforcement.
+Keep any legacy space-member fallback strictly bounded to the migration window.
+Add upgrade tests covering prior metadata items plus user and join tables through
+both old page access and the new loader.
 
 ### [ ] Stage writes of `DatabaseTable` documents to the shared OpenSearch index
 

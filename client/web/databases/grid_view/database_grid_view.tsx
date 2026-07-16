@@ -484,7 +484,6 @@ export function DatabaseGridView({
                                 }
 
                                 const result = await updateDatabaseTableAccessPolicy(context, {
-                                    spaceId,
                                     tableId,
                                     accessPolicy,
                                 });

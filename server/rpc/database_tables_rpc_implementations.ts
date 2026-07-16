@@ -26,7 +26,11 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         async execute(context, input) {
             return {
-                item: await getDatabaseTableMetadataItem(context.actor.authorizeSession(), input),
+                item: await getDatabaseTableMetadataItem(
+                    context.actor.authorizeSession(),
+                    input.tableId,
+                    {consistency: "Strong"},
+                ),
             };
         },
     },
@@ -41,7 +45,10 @@ export default implementRpcs(definitions, {
         },
     },
     authorizeDatabaseGroupAccess: {
-        visibility: ["DatabaseGroupService"],
+        // WebSocket checks originate from DatabaseGroupService. HTTP action checks run
+        // inside the durable object but retain the trusted source service name from the
+        // forwarded actor, matching `isInternalDatabaseServiceActor`.
+        visibility: ["DatabaseGroupService", "AppService", "JobQueueService", "ApiService"],
         async execute(context, input) {
             const spaceId = await getSpaceIdForDatabaseGroupId(context, input.databaseGroupId);
             await authorizeSpaceAccess(context, spaceId);

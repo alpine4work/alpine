@@ -1,4 +1,5 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {
     SpaceDatabaseGroupItem,
     SpaceItem,
@@ -9,83 +10,115 @@ import {generateId} from "~/shared/id/id.js";
 import type {DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Resolve the `databaseGroupId` for a given space, lazily instantiating it if the
- * space doesn't already have one.
+ * Return the database group assigned to a space, or `null` if the space has no
+ * databases yet.
  *
- * Every caller that needs to address a workspace's SQLite instance — route
- * loaders, RPC handlers, durable-object routing — should go through this helper.
- * Older spaces created before the refactor don't have a `databaseGroupId` on their
- * `SpaceItem`, so we generate one on-demand and write it back via `updateItem` so
- * concurrent callers converge on the same ID through the table's
- * optimistic-locking retry loop.
- *
- * The caller is responsible for authorizing access to the space.
+ * This is intentionally read-only. Database groups are assigned by {@link
+ * assignDatabaseGroupIdForSpace} when the first database is created.
  */
+export async function getDatabaseGroupIdForSpaceIfExists(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+): Promise<DatabaseGroupId | null> {
+    let item = (await SpacesTable.getItemIfExists(
+        context,
+        {partitionType: "Space", sortRangeType: "Attributes", spaceId},
+        {consistency: "Eventual", allowsEventualReadConsistency: true},
+    )) as SpaceItem | null;
+
+    // A database group assignment is immutable, so an eventually consistent value is
+    // sufficient once present. A missing assignment may have just been created,
+    // however, so confirm absence with a strong read.
+    if (item === null || item.databaseGroupId === undefined) {
+        item = (await SpacesTable.getItemIfExists(
+            context,
+            {partitionType: "Space", sortRangeType: "Attributes", spaceId},
+            {consistency: "Strong"},
+        )) as SpaceItem | null;
+
+        if (item === null) {
+            throw new NotFoundError(`Space ${spaceId} not found`);
+        }
+    }
+
+    return item.databaseGroupId ?? null;
+}
+
 export async function getDatabaseGroupIdForSpace(
     context: ServerActionContext,
     spaceId: SpaceId,
 ): Promise<DatabaseGroupId> {
-    const updatedItem = (await SpacesTable.updateItem(
-        context,
-        {partitionType: "Space", sortRangeType: "Attributes", spaceId},
-        item => {
-            if (item === null) return null;
-            if (item.databaseGroupId !== undefined) return item;
-            return {...item, databaseGroupId: generateId<DatabaseGroupId>()};
-        },
-    )) as SpaceItem | null;
-
-    if (updatedItem === null || updatedItem.databaseGroupId === undefined) {
-        throw new NotFoundError(`Space ${spaceId} not found`);
+    const databaseGroupId = await getDatabaseGroupIdForSpaceIfExists(context, spaceId);
+    if (databaseGroupId === null) {
+        throw new NotFoundError(`Database group for space ${spaceId} not found`);
     }
-
-    await SpacesTable.createOrReplaceItem(context, {
-        partitionType: "DatabaseGroup",
-        sortRangeType: "Space",
-        databaseGroupId: updatedItem.databaseGroupId,
-        spaceId,
-    });
-
-    return updatedItem.databaseGroupId;
+    return databaseGroupId;
 }
 
-export async function getExistingDatabaseGroupIdForSpace(
+/** Assign a database group to a space if it does not already have one. */
+export async function assignDatabaseGroupIdForSpace(
     context: ServerActionContext,
     spaceId: SpaceId,
 ): Promise<DatabaseGroupId> {
-    const item = (await SpacesTable.getItemIfExists(
-        context,
-        {
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId,
-        },
-        {consistency: "Strong"},
-    )) as SpaceItem | null;
+    return await context.dynamo.retryTransaction(async context => {
+        const item = (await SpacesTable.getItemIfExists(
+            context,
+            {partitionType: "Space", sortRangeType: "Attributes", spaceId},
+            {consistency: "Strong"},
+        )) as SpaceItem | null;
 
-    if (item === null) {
-        throw new NotFoundError(`Space ${spaceId} not found`);
-    }
+        if (item === null) {
+            throw new NotFoundError(`Space ${spaceId} not found`);
+        }
+        if (item.databaseGroupId !== undefined) {
+            return item.databaseGroupId;
+        }
 
-    if (item.databaseGroupId === undefined) {
-        throw new NotFoundError(`Database group for space ${spaceId} not found`);
-    }
+        const databaseGroupId = generateId<DatabaseGroupId>();
+        await DynamoTableSchema.executeTransaction(context, [
+            SpacesTable.transactionDirectlyUpdateItem({...item, databaseGroupId}),
+            SpacesTable.transactionCreateItem({
+                partitionType: "DatabaseGroup",
+                sortRangeType: "Space",
+                databaseGroupId,
+                spaceId,
+            }),
+        ]);
 
-    return item.databaseGroupId;
+        return databaseGroupId;
+    });
 }
 
 export async function getSpaceIdForDatabaseGroupId(
     context: ServerActionContext,
     databaseGroupId: DatabaseGroupId,
 ): Promise<SpaceId> {
-    const item = (await SpacesTable.getItemIfExists(context, {
-        partitionType: "DatabaseGroup",
-        sortRangeType: "Space",
-        databaseGroupId,
-    })) as SpaceDatabaseGroupItem | null;
+    let item = (await SpacesTable.getItemIfExists(
+        context,
+        {
+            partitionType: "DatabaseGroup",
+            sortRangeType: "Space",
+            databaseGroupId,
+        },
+        {consistency: "Eventual", allowsEventualReadConsistency: true},
+    )) as SpaceDatabaseGroupItem | null;
 
+    // This mapping is immutable. An eventual hit is therefore authoritative, while a
+    // miss needs a strong retry to distinguish absence from replication lag.
     if (item === null) {
-        throw new NotFoundError(`Database group ${databaseGroupId} not found`);
+        item = (await SpacesTable.getItemIfExists(
+            context,
+            {
+                partitionType: "DatabaseGroup",
+                sortRangeType: "Space",
+                databaseGroupId,
+            },
+            {consistency: "Strong"},
+        )) as SpaceDatabaseGroupItem | null;
+
+        if (item === null) {
+            throw new NotFoundError(`Database group ${databaseGroupId} not found`);
+        }
     }
     return item.spaceId;
 }

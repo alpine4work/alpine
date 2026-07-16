@@ -112,7 +112,7 @@ test("a connection from an account outside the group\u2019s space is refused", a
         durableObjectTest.connectForTest(context.action(outsiderSession), databaseGroupId, {
             searchParams: new URLSearchParams([["browserId", generateId<BrowserId>()]]),
         }),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
 test("the HTTP action route rejects browser-issued tokens", async () => {
@@ -137,6 +137,29 @@ test("the HTTP action route rejects browser-issued tokens", async () => {
             }),
         ),
     ).rejects.toThrow("Database actions over HTTP are restricted to internal services");
+});
+
+test("the HTTP action route rejects a forwarded session outside the group space", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
+    const otherSpace = await TestSpace.create(context);
+    const outsiderSession = await otherSpace.createSession();
+
+    await expect(
+        durableObjectTest.fetchForTest(
+            context.action(outsiderSession),
+            databaseGroupId,
+            new Request("https://databases.test.invalid/action", {
+                method: "POST",
+                body: JSON.stringify(
+                    DatabaseActionObjectSchema.serialize({
+                        name: "listTableIds",
+                        input: {},
+                    } as DatabaseActionObject),
+                ),
+            }),
+        ),
+    ).rejects.toThrow();
 });
 
 test("internal-only actions are available over HTTP but not public websocket procedures", async () => {
@@ -709,7 +732,7 @@ test("a mutation through the HTTP action route reaches realtime subscribers", as
     const table = await createTableOnServer(databaseGroupId);
     const reader = await createWarmClient(databaseGroupId, table);
 
-    const space = await TestSpace.create(context);
+    const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
     const session = await space.createSession();
     const rowId = generateChronologicalId<DatabaseRowId>();
     const response = await durableObjectTest.fetchForTest(
