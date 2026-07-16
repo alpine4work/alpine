@@ -118,7 +118,7 @@ export async function readAgentWebTaskPage(
         afterCursor: null,
         beforeCursor: lookaheadSubtask?.cursor ?? null,
         isManuallyOrdered: true,
-        tasks: visibleSubtasks.map(({cursor}) => ({cursor})),
+        tasks: visibleSubtasks.map(({cursor}) => ({cursor, newTaskId: null})),
     };
 
     let subtasks: AgentWebTaskPageSubtasks | null = null;
