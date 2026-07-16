@@ -36,7 +36,7 @@ import {
     getTaskCommentPayloadsFromStart,
     pingTaskCommentStream,
     putTaskCommentMessageApprovalDecisions,
-    putTaskCommentStreamPart,
+    putTaskCommentStreamPartAndBroadcastEvent,
 } from "~/server/tasks/data/task_messaging.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
@@ -525,7 +525,7 @@ export const apiTasksPaths: Pick<
         post: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putTaskCommentStreamPart(context, {
+            const {spaceId} = await putTaskCommentStreamPartAndBroadcastEvent(context, {
                 taskId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: "Create",
@@ -541,7 +541,7 @@ export const apiTasksPaths: Pick<
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putTaskCommentStreamPart(context, {
+            const {spaceId} = await putTaskCommentStreamPartAndBroadcastEvent(context, {
                 taskId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,

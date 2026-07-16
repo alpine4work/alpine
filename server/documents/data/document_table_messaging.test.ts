@@ -20,7 +20,7 @@ import {
     getDocumentsTableForTest,
     pingDocumentCommentStream,
     putDocumentCommentMessageApprovalDecisions,
-    putDocumentCommentStreamPart,
+    putDocumentCommentStreamPartAndBroadcastEvent,
     setDocumentCommentReaction,
     updateDocumentCommentContent,
     updateDocumentContent,
@@ -280,7 +280,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     ) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return await putDocumentCommentStreamPart(context, {
+        return await putDocumentCommentStreamPartAndBroadcastEvent(context, {
             documentId,
             commentThreadId,
             commentIndex,

@@ -26,7 +26,7 @@ import {
     getDocumentContent,
     pingDocumentCommentStream,
     putDocumentCommentMessageApprovalDecisions,
-    putDocumentCommentStreamPart,
+    putDocumentCommentStreamPartAndBroadcastEvent,
 } from "~/server/documents/data/documents_actions.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
@@ -626,7 +626,7 @@ export const apiDocumentsPaths: Pick<
         post: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putDocumentCommentStreamPart(context, {
+            const {spaceId} = await putDocumentCommentStreamPartAndBroadcastEvent(context, {
                 documentId: pathParameters.id,
                 commentThreadId: pathParameters.threadId,
                 commentIndex: pathParameters.index,
@@ -643,7 +643,7 @@ export const apiDocumentsPaths: Pick<
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putDocumentCommentStreamPart(context, {
+            const {spaceId} = await putDocumentCommentStreamPartAndBroadcastEvent(context, {
                 documentId: pathParameters.id,
                 commentThreadId: pathParameters.threadId,
                 commentIndex: pathParameters.index,

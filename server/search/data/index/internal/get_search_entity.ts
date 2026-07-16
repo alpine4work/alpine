@@ -3,7 +3,7 @@ import {Node} from "prosemirror-model";
 import {unwrapAccessPolicyModelForServer} from "~/server/access/unwrap_access_policy_model_for_server.js";
 import {
     getChatMessagePayload,
-    putChatMessageStreamPart,
+    putChatMessageStreamPartAndBroadcastEvent,
 } from "~/server/chat/data/chat_messaging.js";
 import {
     getChatDefinition,
@@ -21,7 +21,7 @@ import {
     getDocumentCommentPayload,
     getDocumentContent,
     getDocumentTitleIfExists,
-    putDocumentCommentStreamPart,
+    putDocumentCommentStreamPartAndBroadcastEvent,
 } from "~/server/documents/data/documents_actions.js";
 import {getFileIfExistsAsSystem} from "~/server/files/data/files_actions.js";
 import {getChannelNameAndDescriptionContentIfExists} from "~/server/forum/data/get_channel_name_and_description_content.js";
@@ -33,7 +33,7 @@ import {
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
 import {
     getPostCommentPayload,
-    putPostCommentStreamPart,
+    putPostCommentStreamPartAndBroadcastEvent,
 } from "~/server/forum/data/post_messaging.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {messageStreamTimeoutMs} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
@@ -68,7 +68,7 @@ import {
 import {TaskApproximateActionCountByAccountId} from "~/server/tasks/data/task_index_doc.js";
 import {
     getTaskCommentPayload,
-    putTaskCommentStreamPart,
+    putTaskCommentStreamPartAndBroadcastEvent,
 } from "~/server/tasks/data/task_messaging.js";
 import {TaskStepCountByAccountId} from "~/server/tasks/data/task_step_count_by_account_id.js";
 import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
@@ -1710,7 +1710,7 @@ async function getDocumentCommentSearchEntity(
             createMessageStreamTimeoutAdditionalWrite(
                 {documentId, commentThreadId, commentIndex},
                 commentStream,
-                putDocumentCommentStreamPart,
+                putDocumentCommentStreamPartAndBroadcastEvent,
             ),
         );
     }
@@ -1948,7 +1948,7 @@ async function getPostCommentSearchEntity(
             createMessageStreamTimeoutAdditionalWrite(
                 {postId, commentIndex},
                 commentStream,
-                putPostCommentStreamPart,
+                putPostCommentStreamPartAndBroadcastEvent,
             ),
         );
     }
@@ -2269,7 +2269,7 @@ async function getChatMessageSearchEntity(
             createMessageStreamTimeoutAdditionalWrite(
                 {chatId, messageIndex},
                 messageStream,
-                putChatMessageStreamPart,
+                putChatMessageStreamPartAndBroadcastEvent,
             ),
         );
     }
@@ -2822,7 +2822,7 @@ async function getTaskCommentSearchEntity(
             createMessageStreamTimeoutAdditionalWrite(
                 {taskId, commentIndex},
                 commentStream,
-                putTaskCommentStreamPart,
+                putTaskCommentStreamPartAndBroadcastEvent,
             ),
         );
     }

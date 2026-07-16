@@ -28,7 +28,7 @@ import {
     getPostCommentPayloadsFromStart,
     pingPostCommentStream,
     putPostCommentMessageApprovalDecisions,
-    putPostCommentStreamPart,
+    putPostCommentStreamPartAndBroadcastEvent,
 } from "~/server/forum/data/post_messaging.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
@@ -560,7 +560,7 @@ export const apiForumPaths: Pick<
         post: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putPostCommentStreamPart(context, {
+            const {spaceId} = await putPostCommentStreamPartAndBroadcastEvent(context, {
                 postId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: "Create",
@@ -576,7 +576,7 @@ export const apiForumPaths: Pick<
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putPostCommentStreamPart(context, {
+            const {spaceId} = await putPostCommentStreamPartAndBroadcastEvent(context, {
                 postId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,

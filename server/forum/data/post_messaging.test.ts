@@ -20,7 +20,7 @@ import {
     getPostCommentsFromStart,
     pingPostCommentStream,
     putPostCommentMessageApprovalDecisions,
-    putPostCommentStreamPart,
+    putPostCommentStreamPartAndBroadcastEvent,
     setPostCommentReaction,
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
@@ -178,7 +178,7 @@ testMessagingImplementation<PostId>(context, {
         context,
         {roomKey: postId, messageIndex: commentIndex, partIndex, payload, isTimeoutErrorCompletion},
     ) {
-        return await putPostCommentStreamPart(context, {
+        return await putPostCommentStreamPartAndBroadcastEvent(context, {
             postId,
             commentIndex,
             partIndex,

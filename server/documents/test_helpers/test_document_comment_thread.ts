@@ -10,7 +10,7 @@ import {
     getDocumentComment,
     getDocumentCommentThread,
     getResolvedDocumentCommentThreadRanges,
-    putDocumentCommentStreamPart,
+    putDocumentCommentStreamPartAndBroadcastEvent,
     setDocumentCommentReaction,
     updateDocumentCommentContent,
 } from "~/server/documents/data/documents_actions.js";
@@ -225,7 +225,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             payload: MessageStreamPartPayload;
         },
     ) {
-        await putDocumentCommentStreamPart(context, {
+        await putDocumentCommentStreamPartAndBroadcastEvent(context, {
             documentId: this.document.id,
             commentThreadId: this.id,
             commentIndex: messageIndex,

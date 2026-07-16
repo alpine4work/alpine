@@ -5,7 +5,7 @@ import {
     deleteChatMessage,
     deleteChatMessageReaction,
     getChatMessage,
-    putChatMessageStreamPart,
+    putChatMessageStreamPartAndBroadcastEvent,
     sendChatMessage,
     setChatMessageReaction,
     updateChatMessageContent,
@@ -270,7 +270,7 @@ export class TestChat extends TestMessageRoomBase {
             overrideCreatedTime?: Date;
         },
     ) {
-        await putChatMessageStreamPart(context, {
+        await putChatMessageStreamPartAndBroadcastEvent(context, {
             chatId: this.id,
             messageIndex,
             partIndex,
