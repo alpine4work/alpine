@@ -1201,6 +1201,70 @@ function largeCellValue(tag: string): string {
     return `${tag}:${"xy".repeat(747)}`;
 }
 
+// The detach/reattach that refreshes a resized schema's cached SQLite page count
+// (`writePageDiffsFromRealtime`) explicitly skips `main` — the main registry is
+// the connection root, not an `ATTACH`-ed schema, so it can't be reopened cheaply.
+// Every other table's file growth is picked up because reattaching forces SQLite
+// to re-read the file header (and thus its page count). Under
+// `locking_mode = EXCLUSIVE` SQLite assumes it is the sole writer and never
+// re-reads main's page count on its own, so when enough `createTable`s from
+// another client grow main's `_alpine_tables` b-tree onto a newly allocated page,
+// the realtime diff materializes that page in the local store but the connection's
+// pager keeps its stale, smaller count. A local `listTableIds` then scans the
+// b-tree, follows an interior pointer to the appended leaf whose index is past
+// that stale count, and SQLite reports the database image as malformed
+// (`SQLITE_CORRUPT`). That error is not a page miss, so it never falls back to the
+// server: the registry read is permanently broken until the connection is torn
+// down and reopened.
+test.failing(
+    "a warmed client sees main-registry ids appended onto a newly grown page",
+    async () => {
+        const databaseGroupId = generateId<DatabaseGroupId>();
+        const table = await createTableOnServer(databaseGroupId);
+        const reader = await createWarmClient(databaseGroupId, table);
+
+        // Baseline: the single seeded table id is answered from the local cache with no
+        // server round-trip, proving `listTableIds` reads main locally.
+        const seededTableIds = (await executeAction(reader, "listTableIds", {})).tableIds;
+        assert(
+            seededTableIds.length === 1 && seededTableIds[0] === table.tableId,
+            "warm client should read the seeded table id locally",
+        );
+
+        // Another actor (the HTTP action route) registers tables until main's registry
+        // b-tree spills onto a newly allocated page, then a few more so several ids share
+        // that appended leaf. Each `createTable` broadcasts main's page diff to the
+        // connected reader.
+        const createdTableIds = [table.tableId];
+        const mainPagesBeforeGrowth = mainFileSizeInPages(databaseGroupId);
+        while (
+            mainFileSizeInPages(databaseGroupId) <= mainPagesBeforeGrowth ||
+            createdTableIds.length < mainPagesBeforeGrowth + 5
+        ) {
+            const created = await executeInternalAction(
+                databaseGroupId,
+                "createTable",
+                createTableInputForTest(`Table ${createdTableIds.length}`),
+            );
+            createdTableIds.push(created.tableId);
+        }
+        await settle();
+
+        // The reader received every main page diff — including the appended page — over
+        // realtime and wrote them to its durable cache, but never refreshed main's cached
+        // page count. The local read must still enumerate every registered id.
+        const localTableIds = (await executeAction(reader, "listTableIds", {})).tableIds;
+
+        expect({
+            tableIds: [...localTableIds].sort(),
+            executeActionCalls: reader.executeActionCalls,
+        }).toEqual({
+            tableIds: [...createdTableIds].sort(),
+            executeActionCalls: [],
+        });
+    },
+);
+
 // ---------------------------------------------------------------------------
 // Test client harness
 // ---
@@ -1508,6 +1572,18 @@ function extractServerPages(
         pages.set(tableId, tablePages);
     }
     return pages;
+}
+
+/**
+ * The main registry's current file size in pages, read straight from the durable
+ * object's canonical page store. Used to detect when appending registry rows has
+ * grown main's `_alpine_tables` b-tree onto a newly allocated page.
+ */
+function mainFileSizeInPages(databaseGroupId: DatabaseGroupId): number {
+    const mainPages = extractServerPages(databaseGroupId, [databaseMainTableId]).get(
+        databaseMainTableId,
+    )!;
+    return Math.max(-1, ...mainPages.keys()) + 1;
 }
 
 /**
