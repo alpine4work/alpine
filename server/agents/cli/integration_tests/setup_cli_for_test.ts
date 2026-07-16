@@ -1,4 +1,4 @@
-import {mkdir, mkdtemp, writeFile} from "fs/promises";
+import {mkdir, mkdtemp, symlink, writeFile} from "fs/promises";
 import {join as joinPath} from "path";
 import {
     TestServices,
@@ -23,7 +23,7 @@ export type CliIntegrationTests = {
 /**
  * Sets up the Alpine CLI and its integration test environment for a Jest file.
  */
-export function setupCliIntegrationTests(): CliIntegrationTests {
+export function setupCliForTest(): CliIntegrationTests {
     import.meta.jest.setTimeout(60 * 1000);
 
     const testTmpdirPath = assertExists(process.env.TEST_TMPDIR);
@@ -49,6 +49,7 @@ export function setupCliIntegrationTests(): CliIntegrationTests {
 
     let session: TestSpaceSession | undefined;
     let dataDirectoryPath: string | undefined;
+    let binDirectoryPath: string | undefined;
 
     beforeAll(async () => {
         const space = await TestSpace.create(context);
@@ -59,6 +60,14 @@ export function setupCliIntegrationTests(): CliIntegrationTests {
         dataDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "alpine-data");
         await mkdir(dataDirectoryPath, {recursive: true});
 
+        binDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "alpine-bin");
+        await mkdir(binDirectoryPath, {recursive: true});
+
+        await symlink(
+            joinPath(runfilesPath, "cyberworlds/server/agents/cli/cli.sh"),
+            joinPath(binDirectoryPath, "alpine"),
+        );
+
         await writeFile(
             joinPath(dataDirectoryPath, "auth.json"),
             JSON.stringify({apiKey, apiUrl: services.getApiServiceBaseUrl()}),
@@ -66,20 +75,18 @@ export function setupCliIntegrationTests(): CliIntegrationTests {
     });
 
     async function run(command: string): Promise<string> {
-        assert(command.startsWith("alpine "));
-
-        const actualCommand =
-            joinPath(runfilesPath, "cyberworlds/server/agents/cli/cli.sh") +
-            " " +
-            command.slice("alpine ".length);
-
         await ProcessContextModule.waitForTestTasks();
         await services.waitForSqsProcessJobs();
         await refreshSearchEntityKeywordIndexForTest(context);
 
-        return await runProcess("/bin/sh", ["-c", actualCommand], {
+        return await runProcess("/bin/sh", ["-c", command], {
             cwd: runfilesPath,
-            env: {ALPINE_DATA_PATH: assertExists(dataDirectoryPath)},
+            env: {
+                ALPINE_DATA_PATH: assertExists(dataDirectoryPath),
+                PATH: process.env.PATH
+                    ? `${binDirectoryPath}:${process.env.PATH}`
+                    : binDirectoryPath,
+            },
         });
     }
 

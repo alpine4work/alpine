@@ -2,7 +2,6 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "integration_tests",
-    srcs = ["setup_cli_integration_tests.ts"],
     # All tests in this package use our integration test environment and so need
     # extra time to run plus a larger CPU count. Also, we run these test with
     # `app/integration_tests` because they use the integration test environment.

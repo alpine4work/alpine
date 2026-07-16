@@ -1,9 +1,9 @@
 /* eslint-disable cyberworlds/string-quotes */
 
-import {setupCliIntegrationTests} from "~/server/agents/cli/integration_tests/setup_cli_integration_tests.js";
+import {setupCliForTest} from "~/server/agents/cli/integration_tests/setup_cli_for_test.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 
-const cli = setupCliIntegrationTests();
+const cli = setupCliForTest();
 
 test("create document", async () => {
     expect(
@@ -43,21 +43,17 @@ test("search for and read document created by a test helper", async () => {
     // NOCOMMIT: Uh oh! Not good!
     await new Promise(resolve => setTimeout(resolve, 10 * 1000));
 
-    expect([
-        await cli.run("alpine search 'Me zoo'"),
-        await cli.run("alpine read /document/me-at-the-zoo"),
-    ]).toEqual([
-        `\
+    expect(await cli.run("alpine search 'Me zoo'")).toEqual(`\
 1. [Me at the zoo](/document/me-at-the-zoo)
 
    The first video, “**Me** at the **zoo**,” was uploaded on April 23, 2005.
-`,
-        `\
+`);
+
+    expect(await cli.run("alpine read /document/me-at-the-zoo")).toEqual(`\
 # Me at the zoo
 
 The first video, “Me at the zoo,” was uploaded on April 23, 2005.
-`,
-    ]);
+`);
 });
 
 test("scroll document", async () => {
@@ -71,14 +67,12 @@ The acquisition expanded the platform beyond advertising.'
 
     await cli.run("alpine read /document/youtube-acquisition");
 
-    expect(await cli.run("alpine scroll /document/youtube-acquisition 0")).toEqual(`\
-# YouTube acquisition
-
+    expect(await cli.run("alpine scroll /document/youtube-acquisition --offset 2")).toEqual(`\
 Google bought YouTube for $1.65 billion in October 2006.
 
 The acquisition expanded the platform beyond advertising.
 
-(End of file. Showing lines 1-5 of 5.)
+(End of file. Showing lines 3-5 of 5.)
 `);
 });
 
@@ -114,17 +108,17 @@ YouTube’s annual advertising revenue increased to $28.8 billion in 2021.'
 
     await cli.run("alpine read /document/youtube-advertising-revenue");
 
-    expect([
-        await cli.run("alpine update /document/youtube-advertising-revenue '2021' '2022'"),
-        await cli.run("alpine read /document/youtube-advertising-revenue"),
-    ]).toEqual([
-        `\
+    expect(
+        await cli.run("alpine update /document/youtube-advertising-revenue --old 2021 --new 2022"),
+    ).toEqual(`\
 Update was successful.
-`,
+`);
+
+    expect(await cli.run("alpine read /document/youtube-advertising-revenue")).toEqual(
         `\
 # YouTube advertising revenue
 
 YouTube’s annual advertising revenue increased to $28.8 billion in 2022.
 `,
-    ]);
+    );
 });
