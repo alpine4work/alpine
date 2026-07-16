@@ -1,5 +1,6 @@
 import {parseDate} from "@internationalized/date";
 import {findSpans} from "unicode-default-word-boundary";
+import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {createApiTaskMovePatchResultCursor} from "~/server/api/internal/tasks/internal/create_api_task_move_patch_result_cursor.js";
@@ -10,9 +11,18 @@ import {
     ApiTaskResolvedMove,
     ApiTaskUnresolvedMove,
 } from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_scope.js";
+import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
+import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
+import {createTaskNotesCreateTransactionEntry} from "~/server/tasks/data/create_task_notes_create_transaction_entry.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {
+    ApiTaskBatchPatch,
+    ApiTaskBatchPatchResult,
+    ApiTaskCreateRequest,
     ApiTaskPatch,
     ApiTaskPatchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -25,80 +35,56 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
+    zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {diff} from "~/shared/helpers/diff/diff.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {
+    OrderKey,
+    generateOrderKeyBetween,
+    initialOrderKey,
+} from "~/shared/helpers/sort/order_key.js";
+import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {
+    TaskNotesContentProsemirrorSchema,
+    assertTaskNotesContent,
+} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {randomlyGenerateTaskTitleClientId} from "~/shared/tasks/title/task_title.js";
-
-export type ApiTaskIdPatch = {
-    readonly id: TaskId;
-    readonly patch: ApiTaskPatch;
-};
-
-/**
- * A scope tasks move within: one collection's tasks or one parent's subtasks.
- */
-type ApiTaskMoveScope =
-    | {type: "Collection"; collectionId: TaskCollectionId; moves: Array<ApiTaskUnresolvedMove>}
-    | {type: "Parent"; parentTaskId: TaskId; moves: Array<ApiTaskUnresolvedMove>};
+import {
+    TaskTitleModel,
+    emptyTaskTitleModel,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 /**
- * Applies API task metadata patches, commits the resulting task actions, and
- * returns the updated task model used for the response.
+ * The single write path for API task endpoints. Applies creates and updates in
+ * request order and commits every generated action in one atomic
+ * `commitTaskActionTransaction()`.
+ *
+ * `PATCH /tasks` maps its request body onto this function directly. `POST /tasks`
+ * and `PATCH /tasks/{id}` are narrower variants: a single create patch and a list
+ * of update patches for a single task respectively.
  *
  * Notes patches are handled separately by `updateTaskNotesFromApi()` since they
  * target the notes collaboration Durable Object rather than task action
- * transactions.
+ * transactions. The initial notes of a created task, however, are committed here
+ * atomically with the task's `Create` action.
  */
-export async function updateTaskWithoutNotesFromApi(
-    context: ApiServiceBotActionContext,
-    {
-        spaceId,
-        taskId,
-        actorId,
-        patches,
-    }: {
-        spaceId: SpaceId;
-        taskId: TaskId;
-        actorId?: AccountId;
-        patches: ReadonlyArray<ApiTaskPatch>;
-    },
-): Promise<{
-    updatedTask: TaskModel;
-    updateEvent: TaskRealtimeUpdateEvent;
-    results: ReadonlyArray<ApiTaskPatchResult>;
-}> {
-    const result = await updateTasksWithoutNotesFromApi(context, {
-        spaceId,
-        actorId,
-        patches: patches.map(patch => ({id: taskId, patch})),
-    });
-
-    return {
-        updatedTask: assertExists(result.updatedTasks[0]),
-        updateEvent: result.updateEvent,
-        results: result.results,
-    };
-}
-
-/**
- * Applies patches to multiple tasks in request order and commits every generated
- * action in one transaction.
- */
-export async function updateTasksWithoutNotesFromApi(
+export async function commitTaskPatchesFromApi(
     context: ApiServiceBotActionContext,
     {
         spaceId,
@@ -107,38 +93,174 @@ export async function updateTasksWithoutNotesFromApi(
     }: {
         spaceId: SpaceId;
         actorId?: AccountId;
-        patches: ReadonlyArray<ApiTaskIdPatch>;
+        patches: ReadonlyArray<ApiTaskBatchPatch>;
     },
 ): Promise<{
-    updatedTasks: ReadonlyArray<TaskModel>;
-    updateEvent: TaskRealtimeUpdateEvent;
-    results: ReadonlyArray<ApiTaskPatchResult>;
+    /** The committed task models, one per unique task in first-patch order. */
+    tasks: ReadonlyArray<TaskModel>;
+    updateEvent: Pick<
+        TaskRealtimeUpdateEvent,
+        "backfillTasks" | "backfillCollections" | "referencedAccounts"
+    >;
+    results: ReadonlyArray<ApiTaskBatchPatchResult>;
 }> {
     const botAccountId = context.actor.getBotAccountId();
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const timeZone = defaultTimeZone;
+    const currentTime = new Date();
 
-    const actor = createApiTaskActor({actorId, botAccountId});
+    // The actor update patches are attributed to. Each create patch has its own actor
+    // built from the create request's `creator`.
+    const updateActor = createApiTaskActor({actorId, botAccountId});
 
-    const taskIds = Array.from(new Set(patches.map(({id}) => id)));
+    const orderedTaskIds: Array<TaskId> = [];
+    const updateTaskIds: Array<TaskId> = [];
+    const seenUpdateTaskIds = new Set<TaskId>();
+    const steps: Array<ApiTaskCommitStep> = [];
+    const extraTransactionEntries: Array<DynamoTransactionEntry> = [];
+    const fileAttachmentPromises: Array<Promise<void>> = [];
+    let hasCreates = false;
 
-    // TODO(calebmer): An optimization that would be pretty nice here is if we move
-    // notes loading into `TaskRealtimeService`. Currently we have to load the data for
-    // bot authorization twice. Once here in `ApiService` and again in
-    // `TaskRealtimeService`. If we pushed task notes loading into
-    // `TaskRealtimeService` then we could leverage `ContextCache` to only load the bot
-    // authorization data once.
-    const result = await context.tasks.loadQueries(
-        // NOCOMMIT: What happens if task exists but in a different space? We should throw
-        // some kind of error.
-        spaceId,
-        {
-            queries: [],
-            taskIds,
-            collectionIds: [],
-        },
-        {consistency: "StrongWithinCache"},
-    );
+    // The patch results each batch patch's steps write into, indexed by batch patch.
+    // Assembled into `ApiTaskBatchPatchResult`s after action generation.
+    const patchResultsByPatchIndex: Array<Array<ApiTaskPatchResult | null>> = [];
+    const createTaskIdByPatchIndex = new Map<number, TaskId>();
+
+    patches.forEach((patch, patchIndex) => {
+        switch (patch.type) {
+            case "Create": {
+                hasCreates = true;
+                const taskId = generateId<TaskId>();
+                const creator = createApiTaskActor({
+                    actorId: patch.task.creator?.id,
+                    botAccountId,
+                });
+
+                steps.push({type: "CreateTask", taskId, actor: creator});
+
+                for (const fieldPatch of createApiTaskPatchesFromCreateRequest(patch.task)) {
+                    steps.push({
+                        type: "ApplyPatch",
+                        taskId,
+                        actor: creator,
+                        patch: fieldPatch,
+                        resultSlot: null,
+                    });
+                }
+
+                // The create's own patches apply on top of the fields the create request
+                // initialized. They support every task patch, notably the moves, which can't be
+                // expressed in a create request.
+                const patchResults: Array<ApiTaskPatchResult | null> = createArrayWithLength(
+                    patch.patches?.length ?? 0,
+                    () => null,
+                );
+
+                patch.patches?.forEach((taskPatch, taskPatchIndex) => {
+                    steps.push({
+                        type: "ApplyPatch",
+                        taskId,
+                        actor: creator,
+                        patch: taskPatch,
+                        resultSlot: {results: patchResults, index: taskPatchIndex},
+                    });
+                });
+
+                patchResultsByPatchIndex[patchIndex] = patchResults;
+                createTaskIdByPatchIndex.set(patchIndex, taskId);
+
+                if (patch.task.notes) {
+                    const notesContent = assertTaskNotesContent(
+                        fromApiContent(TaskNotesContentProsemirrorSchema, patch.task.notes.content),
+                    );
+
+                    // The initial notes commit atomically with the task. If we used
+                    // `commitTaskActionTransaction()` to create the task and then made a follow-up
+                    // `updateTaskNotesContent()` write then would allow the task to be created even if
+                    // persisting its notes failed and the API endpoint wouldn't be atomic.
+                    extraTransactionEntries.push(
+                        createTaskNotesCreateTransactionEntry({
+                            spaceId,
+                            taskId,
+                            content: notesContent,
+                            createdTime: currentTime,
+                        }),
+                    );
+
+                    // Attach files referenced in the notes before creating the task so there's no race
+                    // where a reader sees the task before its files are attached. Attaching files is
+                    // adjacent to task creation, but it is not part of the task write itself, so it
+                    // does not need to be atomic with the task transaction.
+                    for (const fileId of extractFileIdsFromApiContent(patch.task.notes.content)) {
+                        fileAttachmentPromises.push(
+                            attachFileToTargetAsBot(
+                                context,
+                                fileId,
+                                FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                            ),
+                        );
+                    }
+                }
+
+                orderedTaskIds.push(taskId);
+                break;
+            }
+            case "Update": {
+                const patchResults: Array<ApiTaskPatchResult | null> = [null];
+
+                steps.push({
+                    type: "ApplyPatch",
+                    taskId: patch.id,
+                    actor: updateActor,
+                    patch: patch.patch,
+                    resultSlot: {results: patchResults, index: 0},
+                });
+
+                patchResultsByPatchIndex[patchIndex] = patchResults;
+
+                if (!seenUpdateTaskIds.has(patch.id)) {
+                    seenUpdateTaskIds.add(patch.id);
+                    orderedTaskIds.push(patch.id);
+                    updateTaskIds.push(patch.id);
+                }
+                break;
+            }
+            default:
+                throw exhaustive(patch);
+        }
+    });
+
+    const [result, createAccessPolicy] = await runAllPromises([
+        // TODO(calebmer): An optimization that would be pretty nice here is if we move
+        // notes loading into `TaskRealtimeService`. Currently we have to load the data for
+        // bot authorization twice. Once here in `ApiService` and again in
+        // `TaskRealtimeService`. If we pushed task notes loading into
+        // `TaskRealtimeService` then we could leverage `ContextCache` to only load the bot
+        // authorization data once.
+        updateTaskIds.length > 0
+            ? context.tasks.loadQueries(
+                  // NOCOMMIT: What happens if task exists but in a different space? We should throw
+                  // some kind of error.
+                  spaceId,
+                  {
+                      queries: [],
+                      taskIds: updateTaskIds,
+                      collectionIds: [],
+                  },
+                  {consistency: "StrongWithinCache"},
+              )
+            : null,
+
+        // Every task created by this commit shares one access policy: content created by
+        // this bot in this space.
+        hasCreates
+            ? createAccessPolicyForContentCreatedByBot(context, spaceId, {
+                  consistency: "StrongWithinCache",
+              })
+            : null,
+
+        runAllPromises(fileAttachmentPromises),
+    ]);
 
     // If the task is not found or you don't have permission to access the task then
     // `loadQueries()` will throw an error.
@@ -147,13 +269,15 @@ export async function updateTasksWithoutNotesFromApi(
     // endpoint
     const backfillAuthorizedTaskById = new Map<TaskId, TaskModel>();
 
-    for (const backfillTask of result.updateEvent.backfillTasks) {
-        if (backfillTask.type === "Authorized") {
-            backfillAuthorizedTaskById.set(backfillTask.task.id, backfillTask.task);
+    if (result) {
+        for (const backfillTask of result.updateEvent.backfillTasks) {
+            if (backfillTask.type === "Authorized") {
+                backfillAuthorizedTaskById.set(backfillTask.task.id, backfillTask.task);
+            }
         }
     }
 
-    const initialTasks = taskIds.map(taskId =>
+    const initialTasks = updateTaskIds.map(taskId =>
         assertExists(backfillAuthorizedTaskById.get(taskId)),
     );
 
@@ -168,10 +292,19 @@ export async function updateTasksWithoutNotesFromApi(
     // destinations are re-keyed exactly once.
     const moveScopeByKey = new Map<string, ApiTaskMoveScope>();
 
-    patches.forEach(({id, patch}, patchIndex) => {
+    steps.forEach((step, stepIndex) => {
+        if (step.type === "CreateTask") {
+            // A created task starts without a parent. A derived `SetParent` step below may
+            // establish one.
+            parentTaskIdByTaskId.set(step.taskId, null);
+            return;
+        }
+
+        const {taskId, patch} = step;
+
         switch (patch.type) {
             case "SetParent": {
-                parentTaskIdByTaskId.set(id, patch.parent?.task.id ?? null);
+                parentTaskIdByTaskId.set(taskId, patch.parent?.task.id ?? null);
                 break;
             }
             case "MoveInCollection": {
@@ -185,11 +318,11 @@ export async function updateTasksWithoutNotesFromApi(
                     }),
                 );
 
-                moveScope.moves.push({patchIndex, taskId: id, position: patch.position});
+                moveScope.moves.push({patchIndex: stepIndex, taskId, position: patch.position});
                 break;
             }
             case "MoveInParent": {
-                const parentTaskId = parentTaskIdByTaskId.get(id);
+                const parentTaskId = parentTaskIdByTaskId.get(taskId);
 
                 // Without a parent there's no scope to move within. Generating actions for this
                 // patch below throws the request error.
@@ -201,7 +334,7 @@ export async function updateTasksWithoutNotesFromApi(
                     (): ApiTaskMoveScope => ({type: "Parent", parentTaskId, moves: []}),
                 );
 
-                moveScope.moves.push({patchIndex, taskId: id, position: patch.position});
+                moveScope.moves.push({patchIndex: stepIndex, taskId, position: patch.position});
                 break;
             }
             default:
@@ -234,11 +367,11 @@ export async function updateTasksWithoutNotesFromApi(
         }),
     );
 
-    const resolvedMoveByPatchIndex = new Map<number, ApiTaskResolvedMove>();
+    const resolvedMoveByStepIndex = new Map<number, ApiTaskResolvedMove>();
 
     for (const resolvedMoveMap of resolvedMoveMaps) {
-        for (const [patchIndex, resolvedMove] of resolvedMoveMap) {
-            resolvedMoveByPatchIndex.set(patchIndex, resolvedMove);
+        for (const [stepIndex, resolvedMove] of resolvedMoveMap) {
+            resolvedMoveByStepIndex.set(stepIndex, resolvedMove);
         }
     }
 
@@ -248,44 +381,78 @@ export async function updateTasksWithoutNotesFromApi(
     {
         for (const initialTask of initialTasks) initialTask.tick(clock);
 
-        for (const resolvedMove of resolvedMoveByPatchIndex.values()) {
+        for (const resolvedMove of resolvedMoveByStepIndex.values()) {
             for (const tiedTaskUpdate of resolvedMove.tiedTaskUpdates) {
                 tiedTaskUpdate.task.tick(clock);
             }
         }
     }
 
-    const stateByTaskId = new Map(
-        initialTasks.map(initialTask => [
-            initialTask.id,
-            {
-                title: initialTask.getTitle(),
-                assigneeId: initialTask.getAssignee()?.assignee.accountId ?? null,
-                parentTaskId: initialTask.getParent()?.taskId ?? null,
-                collectionIds: new Set(
-                    initialTask
-                        .getCollections()
-                        .getArray()
-                        .map(({collectionId}) => collectionId),
-                ),
-                lastCollectionOrderKey: initialTask.getCollections().getLastOrderKey(),
-            },
-        ]),
-    );
+    const stateByTaskId = new Map<TaskId, ApiTaskCommitTaskState>();
+
+    for (const initialTask of initialTasks) {
+        stateByTaskId.set(initialTask.id, {
+            title: initialTask.getTitle(),
+            assigneeId: initialTask.getAssignee()?.assignee.accountId ?? null,
+            parentTaskId: initialTask.getParent()?.taskId ?? null,
+            collectionIds: new Set(
+                initialTask
+                    .getCollections()
+                    .getArray()
+                    .map(({collectionId}) => collectionId),
+            ),
+            lastCollectionOrderKey: initialTask.getCollections().getLastOrderKey(),
+        });
+    }
+
     const actions: Array<TaskUpdateTaskAction> = [];
+    const createActionByTaskId = new Map<
+        TaskId,
+        {time: HybridLogicalTime; taskAction: TaskCreateAction}
+    >();
 
-    const results: Array<ApiTaskPatchResult | null> = createArrayWithLength(
-        patches.length,
-        () => null,
-    );
+    // A move cursor needs the moved task's created time: the `Create` action time for
+    // tasks created in this batch, the loaded task's created time otherwise.
+    function getTaskCreatedTimeForMoveCursor(taskId: TaskId): HybridLogicalTime {
+        return (
+            createActionByTaskId.get(taskId)?.time ??
+            assertExists(backfillAuthorizedTaskById.get(taskId)).getCreatedTime().absoluteTime
+        );
+    }
 
-    for (let patchIndex = 0; patchIndex < patches.length; patchIndex++) {
-        const {id: taskId, patch} = patches[patchIndex]!;
+    for (let stepIndex = 0; stepIndex < steps.length; stepIndex++) {
+        const step = steps[stepIndex]!;
+
+        if (step.type === "CreateTask") {
+            stateByTaskId.set(step.taskId, {
+                title: emptyTaskTitleModel.get(),
+                assigneeId: null,
+                parentTaskId: null,
+                collectionIds: new Set(),
+                lastCollectionOrderKey: null,
+            });
+
+            const taskAction: TaskCreateAction = {
+                type: "Create",
+                creator: step.actor,
+                creatorTimeZone: timeZone,
+                accessPolicy: assertExists(createAccessPolicy),
+            };
+
+            const time = clock.now();
+
+            actions.push({type: "UpdateTask", time, taskId: step.taskId, taskAction});
+            createActionByTaskId.set(step.taskId, {time, taskAction});
+            continue;
+        }
+
+        const {taskId, actor, patch, resultSlot} = step;
         const state = assertExists(stateByTaskId.get(taskId));
 
         switch (patch.type) {
             case "SetTitle": {
-                results[patchIndex] = {type: "SetTitle"};
+                setStepPatchResult(resultSlot, {type: "SetTitle"});
+
                 const titleUpdates: Array<{from: number; to: number; text: string}> = [];
 
                 const oldTokens = Array.from(findSpans(state.title.getText()), ({text}) => text);
@@ -373,7 +540,8 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetAssignee": {
-                results[patchIndex] = {type: "SetAssignee"};
+                setStepPatchResult(resultSlot, {type: "SetAssignee"});
+
                 const assigneeId = patch.assignee?.id ?? null;
                 const time = clock.now();
 
@@ -406,7 +574,8 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetStatus": {
-                results[patchIndex] = {type: "SetStatus"};
+                setStepPatchResult(resultSlot, {type: "SetStatus"});
+
                 switch (patch.status.type) {
                     case "Closed": {
                         const time = clock.now();
@@ -500,7 +669,8 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetDue": {
-                results[patchIndex] = {type: "SetDue"};
+                setStepPatchResult(resultSlot, {type: "SetDue"});
+
                 const dueDate = patch.due ? parseDate(patch.due.date) : null;
 
                 actions.push({
@@ -513,7 +683,8 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetPriority": {
-                results[patchIndex] = {type: "SetPriority"};
+                setStepPatchResult(resultSlot, {type: "SetPriority"});
+
                 const priority = patch.priority?.type ?? null;
 
                 actions.push({
@@ -526,7 +697,8 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetLayout": {
-                results[patchIndex] = {type: "SetLayout"};
+                setStepPatchResult(resultSlot, {type: "SetLayout"});
+
                 const layout = fromApiTaskLayout(patch.layout);
 
                 actions.push({
@@ -539,7 +711,8 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetParent": {
-                results[patchIndex] = {type: "SetParent"};
+                setStepPatchResult(resultSlot, {type: "SetParent"});
+
                 const parentTaskId = patch.parent?.task.id ?? null;
 
                 actions.push({
@@ -554,7 +727,8 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "AddCollection": {
-                results[patchIndex] = {type: "AddCollection"};
+                setStepPatchResult(resultSlot, {type: "AddCollection"});
+
                 const collectionId = patch.item.collection.id;
                 const orderKey = generateOrderKeyBetween(state.lastCollectionOrderKey, null);
 
@@ -571,7 +745,8 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "RemoveCollection": {
-                results[patchIndex] = {type: "RemoveCollection"};
+                setStepPatchResult(resultSlot, {type: "RemoveCollection"});
+
                 const collectionId = patch.collectionId;
 
                 actions.push({
@@ -597,7 +772,7 @@ export async function updateTasksWithoutNotesFromApi(
                     );
                 }
 
-                const resolvedMove = assertExists(resolvedMoveByPatchIndex.get(patchIndex));
+                const resolvedMove = assertExists(resolvedMoveByStepIndex.get(stepIndex));
 
                 const positionUpdates = createApiTaskMovePositionUpdates(
                     taskId,
@@ -605,17 +780,15 @@ export async function updateTasksWithoutNotesFromApi(
                     clock,
                 );
 
-                const backfillTask = assertExists(backfillAuthorizedTaskById.get(taskId));
-
-                results[patchIndex] = {
+                setStepPatchResult(resultSlot, {
                     type: "MoveInCollection",
                     cursor: createApiTaskMovePatchResultCursor({
-                        id: backfillTask.id,
-                        createdTime: backfillTask.getCreatedTime().absoluteTime,
+                        id: taskId,
+                        createdTime: getTaskCreatedTimeForMoveCursor(taskId),
                         position: positionUpdates[0].position,
                         scope: {type: "Collection", collectionId},
                     }),
-                };
+                });
 
                 for (const update of positionUpdates) {
                     actions.push({
@@ -639,7 +812,7 @@ export async function updateTasksWithoutNotesFromApi(
                     });
                 }
 
-                const resolvedMove = assertExists(resolvedMoveByPatchIndex.get(patchIndex));
+                const resolvedMove = assertExists(resolvedMoveByStepIndex.get(stepIndex));
 
                 const positionUpdates = createApiTaskMovePositionUpdates(
                     taskId,
@@ -647,17 +820,15 @@ export async function updateTasksWithoutNotesFromApi(
                     clock,
                 );
 
-                const backfillTask = assertExists(backfillAuthorizedTaskById.get(taskId));
-
-                results[patchIndex] = {
+                setStepPatchResult(resultSlot, {
                     type: "MoveInParent",
                     cursor: createApiTaskMovePatchResultCursor({
-                        id: backfillTask.id,
-                        createdTime: backfillTask.getCreatedTime().absoluteTime,
+                        id: taskId,
+                        createdTime: getTaskCreatedTimeForMoveCursor(taskId),
                         position: positionUpdates[0].position,
                         scope: {type: "Parent"},
                     }),
-                };
+                });
 
                 for (const update of positionUpdates) {
                     actions.push({
@@ -678,41 +849,52 @@ export async function updateTasksWithoutNotesFromApi(
         }
     }
 
-    const nonNullableResults = results.map(patchResult => assertExists(patchResult));
+    const results = createApiTaskBatchPatchResults({
+        patches,
+        patchResultsByPatchIndex,
+        createTaskIdByPatchIndex,
+    });
 
     if (actions.length === 0) {
         return {
-            updatedTasks: initialTasks,
-            updateEvent: result.updateEvent,
-            results: nonNullableResults,
+            tasks: initialTasks,
+            updateEvent: result?.updateEvent ?? {
+                backfillTasks: [],
+                backfillCollections: [],
+                referencedAccounts: [],
+            },
+            results,
         };
     }
 
-    // The update event we loaded above only backfills the task's references from
+    // The update event we loaded above only backfills the tasks' references from
     // before the patch. Load any parent task, collections, or assignee account the
-    // patch newly references so the API response can include their data.
-    const newParentTaskIds = filterMapArray(actions, (action): TaskId | undefined => {
-        if (action.type !== "UpdateTask") return;
-        if (action.taskAction.type !== "UpdateParentTaskId") return;
-        if (action.taskAction.parentTaskId === null) return;
-        return action.taskAction.parentTaskId;
-    });
+    // batch newly references (including everything created tasks reference) so the API
+    // response can include their data.
+    const newParentTaskIds = new Set(
+        filterMapIterable(actions, (action): TaskId | undefined => {
+            if (action.type !== "UpdateTask") return;
+            if (action.taskAction.type !== "UpdateParentTaskId") return;
+            if (action.taskAction.parentTaskId === null) return;
+            return action.taskAction.parentTaskId;
+        }),
+    );
 
-    const newCollectionIds = filterMapArray(actions, (action): TaskCollectionId | undefined => {
-        if (action.type !== "UpdateTask") return;
-        if (action.taskAction.type !== "AddCollection") return;
-        return action.taskAction.collectionId;
-    });
+    const newCollectionIds = new Set(
+        filterMapIterable(actions, (action): TaskCollectionId | undefined => {
+            if (action.type !== "UpdateTask") return;
+            if (action.taskAction.type !== "AddCollection") return;
+            return action.taskAction.collectionId;
+        }),
+    );
 
-    const newAssigneeIds = new Set<AccountId>();
-    for (const initialTask of initialTasks) {
-        const initialAssigneeId = initialTask.getAssignee()?.assignee.accountId ?? null;
-        const assigneeId = assertExists(stateByTaskId.get(initialTask.id)).assigneeId;
-
-        if (assigneeId !== null && assigneeId !== initialAssigneeId) {
-            newAssigneeIds.add(assigneeId);
-        }
-    }
+    const newAssigneeIds = new Set(
+        filterMapIterable(actions, (action): AccountId | undefined => {
+            if (action.type !== "UpdateTask") return;
+            if (action.taskAction.type !== "UpdateAssignee") return;
+            return action.taskAction.assignee?.assigneeId;
+        }),
+    );
 
     const [, taskSortableAccountById, newReferencesResult, newAssigneeAccounts] =
         await runAllPromises([
@@ -722,6 +904,8 @@ export async function updateTasksWithoutNotesFromApi(
                 // until our actions have been sent to every `TaskRealtimeService`. Then future
                 // reads against `TaskRealtimeService` will return the data we wrote.
                 waitForProcessing: true,
+                extraTransactionEntries:
+                    extraTransactionEntries.length > 0 ? extraTransactionEntries : undefined,
             }),
             // We're loading references so eventual consistency is ok.
             loadTaskSortableAccountsForActions(context.dynamo.unexpectStrongReadConsistency(), {
@@ -729,15 +913,18 @@ export async function updateTasksWithoutNotesFromApi(
                 initialTasks,
                 actions,
             }),
-            newParentTaskIds.length > 0 || newCollectionIds.length > 0
-                ? context.tasks.loadQueries(
+            newParentTaskIds.size > 0 || newCollectionIds.size > 0
+                ? context.dynamo.unexpectStrongReadConsistency().tasks.loadQueries(
+                      // NOCOMMIT: What happens if task exists but in a different space? We should throw
+                      // some kind of error.
                       spaceId,
                       {
                           queries: [],
-                          taskIds: Array.from(new Set(newParentTaskIds)),
-                          collectionIds: Array.from(new Set(newCollectionIds)),
+                          taskIds: Array.from(newParentTaskIds),
+                          // NOCOMMIT: Test what happens if you don't have access to the parent task or
+                          // collections?
+                          collectionIds: Array.from(newCollectionIds),
                       },
-                      {consistency: "StrongWithinCache"},
                   )
                 : null,
             runAllPromises(
@@ -747,25 +934,51 @@ export async function updateTasksWithoutNotesFromApi(
             ),
         ]);
 
-    // Move patches may also update other tasks that share a position. Apply every
-    // action targeting a requested task to that task's response model.
-    const updatedTasks = initialTasks.map(initialTask =>
-        applyActionsToTaskModel(
-            initialTask,
-            actions.filter(action => action.taskId === initialTask.id),
-            taskSortableAccountById,
-        ),
-    );
+    function getTaskSortableAccount(accountId: AccountId): TaskSortableAccount {
+        return assertExists(taskSortableAccountById.get(accountId));
+    }
 
-    let updateEvent = result.updateEvent;
+    // Build the response models by replaying the committed actions: created tasks
+    // start from their `Create` action, updated tasks start from the task we loaded.
+    // Move patches may also update other tasks that share a position, so only apply
+    // the actions targeting each requested task.
+    const tasks = orderedTaskIds.map(taskId => {
+        const createAction = createActionByTaskId.get(taskId);
+
+        let task =
+            createAction !== undefined
+                ? TaskModel.createFromAction(
+                      spaceId,
+                      taskId,
+                      createAction.time,
+                      createAction.taskAction,
+                      getTaskSortableAccount,
+                  )
+                : assertExists(backfillAuthorizedTaskById.get(taskId));
+
+        for (const action of actions) {
+            if (action.taskId !== taskId) continue;
+            if (action.taskAction.type === "Create") continue;
+            task = task.applyAction(action, getTaskSortableAccount);
+        }
+
+        return task;
+    });
+
+    let updateEvent: Pick<
+        TaskRealtimeUpdateEvent,
+        "backfillTasks" | "backfillCollections" | "referencedAccounts"
+    > = result?.updateEvent ?? {
+        backfillTasks: [],
+        backfillCollections: [],
+        referencedAccounts: [],
+    };
 
     updateEvent = {
-        ...updateEvent,
-
         backfillTasks: [
             ...updateEvent.backfillTasks,
             ...(newReferencesResult?.updateEvent.backfillTasks ?? []),
-            ...updatedTasks.map(task => ({type: "Authorized" as const, task})),
+            ...tasks.map(task => ({type: "Authorized" as const, task})),
         ],
 
         backfillCollections:
@@ -787,10 +1000,101 @@ export async function updateTasksWithoutNotesFromApi(
     };
 
     return {
-        updatedTasks,
+        tasks,
         updateEvent,
-        results: nonNullableResults,
+        results,
     };
+}
+
+/**
+ * A unit of action generation. A create patch expands into a `CreateTask` step
+ * followed by an `ApplyPatch` step for each field the create request initializes
+ * and each of the create's own patches, an update patch is a single `ApplyPatch`
+ * step. This lets creates and updates share one action generation path.
+ */
+type ApiTaskCommitStep =
+    | {type: "CreateTask"; taskId: TaskId; actor: TaskActor}
+    | {
+          type: "ApplyPatch";
+          taskId: TaskId;
+          actor: TaskActor;
+          patch: ApiTaskPatch;
+
+          // Where this step's patch result is recorded, or `null` for the field steps
+          // derived from a create request's fields (the created task itself is their
+          // result).
+          resultSlot: ApiTaskCommitStepResultSlot | null;
+      };
+
+/**
+ * One cell of a batch patch's results: `results[index]`. An update patch has a
+ * single cell, a create patch has one cell per patch in its `patches` list.
+ */
+type ApiTaskCommitStepResultSlot = {
+    results: Array<ApiTaskPatchResult | null>;
+    index: number;
+};
+
+/**
+ * A scope tasks move within: one collection's tasks or one parent's subtasks.
+ */
+type ApiTaskMoveScope =
+    | {type: "Collection"; collectionId: TaskCollectionId; moves: Array<ApiTaskUnresolvedMove>}
+    | {type: "Parent"; parentTaskId: TaskId; moves: Array<ApiTaskUnresolvedMove>};
+
+/**
+ * The working state of one task as its patches generate actions. Later patches in
+ * the batch see the fields established by earlier ones. Created tasks start from a
+ * blank state.
+ */
+type ApiTaskCommitTaskState = {
+    title: TaskTitleModel;
+    assigneeId: AccountId | null;
+    parentTaskId: TaskId | null;
+    collectionIds: Set<TaskCollectionId>;
+    lastCollectionOrderKey: OrderKey | null;
+};
+
+/**
+ * Translates a create request's fields into the task patches that initialize them.
+ * A create commits as a `Create` action followed by these patches, flowing through
+ * the same action generation as updates. The assignee patch comes before the
+ * status patch so an active status sees the requested assignee.
+ */
+function createApiTaskPatchesFromCreateRequest(task: ApiTaskCreateRequest): Array<ApiTaskPatch> {
+    const patches: Array<ApiTaskPatch> = [];
+
+    if (task.title !== undefined) patches.push({type: "SetTitle", title: task.title});
+    if (task.assignee !== undefined) patches.push({type: "SetAssignee", assignee: task.assignee});
+    if (task.status !== undefined) patches.push({type: "SetStatus", status: task.status});
+    if (task.due !== undefined) patches.push({type: "SetDue", due: task.due});
+    if (task.priority !== undefined) patches.push({type: "SetPriority", priority: task.priority});
+    if (task.layout !== undefined) patches.push({type: "SetLayout", layout: task.layout});
+    if (task.parent !== undefined) patches.push({type: "SetParent", parent: task.parent});
+
+    // The product treats a task's collections as a set, so drop duplicate collection
+    // IDs instead of adding the same collection twice.
+    const collectionIds = new Set<TaskCollectionId>();
+    for (const item of task.collections ?? []) {
+        if (collectionIds.has(item.collection.id)) continue;
+        collectionIds.add(item.collection.id);
+        patches.push({type: "AddCollection", item});
+    }
+
+    return patches;
+}
+
+/**
+ * Records an `ApplyPatch` step's result in its owning batch patch's result list.
+ * Does nothing for the steps derived from a create request's fields, which have no
+ * result slot.
+ */
+function setStepPatchResult(
+    resultSlot: ApiTaskCommitStepResultSlot | null,
+    result: ApiTaskPatchResult,
+): void {
+    if (resultSlot === null) return;
+    resultSlot.results[resultSlot.index] = result;
 }
 
 /**
@@ -836,26 +1140,39 @@ function createApiTaskMovePositionUpdates(
 }
 
 /**
- * Applies the generated actions to the loaded task model so the route can build a
- * response without refetching the task.
+ * Pairs each batch patch with its result: the created task's ID and its patches'
+ * results for creates, the single patch result for updates.
  */
-function applyActionsToTaskModel(
-    initialTask: TaskModel,
-    actions: ReadonlyArray<TaskUpdateTaskAction>,
-    taskSortableAccountById: ReadonlyMap<AccountId, TaskSortableAccount>,
-): TaskModel {
-    let updatedTask = initialTask;
-    for (const action of actions) {
-        updatedTask = updatedTask.applyAction(action, accountId =>
-            assertExists(taskSortableAccountById.get(accountId)),
-        );
-    }
-    return updatedTask;
+function createApiTaskBatchPatchResults({
+    patches,
+    patchResultsByPatchIndex,
+    createTaskIdByPatchIndex,
+}: {
+    patches: ReadonlyArray<ApiTaskBatchPatch>;
+    patchResultsByPatchIndex: ReadonlyArray<ReadonlyArray<ApiTaskPatchResult | null>>;
+    createTaskIdByPatchIndex: ReadonlyMap<number, TaskId>;
+}): Array<ApiTaskBatchPatchResult> {
+    return patches.map((patch, patchIndex): ApiTaskBatchPatchResult => {
+        const patchResults = assertExists(patchResultsByPatchIndex[patchIndex]);
+
+        switch (patch.type) {
+            case "Create":
+                return {
+                    type: "Create",
+                    task: {id: assertExists(createTaskIdByPatchIndex.get(patchIndex))},
+                    results: patchResults.map(patchResult => assertExists(patchResult)),
+                };
+            case "Update":
+                return {type: "Update", result: assertExists(patchResults[0])};
+            default:
+                throw exhaustive(patch);
+        }
+    });
 }
 
 /**
  * Load the sortable account payloads needed to apply the generated actions to the
- * in-memory `TaskModel`.
+ * in-memory `TaskModel`s.
  */
 async function loadTaskSortableAccountsForActions(
     context: ApiServiceBotActionContext,

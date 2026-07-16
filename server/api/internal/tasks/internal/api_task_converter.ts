@@ -35,7 +35,12 @@ export class ApiTaskConverter {
 
     #referencedAccountById = new Map<AccountId, AccountModel>();
 
-    constructor(updateEvent: TaskRealtimeUpdateEvent) {
+    constructor(
+        updateEvent: Pick<
+            TaskRealtimeUpdateEvent,
+            "backfillTasks" | "backfillCollections" | "referencedAccounts"
+        >,
+    ) {
         for (const backfillTask of updateEvent.backfillTasks) {
             if (backfillTask.type === "Authorized") {
                 this.#backfillTaskById.set(backfillTask.task.id, backfillTask);
