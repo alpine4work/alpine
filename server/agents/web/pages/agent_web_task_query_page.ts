@@ -1224,10 +1224,15 @@ export async function updateAgentWebTaskQueryPage(
         }),
     );
 
-    for (const newPageTask of newPage.tasks) {
+    // NOCOMMIT: Maybe we should aim for an `AggregateError` in `newPageTasks` order
+    // for all the errors across the tasks in the page.
+    for (const newPageTask of newPageTasks) {
+        // Tasks that are created are handled in the `createdPageTasks` loop above.
+        if (newPageTask.taskId === null) continue;
+
         const oldPageTask = oldPageTaskById.get(newPageTask.taskId);
 
-        // Newly added tasks are handled in the loop above.
+        // Newly added tasks are handled in the `addedTaskIds` loop above.
         if (oldPageTask === undefined) continue;
 
         // Don't allow moving a task and updating its fields at the same time. Since the
