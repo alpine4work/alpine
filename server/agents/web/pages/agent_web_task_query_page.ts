@@ -70,6 +70,7 @@ import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 
 const agentWebTaskQueryPageApiTasksBatchCount = 31;
 
@@ -979,18 +980,30 @@ export async function updateAgentWebTaskQueryPage(
     const oldTaskIds = new Set<TaskId>();
     const newTaskIds = new Set<TaskId>();
 
+    const createdPageTasks: Array<{
+        readonly index: number;
+        readonly task: AgentWebTaskQueryPageTask;
+    }> = [];
+
     // NOCOMMIT: Integration test where we shuffle task collection tasks and make sure
     // after the API calls the resulting task order is correct with another read.
     //
     // NOCOMMIT: Lots of integration tests for moving tasks then also adding tasks at
     // the same time (nearby). Also moving tasks in one `update` call and then making
     // another `update` call that makes more moves.
-    for (const oldTask of oldPage.tasks) {
+    for (const oldTask of oldPageTasks) {
         assert(!oldTaskIds.has(oldTask.taskId));
         oldTaskIds.add(oldTask.taskId);
     }
 
-    for (const newTask of newPage.tasks) {
+    for (let taskIndex = 0; taskIndex < newPageTasks.length; taskIndex++) {
+        const newTask = newPageTasks[taskIndex]!;
+
+        if (newTask.taskId === null) {
+            createdPageTasks.push({index: taskIndex, task: newTask});
+            continue;
+        }
+
         if (!newTaskIds.has(newTask.taskId)) {
             newTaskIds.add(newTask.taskId);
             continue;
@@ -1061,7 +1074,7 @@ export async function updateAgentWebTaskQueryPage(
     );
 
     if (!oldPageMetadata.isManuallyOrdered) {
-        if (addedTaskIds.length > 0) {
+        if (addedTaskIds.length > 0 || createdPageTasks.length > 0) {
             throw new InvalidArgumentError(
                 "Can\u2019t add tasks in an automatically ordered query",
                 {
@@ -1079,17 +1092,94 @@ export async function updateAgentWebTaskQueryPage(
         }
     }
 
-    assert(oldPageMetadata.tasks.length === oldPage.tasks.length);
-
     const oldTaskCursorById = new Map(
-        oldPage.tasks.map((pageTask, index) => [
+        oldPageTasks.map((pageTask, index) => [
             pageTask.taskId,
             assertExists(oldPageMetadata.tasks[index]).cursor,
         ]),
     );
-    const oldPageTaskById = new Map(oldPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
-    const newPageTaskById = new Map(newPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
+    const oldPageTaskById = new Map(oldPageTasks.map(pageTask => [pageTask.taskId, pageTask]));
+    const newPageTaskById = new Map(
+        filterMapIterable(newPageTasks, pageTask => {
+            if (pageTask.taskId === null) return;
+            return [pageTask.taskId, pageTask];
+        }),
+    );
     const batchPatches: Array<ApiTaskBatchPatch> = [];
+    const createTaskRequestByPageTaskIndex = new Map<number, ApiTaskCreateRequest>();
+
+    // NOCOMMIT: Test moving a task and creating a task right after (what is the
+    // position?). Test moving a task and creating a task right before (what is the
+    // position?). The new task should probably get a `MoveInCollection` patch.
+    //
+    // NOCOMMIT: When creating tasks, we should ideally add links to the newly created
+    // tasks in the output.
+    for (const {index: taskIndex, task: pageTask} of createdPageTasks) {
+        if (pageTask.additionalCollectionsCount !== 0) {
+            const quotedTitle = curlyQuote(pageTask.title);
+
+            throw new InvalidArgumentError(
+                "Can\u2019t create task with additional collection count",
+                {
+                    // NOCOMMIT: Make sure this is tested
+                    displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} with an \u201Cand ${pageTask.additionalCollectionsCount} more\u201D collection count since we don\u2019t know which underlying collections you\u2019re trying to add. Try again after removing the count or replacing it with links to the underlying collections.`,
+                },
+            );
+        }
+
+        if (pageTask.subtasks.openTaskCount !== 0 || pageTask.subtasks.closedTaskCount !== 0) {
+            const quotedTitle = curlyQuote(pageTask.title);
+
+            throw new InvalidArgumentError("Can\u2019t create task with subtask counts", {
+                // NOCOMMIT: Make sure this is tested
+                displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} with a \u201CSubtasks\u201D field since we don't know what the underlying subtasks are. Try again after removing the \u201CSubtasks\u201D field, then call the \`read\` tool on the newly created task and use the \`update\` tool to add subtasks to the newly created task.`,
+            });
+        }
+
+        if (
+            pageTask.status.type === "Open" &&
+            pageTask.status.isActive &&
+            pageTask.assignee === null
+        ) {
+            const quotedTitle = curlyQuote(pageTask.title);
+
+            const assigneeLink: Link = {
+                type: "link",
+                url: context.botAccount.pathname,
+                children: [{type: "text", value: context.botAccount.shortName}],
+            };
+
+            throw new InvalidArgumentError(
+                "Can\u2019t create active task if there\u2019s no assignee",
+                {
+                    displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either create the task as open but inactive (e.g. \u201C(Open)\u201D) or set an assignee (e.g. ${quote(`- Assignee: ${printMarkdownTree(assigneeLink).trim()}`)}).`,
+                },
+            );
+        }
+
+        const due =
+            pageTask.dueDateString === null
+                ? undefined
+                : {
+                      date: parseAgentWebTaskPageDueDateStringForUpdate(
+                          contextDate,
+                          pageTask.dueDateString,
+                          () => errorDisplayMessage` for task ${curlyQuote(pageTask.title)}`,
+                      ).toString(),
+                  };
+
+        createTaskRequestByPageTaskIndex.set(taskIndex, {
+            title: pageTask.title,
+            status: pageTask.status,
+            parent: pageTask.parent ? {task: {id: pageTask.parent.id}} : undefined,
+            assignee: pageTask.assignee ? {id: pageTask.assignee.id} : undefined,
+            collections: pageTask.collections.map(collection => ({
+                collection: {id: collection.id},
+            })),
+            priority: pageTask.priority ?? undefined,
+            due,
+        });
+    }
 
     // Verify that we're adding a task with the correct fields.
     await runAllPromises(
