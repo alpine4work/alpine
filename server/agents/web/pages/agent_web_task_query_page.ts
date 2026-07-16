@@ -1403,7 +1403,7 @@ export async function updateAgentWebTaskQueryPage(
                 }
             }
 
-            if (patches.length === 0) return null;
+            if (patches.length === 0 && !movedTaskIds.has(newPageTask.taskId)) return null;
 
             return {
                 type: "Update",
@@ -1646,11 +1646,11 @@ export async function updateAgentWebTaskQueryPage(
             const movedCursorByPageTaskIndex = new Map<number, ApiTaskQueryCursor>();
 
             if (patchResponse !== null) {
-                assert(patchResponse.data.results.length === patches.length);
+                assert(patchResponse.data.results.length === removePatches.length + patches.length);
 
                 for (let resultIndex = 0; resultIndex < patches.length; resultIndex++) {
                     const patch = patches[resultIndex]!;
-                    const result = patchResponse.data.results[resultIndex]!;
+                    const result = patchResponse.data.results[removePatches.length + resultIndex]!;
 
                     switch (patch.patch.type) {
                         case "Create": {
