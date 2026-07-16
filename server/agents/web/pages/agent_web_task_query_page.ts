@@ -69,6 +69,7 @@ import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 
 const agentWebTaskQueryPageApiTasksBatchCount = 31;
 
@@ -916,6 +917,63 @@ export async function updateAgentWebTaskQueryPage(
         throw new InvalidArgumentError("Can\u2019t change whether this page is the end of tasks", {
             displayMessage: errorDisplayMessage`Can\u2019t add the \u201CEnd of tasks\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a task list or not. Try again without adding the \u201CEnd of tasks\u201D marker.`,
         });
+    }
+
+    assert(oldPageMetadata.tasks.length === oldPage.tasks.length);
+
+    const unmatchedOldLinkLessTaskIndexes = new Set<number>();
+
+    const oldPageTasks: Array<Replace<AgentWebTaskQueryPageTask, {taskId: TaskId}>> =
+        oldPage.tasks.map((pageTask, taskIndex) => {
+            if (pageTask.taskId !== null)
+                return pageTask as Replace<AgentWebTaskQueryPageTask, {taskId: TaskId}>;
+
+            unmatchedOldLinkLessTaskIndexes.add(taskIndex);
+
+            return {
+                ...pageTask,
+                taskId: assertExists(oldPageMetadata.tasks[taskIndex]?.newTaskId),
+            };
+        });
+
+    const newPageTasks = newPage.tasks.slice();
+
+    // First match unchanged link-less tasks. This keeps their identity if a new task
+    // is inserted before them or if the tasks are reordered.
+    for (let newTaskIndex = 0; newTaskIndex < newPageTasks.length; newTaskIndex++) {
+        const newPageTask = newPageTasks[newTaskIndex]!;
+        if (newPageTask.taskId !== null) continue;
+
+        for (const oldTaskIndex of unmatchedOldLinkLessTaskIndexes) {
+            if (!isDeepEqual(oldPage.tasks[oldTaskIndex], newPageTask)) continue;
+
+            newPageTasks[newTaskIndex] = {
+                ...newPageTask,
+                taskId: oldPageTasks[oldTaskIndex]!.taskId,
+            };
+            unmatchedOldLinkLessTaskIndexes.delete(oldTaskIndex);
+            break;
+        }
+    }
+
+    const unmatchedOldLinkLessTaskIndexesArray = Array.from(unmatchedOldLinkLessTaskIndexes);
+
+    // If a link-less task's fields changed, preserve its identity when it stayed at
+    // the same index relative to other link-less tasks.
+    if (unmatchedOldLinkLessTaskIndexesArray.length > 0) {
+        for (let newTaskIndex = 0; newTaskIndex < newPageTasks.length; newTaskIndex++) {
+            const newPageTask = newPageTasks[newTaskIndex]!;
+            if (newPageTask.taskId !== null) continue;
+
+            const oldTaskIndex = unmatchedOldLinkLessTaskIndexesArray.shift()!;
+
+            newPageTasks[newTaskIndex] = {
+                ...newPageTask,
+                taskId: oldPageTasks[oldTaskIndex]!.taskId,
+            };
+
+            if (unmatchedOldLinkLessTaskIndexesArray.length === 0) break;
+        }
     }
 
     const oldTaskIds = new Set<TaskId>();
