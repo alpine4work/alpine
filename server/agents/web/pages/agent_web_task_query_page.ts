@@ -596,7 +596,7 @@ async function parseAgentWebTaskQueryPageSearchParams(
                 }[pageLink.type];
 
                 throw new InvalidArgumentError("Expected `after` search param to be a cursor", {
-                    displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be a cursor from a ${pageNoun} page \u201c${agentWebTaskQueryPageNextPageLinkText}\u201d link. Try again with a \u201c${agentWebTaskQueryPageNextPageLinkText}\u201d link you\u2019ve seen before or omit \`?after\`.`,
+                    displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be a cursor from a ${pageNoun} page \u201C${agentWebTaskQueryPageNextPageLinkText}\u201D link. Try again with a \u201C${agentWebTaskQueryPageNextPageLinkText}\u201D link you\u2019ve seen before or omit \`?after\`.`,
                 });
             }
 
@@ -671,19 +671,19 @@ export async function printAgentWebTaskQueryPageTaskListItem(
         ),
     ]);
 
-    const taskTitle = `${pageTask.title} ${pageTask.status.type === "Open" ? (pageTask.status.isActive ? "(Open, active)" : "(Open)") : "(Closed)"}`;
+    const taskLabel = `${pageTask.title} ${pageTask.status.type === "Open" ? (pageTask.status.isActive ? "(Open, active)" : "(Open)") : "(Closed)"}`;
 
     const children: ListItem["children"] = [
         {
             type: "paragraph",
             children:
                 taskPathname === null
-                    ? [{type: "text", value: taskTitle}]
+                    ? [{type: "text", value: taskLabel}]
                     : [
                           {
                               type: "link",
                               url: taskPathname,
-                              children: [{type: "text", value: taskTitle}],
+                              children: [{type: "text", value: taskLabel}],
                           },
                       ],
         },
