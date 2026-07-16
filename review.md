@@ -434,34 +434,6 @@ methods. At minimum, memoize the resolved access level for the duration of one `
 Reuse the cached entry in `ensureCacheIsUpToDate` instead of separately loading the entry after
 resolving the access level.
 
-### [ ] Disable statement/action console tracing in production
-
-`shared/databases/database.ts:320`
-
-**Time impact:** Every database instance monkey-patches `prepare`/`exec`; every SQL run takes
-timers, normalizes the full SQL text with a regex, formats numbers, and calls `console.log`. Every
-action additionally opens a console group and logs its duration. This applies to both browser
-workers and the Durable Object hot path. **Cost impact:** The deployed Worker has observability logs
-enabled with sampling rate 1, so per-statement logs are exported to `honeycomb-logs`. Log ingestion
-and egress scale with SQL statement count, while console I/O adds runtime CPU.
-
-```ts
-this.db = new sqlite3.oo1.DB(`/${databaseMainTableId}`, "c", vfsName);
-// Unconditional in every environment.
-installTracing(this.db);
-
-console.group(`[executeDatabaseAction] ${actionObject.name}`);
-// ...
-console.log(`[executeDatabaseAction] Time: ${(now() - start).toFixed(2)}ms`);
-```
-
-**Recommendation:** Compile tracing out of production or gate it behind an explicit debug flag. For
-production visibility, emit sampled/aggregated tracer metrics (action name and duration) without SQL
-text and without one log record per statement. Removing the action timing wrapper also removes its
-duplicated `now()` helper; if timing remains, reuse one shared clock helper instead of maintaining
-the same `performance.now()`/`Date.now()` fallback in both `database_actions.ts` and
-`sqlite_tracing.ts`.
-
 ## Code Style
 
 ### [ ] Preserve the database action output contract in `defineDatabaseAction`
