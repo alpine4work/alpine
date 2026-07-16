@@ -14,6 +14,7 @@ import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {contentEditorDateDecorationPlugin} from "~/client/web/content/state/content_editor_date_decoration_plugin.js";
 import {ContentEditorFloaterState} from "~/client/web/content/state/content_editor_floater_state.js";
+import {contentEditorHeadingCollapsePlugin} from "~/client/web/content/state/content_editor_heading_collapse_plugin.js";
 import {
     openContentEditorCommentInputFloaterMetaKey,
     openContentEditorKeyboardHighlightFloaterMetaKey,
@@ -101,6 +102,15 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorTablePlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
     ];
+
+    // Heading sections can only be collapsed in documents. Checking for a `title` node
+    // is just how we detect a document-like schema (titles themselves can't be
+    // collapsed; only headings can). The plugin is inert until a heading is collapsed,
+    // so this gate mostly keeps collapse state out of surfaces (chat, posts, task
+    // notes) that will never expose a collapse affordance.
+    if (schema.nodes.title && schema.nodes.heading) {
+        plugins.push(contentEditorHeadingCollapsePlugin());
+    }
 
     if (
         spaceId &&

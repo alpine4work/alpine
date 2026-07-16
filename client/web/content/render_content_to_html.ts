@@ -281,6 +281,18 @@ export function renderContentFragmentToHtmlGeneratorStore(
         // IMPORTANT: If you have a custom renderer in `nodeRenderers` here you should also
         // have a matching custom view in `nodeViews` in `<ContentEditor>`.
         nodeRenderers: {
+            heading: node => {
+                // TODO(#heading-ids): We don't render the node view's expand chevron here since
+                // collapsed heading sections are client-only editor state, so a static render
+                // never shows a collapsed heading. When heading collapse state is persisted, we'll
+                // need to figure out how to render (or not render) the expand chevron.
+                const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                    node.type.spec.toDOM!(node),
+                );
+                assert(html instanceof HtmlElementGenerator);
+
+                return {html, contentHtml};
+            },
             orderedListItem: (node, pos) => {
                 const {html, contentHtml} = renderProsemirrorDomOutputSpec(
                     node.type.spec.toDOM!(node),

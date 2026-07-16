@@ -1,4 +1,5 @@
 import {expect, test} from "@playwright/test";
+import {createHeadingSectionsDocumentContent} from "~/app/integration_tests/helpers/create_heading_sections_document_content.js";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
@@ -775,4 +776,36 @@ test("can leave a document comment across multiple paragraphs", async ({
 
     await expect(page.getByRole("button", {name: "Next thread"})).toBeDisabled();
     await expect(page.getByRole("button", {name: "Previous thread"})).toBeDisabled();
+});
+
+// Regression test: the `scroll=thread-…` parser used to slice the prefix with a
+// hardcoded (wrong) length which dropped the first two characters of the comment
+// thread id and crashed the route with an invalid id error.
+test("scrolls to the comment thread when opening a thread scroll link", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Logan Roy"});
+
+    const content = createHeadingSectionsDocumentContent(session.account.id);
+
+    // Comment on the "Roadmap body text." paragraph, far enough down the doc that the
+    // route has to scroll to reach it.
+    let commentRange: {from: number; to: number} | null = null;
+    content.descendants((node, pos) => {
+        if (commentRange === null && node.isText && node.text!.includes("Roadmap body text")) {
+            commentRange = {from: pos, to: pos + node.nodeSize};
+        }
+    });
+    assert(commentRange !== null);
+
+    const document = await TestDocument.create(session, {content});
+    await document.access.grantDefault(session);
+    const commentThread = await document.createCommentThread(session, commentRange);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/doc/${document.id}?scroll=thread-${commentThread.id}`);
+
+    await expect(page.locator(`[data-comment="${commentThread.id}"]`)).toBeInViewport();
 });

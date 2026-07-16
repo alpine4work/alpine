@@ -15,7 +15,20 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 export type DocumentContentEditorSideDecoration = {
     readonly markTop: number;
     readonly markHeight: number;
+
+    /**
+     * Every comment thread anchored at this position, including threads whose marks
+     * are hidden inside a collapsed heading section. The sidebar's previous/next
+     * navigation uses this set so hidden threads stay reachable.
+     */
     readonly commentThreadIds: ReadonlySet<DocumentCommentThreadId>;
+
+    /**
+     * The subset of `commentThreadIds` that renders a preview in the margin: threads
+     * whose marks are hidden inside a collapsed section, or on a collapsed heading
+     * itself (where the expand chevron sits), don't.
+     */
+    readonly visibleCommentThreadIds: ReadonlySet<DocumentCommentThreadId>;
 };
 
 // We render side decorations with a React component instead of ProseMirror
@@ -55,7 +68,12 @@ export function DocumentContentEditorSideDecorations({
     return (
         <>
             {decorations.map(decoration => {
-                const key = Array.from(decoration.commentThreadIds).join("-");
+                // Comment threads hidden inside a collapsed heading section don't render a
+                // preview. They stay in `commentThreadIds` so the sidebar's previous/next
+                // navigation still reaches them.
+                if (decoration.visibleCommentThreadIds.size === 0) return null;
+
+                const key = Array.from(decoration.visibleCommentThreadIds).join("-");
 
                 // Comment thread could appear on multiple paragraphs. Add a suffix to uniquify it.
                 const keySuffix = getOrSetDefaultMapValue(suffixByKey, key, () => ({suffix: 0}))
@@ -67,7 +85,7 @@ export function DocumentContentEditorSideDecorations({
                         contentReferences={contentReferences}
                         markTop={decoration.markTop}
                         markHeight={decoration.markHeight}
-                        commentThreadIds={decoration.commentThreadIds}
+                        commentThreadIds={decoration.visibleCommentThreadIds}
                         shouldRenderCommentAvatars={shouldRenderCommentAvatars}
                         openCommentThread={openCommentThread}
                     />

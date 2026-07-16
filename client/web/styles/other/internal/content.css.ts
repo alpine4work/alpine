@@ -75,6 +75,11 @@ import {
     titleClassName,
     unorderedListItemClassName,
 } from "~/shared/design/core/constant_class_names.js";
+import {
+    interFontAscender,
+    interFontCapHeight,
+    interFontDescender,
+} from "~/shared/design/core/font_metrics.js";
 import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RawColor, parseRawColor, printRawColor} from "~/shared/design/core/helpers/raw_color.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
@@ -3324,4 +3329,113 @@ export const dateDecorationHintClassName = style({
     whiteSpace: "nowrap",
     width: "max-content",
     zIndex: 1,
+});
+
+// Applied by the content editor's heading collapse plugin to every block inside a
+// collapsed heading section.
+export const headingSectionCollapsedHiddenClassName = style({
+    display: "none",
+});
+
+// Marker applied to the editor container by surfaces that show heading section
+// controls (the expand chevron next to collapsed headings). The document editor
+// applies it when the margin next to the content column is wide enough to fit the
+// chevron; other surfaces (chat, posts, task notes) never apply it so the chevron
+// the heading node view renders stays hidden there.
+export const headingSectionControlsClassName = style({});
+
+// setting the button size to the paragraph line height makes the hit target follow
+// the document typography. The chevron sits beside heading text, but it behaves
+// like a document row control; tying it to paragraph line height gives it a stable
+// text-control size across spacing scales.
+const headingExpandButtonSize = paragraphLineHeightVar;
+
+// NOTE(ifitzsimmons, 2026-07-13): We need to vertically center the heading expand
+// button with the first line of text from the header. For more info on font math,
+// see this supporting article, which explains what ascender, descender, and cap
+// height are and how they relate to the line height [1]. I am also providing the
+// relative value for each metric here to help visualize the math.:
+//
+// interFontAscender = 1984 \
+// interFontDescender = 494 \
+// interFontCapHeight = 1490 \
+//
+// These values are relative units and the values themselves really don't matter.
+// We use them to compute positions in a relative axis. More below
+//
+// 1.  `interFontContentArea` is the sum of the ascender and descender and is
+//     effectively the height of the font (1lh = 2478px)
+// 2.  `interFontBaselineLineHeightRatio` (~0.8lh): distance from the top of the
+//     line to the baseline of the font (1984 relative units), represented as a
+//     percentage of the line height
+// 3.  `interFontCapCenterOffsetFromBaselineLineHeightRatio` (~0.3lh): distance
+//     from the font baseline to the midpoint of the cap height (745 relative
+//     units), also represented as a percentage of the line height
+// 4.  `capCenterLineHeightRatio` (~0.5lh): distance from the top of the line to
+//     the midpoint of the cap height, measured as a percentage of the line height.
+//     We know that the distance from the font baseline to the cap center is about
+//     0.3lh, so we can subtract 0.3lh from 0.8lh (distance from the top of the
+//     line to the baseline) to get this distance.
+// 5.  `headingExpandButtonTop`: distance from the top of the line to the top of
+//     the button. We know the midpoint of the button must be
+//     `capCenterLineHeightRatio`, so we know that the button must start at
+//     `capCenterLineHeightRatio - (buttonHeight / 2)`.
+//
+// [1]: https://iamvdo.me/en/blog/css-font-metrics-line-height-and-vertical-align
+const interFontContentArea = interFontAscender + interFontDescender;
+const interFontBaselineLineHeightRatio = interFontAscender / interFontContentArea;
+const interFontCapCenterOffsetFromBaselineLineHeightRatio =
+    interFontCapHeight / 2 / interFontContentArea;
+const capCenterLineHeightRatio =
+    interFontBaselineLineHeightRatio - interFontCapCenterOffsetFromBaselineLineHeightRatio;
+const headingExpandButtonTop = `calc(${
+    capCenterLineHeightRatio
+}lh - ${headingExpandButtonSize} / 2)`;
+
+// Container for the expand chevron of a collapsed heading. It inherits the
+// heading's font and line height. Inter's baseline sits
+// `ascender / (ascender + descender)` through the line box. From there, move half
+// a cap height up to get the heading text's visual center, then subtract half the
+// button height.
+export const headingExpandButtonContainerClassName = style({
+    display: "none",
+    position: "absolute",
+    top: headingExpandButtonTop,
+    right: `calc(100% + ${spacing["0.5"]})`,
+    userSelect: "none",
+});
+
+// Only show the expand chevron when the heading's section is actually collapsed
+// (see `contentEditorHeadingCollapsePlugin()` for the `data-collapsed` node
+// decoration) and the editor container opted into heading section controls.
+globalStyle(
+    `${headingSectionControlsClassName} [data-collapsed] > ${headingExpandButtonContainerClassName}`,
+    {
+        display: "block",
+    },
+);
+
+export const headingExpandButtonClassName = style({
+    width: headingExpandButtonSize,
+    height: headingExpandButtonSize,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: borderRadius["full"],
+    cursor: "auto",
+});
+
+export const headingExpandButtonIconClassName = style({
+    width: spacing["4"],
+    height: spacing["4"],
+});
+
+// The heading node view renders the heading's content into an inner `<span>` (the
+// expand chevron needs a sibling slot outside ProseMirror's contentDOM). It lays
+// out as a block so it covers exactly the heading's content box, and it's the
+// positioning context for widgets ProseMirror inserts into the content — the spell
+// checker asserts a lint's textblock element has `position: relative`.
+export const headingContentClassName = style({
+    display: "block",
+    position: "relative",
 });
