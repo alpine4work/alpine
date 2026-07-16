@@ -27,7 +27,9 @@ export const sqliteCacheSize = -20000;
 export const sqliteMaxPageCount = 262144;
 
 /**
- * PRAGMAs applied to every Alpine SQLite connection on open, in order.
+ * PRAGMAs applied to every Alpine SQLite connection on open, in order. The locking
+ * mode is applied separately — see {@link sqliteLockingModePragma} — because it
+ * differs between the server and the client.
  */
 export const sqliteOpenPragmas: ReadonlyArray<string> = [
     `PRAGMA page_size = ${sqlitePageSize}`,
@@ -44,10 +46,28 @@ export const sqliteOpenPragmas: ReadonlyArray<string> = [
     // transactionality (server-side DO transaction, client-side rebase replay) is what
     // actually makes commits atomic.
     `PRAGMA journal_mode = MEMORY`,
-    // we don't allow any sort of concurrent access to our database. Exclusive locking
-    // mode takes advantage of this fact to significantly speed up writes.
-    `PRAGMA locking_mode = EXCLUSIVE`,
 ];
+
+/**
+ * The `locking_mode` PRAGMA to apply on open, which depends on whether the
+ * connection is the canonical server database or a client replica.
+ *
+ * On the **server** the durable object's SQLite connection is the only writer of
+ * its file, so `EXCLUSIVE` is both valid and a meaningful speedup: SQLite keeps
+ * its lock across transactions and skips per-transaction revalidation.
+ *
+ * On the **client** that assumption is false by construction — the sync layer
+ * writes replicated pages into the store out of band, so SQLite is _not_ the only
+ * writer. `EXCLUSIVE` would let SQLite cache a file's page count (and schema)
+ * across transactions and never notice out-of-band growth, desyncing local reads
+ * until the connection is torn down. `NORMAL` re-reads each file's header change
+ * counter at transaction start and resets its pager cache (and re-stats via
+ * `xFileSize`) when a replicated write bumped it, so out-of-band page and schema
+ * changes are observed.
+ */
+export function sqliteLockingModePragma({isServer}: {isServer: boolean}): string {
+    return `PRAGMA locking_mode = ${isServer ? "EXCLUSIVE" : "NORMAL"}`;
+}
 
 /**
  * SQL that pins `page_size` on an ATTACH-ed schema before it's first written.

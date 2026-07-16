@@ -35,6 +35,7 @@ import {
     pageAccessFlagRead,
     sqliteAttachEvictionThreshold,
     sqliteAttachPagePragma,
+    sqliteLockingModePragma,
     sqliteOpenPragmas,
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
@@ -374,6 +375,7 @@ export class Database {
         for (const pragma of sqliteOpenPragmas) {
             this.db.exec(pragma);
         }
+        this.db.exec(sqliteLockingModePragma({isServer: this.serverContext !== null}));
 
         this.installPageAccessHook();
     }
