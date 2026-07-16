@@ -848,13 +848,15 @@ test("can create a task with all fields", async () => {
                 assignee: {id: session2.account.id},
                 due: {date: "2026-12-31"},
                 priority: {type: "High"},
-                content: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            elements: [{type: "Text", text: "Task notes here."}],
-                        },
-                    ],
+                notes: {
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Task notes here."}],
+                            },
+                        ],
+                    },
                 },
             },
         },
@@ -957,13 +959,15 @@ test("can create a task with creator", async () => {
                 creator: {
                     id: session.account.id,
                 },
-                content: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            elements: [{type: "Text", text: "Hello from the creator!"}],
-                        },
-                    ],
+                notes: {
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Hello from the creator!"}],
+                            },
+                        ],
+                    },
                 },
             },
         },
@@ -1004,7 +1008,7 @@ test("can create a task with closed status", async () => {
             task: {
                 title: "Already done",
                 status: {type: "Closed"},
-                content: {elements: []},
+                notes: {content: {elements: []}},
             },
         },
     });
@@ -1037,7 +1041,7 @@ test("can create an active task without an assignee (auto-assigns bot)", async (
             task: {
                 title: "Active task",
                 status: {type: "Open", isActive: true},
-                content: {elements: []},
+                notes: {content: {elements: []}},
             },
         },
     });
@@ -1466,7 +1470,7 @@ test("rejects more than one task notes SetContent patch with a helpful message",
     expect(response).toEqual(
         expectedApiErrorResponse(
             400,
-            "You can only include one `SetContent` patch when updating task notes",
+            "You can only include one `SetContent` patch when updating a task\u2019s notes",
         ),
     );
 });
@@ -2343,8 +2347,11 @@ describe("PATCH /tasks", () => {
         await ProcessContextModule.waitForTestTasks();
         const updatedListing = await getBatchTaskCollectionListing(apiKey, collection.id);
         const responseTasks: ReadonlyArray<{id: TaskId}> = response.body.tasks;
-        const movedCursors = response.body.results.flatMap(({result}: ApiTaskBatchPatchResult) =>
-            result.type === "MoveInCollection" ? [result.cursor] : [],
+        const movedCursors = response.body.results.flatMap(
+            (batchResult: ApiTaskBatchPatchResult) =>
+                batchResult.type === "Update" && batchResult.result.type === "MoveInCollection"
+                    ? [batchResult.result.cursor]
+                    : [],
         );
 
         expect({
@@ -2883,6 +2890,857 @@ describe("PATCH /tasks", () => {
             title: "Original title",
             taskActions: [],
         });
+    });
+
+    test("creates multiple tasks in one atomic transaction", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        await ProcessContextModule.waitForTestTasks();
+        const startTime = new Date();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {type: "Create", task: {title: "Created task 1"}},
+                    {type: "Create", task: {title: "Created task 2"}},
+                ],
+            },
+        });
+
+        const transactions = await backfillTaskActionTransactionHistory(
+            space.systemAction(),
+            space.id,
+            startTime,
+        );
+
+        const createdTaskIds = response.body.results.map(
+            (result: {task: {id: TaskId}}) => result.task.id,
+        );
+
+        expect({response, transactions}).toMatchObject({
+            response: {
+                status: 200,
+                body: {
+                    spaceId: space.id,
+                    tasks: [
+                        {id: createdTaskIds[0], title: "Created task 1"},
+                        {id: createdTaskIds[1], title: "Created task 2"},
+                    ],
+                    results: [
+                        {type: "Create", task: {id: expect.any(String)}},
+                        {type: "Create", task: {id: expect.any(String)}},
+                    ],
+                },
+            },
+            transactions: [
+                {
+                    actions: [
+                        {taskId: createdTaskIds[0], taskAction: {type: "Create"}},
+                        {taskId: createdTaskIds[0], taskAction: {type: "UpdateTitle"}},
+                        {taskId: createdTaskIds[1], taskAction: {type: "Create"}},
+                        {taskId: createdTaskIds[1], taskAction: {type: "UpdateTitle"}},
+                    ],
+                },
+            ],
+        });
+    });
+
+    test("created tasks can be read back immediately", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [{type: "Create", task: {title: "Read after write"}}],
+            },
+        });
+
+        const createdTaskId = response.body.results[0].task.id;
+
+        const readResponse = await server.GET(`/tasks/${createdTaskId}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(readResponse).toMatchObject({
+            status: 200,
+            body: {
+                spaceId: space.id,
+                task: {
+                    id: createdTaskId,
+                    title: "Read after write",
+                    creator: {id: bot.id},
+                    status: {type: "Open", isActive: false},
+                },
+            },
+        });
+    });
+
+    test("creates and updates tasks in one request in patch order", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const existingTask = await TestTask.create(session, {title: "Existing task"});
+
+        await ProcessContextModule.waitForTestTasks();
+        const startTime = new Date();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Update",
+                        id: existingTask.id,
+                        patch: {type: "SetTitle", title: "Existing task updated"},
+                    },
+                    {type: "Create", task: {title: "Created task"}},
+                    {
+                        type: "Update",
+                        id: existingTask.id,
+                        patch: {type: "SetPriority", priority: {type: "High"}},
+                    },
+                ],
+            },
+        });
+
+        const transactions = await backfillTaskActionTransactionHistory(
+            space.systemAction(),
+            space.id,
+            startTime,
+        );
+
+        const createdTaskId = response.body.results[1].task.id;
+
+        expect({response, transactions}).toMatchObject({
+            response: {
+                status: 200,
+                body: {
+                    spaceId: space.id,
+                    tasks: [
+                        {
+                            id: existingTask.id,
+                            title: "Existing task updated",
+                            priority: {type: "High"},
+                        },
+                        {id: createdTaskId, title: "Created task"},
+                    ],
+                    results: [
+                        {type: "Update", result: {type: "SetTitle"}},
+                        {type: "Create", task: {id: createdTaskId}},
+                        {type: "Update", result: {type: "SetPriority"}},
+                    ],
+                },
+            },
+            transactions: [
+                {
+                    actions: [
+                        {taskId: existingTask.id, taskAction: {type: "UpdateTitle"}},
+                        {taskId: createdTaskId, taskAction: {type: "Create"}},
+                        {taskId: createdTaskId, taskAction: {type: "UpdateTitle"}},
+                        {taskId: existingTask.id, taskAction: {type: "UpdatePriority"}},
+                    ],
+                },
+            ],
+        });
+    });
+
+    test("creates a task with all fields in a batch", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const session2 = await space.createSession({name: "Bob Johnson"});
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+        const parentTask = await TestTask.create(session1, {title: "Parent task"});
+        const collection = await TestTaskCollection.create(session1, {name: "Roadmap"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {
+                            title: "Full task",
+                            assignee: {id: session2.account.id},
+                            due: {date: "2026-12-31"},
+                            priority: {type: "High"},
+                            layout: {type: "Project"},
+                            parent: {task: {id: parentTask.id}},
+                            collections: [{collection: {id: collection.id}}],
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                spaceId: space.id,
+                tasks: [
+                    {
+                        title: "Full task",
+                        creator: {id: bot.id},
+                        assignee: expect.objectContaining({
+                            id: session2.account.id,
+                            name: "Bob Johnson",
+                        }),
+                        due: {date: "2026-12-31"},
+                        priority: {type: "High"},
+                        layout: {type: "Project"},
+                        parent: {
+                            task: {
+                                id: parentTask.id,
+                                title: "Parent task",
+                                status: {type: "Open", isActive: false},
+                            },
+                        },
+                        collections: [{collection: {id: collection.id, name: "Roadmap"}}],
+                    },
+                ],
+            },
+        });
+    });
+
+    test("creates a task with initial notes atomically", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {
+                            title: "Task with notes",
+                            notes: {
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [
+                                                {type: "Text", text: "Batch created notes."},
+                                            ],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        });
+
+        const createdTaskId = response.body.results[0].task.id;
+
+        const notesResponse = await server.GET(`/tasks/${createdTaskId}/notes`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({
+            hasNotesInBatchResponse: "notes" in response.body.tasks[0],
+            notesResponse,
+        }).toMatchObject({
+            // The batch response returns tasks without notes. Read notes back through the
+            // notes endpoint.
+            hasNotesInBatchResponse: false,
+            notesResponse: {
+                status: 200,
+                body: {
+                    spaceId: space.id,
+                    notes: {
+                        version: 0,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Batch created notes."}],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        });
+    });
+
+    test("batch create with creator records bot provenance", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {
+                            title: "Task with creator",
+                            creator: {id: session.account.id},
+                        },
+                    },
+                ],
+            },
+        });
+
+        const createdTaskId = response.body.results[0].task.id;
+
+        expect({
+            responseCreator: response.body.tasks[0].creator,
+            taskItem: await getTaskItemForTest(context, createdTaskId),
+        }).toMatchObject({
+            responseCreator: {id: session.account.id},
+            taskItem: {
+                creatorId: session.account.id,
+                creatorFrom: {type: "Bot", accountId: bot.id},
+            },
+        });
+    });
+
+    test("each batch create keeps its own creator", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {
+                            title: "Created by account",
+                            creator: {id: session.account.id},
+                        },
+                    },
+                    {type: "Create", task: {title: "Created by bot"}},
+                ],
+            },
+        });
+
+        expect(response.body.tasks.map((task: {creator: {id: string}}) => task.creator)).toEqual([
+            {id: session.account.id},
+            {id: bot.id},
+        ]);
+    });
+
+    test("batch create with active status auto-assigns the bot", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {
+                            title: "Active task",
+                            status: {type: "Open", isActive: true},
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                tasks: [
+                    {
+                        title: "Active task",
+                        status: {type: "Open", isActive: true},
+                        assignee: expect.objectContaining({id: bot.id}),
+                    },
+                ],
+            },
+        });
+    });
+
+    test("batch create with closed status", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {title: "Already done", status: {type: "Closed"}},
+                    },
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                tasks: [{title: "Already done", status: {type: "Closed"}}],
+            },
+        });
+    });
+
+    test("deduplicates repeated collections in a create request", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const collection = await TestTaskCollection.create(session, {name: "Roadmap"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {
+                            title: "Deduplicated collections",
+                            collections: [
+                                {collection: {id: collection.id}},
+                                {collection: {id: collection.id}},
+                            ],
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                tasks: [{collections: [{collection: {id: collection.id, name: "Roadmap"}}]}],
+            },
+        });
+    });
+
+    test("can create a subtask under a task updated in the same request", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const parentTask = await TestTask.create(session, {title: "Old parent title"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Update",
+                        id: parentTask.id,
+                        patch: {type: "SetTitle", title: "New parent title"},
+                    },
+                    {
+                        type: "Create",
+                        task: {
+                            title: "Subtask",
+                            parent: {task: {id: parentTask.id}},
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                tasks: [
+                    {
+                        id: parentTask.id,
+                        title: "New parent title",
+                        subtasks: {openTaskCount: 1, closedTaskCount: 0},
+                    },
+                    {
+                        title: "Subtask",
+                        // The subtask's parent reference reflects the title update committed in the same
+                        // batch.
+                        parent: {task: {id: parentTask.id, title: "New parent title"}},
+                    },
+                ],
+            },
+        });
+    });
+
+    test("does not create any tasks if a later patch is invalid", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const collection = await TestTaskCollection.create(session, {
+            name: "Atomic Create Collection",
+            access: "Public",
+        });
+        const existingTask = await TestTask.create(session, {title: "Outside collection"});
+
+        await ProcessContextModule.waitForTestTasks();
+        const startTime = new Date();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {type: "Create", task: {title: "Should not be created"}},
+                    {
+                        type: "Update",
+                        id: existingTask.id,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {type: "End"},
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect({
+            response,
+            actions: await getTaskUpdateActionsSince(space, startTime),
+        }).toEqual({
+            response: expectedApiErrorResponse(
+                400,
+                "The task isn\u2019t in the collection you\u2019re moving it within",
+            ),
+            actions: [],
+        });
+    });
+
+    test("returns one matching result for every batch patch", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const collection = await TestTaskCollection.create(session, {name: "Collection"});
+        const existingTask = await TestTask.create(session, {title: "Existing task"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {type: "Create", task: {title: "Created task"}},
+                    {
+                        type: "Update",
+                        id: existingTask.id,
+                        patch: {type: "SetDue", due: {date: "2026-12-31"}},
+                    },
+                    {
+                        type: "Update",
+                        id: existingTask.id,
+                        patch: {type: "AddCollection", item: {collection: {id: collection.id}}},
+                    },
+                    {type: "Create", task: {title: "Another created task"}},
+                ],
+            },
+        });
+
+        expect(response.body.results).toEqual([
+            {type: "Create", task: {id: expect.any(String)}, results: []},
+            {type: "Update", result: {type: "SetDue"}},
+            {type: "Update", result: {type: "AddCollection"}},
+            {type: "Create", task: {id: expect.any(String)}, results: []},
+        ]);
+    });
+
+    test("can create a task and move it in a collection in the same batch patch", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const collection = await TestTaskCollection.create(session, {
+            name: "Create Move Collection",
+            access: "Public",
+        });
+        const afterTask = await TestTask.create(session, {
+            title: "After task",
+            collections: collection,
+        });
+        const beforeTask = await TestTask.create(session, {
+            title: "Before task",
+            collections: collection,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        const initialListing = await getBatchTaskCollectionListing(apiKey, collection.id);
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {
+                            title: "Created between",
+                            collections: [{collection: {id: collection.id}}],
+                        },
+                        patches: [
+                            {
+                                type: "MoveInCollection",
+                                collectionId: collection.id,
+                                position: {
+                                    type: "Between",
+                                    afterCursor: initialListing.cursors[0]!,
+                                    beforeCursor: initialListing.cursors[1]!,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        const updatedListing = await getBatchTaskCollectionListing(apiKey, collection.id);
+        const createdTaskId = response.body.results[0].task.id;
+
+        expect({
+            results: response.body.results,
+            taskIds: updatedListing.taskIds,
+        }).toEqual({
+            results: [
+                {
+                    type: "Create",
+                    task: {id: createdTaskId},
+                    results: [{type: "MoveInCollection", cursor: updatedListing.cursors[1]}],
+                },
+            ],
+            taskIds: [afterTask.id, createdTaskId, beforeTask.id],
+        });
+    });
+
+    test("orders moves and creates to the same Between position by patch order", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const collection = await TestTaskCollection.create(session, {
+            name: "Interleaved Move Collection",
+            access: "Public",
+        });
+        const afterTask = await TestTask.create(session, {
+            title: "After task",
+            collections: collection,
+        });
+        const beforeTask = await TestTask.create(session, {
+            title: "Before task",
+            collections: collection,
+        });
+        const movedTask1 = await TestTask.create(session, {
+            title: "Moved task 1",
+            collections: collection,
+        });
+        const movedTask2 = await TestTask.create(session, {
+            title: "Moved task 2",
+            collections: collection,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        const initialListing = await getBatchTaskCollectionListing(apiKey, collection.id);
+        const position = {
+            type: "Between" as const,
+            afterCursor: initialListing.cursors[0]!,
+            beforeCursor: initialListing.cursors[1]!,
+        };
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Update",
+                        id: movedTask1.id,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position,
+                        },
+                    },
+                    {
+                        type: "Create",
+                        task: {
+                            title: "Created between",
+                            collections: [{collection: {id: collection.id}}],
+                        },
+                        patches: [
+                            {
+                                type: "MoveInCollection",
+                                collectionId: collection.id,
+                                position,
+                            },
+                        ],
+                    },
+                    {
+                        type: "Update",
+                        id: movedTask2.id,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position,
+                        },
+                    },
+                ],
+            },
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        const updatedListing = await getBatchTaskCollectionListing(apiKey, collection.id);
+        const createdTaskId = response.body.results[1].task.id;
+
+        // The moved and created tasks land between the cursors in the order their patches
+        // appear in the request.
+        expect(updatedListing.taskIds).toEqual([
+            afterTask.id,
+            movedTask1.id,
+            createdTaskId,
+            movedTask2.id,
+            beforeTask.id,
+        ]);
+    });
+
+    test("can create a subtask and move it to the start of its parent\u2019s subtasks", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const parentTask = await TestTask.create(session, {title: "Parent task"});
+        const subtask1 = await TestTask.create(session, {title: "Subtask 1", parent: parentTask});
+        const subtask2 = await TestTask.create(session, {title: "Subtask 2", parent: parentTask});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {
+                            title: "First subtask",
+                            parent: {task: {id: parentTask.id}},
+                        },
+                        patches: [{type: "MoveInParent", position: {type: "Start"}}],
+                    },
+                ],
+            },
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        const listing = await getBatchParentTaskListing(session, parentTask.id);
+        const createdTaskId = response.body.results[0].task.id;
+
+        expect({
+            results: response.body.results,
+            taskIds: listing.taskIds,
+        }).toMatchObject({
+            results: [
+                {
+                    type: "Create",
+                    task: {id: createdTaskId},
+                    results: [{type: "MoveInParent", cursor: expect.any(String)}],
+                },
+            ],
+            taskIds: [createdTaskId, subtask1.id, subtask2.id],
+        });
+    });
+
+    test("applies a create patch\u2019s own patches after its request fields", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const session2 = await space.createSession({name: "Bob Johnson"});
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        // The create request sets a title and assignee, then the create's own patches
+        // retitle the task and clear the assignee.
+        const response = await server.PATCH("/tasks", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {
+                            title: "Initial title",
+                            assignee: {id: session2.account.id},
+                        },
+                        patches: [
+                            {type: "SetTitle", title: "Patched title"},
+                            {type: "SetAssignee", assignee: null},
+                        ],
+                    },
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                tasks: [expect.objectContaining({title: "Patched title"})],
+                results: [
+                    {
+                        type: "Create",
+                        task: {id: expect.any(String)},
+                        results: [{type: "SetTitle"}, {type: "SetAssignee"}],
+                    },
+                ],
+            },
+        });
+        expect(response.body.tasks[0]).not.toHaveProperty("assignee");
     });
 });
 
