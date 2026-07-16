@@ -1,9 +1,7 @@
 import {CalendarDate, fromDate, toCalendarDate} from "@internationalized/date";
-import {original, produce} from "immer";
 import {Link, List, ListItem, Node} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
-import {printAgentWebPageStoredLinkLabel} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
     agentWebTaskQueryCursorHashLength,
@@ -22,7 +20,6 @@ import {
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
-import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {
     formatAgentWebTaskDueDateString,
     parseAgentWebTaskFieldListItems,
@@ -38,7 +35,6 @@ import {intoApiAccountReference} from "~/shared/api/specification/into_api_accou
 import {
     ApiAccountReferenceResponse,
     ApiTaskBatchPatch,
-    ApiTaskBatchPatchResult,
     ApiTaskCollectionReferenceResponse,
     ApiTaskCreateRequest,
     ApiTaskMoveInQueryPatchPosition,
@@ -62,15 +58,15 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 
 const agentWebTaskQueryPageApiTasksBatchCount = 31;
 
@@ -271,7 +267,10 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
     );
 
     const tasks: Array<AgentWebTaskQueryPageTask> = [];
-    const taskMetadata: Array<{cursor: ApiTaskQueryCursor}> = [];
+    const taskMetadata: Array<{
+        cursor: ApiTaskQueryCursor;
+        newTaskId: TaskId | null;
+    }> = [];
     let cursor = afterCursor ?? undefined;
 
     while (true) {
@@ -304,7 +303,7 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
             task: ApiTaskResponse;
         }): void {
             tasks.push(intoPageTask({task, contextDate}));
-            taskMetadata.push({cursor: taskCursor});
+            taskMetadata.push({cursor: taskCursor, newTaskId: null});
         }
 
         for (const task of visibleTaskBatch) appendTask(task);
@@ -1103,20 +1102,23 @@ export async function updateAgentWebTaskQueryPage(
     type NewPageTaskExecution =
         | {
               type: "Create";
+              taskIndex: number;
               task: ApiTaskCreateRequest;
           }
         | {
               type: "Add";
+              taskIndex: number;
               taskId: TaskId;
           }
         | {
               type: "Update";
+              taskIndex: number;
               taskId: TaskId;
               patches: Array<ApiTaskPatch>;
           };
 
-    const executions = await runAllPromises(
-        newPageTasks.map(async (newPageTask): Promise<NewPageTaskExecution> => {
+    const nullableExecutions = await runAllPromises(
+        newPageTasks.map(async (newPageTask, taskIndex): Promise<NewPageTaskExecution | null> => {
             /* ========================================================================== *\
              *                              Create new task                               *
             \* ========================================================================== */
@@ -1188,6 +1190,7 @@ export async function updateAgentWebTaskQueryPage(
 
                 return {
                     type: "Create",
+                    taskIndex,
                     task: {
                         title: newPageTask.title,
                         status: newPageTask.status,
@@ -1232,7 +1235,7 @@ export async function updateAgentWebTaskQueryPage(
 
                 // Is our actual page task equal to what was expected?
                 if (areAgentWebTaskQueryPageTasksEqual(expectedPageTask, newPageTask))
-                    return {type: "Add", taskId: newPageTask.taskId};
+                    return {type: "Add", taskIndex, taskId: newPageTask.taskId};
 
                 const quotedTitle = curlyQuote(newPageTask.title);
 
@@ -1400,13 +1403,18 @@ export async function updateAgentWebTaskQueryPage(
                 }
             }
 
+            if (patches.length === 0) return null;
+
             return {
                 type: "Update",
+                taskIndex,
                 taskId: newPageTask.taskId,
                 patches,
             };
         }),
     );
+
+    const executions = nullableExecutions.filter(isNonNullable);
 
     const originalPageLink = pageLink;
 
@@ -1414,38 +1422,13 @@ export async function updateAgentWebTaskQueryPage(
         execute: async pageLink => {
             switch (pageLink.type) {
                 case "TaskCollection": {
-                    // We allow `originalPageLink.id` to be `null` so that a task
-                    // collection and its tasks can be created together. Validate the
-                    // tasks before creating the collection, then execute the updates
-                    // with the new collection's ID.
+                    // We allow `originalPageLink.id` to be `null` so that a task collection and its
+                    // tasks can be created together. Validate the tasks before creating the
+                    // collection, then execute the updates with the new collection's ID.
                     assert(
                         originalPageLink.type === "TaskCollection" &&
                             (originalPageLink.id === null || originalPageLink.id === pageLink.id),
                     );
-
-                    for (const removedTaskId of removedTaskIds) {
-                        // NOCOMMIT: Test???
-                        batchPatches.push({
-                            type: "Update",
-                            id: removedTaskId,
-                            patch: {
-                                type: "RemoveCollection",
-                                collectionId: pageLink.id,
-                            },
-                        });
-                    }
-
-                    for (const addedTaskId of addedTaskIds) {
-                        // NOCOMMIT: Test???
-                        batchPatches.push({
-                            type: "Update",
-                            id: addedTaskId,
-                            patch: {
-                                type: "AddCollection",
-                                item: {collection: {id: pageLink.id}},
-                            },
-                        });
-                    }
                     break;
                 }
                 case "TaskSubtasks": {
@@ -1458,157 +1441,288 @@ export async function updateAgentWebTaskQueryPage(
                             (originalPageLink.task.id === null ||
                                 originalPageLink.task.id === pageLink.task.id),
                     );
-
-                    for (const removedTaskId of removedTaskIds) {
-                        // NOCOMMIT: Test???
-                        batchPatches.push({
-                            type: "Update",
-                            id: removedTaskId,
-                            patch: {
-                                type: "SetParent",
-                                parent: null,
-                            },
-                        });
-                    }
-
-                    for (const addedTaskId of addedTaskIds) {
-                        // NOCOMMIT: Test???
-                        batchPatches.push({
-                            type: "Update",
-                            id: addedTaskId,
-                            patch: {
-                                type: "SetParent",
-                                parent: {task: {id: pageLink.task.id}},
-                            },
-                        });
-                    }
                     break;
                 }
                 default:
                     throw exhaustive(pageLink);
             }
 
-            const repositionedTaskIds = new Set(concatIterables(addedTaskIds, movedTaskIds));
+            const repositionedPageTaskIndexes = new Set<number>();
 
-            const newTaskIdsArray = Array.from(newTaskIds);
+            for (const execution of executions) {
+                if (
+                    execution.type === "Create" ||
+                    execution.type === "Add" ||
+                    movedTaskIds.has(execution.taskId)
+                ) {
+                    repositionedPageTaskIndexes.add(execution.taskIndex);
+                }
+            }
 
-            // The batch tasks endpoint preserves the request order for moves with identical
-            // positions. Add movement patches in the page's new order so a group moved between
-            // the same cursors ends up in the same order the agent wrote.
-            for (let taskIndex = 0; taskIndex < newTaskIdsArray.length; taskIndex++) {
-                const taskId = newTaskIdsArray[taskIndex]!;
-                if (!repositionedTaskIds.has(taskId)) continue;
+            const movementPatchByPageTaskIndex = new Map<number, ApiTaskPatch>();
 
+            // The batch tasks endpoint preserves request order for moves with identical
+            // positions. Build movement patches in the page's new order so tasks moved between
+            // the same cursors end up in the order the agent wrote.
+            for (const taskIndex of repositionedPageTaskIndexes) {
                 let afterCursor: ApiTaskQueryCursor | null = null;
 
                 for (let index = taskIndex - 1; index >= 0; index--) {
-                    const previousTaskId = newTaskIdsArray[index]!;
-                    if (!stableTaskIds.has(previousTaskId)) continue;
+                    const previousTaskId = newPageTasks[index]!.taskId;
+                    if (previousTaskId === null || !stableTaskIds.has(previousTaskId)) continue;
 
-                    const previousTaskCursor = oldTaskCursorById.get(previousTaskId);
-                    if (previousTaskCursor === undefined) continue;
+                    const previousTaskCursor = assertExists(oldTaskCursorById.get(previousTaskId));
 
                     afterCursor = previousTaskCursor;
                     break;
                 }
 
                 if (afterCursor === null && oldPageMetadata.afterCursor !== null) {
-                    afterCursor = assertExists(oldPageMetadata.afterCursor);
+                    afterCursor = oldPageMetadata.afterCursor;
                 }
 
                 let beforeCursor: ApiTaskQueryCursor | null = null;
 
-                for (let index = taskIndex + 1; index < newTaskIdsArray.length; index++) {
-                    const nextTaskId = newTaskIdsArray[index]!;
-                    if (!stableTaskIds.has(nextTaskId)) continue;
+                for (let index = taskIndex + 1; index < newPageTasks.length; index++) {
+                    const nextTaskId = newPageTasks[index]!.taskId;
+                    if (nextTaskId === null || !stableTaskIds.has(nextTaskId)) continue;
 
-                    const nextTaskCursor = oldTaskCursorById.get(nextTaskId);
-                    if (nextTaskCursor === undefined) continue;
+                    const nextTaskCursor = assertExists(oldTaskCursorById.get(nextTaskId));
 
                     beforeCursor = nextTaskCursor;
                     break;
                 }
 
                 if (beforeCursor === null && oldPageMetadata.beforeCursor !== null) {
-                    beforeCursor = assertExists(oldPageMetadata.beforeCursor);
+                    beforeCursor = oldPageMetadata.beforeCursor;
                 }
 
                 let position: ApiTaskMoveInQueryPatchPosition;
 
                 if (afterCursor === null && beforeCursor === null) {
-                    assert(
-                        oldPageMetadata.afterCursor === null &&
-                            oldPageMetadata.beforeCursor === null,
-                    );
                     position = {type: "End"};
                 } else if (afterCursor === null) {
-                    assert(oldPageMetadata.afterCursor === null);
                     position = {type: "Start"};
                 } else if (beforeCursor === null) {
-                    assert(oldPageMetadata.beforeCursor === null);
                     position = {type: "End"};
                 } else {
                     position = {type: "Between", afterCursor, beforeCursor};
                 }
 
-                batchPatches.push({
+                movementPatchByPageTaskIndex.set(
+                    taskIndex,
+                    pageLink.type === "TaskCollection"
+                        ? {type: "MoveInCollection", collectionId: pageLink.id, position}
+                        : {type: "MoveInParent", position},
+                );
+            }
+
+            type TaskBatchExecution = {
+                readonly taskIndex: number;
+                readonly patch: ApiTaskBatchPatch;
+            };
+
+            const removePatches: Array<ApiTaskBatchPatch> = [];
+            const patches: Array<TaskBatchExecution> = [];
+
+            for (const removedTaskId of removedTaskIds) {
+                removePatches.push({
                     type: "Update",
-                    id: taskId,
+                    id: removedTaskId,
                     patch:
                         pageLink.type === "TaskCollection"
-                            ? {type: "MoveInCollection", collectionId: pageLink.id, position}
-                            : {type: "MoveInParent", position},
+                            ? {type: "RemoveCollection", collectionId: pageLink.id}
+                            : {type: "SetParent", parent: null},
                 });
             }
 
-            const taskPatchResponse =
-                batchPatches.length === 0
+            for (const execution of executions) {
+                const movementPatch = movementPatchByPageTaskIndex.get(execution.taskIndex);
+
+                switch (execution.type) {
+                    case "Create": {
+                        assert(movementPatch !== undefined);
+
+                        const task: ApiTaskCreateRequest =
+                            pageLink.type === "TaskCollection"
+                                ? {
+                                      ...execution.task,
+                                      collections: [
+                                          ...(execution.task.collections?.filter(
+                                              item => item.collection.id !== pageLink.id,
+                                          ) ?? []),
+                                          {collection: {id: pageLink.id}},
+                                      ],
+                                  }
+                                : {
+                                      ...execution.task,
+                                      parent: {task: {id: pageLink.task.id}},
+                                  };
+
+                        patches.push({
+                            taskIndex: execution.taskIndex,
+                            patch: {
+                                type: "Create",
+                                task,
+                                patches: [movementPatch],
+                            },
+                        });
+                        break;
+                    }
+                    case "Add": {
+                        patches.push({
+                            taskIndex: execution.taskIndex,
+                            patch: {
+                                type: "Update",
+                                id: execution.taskId,
+                                patch:
+                                    pageLink.type === "TaskCollection"
+                                        ? {
+                                              type: "AddCollection",
+                                              item: {collection: {id: pageLink.id}},
+                                          }
+                                        : {
+                                              type: "SetParent",
+                                              parent: {task: {id: pageLink.task.id}},
+                                          },
+                            },
+                        });
+
+                        assert(movementPatch !== undefined);
+
+                        patches.push({
+                            taskIndex: execution.taskIndex,
+                            patch: {
+                                type: "Update",
+                                id: execution.taskId,
+                                patch: movementPatch,
+                            },
+                        });
+                        break;
+                    }
+                    case "Update": {
+                        for (const patch of execution.patches) {
+                            patches.push({
+                                taskIndex: execution.taskIndex,
+                                patch: {
+                                    type: "Update",
+                                    id: execution.taskId,
+                                    patch,
+                                },
+                            });
+                        }
+
+                        if (movementPatch !== undefined) {
+                            patches.push({
+                                taskIndex: execution.taskIndex,
+                                patch: {
+                                    type: "Update",
+                                    id: execution.taskId,
+                                    patch: movementPatch,
+                                },
+                            });
+                        }
+                        break;
+                    }
+                    default:
+                        throw exhaustive(execution);
+                }
+            }
+
+            const patchResponse =
+                removePatches.length === 0 && patches.length === 0
                     ? null
                     : await context.api.patch(context.span, "/tasks", {
-                          body: {spaceId: context.spaceId, patches: batchPatches},
+                          body: {
+                              spaceId: context.spaceId,
+                              patches: [
+                                  ...removePatches,
+                                  ...mapIterable(patches, ({patch}) => patch),
+                              ],
+                          },
                       });
 
-            // NOCOMMIT: We need to return new subtask positions!
-            const movedCursorByTaskId = new Map<TaskId, ApiTaskQueryCursor>();
-            if (taskPatchResponse !== null) {
-                assert(taskPatchResponse.data.results.length === batchPatches.length);
+            const createdTaskIdByPageTaskIndex = new Map<number, TaskId>();
+            const movedCursorByPageTaskIndex = new Map<number, ApiTaskQueryCursor>();
 
-                for (
-                    let resultIndex = 0;
-                    resultIndex < taskPatchResponse.data.results.length;
-                    resultIndex++
-                ) {
-                    const batchResult = taskPatchResponse.data.results[resultIndex]!;
-                    const batchPatch = batchPatches[resultIndex]!;
-                    assert(batchResult.type === "Update");
+            if (patchResponse !== null) {
+                assert(patchResponse.data.results.length === patches.length);
 
-                    const result = batchResult.result;
-                    assert(result.type === batchPatch.patch.type);
-                    if (!repositionedTaskIds.has(batchPatch.id)) continue;
+                for (let resultIndex = 0; resultIndex < patches.length; resultIndex++) {
+                    const patch = patches[resultIndex]!;
+                    const result = patchResponse.data.results[resultIndex]!;
 
-                    switch (pageLink.type) {
-                        case "TaskCollection": {
-                            if (result.type !== "MoveInCollection") break;
-                            movedCursorByTaskId.set(batchPatch.id, result.cursor);
+                    switch (patch.patch.type) {
+                        case "Create": {
+                            assert(result.type === "Create");
+                            assert(result.results.length === (patch.patch.patches?.length ?? 0));
+
+                            const {taskIndex} = patch;
+                            createdTaskIdByPageTaskIndex.set(taskIndex, result.task.id);
+
+                            const moveResult = assertExists(result.results[0]);
+                            switch (pageLink.type) {
+                                case "TaskCollection": {
+                                    assert(moveResult.type === "MoveInCollection");
+                                    movedCursorByPageTaskIndex.set(taskIndex, moveResult.cursor);
+                                    break;
+                                }
+                                case "TaskSubtasks": {
+                                    assert(moveResult.type === "MoveInParent");
+                                    movedCursorByPageTaskIndex.set(taskIndex, moveResult.cursor);
+                                    break;
+                                }
+                                default:
+                                    throw exhaustive(pageLink);
+                            }
                             break;
                         }
-                        case "TaskSubtasks": {
-                            if (result.type !== "MoveInParent") break;
-                            movedCursorByTaskId.set(batchPatch.id, result.cursor);
+                        case "Update": {
+                            assert(result.type === "Update");
+                            assert(result.result.type === patch.patch.patch.type);
+
+                            const {taskIndex} = patch;
+
+                            switch (pageLink.type) {
+                                case "TaskCollection": {
+                                    if (result.result.type === "MoveInCollection") {
+                                        movedCursorByPageTaskIndex.set(
+                                            taskIndex,
+                                            result.result.cursor,
+                                        );
+                                    }
+                                    break;
+                                }
+                                case "TaskSubtasks": {
+                                    if (result.result.type === "MoveInParent") {
+                                        movedCursorByPageTaskIndex.set(
+                                            taskIndex,
+                                            result.result.cursor,
+                                        );
+                                    }
+                                    break;
+                                }
+                                default:
+                                    throw exhaustive(pageLink);
+                            }
                             break;
                         }
                         default:
-                            throw exhaustive(pageLink);
+                            throw exhaustive(patch.patch);
                     }
                 }
             }
 
             return {
                 ...oldPageMetadata,
-                tasks: newTaskIdsArray.map(taskId => ({
-                    cursor: repositionedTaskIds.has(taskId)
-                        ? assertExists(movedCursorByTaskId.get(taskId))
-                        : assertExists(oldTaskCursorById.get(taskId)),
+                tasks: newPageTasks.map((pageTask, taskIndex) => ({
+                    cursor: repositionedPageTaskIndexes.has(taskIndex)
+                        ? assertExists(movedCursorByPageTaskIndex.get(taskIndex))
+                        : assertExists(oldTaskCursorById.get(assertExists(pageTask.taskId))),
+                    newTaskId:
+                        pageTask.taskId === null
+                            ? assertExists(createdTaskIdByPageTaskIndex.get(taskIndex))
+                            : null,
                 })),
             };
         },
