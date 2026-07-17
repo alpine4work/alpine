@@ -1,6 +1,5 @@
 import {
     computeFileRowLayout,
-    computeFileRowWidths,
     fileRowBlockWidthPxForClipboardAndApi,
 } from "~/shared/content/compute_file_row_layout.js";
 import {
@@ -15,6 +14,15 @@ const minElementWidth = contentFileMinSizeRem * remPxBySpacingScale.small;
 
 function sumWidths(widths: Array<number>): number {
     return Math.round(widths.reduce((sum, w) => sum + w, 0) * 1000000) / 1000000;
+}
+
+function computeFileRowWidths(
+    files: ReadonlyArray<{width: number | null; height: number}>,
+    {containerWidth}: {containerWidth: number},
+): Array<number> {
+    return computeFileRowLayout(files, {containerWidth, spacingScale: "small"}).map(
+        layout => layout.widthFr,
+    );
 }
 
 test("single square file fills the row", () => {
