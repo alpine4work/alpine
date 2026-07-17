@@ -679,10 +679,13 @@ async function runAgentsCliCommand(
 
             return await callAgentWebSearchTool(context, {query});
         }
-        default:
-            // NOCOMMIT: Decide what to print for an unknown or missing subcommand.
-            // `displayMessage`
-            throw new InvalidArgumentError(`Unknown command: ${command}`);
+        default: {
+            throw new InvalidArgumentError(`Unknown subcommand: ${command}`, {
+                // This error message doesn't include our full list of commands. Just the most
+                // popular ones.
+                displayMessage: errorDisplayMessage`Unknown subcommand: ${quote(command)}. Try again with one of \`create\`, \`read\`, \`update\`, or \`search\`.`,
+            });
+        }
     }
 }
 
