@@ -4,20 +4,32 @@ import {
     ApiBotWebhookCreatedMessageEventParent,
     ApiContentFileBlockElementResponseWithoutKeys,
     ApiContentPreviewBlockElementResponseWithoutKeys,
+    ApiContentTextInlineElement,
     ApiGetDocumentResponse,
     ApiGetTaskResponse,
     ApiMentionReference,
     ApiMentionReferenceResponse,
     ApiMessageContentPayloadFileResponse,
+    ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageContentPayloadParentResponse,
     ApiMessageExperimentalApprovalDecisionOption,
     ApiMessageExperimentalApprovalDecisionValue,
+    ApiMessageStreamToolCallPartCreateCallReference,
     ApiSearchResult,
     ApiSearchResultBodyMatch,
     ApiSearchResultParsedFilter,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+
+type ApiCreateDocumentRequestBody =
+    ApiSpecification.paths["/documents"]["post"]["requestBody"]["content"]["application/json"];
+type ApiCreateTaskRequestBody =
+    ApiSpecification.paths["/tasks"]["post"]["requestBody"]["content"]["application/json"];
+type ApiGetTaskCollectionResponse =
+    ApiSpecification.paths["/task-collections/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
+type ApiCreateTaskCollectionRequestBody =
+    ApiSpecification.paths["/task-collections"]["post"]["requestBody"]["content"]["application/json"];
 
 test("all search results have the same common properties", () => {
     assertAssignableTypes<

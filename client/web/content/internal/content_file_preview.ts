@@ -540,7 +540,7 @@ function renderContentFileImagePreview(
 
     // This is the file size after applying scaling. If you want the actual pixel size
     // of the file use `reference.file.preview.size`.
-    const fileSize = getFilePreviewSize(file);
+    const fileSize = getFilePreviewSize(file.preview);
 
     renderContentFileImagePreviewInner(html, {
         spaceId,

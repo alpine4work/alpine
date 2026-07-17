@@ -4,6 +4,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 # have dependencies that can't be open sourced.
 ts_project(
     name = "web_tests",
+    testonly = True,
     deps = [
         "//:node_modules/fast-check",
         "//server/agents/web",

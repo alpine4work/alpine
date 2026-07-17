@@ -23,7 +23,7 @@ export async function loadAgentTaskLinkContent({
 }): Promise<Root> {
     const {
         data: {task},
-    } = await request.apiClient.get(tracer, "/tasks/{id}", {
+    } = await request.apiClient.get(tracer, "/tasks/{id}-with-notes", {
         params: {path: {id: link.taskId}},
     });
 
@@ -95,7 +95,7 @@ export async function loadAgentTaskLinkContent({
             children: [
                 {
                     type: "paragraph",
-                    children: [{type: "text", value: `Priority: ${task.priority}`}],
+                    children: [{type: "text", value: `Priority: ${task.priority.type}`}],
                 },
             ],
         });

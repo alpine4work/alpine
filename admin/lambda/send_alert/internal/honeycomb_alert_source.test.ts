@@ -8,10 +8,8 @@ import {
 } from "~/admin/lambda/send_alert/internal/honeycomb_alert_source_types.js";
 import {sendAlertAvailableTaskCollections} from "~/admin/lambda/send_alert/internal/send_alert_available_task_collections.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {
-    ApiContent,
-    ApiCreateTaskRequestBody,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {TaskCollectionId} from "~/shared/id/types/id_types.js";
 
@@ -44,6 +42,9 @@ type HoneycombChannelFixtureOverrides = Partial<HoneycombChannelPayload> & {
 
 type HoneycombTaskFixtureOverrides = Partial<HoneycombTaskPayload> &
     Pick<HoneycombTaskPayload, "collection" | "type">;
+
+type ApiCreateTaskRequestBody =
+    ApiSpecification.paths["/tasks"]["post"]["requestBody"]["content"]["application/json"];
 
 const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options?: any) => {
     const method = options?.method ?? "GET";
@@ -99,11 +100,11 @@ ${markdown}`;
 
 function formatCreateTaskCallForSnapshot(fetchCall: {url: string; body: unknown}): string {
     const body = fetchCall.body as ApiCreateTaskRequestBody;
-    assert(body.task.content, "Expected create task request body to include task content");
-    const markdown = printApiContentToMarkdown(body.task.content);
+    assert(body.task.notes, "Expected create task request body to include task notes");
+    const markdown = printApiContentToMarkdown(body.task.notes.content);
     return `URL: ${fetchCall.url}
 Title: ${body.task.title}
-Priority: ${body.task.priority}
+Priority: ${body.task.priority?.type ?? ""}
 
 ${markdown}`;
 }

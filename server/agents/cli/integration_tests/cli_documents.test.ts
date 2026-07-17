@@ -428,21 +428,18 @@ test.each([
     );
 });
 
-// NOCOMMIT: Good error message!
 test.each([
     {
-        name: "an unknown command",
         command: "alpine unknown",
-        internalMessage: "Unknown command: unknown",
+        subcommand: "unknown",
     },
     {
-        name: "a missing command",
         command: "alpine",
-        internalMessage: "Unknown command:&#x20;",
+        subcommand: "",
     },
-])("rejects $name", async ({command, internalMessage}) => {
+])("rejects subcommand `$subcommand`", async ({command, subcommand}) => {
     await expect(cli.run(command)).resolves.toEqual(
-        `Error: Couldn\u2019t run command. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: ${internalMessage}\n`,
+        `Error: Couldn\u2019t run command. Unknown subcommand: \`${subcommand}\`. Try again with one of \`create\`, \`read\`, \`update\`, or \`search\`.\n`,
     );
 });
 

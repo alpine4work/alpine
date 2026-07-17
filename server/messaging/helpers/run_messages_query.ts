@@ -8,7 +8,6 @@ import {
     MessageQueryStreamPartItem,
     processMessagesQuery,
 } from "~/server/messaging/helpers/process_messages_query.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 
 export async function* runMessagesQuery(
     context: ServerActionContext,

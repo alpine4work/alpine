@@ -9,8 +9,8 @@ import {
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {assertId, generateId} from "~/shared/id/id.js";
-import {AccountId, DocumentId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.js";
+import {DocumentId} from "~/shared/id/types/id_types.js";
 
 const storage = createAgentWebSessionStorageForTest(apiContentArbitrarySpaceId);
 

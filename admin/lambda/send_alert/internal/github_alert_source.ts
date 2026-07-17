@@ -328,7 +328,7 @@ export class GitHubAlertSource extends AlertSource {
                             {
                                 element: {
                                     type: "Preview",
-                                    target: {
+                                    reference: {
                                         type: "Post",
                                         id: buildsChannelPostId,
                                     },

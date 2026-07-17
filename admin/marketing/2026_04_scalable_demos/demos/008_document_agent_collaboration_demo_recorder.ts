@@ -151,8 +151,7 @@ forth. You also don\u2019t have to make updates to the document yourself.
             // recording.
             const requestBody: ApiBotWebhookRequestBody = {
                 spaceId: space.id,
-                botId: chatGpt.bot.id,
-                botAccountId: chatGpt.id,
+                botAccount: {id: chatGpt.id, bot: {id: chatGpt.bot.id}},
                 attempt: 1,
                 accessToken: await services
                     .getJobQueueServiceTokenAgent()
@@ -164,14 +163,14 @@ forth. You also don\u2019t have to make updates to the document yourself.
                     }),
                 eventId: generateChronologicalId(),
                 event: {
-                    type: "NewMessage",
+                    type: "CreatedMessage",
                     room: {
-                        type: "DocumentCommentThread",
+                        type: "DocumentThread",
                         id: document.id,
                         threadId: commentThreadId,
                     },
                     index: 0,
-                    authorId: accounts.cassCade.account.id,
+                    author: {id: accounts.cassCade.account.id},
                     createdTimeZone: defaultTimeZone,
                     wasMentioned: true,
                 },

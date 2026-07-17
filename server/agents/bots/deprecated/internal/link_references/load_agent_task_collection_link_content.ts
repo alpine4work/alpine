@@ -14,8 +14,8 @@ import {
     ApiAccountResponse,
     ApiTaskCollection,
     ApiTaskPriority,
+    ApiTaskResponse,
     ApiTaskStatus,
-    ApiTaskWithoutNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -242,7 +242,7 @@ function printTaskStatus(status: ApiTaskStatus): string {
 
 async function intoTaskMetadataList(
     transaction: DurableObjectTransactionInterface,
-    task: ApiTaskWithoutNotesResponse,
+    task: ApiTaskResponse,
 ): Promise<List> {
     const assigneeListItem = await intoAssigneeListItem(transaction, task.assignee);
     const dueDateListItem = intoDueDateListItem(task.due);

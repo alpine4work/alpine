@@ -142,8 +142,8 @@ test("if webhook is successful it\u2019s only called once", async () => {
     const event1Id = generateChronologicalId<BotWebhookEventId>();
 
     const event1: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -152,8 +152,8 @@ test("if webhook is successful it\u2019s only called once", async () => {
     const event2Id = generateChronologicalId<BotWebhookEventId>();
 
     const event2: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 1,
         createdTimeZone: defaultTimeZone,
@@ -246,8 +246,8 @@ test("webhook requests are signed when the bot has a webhook secret", async () =
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -312,8 +312,8 @@ test("webhook requests are not signed when the bot has no webhook secret", async
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -364,8 +364,8 @@ test("if webhook is successful it\u2019s only called once even if job is run mul
     const event1Id = generateChronologicalId<BotWebhookEventId>();
 
     const event1: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -374,8 +374,8 @@ test("if webhook is successful it\u2019s only called once even if job is run mul
     const event2Id = generateChronologicalId<BotWebhookEventId>();
 
     const event2: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 1,
         createdTimeZone: defaultTimeZone,
@@ -505,8 +505,8 @@ test("if job fails it\u2019s scheduled to be run later up to three times", async
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -580,8 +580,8 @@ test("if job fails it\u2019s scheduled to be run later up to three times (succes
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -647,8 +647,8 @@ test("if job fails it\u2019s scheduled to be run later up to three times (succes
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -724,8 +724,8 @@ test("same job queued while waiting to retry failed job also waits", async () =>
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -820,8 +820,8 @@ test("requests which don\u2019t finish promptly are timed out and retried", asyn
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -930,8 +930,8 @@ test("requests which don\u2019t finish promptly are timed out and retried even i
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -1032,8 +1032,8 @@ test("requests which don\u2019t finish promptly and have a simulated process cra
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,

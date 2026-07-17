@@ -11,12 +11,9 @@ import {
     ApiTaskReferenceArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiTaskCollectionReferenceResponse,
     ApiTaskPriority,
     ApiTaskQueryFilterResponse,
     ApiTaskQuerySort,
-    ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
 const ApiTaskPriorityArbitrary: Arbitrary<ApiTaskPriority> = fc.oneof(

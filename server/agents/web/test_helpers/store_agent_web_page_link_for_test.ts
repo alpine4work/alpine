@@ -6,7 +6,7 @@ import {
     ApiAccountResponse,
     ApiMentionReferenceResponse,
     ApiTaskCollectionResponse,
-    ApiTaskWithoutNotesResponse,
+    ApiTaskResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -25,7 +25,7 @@ import {MaybeReadonlyArray} from "~/shared/helpers/types/maybe_array.js";
 export type StoreAgentWebPageLinkForTestTarget =
     | ApiAccountResponse
     | ApiTaskCollectionResponse
-    | ApiTaskWithoutNotesResponse
+    | ApiTaskResponse
     | ApiMentionReferenceResponse;
 
 /**

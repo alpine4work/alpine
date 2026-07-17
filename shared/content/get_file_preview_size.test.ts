@@ -60,7 +60,7 @@ describe("getFilePreviewSize", () => {
 
     test("file with null preview returns small fallback", () => {
         const file = createFileModelData({preview: null});
-        expect(getFilePreviewSize(file)).toEqual({
+        expect(getFilePreviewSize(file.preview)).toEqual({
             width: 200,
             height: 200 / (3 / 2),
         });
@@ -77,7 +77,7 @@ describe("getFilePreviewSize", () => {
                 metadata: {title: null, artist: null, album: null},
             },
         });
-        const result = getFilePreviewSize(file);
+        const result = getFilePreviewSize(file.preview);
         expect(result.width).toBe(largeFallbackWidth);
         // height = width / maxAspectRatio = 600 / (50/21) = 252
         expect(result.height).toBe(largeFallbackWidth * (21 / 50));
@@ -93,7 +93,7 @@ describe("getFilePreviewSize", () => {
                 content: codeContent,
             },
         });
-        const result = getFilePreviewSize(file);
+        const result = getFilePreviewSize(file.preview);
         expect(result.width).toBe(largeFallbackWidth);
         expect(result.height).toBe(largeFallbackWidth / (63 / 32));
     });
@@ -107,7 +107,7 @@ describe("getFilePreviewSize", () => {
                 placeholder: "Processing",
             },
         });
-        expect(getFilePreviewSize(file)).toEqual({
+        expect(getFilePreviewSize(file.preview)).toEqual({
             width: largeFallbackWidth,
             height: largeFallbackWidth / (3 / 2),
         });
@@ -124,7 +124,7 @@ describe("getFilePreviewSize", () => {
                 placeholder: "Error",
             },
         });
-        expect(getFilePreviewSize(file)).toEqual({
+        expect(getFilePreviewSize(file.preview)).toEqual({
             width: 200,
             height: 200 / (3 / 2),
         });
@@ -140,7 +140,7 @@ describe("getFilePreviewSize", () => {
                 placeholder,
             },
         });
-        expect(getFilePreviewSize(file)).toEqual({
+        expect(getFilePreviewSize(file.preview)).toEqual({
             width: 1920,
             height: 1080,
         });
@@ -157,7 +157,7 @@ describe("getFilePreviewSize", () => {
                 placeholder,
             },
         });
-        expect(getFilePreviewSize(file)).toEqual({
+        expect(getFilePreviewSize(file.preview)).toEqual({
             width: 612,
             height: 792,
         });
@@ -173,7 +173,7 @@ describe("getFilePreviewSize", () => {
                 placeholder,
             },
         });
-        expect(getFilePreviewSize(file)).toEqual({
+        expect(getFilePreviewSize(file.preview)).toEqual({
             width: 800,
             height: 600,
         });

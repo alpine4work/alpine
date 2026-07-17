@@ -273,7 +273,7 @@ function ContentFileImageMobileViewerInner({
     const containerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLDivElement>(null);
 
-    const fileSize = getFilePreviewSize(file);
+    const fileSize = getFilePreviewSize(file.preview);
     const fileAspectRatio = fileSize.width / fileSize.height;
 
     const viewerAspectRatio = viewerSize.width / viewerSize.height;

@@ -1151,7 +1151,7 @@ export async function updateAgentWebTaskQueryPage(
 
                     throw new InvalidArgumentError("Can\u2019t create task with subtask counts", {
                         // NOCOMMIT: Make sure this is tested
-                        displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} with a \u201CSubtasks\u201D field since we don't know what the underlying subtasks are. Try again after removing the \u201CSubtasks\u201D field, then call the \`read\` tool on the newly created task and use the \`update\` tool to add subtasks to the newly created task.`,
+                        displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} with a \u201CSubtasks\u201D field since we don\u2019t know what the underlying subtasks are. Try again after removing the \u201CSubtasks\u201D field, then call the \`read\` tool on the newly created task and use the \`update\` tool to add subtasks to the newly created task.`,
                     });
                 }
 

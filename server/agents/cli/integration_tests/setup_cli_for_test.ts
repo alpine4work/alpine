@@ -11,7 +11,6 @@ import {refreshSearchEntityKeywordIndexForTest} from "~/server/search/data/index
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export type CliIntegrationTests = {
@@ -19,6 +18,7 @@ export type CliIntegrationTests = {
     readonly services: TestServices;
     readonly session: TestSpaceSession;
     run(command: string): Promise<string>;
+    runWithoutWaiting(command: string): Promise<string>;
 };
 
 /**
@@ -80,6 +80,10 @@ export function setupCliForTest(): CliIntegrationTests {
         await services.waitForSqsProcessJobs();
         await refreshSearchEntityKeywordIndexForTest(context);
 
+        return await runWithoutWaiting(command);
+    }
+
+    async function runWithoutWaiting(command: string): Promise<string> {
         return await runProcess("/bin/sh", ["-c", command], {
             cwd: runfilesPath,
             isErrorExitCode: () => false,
@@ -101,5 +105,6 @@ export function setupCliForTest(): CliIntegrationTests {
             return assertExists(session);
         },
         run,
+        runWithoutWaiting,
     };
 }

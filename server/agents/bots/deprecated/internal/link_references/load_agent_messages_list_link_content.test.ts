@@ -15,7 +15,7 @@ import {
     ApiContentResponse,
     ApiDocumentThreadResponse,
     ApiMessageResponse,
-    ApiTaskResponse,
+    ApiTaskWithNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -151,9 +151,9 @@ function mockGetTask(
     api: ApiClientMock,
     spaceId: SpaceId,
     taskId: TaskId,
-    responseData: Partial<Omit<ApiTaskResponse, "id">>,
+    responseData: Partial<Omit<ApiTaskWithNotesResponse, "id">>,
 ): void {
-    api.mockGet("/tasks/{id}", {
+    api.mockGet("/tasks/{id}-with-notes", {
         params: {path: {id: taskId}},
         data: {
             spaceId,
