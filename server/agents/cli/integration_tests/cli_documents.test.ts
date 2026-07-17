@@ -223,27 +223,27 @@ test.each([
     {
         command: "alpine read",
         argName: "path",
-        syntax: "alpine read <path> --limit [...]",
+        syntax: "alpine read <path> [--limit ...]",
     },
     {
         command: "alpine update",
         argName: "path",
-        syntax: "alpine update <path> --old [...] --new [...] [--replace-all]",
+        syntax: "alpine update <path> [--old ...] [--new ...] [--replace-all]",
     },
     {
         command: "alpine scroll",
         argName: "path",
-        syntax: "alpine scroll <path> --offset <...> --limit [...]",
+        syntax: "alpine scroll <path> --offset <...> [--limit ...]",
     },
     {
         command: "alpine find",
         argName: "path",
-        syntax: "alpine find <path> <pattern> --offset [...] --limit [...] --match-limit [...]",
+        syntax: "alpine find <path> <pattern> [--offset ...] [--limit ...] [--match-limit ...]",
     },
     {
         command: "alpine find /document/example",
         argName: "pattern",
-        syntax: "alpine find <path> <pattern> --offset [...] --limit [...] --match-limit [...]",
+        syntax: "alpine find <path> <pattern> [--offset ...] [--limit ...] [--match-limit ...]",
     },
     {
         command: "alpine search",
@@ -258,16 +258,14 @@ test.each([
 
 test.each([
     {
-        name: "one extra positional argument",
         command: "alpine search query extra",
         countMessage: "1 unused arg",
     },
     {
-        name: "multiple extra positional arguments",
         command: "alpine search query extra1 extra2",
         countMessage: "2 unused args",
     },
-])("rejects $name", async ({command, countMessage}) => {
+])("rejects $countMessage", async ({command, countMessage}) => {
     await expect(cli.run(command)).resolves.toEqual(
         `Error: Couldn\u2019t run command. Unexpected args. Try again but remove the ${countMessage}. Expected syntax: \`alpine search <query>\`.\n`,
     );
@@ -284,31 +282,31 @@ test.each([
     },
 ])("rejects a duplicate nominal argument using $name syntax", async ({command}) => {
     await expect(cli.run(command)).resolves.toEqual(
-        "Error: Couldn\u2019t run command. There\u2019s more than one `--limit` args. Try again with only one `--limit` arg. Expected syntax: `alpine read <path> --limit [...]`.\n",
+        "Error: Couldn\u2019t run command. There\u2019s more than one `--limit` args. Try again with only one `--limit` arg. Expected syntax: `alpine read <path> [--limit ...]`.\n",
     );
 });
 
 test("rejects a missing required nominal argument", async () => {
     await expect(cli.run("alpine scroll /document/example")).resolves.toEqual(
-        "Error: Couldn\u2019t run command. Missing required `--offset` arg. Try again but add the `--offset` arg. Expected syntax: `alpine scroll <path> --offset <...> --limit [...]`.\n",
+        "Error: Couldn\u2019t run command. Missing required `--offset` arg. Try again but add the `--offset` arg. Expected syntax: `alpine scroll <path> --offset <...> [--limit ...]`.\n",
     );
 });
 
 test("rejects an unknown nominal argument", async () => {
     await expect(cli.run("alpine read /document/example --unknown=value")).resolves.toEqual(
-        "Error: Couldn\u2019t run command. Unrecognized `--unknown` arg. Try again without the `--unknown` arg. Expected syntax: `alpine read <path> --limit [...]`.\n",
+        "Error: Couldn\u2019t run command. Unrecognized `--unknown` arg. Try again without the `--unknown` arg. Expected syntax: `alpine read <path> [--limit ...]`.\n",
     );
 });
 
 test("rejects an update without an old argument", async () => {
     await expect(cli.run("alpine update /document/example")).resolves.toEqual(
-        "Error: Couldn\u2019t run command. Missing required `--old` arg. Try again but add the `--old` arg. Expected syntax: `alpine update <path> --old [...] --new [...] [--replace-all]`.\n",
+        "Error: Couldn\u2019t run command. Missing required `--old` arg. Try again but add the `--old` arg. Expected syntax: `alpine update <path> [--old ...] [--new ...] [--replace-all]`.\n",
     );
 });
 
 test("rejects an update without a new argument", async () => {
     await expect(cli.run("alpine update /document/example --old=before")).resolves.toEqual(
-        "Error: Couldn\u2019t run command. Missing required `--new` arg. Try again but add the `--new` arg. Expected syntax: `alpine update <path> --old [...] --new [...] [--replace-all]`.\n",
+        "Error: Couldn\u2019t run command. Missing required `--new` arg. Try again but add the `--new` arg. Expected syntax: `alpine update <path> [--old ...] [--new ...] [--replace-all]`.\n",
     );
 });
 
@@ -430,6 +428,7 @@ test.each([
     );
 });
 
+// NOCOMMIT: Good error message!
 test.each([
     {
         name: "an unknown command",
