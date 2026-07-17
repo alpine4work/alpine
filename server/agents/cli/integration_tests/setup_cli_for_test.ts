@@ -69,10 +69,7 @@ export function setupCliForTest(): CliIntegrationTests {
             joinPath(binDirectoryPath, "alpine"),
         );
 
-        await writeFile(
-            joinPath(dataDirectoryPath, "auth.json"),
-            JSON.stringify({apiKey, apiUrl: services.getApiServiceBaseUrl()}),
-        );
+        await writeFile(joinPath(dataDirectoryPath, "auth.json"), JSON.stringify({apiKey}));
     });
 
     async function run(command: string): Promise<string> {
@@ -88,6 +85,8 @@ export function setupCliForTest(): CliIntegrationTests {
             cwd: runfilesPath,
             isErrorExitCode: () => false,
             env: {
+                ALPINE_URL: services.getBaseUrl(),
+                ALPINE_API_URL: services.getApiServiceBaseUrl(),
                 ALPINE_DATA_PATH: assertExists(dataDirectoryPath),
                 PATH: process.env.PATH
                     ? `${binDirectoryPath}:${process.env.PATH}`

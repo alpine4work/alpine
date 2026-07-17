@@ -47,17 +47,6 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-const tracer = TracerRoot.new({
-    serviceName: "CliClient",
-    jsHost: "Node",
-    untrusted: true,
-    // NOCOMMIT: Synchronize with Alpine clock? Like the client?
-    clock: unsynchronizedSystemClock,
-    sendEvent: () => {
-        // NOCOMMIT: Send events to Alpine!
-    },
-});
-
 // Useful for when we read stdin (e.g. when creating a new entity).
 process.stdin.setEncoding("utf8");
 
@@ -80,7 +69,6 @@ main()
     });
 
 type AgentsCliAuthJson = {
-    readonly apiUrl?: string;
     readonly apiKey?: string;
     readonly authResponse?: {
         readonly expirationTime: DateString;
@@ -91,6 +79,46 @@ type AgentsCliAuthJson = {
 
 // NOCOMMIT: Make sure we have a nice error message when offline
 async function main() {
+    const baseUrlString = process.env.ALPINE_URL ?? "https://alpine.inc";
+    let baseUrl: URL;
+
+    try {
+        baseUrl = new URL(baseUrlString);
+    } catch {
+        throw new InvalidArgumentError("Invalid `ALPINE_URL` environment variable", {
+            displayMessage: errorDisplayMessage`\`ALPINE_URL\` environment variable ${quote(baseUrlString)} isn\u2019t a valid URL. Try again without setting the \`ALPINE_URL\` environment variable.`,
+        });
+    }
+
+    const baseApiUrlString =
+        process.env.ALPINE_API_URL ?? `${baseUrl.protocol}//api.${baseUrl.hostname}`;
+    let baseApiUrl: URL;
+
+    try {
+        baseApiUrl = new URL(baseApiUrlString);
+    } catch {
+        if (typeof process.env.ALPINE_API_URL === "string") {
+            throw new InvalidArgumentError("Invalid `ALPINE_API_URL` environment variable", {
+                displayMessage: errorDisplayMessage`\`ALPINE_API_URL\` environment variable ${quote(baseApiUrlString)} isn\u2019t a valid URL. Try again without setting the \`ALPINE_URL\` environment variable.`,
+            });
+        } else {
+            throw new InvalidArgumentError("Couldn\u2019t derive API URL from `ALPINE_URL`", {
+                displayMessage: errorDisplayMessage`Trying to add \`api.\` to \`ALPINE_URL\` gives us ${quote(baseApiUrlString)} which isn\u2019t a valid URL. Try again but add an \`ALPINE_API_URL\` environment variable in addition to \`ALPINE_URL\`.`,
+            });
+        }
+    }
+
+    const tracer = TracerRoot.new({
+        serviceName: "CliClient",
+        jsHost: "Node",
+        untrusted: true,
+        // NOCOMMIT: Synchronize with Alpine clock? Like the client?
+        clock: unsynchronizedSystemClock,
+        sendEvent: () => {
+            // NOCOMMIT: Send events to Alpine!
+        },
+    });
+
     const [command = "", ...args] = process.argv.slice(2);
 
     const commands = new Set(["read", "create", "update", "scroll", "find", "search"]);
@@ -137,9 +165,7 @@ async function main() {
             });
         }
 
-        const apiBaseUrl = process.env.ALPINE_API_URL ?? auth.apiUrl ?? "https://api.alpine.inc";
-
-        const api = createApiClient({baseUrl: apiBaseUrl, apiKey});
+        const api = createApiClient({baseUrl: baseApiUrl.toString(), apiKey});
 
         let database;
         try {
@@ -166,7 +192,7 @@ async function main() {
                     span,
                     dataDirectoryPath,
                     auth,
-                    apiBaseUrl,
+                    baseApiUrl,
                     api,
                     database,
                 });
@@ -185,7 +211,7 @@ async function mainWithinTransaction({
     span,
     dataDirectoryPath,
     auth,
-    apiBaseUrl,
+    baseApiUrl,
     api,
     database,
 }: {
@@ -194,7 +220,7 @@ async function mainWithinTransaction({
     span: TracerSpan;
     dataDirectoryPath: string;
     auth: AgentsCliAuthJson;
-    apiBaseUrl: string;
+    baseApiUrl: URL;
     api: ApiClient;
     database: Database<any, AgentWebSessionLmdbStorageKey>;
 }) {
@@ -224,7 +250,7 @@ async function mainWithinTransaction({
                 // TODO(#public-api-blocking): Once Rachel adds a login setup for the API we should
                 // update this message to be "Try running `alpine auth`" again or whatever the
                 // command is.
-                displayMessage: errorDisplayMessage`Couldn\u2019t get the current bot from the API. Make sure you\u2019re online and can reach ${quote(`${apiBaseUrl}/auth`)}.`,
+                displayMessage: errorDisplayMessage`Couldn\u2019t get the current bot from the API. Make sure you\u2019re online and can reach ${quote(`${baseApiUrl}/auth`)}.`,
             });
         }
 
