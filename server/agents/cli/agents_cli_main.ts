@@ -332,13 +332,13 @@ function parseArgs<
 
         if (optionalNominalListArgs) {
             for (const optionalNominalListArgName of optionalNominalListArgs) {
-                expectedSyntax += ` --${optionalNominalListArgName} [...]`;
+                expectedSyntax += ` [--${optionalNominalListArgName} ...]`;
             }
         }
 
         if (optionalNominalArgs) {
             for (const optionalNominalArgName of optionalNominalArgs) {
-                expectedSyntax += ` --${optionalNominalArgName} [...]`;
+                expectedSyntax += ` [--${optionalNominalArgName} ...]`;
             }
         }
 
@@ -551,7 +551,7 @@ async function runAgentsCliCommand(
                     throw new InvalidArgumentError(
                         "Nominal `--old` and `--new` args must have the same length",
                         {
-                            displayMessage: errorDisplayMessage`Must provide a \`--new\` arg for every \`--old\` arg. Try again but with ${missingOldArgCount} more \`--old\` arg${missingOldArgCount !== 1 ? "s" : ""}.`,
+                            displayMessage: errorDisplayMessage`Must provide an \`--old\` arg for every \`--new\` arg. Try again but with ${missingOldArgCount} more \`--old\` arg${missingOldArgCount !== 1 ? "s" : ""}.`,
                         },
                     );
                 } else {
@@ -560,7 +560,7 @@ async function runAgentsCliCommand(
                     throw new InvalidArgumentError(
                         "Nominal `--old` and `--new` args must have the same length",
                         {
-                            displayMessage: errorDisplayMessage`Must provide an \`--old\` arg for every \`--new\` arg. Try again but with ${missingNewArgCount} more \`--new\` arg${missingNewArgCount !== 1 ? "s" : ""}.`,
+                            displayMessage: errorDisplayMessage`Must provide a \`--new\` arg for every \`--old\` arg. Try again but with ${missingNewArgCount} more \`--new\` arg${missingNewArgCount !== 1 ? "s" : ""}.`,
                         },
                     );
                 }

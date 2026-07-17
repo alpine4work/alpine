@@ -15,6 +15,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export type CliIntegrationTests = {
+    readonly dataDirectoryPath: string;
     readonly services: TestServices;
     readonly session: TestSpaceSession;
     run(command: string): Promise<string>;
@@ -81,6 +82,7 @@ export function setupCliForTest(): CliIntegrationTests {
 
         return await runProcess("/bin/sh", ["-c", command], {
             cwd: runfilesPath,
+            isErrorExitCode: () => false,
             env: {
                 ALPINE_DATA_PATH: assertExists(dataDirectoryPath),
                 PATH: process.env.PATH
@@ -92,6 +94,9 @@ export function setupCliForTest(): CliIntegrationTests {
 
     return {
         services,
+        get dataDirectoryPath() {
+            return assertExists(dataDirectoryPath);
+        },
         get session() {
             return assertExists(session);
         },
