@@ -8,6 +8,10 @@ import {
 } from "react";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
+import {
+    TextInputFontSize,
+    textInputHeightSpacingForFontSize,
+} from "~/client/web/design/text_input_height_spacing_for_font_size.js";
 import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
 import {isModifiedKeyboardEvent} from "~/client/web/helpers/events/is_modified_keyboard_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -17,6 +21,8 @@ import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+
+export type {TextInputFontSize} from "~/client/web/design/text_input_height_spacing_for_font_size.js";
 
 export type TextInputProps = {
     /**
@@ -118,7 +124,7 @@ export type TextInputProps = {
     /**
      * What font size should we use for the text in this input? Defaults to `75`.
      */
-    fontSize?: "75" | "100";
+    fontSize?: TextInputFontSize;
 
     /**
      * What font should we use for this text input? Defaults to `normal`.
@@ -298,7 +304,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                 borderRadius: "1",
                 display: "block",
                 width: "full",
-                height: icon ? undefined : ({"75": "7", "100": "9"} as const)[fontSize],
+                height: icon ? undefined : textInputHeightSpacingForFontSize(fontSize),
                 paddingX: icon ? undefined : ({"75": "2", "100": "2.5"} as const)[fontSize],
                 paddingRight: typeof paddingRight !== "number" ? paddingRight : undefined,
                 fontSize,
@@ -402,7 +408,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                 display="flex"
                 alignItems="center"
                 gap="2"
-                height={({"75": "7", "100": "9"} as const)[fontSize]}
+                height={textInputHeightSpacingForFontSize(fontSize)}
                 paddingX={({"75": "2", "100": "2.5"} as const)[fontSize]}
                 borderRadius="1"
                 className={sprinkles({

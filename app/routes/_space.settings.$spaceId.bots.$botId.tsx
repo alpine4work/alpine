@@ -1,5 +1,4 @@
 import {ShouldRevalidateFunction} from "@remix-run/router";
-import {Eye, EyeSlash} from "phosphor-react";
 import {useId, useRef, useState} from "react";
 import {
     deserializeBotIdForLoader,
@@ -15,8 +14,8 @@ import {ContentView} from "~/client/web/content/content_view.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
-import {IconButton} from "~/client/web/design/icon_button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
+import {SecretTextInputWithoutLabel} from "~/client/web/design/secret_text_input.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
@@ -37,7 +36,7 @@ import {
     spaceBotSettingsHeadingHeightNameFontSize,
     spaceBotSettingsHeadingMarginBottom,
 } from "~/client/web/styles/space_settings_shared_styles.js";
-import {pointerEventsNoneNotInheritedClassName, sprinkles} from "~/client/web/styles/styles.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {getBotSettingsAccount} from "~/server/bots/with_spaces/get_bot_settings_account.js";
 import {getBotSpaceAndSpaceAccountSettingsValues} from "~/server/bots/with_spaces/get_bot_space_and_space_account_settings_values.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -468,12 +467,6 @@ function SpaceBotSettingsStringProperty({
     const [value, setValue] = useState<string | null>(null);
     const [shouldShowConfirmSaveDialog, setShouldShowConfirmSaveDialog] = useState(false);
 
-    const [isSecretRevealed, setIsSecretRevealed] = useState(false);
-    if (isSecretRevealed && (isDisabled || !propertySchema.isSecret)) setIsSecretRevealed(false);
-
-    const isSecretRevealButtonVisible =
-        propertySchema.isSecret && (value ?? originalValue).length > 0 && !isDisabled;
-
     const handleCancelEditing = () => {
         // After we cancel editing, select all content in the text input. So the selection
         // doesn't move somewhere weird.
@@ -552,57 +545,35 @@ function SpaceBotSettingsStringProperty({
                         onConfirmSave: () => setShouldShowConfirmSaveDialog(true),
                     })}
                 >
-                    <TextInputWithoutLabel
-                        ref={inputRef}
-                        id={inputId}
-                        isDisabled={isDisabled}
-                        fontStyle={propertySchema.isCode ? "code" : "normal"}
-                        fontSize="100"
-                        // Make sure the secret content doesn't overlap with the reveal icon button.
-                        paddingRight={isSecretRevealButtonVisible ? "9" : undefined}
-                        value={
-                            // If this is a secret property with a value but we're not an admin so we're not
-                            // allowed to see the value then fill the input with `x`s which will render as
-                            // dots.
-                            isDisabled && propertySchema.isSecret && isSecretPropertyWithValue
-                                ? "x".repeat(16)
-                                : (value ?? originalValue)
-                        }
-                        onChange={setValue}
-                        placeholder={propertySchema.placeholder}
-                        inputMode={
-                            propertySchema.isSecret && !isSecretRevealed ? "password" : "text"
-                        }
-                        // Disable autocomplete entirely for this input.
-                        autoComplete="off"
-                        onEnter={() => assertExists(inlineEditorToolbarRef.current).save()}
-                        onEscape={handleCancelEditing}
-                        isFocusRingVisible={value !== null}
-                    />
-                    {isSecretRevealButtonVisible && (
-                        <Box
-                            // The icon button `borderRadius` corners when clicked should fallthrough to the
-                            // input.
-                            className={pointerEventsNoneNotInheritedClassName}
-                            position="absolute"
-                            right="0"
-                            top="0"
-                            width="9"
-                            height="9"
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                        >
-                            <IconButton
-                                description={isSecretRevealed ? "Hide" : "Reveal"}
-                                // Avoid perfect alignment with bottom of the text input.
-                                tooltipOffset="1"
-                                size="md"
-                                onPress={() => setIsSecretRevealed(!isSecretRevealed)}
-                            >
-                                {isSecretRevealed ? <EyeSlash /> : <Eye />}
-                            </IconButton>
-                        </Box>
+                    {propertySchema.isSecret ? (
+                        <SecretTextInputWithoutLabel
+                            ref={inputRef}
+                            id={inputId}
+                            isDisabled={isDisabled}
+                            fontStyle={propertySchema.isCode ? "code" : "normal"}
+                            fontSize="100"
+                            value={value ?? originalValue}
+                            isValueHiddenWhenDisabled={isSecretPropertyWithValue}
+                            onChange={setValue}
+                            placeholder={propertySchema.placeholder}
+                            onEnter={() => assertExists(inlineEditorToolbarRef.current).save()}
+                            onEscape={handleCancelEditing}
+                            isFocusRingVisible={value !== null}
+                        />
+                    ) : (
+                        <TextInputWithoutLabel
+                            ref={inputRef}
+                            id={inputId}
+                            isDisabled={isDisabled}
+                            fontStyle={propertySchema.isCode ? "code" : "normal"}
+                            fontSize="100"
+                            value={value ?? originalValue}
+                            onChange={setValue}
+                            placeholder={propertySchema.placeholder}
+                            onEnter={() => assertExists(inlineEditorToolbarRef.current).save()}
+                            onEscape={handleCancelEditing}
+                            isFocusRingVisible={value !== null}
+                        />
                     )}
                     {value !== null && (
                         <InlineEditorToolbar
