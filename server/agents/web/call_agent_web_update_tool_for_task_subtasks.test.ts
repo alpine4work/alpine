@@ -12,7 +12,7 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
     ApiTaskResponse,
-    ApiTaskWithoutNotesResponse,
+    ApiTaskWithNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -62,7 +62,9 @@ function mockReadSubtasks(tasks: ReadonlyArray<ApiTaskResponse>): void {
     });
 }
 
-function withoutNotes(task: ApiTaskResponse): ApiTaskWithoutNotesResponse {
+function withoutNotes(task: ApiTaskResponse | ApiTaskWithNotesResponse): ApiTaskResponse {
+    if (!("notes" in task)) return task;
+
     return omitObject(task, ["notes"]);
 }
 

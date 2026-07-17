@@ -706,7 +706,7 @@ test("validates a new task\u2019s subtask counts before creating a collection", 
     expect({result, requests: api.getRequestHistory()}).toEqual({
         result:
             "Error: Couldn\u2019t create task collection. " +
-            ("Can\u2019t create the task \u201CDraft launch plan\u201D with a \u201CSubtasks\u201D field since we don't " +
+            ("Can\u2019t create the task \u201CDraft launch plan\u201D with a \u201CSubtasks\u201D field since we don\u2019t " +
                 "know what the underlying subtasks are. Try again after removing the \u201CSubtasks\u201D " +
                 "field, then call the `read` tool on the newly created task and use the `update` " +
                 "tool to add subtasks to the newly created task."),

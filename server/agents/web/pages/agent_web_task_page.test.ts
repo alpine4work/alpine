@@ -482,7 +482,7 @@ Bring logs.
 # Extra task
 `,
             parseError:
-                "Unexpected markdown on line 5. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list).",
+                "Unexpected markdown on line 5. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list) in that exact order (fields, notes, subtasks).",
         },
         {
             name: "task page with ordered field list",
@@ -493,7 +493,7 @@ Bring logs.
 1. Status: Open
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list).",
+                "Unexpected markdown on line 3. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list) in that exact order (fields, notes, subtasks).",
         },
         {
             name: "task page with field missing colon",
@@ -985,7 +985,7 @@ Remember to check the API shape.
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
             parseError:
-                "Unexpected markdown on line 9. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list).",
+                "Unexpected markdown on line 9. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list) in that exact order (fields, notes, subtasks).",
         },
         {
             name: "task page with a new link-less subtask",

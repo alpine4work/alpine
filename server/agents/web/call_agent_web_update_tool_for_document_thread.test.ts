@@ -607,7 +607,7 @@ test("rejects creating comments from another account", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/document/launch-spec/comments/1`. You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+        'Error: Couldn\u2019t update `/document/launch-spec/comments/1`. You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
     );
 });
 

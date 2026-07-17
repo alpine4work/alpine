@@ -22,7 +22,7 @@ import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/sto
 import {
     ApiTaskCollectionResponse,
     ApiTaskPatchResult,
-    ApiTaskWithoutNotesResponse,
+    ApiTaskResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -76,7 +76,7 @@ function mockApiPatchTasks(response: {
     data: {
         spaceId: SpaceId;
         tasks: ReadonlyArray<{
-            task: ApiTaskWithoutNotesResponse;
+            task: ApiTaskResponse;
             results: ReadonlyArray<ApiTaskPatchResult>;
         }>;
     };
@@ -1916,6 +1916,7 @@ test("adds a task at the end of a manually ordered collection", async () => {
     mockApiPatchTasks({
         params: "Any",
         data: {
+            spaceId,
             tasks: [
                 {
                     task: newTask,

@@ -13,7 +13,7 @@ import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/ap
 import {
     ApiTaskPatchResult,
     ApiTaskResponse,
-    ApiTaskWithoutNotesResponse,
+    ApiTaskWithNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -162,7 +162,7 @@ function mockGetTask(
     api: ApiClientMock,
     spaceId: SpaceId,
     taskId: TaskId,
-    responseData: Omit<ApiTaskResponse, "id">,
+    responseData: Omit<ApiTaskWithNotesResponse, "id">,
     subtasks: ReadonlyArray<{
         readonly cursor: ReturnType<typeof printApiTaskQueryCursorMock>;
         readonly task: ApiTaskResponse;
@@ -263,7 +263,9 @@ async function readTask({
     return {taskId, path};
 }
 
-function withoutNotes(task: ApiTaskResponse): ApiTaskWithoutNotesResponse {
+function withoutNotes(task: ApiTaskResponse | ApiTaskWithNotesResponse): ApiTaskResponse {
+    if (!("notes" in task)) return task;
+
     const {notes: _notes, ...taskWithoutNotes} = task;
     return taskWithoutNotes;
 }

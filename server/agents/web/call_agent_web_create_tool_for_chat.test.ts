@@ -430,7 +430,7 @@ End of messages.`,
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create chat. " +
-            'You can only add a `<message>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+            'You can only add a `<message>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
     );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
@@ -453,7 +453,7 @@ End of messages.`,
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create chat. " +
-            'Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 0. Try again with `id=\\"0\\"`.',
+            'Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 0. Try again with `id="0"`.',
     );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
@@ -505,7 +505,7 @@ End of messages.`,
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create chat. " +
-            'Couldn\u2019t find `<message id=\\"0\\">` referenced by `<blockquote cite=\\"?message=0\\">` on the current page. To create a message that replies to another message, the cited message must be visible on the current page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<message>` you\u2019re replying to is on the same page you\u2019re updating.',
+            'Couldn\u2019t find `<message id="0">` referenced by `<blockquote cite="?message=0">` on the current page. To create a message that replies to another message, the cited message must be visible on the current page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<message>` you\u2019re replying to is on the same page you\u2019re updating.',
     );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
@@ -610,7 +610,7 @@ End of messages.`,
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create chat. " +
-            'The `<blockquote>` content starts with `[Alice](...): `, but `<message id=\\"0\\">` is from \u201CChatGPT\u201D. Try again with `[ChatGPT](...): ` before any other `<blockquote>` content.',
+            'The `<blockquote>` content starts with `[Alice](...): `, but `<message id="0">` is from \u201CChatGPT\u201D. Try again with `[ChatGPT](...): ` before any other `<blockquote>` content.',
     );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
@@ -692,7 +692,7 @@ End of messages.`,
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create chat. " +
-            '2 matches were found for the quoted content in `<blockquote>` in `<message id=\\"0\\">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
+            '2 matches were found for the quoted content in `<blockquote>` in `<message id="0">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
     );
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);

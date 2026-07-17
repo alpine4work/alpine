@@ -612,7 +612,7 @@ Not from the bot.
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create post. " +
-            'You can only create a `<post>` as yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+            'You can only create a `<post>` as yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
     );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
@@ -632,7 +632,7 @@ Timezone is explicit.
 </post>`,
         }),
     ).resolves.toEqual(
-        "Error: Couldn\u2019t create post. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\\`TimeZone\\\` type hasn\u2019t been implemented",
+        "Error: Couldn\u2019t create post. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\`TimeZone\\` type hasn\u2019t been implemented",
     );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
@@ -661,7 +661,7 @@ End of comments.`,
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create post. " +
-            'You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+            'You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
     );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
@@ -690,7 +690,7 @@ End of comments.`,
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create post. " +
-            'Invalid `id` attribute for new `<comment>`. The `<comment>` `id` attribute is an integer sequence so the next valid `id` is 0. Try again with `id=\\"0\\"`.',
+            'Invalid `id` attribute for new `<comment>`. The `<comment>` `id` attribute is an integer sequence so the next valid `id` is 0. Try again with `id="0"`.',
     );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);
@@ -808,7 +808,7 @@ Replying to the parent.
 End of comments.`,
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t create post. Couldn\u2019t find `<comment id=\\"0\\">` referenced by `<blockquote cite=\\"?comment=0\\">` on the current page. To create a comment that replies to another comment, the cited comment must be visible on the current page. If you\u2019re trying to quote a comment that\u2019s not on this page then call the `read` tool with a larger `limit` so that the comment you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<comment>` you\u2019re replying to is on the same page you\u2019re updating.',
+        'Error: Couldn\u2019t create post. Couldn\u2019t find `<comment id="0">` referenced by `<blockquote cite="?comment=0">` on the current page. To create a comment that replies to another comment, the cited comment must be visible on the current page. If you\u2019re trying to quote a comment that\u2019s not on this page then call the `read` tool with a larger `limit` so that the comment you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<comment>` you\u2019re replying to is on the same page you\u2019re updating.',
     );
     expect(getCreatePostRequests()).toEqual([]);
     expect(getCreateCommentRequests()).toEqual([]);

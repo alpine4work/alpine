@@ -1481,7 +1481,7 @@ Default filters:
             parseError:
                 "Missing status at the end of task label on line 3. Task labels must end with " +
                 "\u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task " +
-                "like `My Task (Open)`.",
+                "label like \u201CMy Task (Open)\u201D.",
         },
         {
             name: "task list item with extra content after the link",
@@ -1551,10 +1551,9 @@ Default filters:
 - [Write spec](/task/write-spec)
 `,
             parseError:
-                "Missing status at the end of task link label on line 3. Task link labels must " +
-                "end with \u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again " +
-                "with a task link like " +
-                "`[My Task (Open)](/task/my-task)`.",
+                "Missing status at the end of task label on line 3. Task labels must end with " +
+                "\u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task " +
+                "label like \u201CMy Task (Open)\u201D.",
         },
         {
             name: "task link label with an unexpected status",
@@ -1568,9 +1567,9 @@ Default filters:
 - [Write spec (Pending)](/task/write-spec)
 `,
             parseError:
-                "Missing status at the end of task link label on line 3. Task link labels must " +
-                "end with \u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again " +
-                "with a task link like `[My Task (Open)](/task/my-task)`.",
+                "Missing status at the end of task label on line 3. Task labels must end with " +
+                "\u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task " +
+                "label like \u201CMy Task (Open)\u201D.",
         },
         {
             name: "unknown task link",

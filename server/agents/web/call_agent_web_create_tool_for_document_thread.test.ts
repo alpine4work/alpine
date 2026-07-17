@@ -474,7 +474,7 @@ Please clarify this requirement.
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create document comment thread. " +
-            'The `<blockquote>` `match` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was `match=\\"2\\"`. Try again but omit the `match` attribute.',
+            'The `<blockquote>` `match` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was `match="2"`. Try again but omit the `match` attribute.',
     );
 });
 
@@ -565,7 +565,7 @@ Please clarify this requirement.
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create document comment thread. " +
-            'The `<blockquote>` `match` attribute must be between 1 and 2, instead it was `match=\\"0\\"`. Try again with a valid 1-indexed `match` attribute.',
+            'The `<blockquote>` `match` attribute must be between 1 and 2, instead it was `match="0"`. Try again with a valid 1-indexed `match` attribute.',
     );
 });
 
@@ -660,7 +660,7 @@ Not from the bot.
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create document comment thread. " +
-            'You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+            'You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
     );
 });
 
@@ -693,7 +693,7 @@ Wrong id.
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create document comment thread. " +
-            'Invalid `id` attribute for new `<comment>`. The `<comment>` `id` attribute is an integer sequence so the next valid `id` is 1. Try again with `id=\\"1\\"`.',
+            'Invalid `id` attribute for new `<comment>`. The `<comment>` `id` attribute is an integer sequence so the next valid `id` is 1. Try again with `id="1"`.',
     );
 });
 

@@ -8,7 +8,7 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
     ApiTaskResponse,
-    ApiTaskWithoutNotesResponse,
+    ApiTaskWithNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -696,7 +696,9 @@ test("rejects a missing task title without calling the API", async () => {
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
-function withoutNotes(task: ApiTaskResponse): ApiTaskWithoutNotesResponse {
+function withoutNotes(task: ApiTaskResponse | ApiTaskWithNotesResponse): ApiTaskResponse {
+    if (!("notes" in task)) return task;
+
     return omitObject(task, ["notes"]);
 }
 

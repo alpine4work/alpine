@@ -433,7 +433,7 @@ test("rejects edits to posts from another account", async () => {
             updates: [{old: "Post body.", new: "Edited post body.", replaceAll: false}],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/post/launch`. You can only update your `<post>`s. You can\u2019t update a `<post>` created by Alice. `<post from=\\"Alice\\">` was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.',
+        'Error: Couldn\u2019t update `/post/launch`. You can only update your `<post>`s. You can\u2019t update a `<post>` created by Alice. `<post from="Alice">` was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.',
     );
 });
 
@@ -533,7 +533,7 @@ test("rejects edits to comments from another account", async () => {
             updates: [{old: "Alice original", new: "Alice edited by ChatGPT", replaceAll: false}],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/post/launch`. You can only update your `<comment>`s. You can\u2019t update a `<comment>` created by Alice. `<comment id=\\"0\\" from=\\"Alice\\">` was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.',
+        'Error: Couldn\u2019t update `/post/launch`. You can only update your `<comment>`s. You can\u2019t update a `<comment>` created by Alice. `<comment id="0" from="Alice">` was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.',
     );
 });
 
@@ -556,7 +556,7 @@ test("rejects edits to existing bot comment metadata", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/post/launch`. You can only update the content of your `<comment>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<comment id=\\"0\\">` was changed by this update. Try again with a more specific update that only changes the content of comments from you.',
+        'Error: Couldn\u2019t update `/post/launch`. You can only update the content of your `<comment>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<comment id="0">` was changed by this update. Try again with a more specific update that only changes the content of comments from you.',
     );
 });
 
@@ -620,7 +620,7 @@ test("rejects creating comments from another account", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/post/launch`. You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+        'Error: Couldn\u2019t update `/post/launch`. You can only add a `<comment>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
     );
 });
 
@@ -642,7 +642,7 @@ test("rejects creating comments with an incorrect id", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/post/launch`. Invalid `id` attribute for new `<comment>`. The `<comment>` `id` attribute is an integer sequence so the next valid `id` is 1. Try again with `id=\\"1\\"`.',
+        'Error: Couldn\u2019t update `/post/launch`. Invalid `id` attribute for new `<comment>`. The `<comment>` `id` attribute is an integer sequence so the next valid `id` is 1. Try again with `id="1"`.',
     );
 });
 
@@ -763,6 +763,6 @@ test("throws UnimplementedError when creating a comment with a timezone attribut
             ],
         }),
     ).resolves.toEqual(
-        "Error: Couldn\u2019t update `/post/launch`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\\`TimeZone\\\` type hasn\u2019t been implemented",
+        "Error: Couldn\u2019t update `/post/launch`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\`TimeZone\\` type hasn\u2019t been implemented",
     );
 });

@@ -172,7 +172,7 @@ test("throws on empty updates", async () => {
     await expect(
         callAgentWebUpdateTool(context, {path: "/document/anything", updates: []}),
     ).resolves.toEqual(
-        "Error: Couldn\u2019t update `/document/anything`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Assertion failure: \\\`updates.length > 0\\\`",
+        "Error: Couldn\u2019t update `/document/anything`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Assertion failure: \\`updates.length > 0\\`",
     );
 });
 

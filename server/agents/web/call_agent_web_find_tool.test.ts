@@ -425,6 +425,6 @@ test("throws InvalidArgumentError when the match limit is malformed", async () =
     await expect(
         callFindTool({path: "/document/anything", matchLimit: "not-a-byte-count"}),
     ).resolves.toEqual(
-        "Error: Couldn\u2019t find pattern in `/document/anything`. Couldn\u2019t parse byte count from: \u201Cnot-a-byte-count\u201D. Byte count must be formatted as a number followed by a unit (e.g. 2.4kb) where the acceptable units are \u201Cb\u201D (bytes), \u201Ckb\u201D (kilobytes), \u201Cmb\u201D (megabytes), or \u201Cgb\u201D (gigabytes).",
+        "Error: Couldn\u2019t find pattern in `/document/anything`. Couldn\u2019t parse byte count from: `not-a-byte-count`. Byte count must be formatted as a number followed by a unit (e.g. 2.4kb) where the acceptable units are \u201Cb\u201D (bytes), \u201Ckb\u201D (kilobytes), \u201Cmb\u201D (megabytes), or \u201Cgb\u201D (gigabytes).",
     );
 });

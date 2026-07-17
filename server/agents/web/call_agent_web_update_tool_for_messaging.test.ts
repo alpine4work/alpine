@@ -628,7 +628,7 @@ test("counts newly-created messages without ids when validating the next id (err
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 2. Try again with `id=\\"2\\"`.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 2. Try again with `id="2"`.',
     );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
@@ -668,7 +668,7 @@ test("counts newly-created messages without ids when validating the next id (err
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 2. Try again with `id=\\"2\\"`.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 2. Try again with `id="2"`.',
     );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
@@ -739,7 +739,7 @@ test("rejects edits to messages from another account", async () => {
             updates: [{old: "Alice original", new: "Alice edited by ChatGPT", replaceAll: false}],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update your `<message>`s. You can\u2019t update a `<message>` created by Alice. `<message id=\\"0\\" from=\\"Alice\\">` was changed by this update. Try again with a more specific update that only changes the content of messages from you or adds new messages.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update your `<message>`s. You can\u2019t update a `<message>` created by Alice. `<message id="0" from="Alice">` was changed by this update. Try again with a more specific update that only changes the content of messages from you or adds new messages.',
     );
 });
 
@@ -764,7 +764,7 @@ test("rejects changing an existing bot message into another account\u2019s messa
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id=\\"1\\">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="1">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
     );
 });
 
@@ -787,7 +787,7 @@ test("rejects edits to existing message metadata", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id=\\"0\\">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="0">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
     );
 });
 
@@ -821,7 +821,7 @@ test("rejects edits to an existing bot message blockquote parent", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id=\\"1\\">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="1">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
     );
 });
 
@@ -936,7 +936,7 @@ test("rejects creating messages from another account", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can only add a `<message>` from yourself. Try again with a `from` attribute that references yourself (`from=\\"[ChatGPT](/bot/chatgpt)\\"`).',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only add a `<message>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
     );
 });
 
@@ -958,7 +958,7 @@ test("rejects creating messages with an incorrect id", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 1. Try again with `id=\\"1\\"`.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is 1. Try again with `id="1"`.',
     );
 });
 
@@ -1243,7 +1243,7 @@ test("rejects removing files from an existing bot message", async () => {
             updates: [{old: "\n\n![](/file/image.png)", new: "", replaceAll: false}],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id=\\"0\\">` exactly as they appeared.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id="0">` exactly as they appeared.',
     );
 });
 
@@ -1278,7 +1278,7 @@ test("rejects adding files to an existing bot message", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id=\\"0\\">` exactly as they appeared.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id="0">` exactly as they appeared.',
     );
 });
 
@@ -1306,7 +1306,7 @@ test("rejects reordering files in an existing bot message", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id=\\"0\\">` exactly as they appeared.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id="0">` exactly as they appeared.',
     );
 });
 
@@ -1443,7 +1443,7 @@ test("rejects creating a reply when the cited parent message is not on the page"
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. Couldn\u2019t find `<message id=\\"4\\">` referenced by `<blockquote cite=\\"?message=4\\">` on the current page. To create a message that replies to another message, the cited message must be visible on the current page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<message>` you\u2019re replying to is on the same page you\u2019re updating.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. Couldn\u2019t find `<message id="4">` referenced by `<blockquote cite="?message=4">` on the current page. To create a message that replies to another message, the cited message must be visible on the current page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<message>` you\u2019re replying to is on the same page you\u2019re updating.',
     );
 
     expect(getCreateMessageRequests()).toEqual([]);
@@ -1469,7 +1469,7 @@ test("rejects creating a reply when the blockquote author prefix is wrong", asyn
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` content starts with `[Bob](...): `, but `<message id=\\"0\\">` is from \u201CAlice\u201D. Try again with `[Alice](...): ` before any other `<blockquote>` content.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` content starts with `[Bob](...): `, but `<message id="0">` is from \u201CAlice\u201D. Try again with `[Alice](...): ` before any other `<blockquote>` content.',
     );
 
     expect(getCreateMessageRequests()).toEqual([]);
@@ -1494,7 +1494,7 @@ test("rejects creating a reply when the quoted parent content matches twice in o
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. 2 matches were found for the quoted content in `<blockquote>` in `<message id=\\"0\\">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
+        'Error: Couldn\u2019t update `/chat/incident-response`. 2 matches were found for the quoted content in `<blockquote>` in `<message id=\"0\">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
     );
 
     expect(getCreateMessageRequests()).toEqual([]);
@@ -1519,7 +1519,7 @@ test("rejects creating a reply when the quote match is out of bounds for one mat
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` `match` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was `match=\\"2\\"`. Try again but omit the `match` attribute.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` `match` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was `match="2"`. Try again but omit the `match` attribute.',
     );
 
     expect(getCreateMessageRequests()).toEqual([]);
@@ -1544,7 +1544,7 @@ test("rejects creating a reply when the quote match is out of bounds for multipl
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` `match` attribute must be between 1 and 2, instead it was `match=\\"3\\"`. Try again with a valid 1-indexed `match` attribute.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` `match` attribute must be between 1 and 2, instead it was `match="3"`. Try again with a valid 1-indexed `match` attribute.',
     );
 
     expect(getCreateMessageRequests()).toEqual([]);
@@ -1642,7 +1642,7 @@ test("rejects creating a reply when cite overlaps but does not match a merged me
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` `cite` attribute must exactly match a `<message>` `id` on the current page. `cite=\\"?message=1\\"` overlaps with `<message id=\\"0-1\\">`, but doesn\u2019t exactly match it. Try again with `cite=\\"?message=0-1\\"`.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. The `<blockquote>` `cite` attribute must exactly match a `<message>` `id` on the current page. `cite="?message=1"` overlaps with `<message id="0-1">`, but doesn\u2019t exactly match it. Try again with `cite="?message=0-1"`.',
     );
 
     expect(getCreateMessageRequests()).toEqual([]);
@@ -1716,7 +1716,7 @@ test("throws UnimplementedError when creating a message with a timezone attribut
             ],
         }),
     ).resolves.toEqual(
-        "Error: Couldn\u2019t update `/chat/incident-response`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\\`TimeZone\\\` type hasn\u2019t been implemented",
+        "Error: Couldn\u2019t update `/chat/incident-response`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\`TimeZone\\` type hasn\u2019t been implemented",
     );
 });
 
@@ -1885,6 +1885,6 @@ test("rejects adding another account from attribute to a cached message without 
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id=\\"1\\">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="1">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
     );
 });
