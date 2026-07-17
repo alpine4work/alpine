@@ -747,7 +747,7 @@ async function actuallyParseAgentWebMessagingPage<
                     throw new InvalidArgumentError(
                         "Unexpected text in the same HTML Markdown node as an open or close tag",
                         {
-                            displayMessage: errorDisplayMessage`Must add an empty new line between the ${quote(tag)} ${tagType} tag and markdown text. Otherwise, due to a quirk in markdown, the text on line ${line ?? "unknown"} will be parsed as HTML instead of markdown. The ${quote(`<${tagName}>`)} must be formatted like this: ${quote(`<${tagName}>\\n\\n...\\n\\n</${tagName}>`)}.`,
+                            displayMessage: errorDisplayMessage`Must add an empty new line between the ${quote(tag)} ${tagType} tag and markdown text. Otherwise, due to a quirk in markdown, the text on line ${line ?? "unknown"} will be parsed as HTML instead of markdown. The ${quote(`<${tagName}>`)} must be formatted like this: ${quote(`<${tagName}>\n\n...\n\n</${tagName}>`)}.`,
                         },
                     );
                 }
