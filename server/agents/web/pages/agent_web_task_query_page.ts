@@ -846,7 +846,7 @@ function parseAgentWebTaskQueryPageTaskLabel(
 
     if (statusMatch === null) {
         throw new InvalidArgumentError("Missing status in task query task label", {
-            displayMessage: errorDisplayMessage`Missing status at the end of task label on line ${position?.start.line ?? "unknown"}. Task$ labels must end with \u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task label like \u201CMy Task (Open)\u201D.`,
+            displayMessage: errorDisplayMessage`Missing status at the end of task label on line ${position?.start.line ?? "unknown"}. Task labels must end with \u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task label like \u201CMy Task (Open)\u201D.`,
         });
     }
 

@@ -15,12 +15,12 @@ import {ApiContentMentionInlineElementResponse} from "~/shared/api/specification
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
-// NOCOMMIT: Delete and replace with `print_api_content_to_markdown.ts`
-
 /**
  * Print API content to Markdown for an agent. Strips some Markdown formatting that
  * we think is too technical for an LLM. For example, removes URLs from links. We
  * give LLMs a tool to read content from links.
+ *
+ * @deprecated Use similar behavior from `server/agents/web` instead.
  */
 export async function printApiContentToAgentMarkdown(
     storage: DurableObjectStorageInterface,
@@ -34,6 +34,8 @@ export async function printApiContentToAgentMarkdown(
  * Print API content to Markdown for an agent. Strips some Markdown formatting that
  * we think is too technical for an LLM. For example, removes URLs from links. We
  * give LLMs a tool to read content from links.
+ *
+ * @deprecated Use similar behavior from `server/agents/web` instead.
  */
 export async function printApiContentToAgentMarkdownTree(
     storage: DurableObjectStorageInterface,
@@ -137,6 +139,8 @@ export async function printApiContentToAgentMarkdownTree(
  * The new lines are technically correct, but are not useful for the LLM. They also
  * make the log harder to read. This function strips new lines after opening
  * message tags and before closing message tags.
+ *
+ * @deprecated Use similar behavior from `server/agents/web` instead.
  */
 export function printAgentContentMarkdownTree(markdownRoot: Root): string {
     const markdownString = printMarkdownTree(markdownRoot);

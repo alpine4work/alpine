@@ -1494,7 +1494,7 @@ test("rejects creating a reply when the quoted parent content matches twice in o
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. 2 matches were found for the quoted content in `<blockquote>` in `<message id=\"0\">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
+        'Error: Couldn\u2019t update `/chat/incident-response`. 2 matches were found for the quoted content in `<blockquote>` in `<message id="0">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
     );
 
     expect(getCreateMessageRequests()).toEqual([]);

@@ -34,8 +34,6 @@ test.each([
             [1_699_999_999_999, 8],
             taskId,
         ] as TaskQuerySortCursor,
-        // NOCOMMIT: Can we drop a few characters from this? Maybe by only including a bit
-        // of the `TaskCollectionId`?
         encoded: "UOC8q18IP7L71mY6ZRyw_tU3F69w6u5Hh1wd5n_Rs-hoNY5L8ejhVsw",
     },
     {
