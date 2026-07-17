@@ -7,7 +7,7 @@ import {MessageInputDraftSyncState} from "~/client/web/messaging/message_input_d
 import {sendRpcNavigatorBeacon} from "~/client/web/rpc/send_rpc_navigator_beacon.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
-import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
+import {getClientTracerSynchronizedSystemClock} from "~/client/web/tracer/client_tracer_synchronized_system_clock.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -456,7 +456,7 @@ function getMessageDraftForWriteOperation(operation: MessageDraftWriteOperation)
 }
 
 function createMessageDraftVersionClock() {
-    const synchronizedSystemClockPromise = getSynchronizedSystemClock();
+    const synchronizedSystemClockPromise = getClientTracerSynchronizedSystemClock();
     let synchronizedSystemClock: Clock | null = null;
 
     return new HybridLogicalClock({

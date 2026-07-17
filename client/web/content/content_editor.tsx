@@ -178,7 +178,7 @@ import {
     contentStyles,
     selectionColorSchemeVars,
 } from "~/client/web/styles/styles.js";
-import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
+import {getClientTracerSynchronizedSystemClock} from "~/client/web/tracer/client_tracer_synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -1771,7 +1771,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         // let's use our synchronized clock to generate the `FileId`.
         const generateFileIdWithSynchronizedClock = () => {
             const clock =
-                getSynchronizedSystemClock().getStateWithoutListening().value ??
+                getClientTracerSynchronizedSystemClock().getStateWithoutListening().value ??
                 unsynchronizedSystemClock;
 
             return generateChronologicalIdWithTime<FileId>(Math.round(clock.now()));
