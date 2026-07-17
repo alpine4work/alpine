@@ -48,7 +48,7 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 const tracer = TracerRoot.new({
-    serviceName: "AgentWebCli",
+    serviceName: "CliClient",
     jsHost: "Node",
     untrusted: true,
     // NOCOMMIT: Synchronize with Alpine clock? Like the client?

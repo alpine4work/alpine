@@ -69,7 +69,7 @@ export type TracerServiceName =
     | "FileProcessorService"
     | "ApiService"
     | "AgentService"
-    | "AgentWebCli"
+    | "CliClient"
     | "ChatGptAgentService"
     | "CursorAgentService"
     | "MockAgentService"
