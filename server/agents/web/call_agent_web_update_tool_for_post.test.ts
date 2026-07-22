@@ -22,7 +22,11 @@ import {
 import {assert} from "~/shared/helpers/control/assert.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {
+    TimeZone,
+    defaultTimeZone,
+    formatTimeZoneAbbreviation,
+} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -314,6 +318,7 @@ test("creates the first comment on a post", async () => {
     expect(getCreateCommentRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First bot comment."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -338,6 +343,7 @@ test("creates the first comment on a post with end marker", async () => {
     expect(getCreateCommentRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First bot comment."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -748,8 +754,10 @@ Error: Couldn\u2019t update \`/post/launch\`. An unexpected error occurred, plea
 > Internal error: Creating message with parent as agent isn\u2019t implemented yet`);
 });
 
-test("throws UnimplementedError when creating a comment with a timezone attribute", async () => {
+test("creates a comment with a timezone attribute", async () => {
     await readPost({totalCommentCount: 0});
+    mockCreateComments({count: 1});
+    const timeZoneAttribute = formatTimeZoneAbbreviation(context.timeZone, new Date());
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -757,12 +765,16 @@ test("throws UnimplementedError when creating a comment with a timezone attribut
             updates: [
                 {
                     old: "\n\n</post>",
-                    new: '\n\n</post>\n\n<comment id="0" from="[ChatGPT](/bot/chatgpt)" timezone="EDT">\n\nTimezone is explicit.\n\n</comment>\n\nEnd of comments.',
+                    new: `\n\n</post>\n\n<comment id="0" from="[ChatGPT](/bot/chatgpt)" timezone="${timeZoneAttribute}">\n\nTimezone is explicit.\n\n</comment>\n\nEnd of comments.`,
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t update `/post/launch`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\`TimeZone\\` type hasn\u2019t been implemented",
-    );
+    ).resolves.toEqual("Update was successful.");
+    expect(getCreateCommentRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("Timezone is explicit."),
+            createdTimeZone: context.timeZone,
+        },
+    ]);
 });

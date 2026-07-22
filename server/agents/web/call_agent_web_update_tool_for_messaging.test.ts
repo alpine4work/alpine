@@ -34,7 +34,7 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultTimeZone, formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChatId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -249,6 +249,7 @@ test("creates the first message in an empty chat", async () => {
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First bot update."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -273,6 +274,7 @@ test("creates a message without a from attribute", async () => {
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First implicit-author update."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -320,6 +322,7 @@ test("creates a message with file attachments", async () => {
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("Files for review."),
+            createdTimeZone: context.timeZone,
             files: [
                 {element: {type: "File", file: {id: firstFileId}}},
                 {element: {type: "File", file: {id: secondFileId}}},
@@ -357,6 +360,7 @@ test("creates a message with the next valid id after existing messages", async (
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("Bot reply with id."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -384,9 +388,11 @@ test("creates multiple messages in one update in order", async () => {
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First new message."),
+            createdTimeZone: context.timeZone,
         },
         {
             content: createTextContent("Second new message."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -413,6 +419,7 @@ test("allows a later new message to quote an earlier new message", async () => {
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("Parent from this update."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -441,6 +448,7 @@ test("reports unseen messages after creating one message in an empty chat", asyn
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("New message after unseen message."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -468,9 +476,11 @@ test("reports unseen messages after creating multiple messages in an empty chat"
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First new message after unseen message."),
+            createdTimeZone: context.timeZone,
         },
         {
             content: createTextContent("Second new message after unseen message."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -506,6 +516,7 @@ test("reports unseen messages after creating one message with existing messages"
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("New message after unseen existing message."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -541,9 +552,11 @@ test("reports unseen messages after creating multiple messages with existing mes
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First new message after unseen existing messages."),
+            createdTimeZone: context.timeZone,
         },
         {
             content: createTextContent("Second new message after unseen existing messages."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -574,6 +587,7 @@ test("creates a message on the final page when earlier messages are paginated", 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("New message on final page."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -614,9 +628,11 @@ test("counts newly-created messages without ids when validating the next id", as
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("New message without id."),
+            createdTimeZone: context.timeZone,
         },
         {
             content: createTextContent("New message after null id."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -657,6 +673,7 @@ test("counts newly-created messages without ids when validating the next id (err
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("New message without id."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -697,6 +714,7 @@ test("counts newly-created messages without ids when validating the next id (err
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("New message without id."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -1084,6 +1102,7 @@ test("allows removing the end marker while creating messages", async () => {
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("Missing end marker."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });
@@ -1122,8 +1141,8 @@ test("allows removing the end marker while creating messages and then allows cre
     ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("Test message 1")},
-        {content: createTextContent("Test message 2")},
+        {content: createTextContent("Test message 1"), createdTimeZone: context.timeZone},
+        {content: createTextContent("Test message 2"), createdTimeZone: context.timeZone},
     ]);
 });
 
@@ -1161,8 +1180,8 @@ test("allows removing the end marker while creating messages and then allows cre
     ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("Test message 1")},
-        {content: createTextContent("Test message 2")},
+        {content: createTextContent("Test message 1"), createdTimeZone: context.timeZone},
+        {content: createTextContent("Test message 2"), createdTimeZone: context.timeZone},
     ]);
 });
 
@@ -1721,11 +1740,13 @@ Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occ
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
-test("throws UnimplementedError when creating a message with a timezone attribute", async () => {
+test("creates a message with a timezone attribute", async () => {
     await readChat({
         totalMessageCount: 1,
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
+    mockCreateMessages({count: 1, startIndex: 1});
+    const timeZoneAttribute = formatTimeZoneAbbreviation(context.timeZone, new Date());
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -1733,14 +1754,18 @@ test("throws UnimplementedError when creating a message with a timezone attribut
             updates: [
                 {
                     old: "\n\nEnd of messages.",
-                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)" timezone="EDT">\n\nTimezone is explicit.\n\n</message>\n\nEnd of messages.',
+                    new: `\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)" timezone="${timeZoneAttribute}">\n\nTimezone is explicit.\n\n</message>\n\nEnd of messages.`,
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t update `/chat/incident-response`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\`TimeZone\\` type hasn\u2019t been implemented",
-    );
+    ).resolves.toEqual("Update was successful.");
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("Timezone is explicit."),
+            createdTimeZone: context.timeZone,
+        },
+    ]);
 });
 
 test("throws UnimplementedError without creating when updating and creating together", async () => {
@@ -1874,6 +1899,7 @@ test("allows adding the current account from attribute to a cached message witho
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("New message without author."),
+            createdTimeZone: context.timeZone,
         },
     ]);
 });

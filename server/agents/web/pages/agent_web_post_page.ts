@@ -28,6 +28,7 @@ import {
     readAgentWebMessagingPageInDirection,
 } from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
+import {parseAgentWebTimeZoneAttribute} from "~/server/agents/web/parse_agent_web_time_zone_attribute.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
@@ -58,7 +59,7 @@ import {mapMaybeThunk} from "~/shared/helpers/control/map_maybe_thunk.js";
 import {memoMaybeThunk} from "~/shared/helpers/control/memo_maybe_thunk.js";
 import {unwrapMaybeThunk} from "~/shared/helpers/control/unwrap_maybe_thunk.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
-import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone, formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -137,6 +138,7 @@ export type AgentWebPostPageMetadata = Omit<AgentWebMessagingPageMetadata, "isSt
 } & (
         | {
               readonly isStartOfMessages: true;
+              readonly createdTimeZone: TimeZone;
               readonly postKeys: ReadonlyArray<ApiContentKey> | null;
           }
         | {
@@ -233,6 +235,7 @@ export async function readAgentWebPostPage(
     type RoomMetadata = {
         pageLink: ApiPostReferenceResponse;
         preamble: AgentWebPostPagePreambleBase;
+        createdTimeZone: TimeZone | null;
         startCustomBlock: {
             time: Date;
             block: AgentWebPostPageCustomBlock;
@@ -273,6 +276,7 @@ export async function readAgentWebPostPage(
                       }
                     : null,
             },
+            createdTimeZone: post.createdTimeZone,
             startCustomBlock: {
                 time: postCreatedTime,
                 block: {
@@ -305,6 +309,7 @@ export async function readAgentWebPostPage(
                     type: "Tail",
                     post: postReference,
                 },
+                createdTimeZone: null,
                 startCustomBlock: null,
                 keys: null,
             };
@@ -473,12 +478,15 @@ export async function readAgentWebPostPage(
         assert(hasPostOpenTag);
         assert(hasLoadedStartCustomBlock);
 
+        const roomMetadata = await roomMetadataWithStartCustomBlock.get();
+
         actualMetadata = {
             ...metadata,
             type: "Post",
             id,
             isStartOfMessages: true,
-            postKeys: assertExists((await roomMetadataWithStartCustomBlock.get()).keys),
+            createdTimeZone: assertExists(roomMetadata.createdTimeZone),
+            postKeys: assertExists(roomMetadata.keys),
         };
     }
 
@@ -564,12 +572,10 @@ export async function createAgentWebPostPage(
         });
     }
 
-    if (postBlock.timeZoneAttribute !== null) {
-        // TODO(#agents-web): Implement parsing of time zone attribute.
-        throw new UnimplementedError(
-            "Parsing of time zone attribute into `TimeZone` type hasn\u2019t been implemented",
-        );
-    }
+    const createdTimeZone =
+        postBlock.timeZoneAttribute === null
+            ? context.timeZone
+            : parseAgentWebTimeZoneAttribute(postBlock.timeZoneAttribute, context.timeZone);
 
     // Creation is placed in a `Lazy` since we want to create the post at the last
     // possible moment before it's needed. We want `updateAgentWebPostPage()` to run
@@ -583,6 +589,7 @@ export async function createAgentWebPostPage(
             body: {
                 spaceId: context.spaceId,
                 post: {
+                    createdTimeZone,
                     channel,
                     content: postBlock.content,
                 },
@@ -617,6 +624,7 @@ export async function createAgentWebPostPage(
                 id: post.id,
                 isStartOfMessages: true,
                 isEndOfMessages: true,
+                createdTimeZone: post.createdTimeZone,
                 postKeys: keys,
                 messages: [],
             };

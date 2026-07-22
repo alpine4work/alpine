@@ -17,7 +17,7 @@ import type {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultTimeZone, formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import type {AccountId, BotId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -340,8 +340,8 @@ End of comments.`,
         },
     ]);
     expect(getCreateCommentRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("First launch comment.")},
-        {content: createTextContent("Second launch comment.")},
+        {content: createTextContent("First launch comment."), createdTimeZone: context.timeZone},
+        {content: createTextContent("Second launch comment."), createdTimeZone: context.timeZone},
     ]);
     expect(await storage.readResponseByPath.get("/post/launch-comments")).toMatchObject({
         pageMetadata: {
@@ -403,8 +403,8 @@ End of comments.`,
     ).resolves.toEqual("Update was successful.");
 
     expect(getCreateCommentRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("First update comment.")},
-        {content: createTextContent("Second update comment.")},
+        {content: createTextContent("First update comment."), createdTimeZone: context.timeZone},
+        {content: createTextContent("Second update comment."), createdTimeZone: context.timeZone},
     ]);
     expect(await storage.readResponseByPath.get("/post/launch-update-comments")).toMatchObject({
         pageMetadata: {
@@ -618,24 +618,32 @@ Not from the bot.
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
-test("throws UnimplementedError when creating a post with a timezone attribute", async () => {
+test("creates a post with a timezone attribute", async () => {
+    const postId = mockCreatePost({title: "Explicit Timezone"});
+    const timeZoneAttribute = formatTimeZoneAbbreviation(context.timeZone, new Date());
+
     await expect(
         callAgentWebCreateTool(context, {
             type: "post",
             content: `\
 Post in [Announcements](/channel/announcements).
 
-<post from="[ChatGPT](/bot/chatgpt)" timezone="EDT">
+<post from="[ChatGPT](/bot/chatgpt)" timezone="${timeZoneAttribute}">
 
 Timezone is explicit.
 
 </post>`,
         }),
     ).resolves.toEqual(
-        "Error: Couldn\u2019t create post. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc\n\n> Internal error: Parsing of time zone attribute into \\`TimeZone\\` type hasn\u2019t been implemented",
+        "Create was successful. New post: [Explicit Timezone](/post/explicit-timezone).",
     );
-    expect(getCreatePostRequests()).toEqual([]);
+    expect(getCreatePostRequests()).toMatchObject([
+        {body: {post: {createdTimeZone: context.timeZone}}},
+    ]);
     expect(getCreateCommentRequests()).toEqual([]);
+    expect(await storage.readResponseByPath.get("/post/explicit-timezone")).toMatchObject({
+        pageMetadata: {id: postId, createdTimeZone: context.timeZone},
+    });
 });
 
 test("rejects creating a comment from another account while creating a post", async () => {
@@ -814,8 +822,10 @@ End of comments.`,
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
-test("throws UnimplementedError when creating a comment with a timezone attribute while creating a post", async () => {
-    mockCreatePost({title: "Timezone Comment"});
+test("creates a comment with a timezone attribute while creating a post", async () => {
+    const postId = mockCreatePost({title: "Timezone Comment"});
+    mockCreateComments({postId, indexes: [0]});
+    const timeZoneAttribute = formatTimeZoneAbbreviation(context.timeZone, new Date());
 
     await expect(
         callAgentWebCreateTool(context, {
@@ -829,7 +839,7 @@ Launch plan body.
 
 </post>
 
-<comment id="0" from="[ChatGPT](/bot/chatgpt)" timezone="EDT">
+<comment id="0" from="[ChatGPT](/bot/chatgpt)" timezone="${timeZoneAttribute}">
 
 Timezone is explicit.
 
@@ -838,8 +848,13 @@ Timezone is explicit.
 End of comments.`,
         }),
     ).resolves.toEqual(
-        "Error: Couldn\u2019t create post. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
+        "Create was successful. New post: [Timezone Comment](/post/timezone-comment).",
     );
     expect(getCreatePostRequests()).toHaveLength(1);
-    expect(getCreateCommentRequests()).toEqual([]);
+    expect(getCreateCommentRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("Timezone is explicit."),
+            createdTimeZone: context.timeZone,
+        },
+    ]);
 });

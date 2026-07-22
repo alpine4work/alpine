@@ -14,6 +14,7 @@ import {
     AgentWebMessagingPagePagination,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {printAgentWebMessagingPageMessageIndexRange} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
+import {parseAgentWebTimeZoneAttribute} from "~/server/agents/web/parse_agent_web_time_zone_attribute.js";
 import {findApiContentRanges} from "~/shared/api/content/find_api_content_ranges.js";
 import {
     normalizeApiContent,
@@ -388,6 +389,11 @@ export async function updateAgentWebMessagingPage<
             });
         }
 
+        const createdTimeZone =
+            newBlock.timeZoneAttribute === null
+                ? context.timeZone
+                : parseAgentWebTimeZoneAttribute(newBlock.timeZoneAttribute, context.timeZone);
+
         const {content, files} = extractApiMessageFilesFromContent(newBlock.content);
 
         let newBlockParentRange: {
@@ -563,17 +569,11 @@ export async function updateAgentWebMessagingPage<
                 );
             }
 
-            if (newBlock.timeZoneAttribute !== null) {
-                // TODO(#agents-web): Implement parsing of time zone attribute.
-                throw new UnimplementedError(
-                    "Parsing of time zone attribute into `TimeZone` type hasn\u2019t been implemented",
-                );
-            }
-
             const {
                 data: {message},
             } = await createApiMessage(context.span, context.api, actualRoom, {
                 content,
+                createdTimeZone,
                 ...(files.length > 0
                     ? {
                           files: files.map(element => {
