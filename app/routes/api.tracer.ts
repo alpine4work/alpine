@@ -40,16 +40,28 @@ export async function action({request, context, span}: LoaderArgs) {
                         "All events coming from an untrusted client must have the `meta.untrusted` attribute set to true",
                     );
 
-                // We may have other untrusted hosts in the future. We validate both the
-                // `meta.untrusted` attribute and `js.host` so that we can filter on
-                // `js.host = "Node"` and be guaranteed to see only trusted events.
-                //
-                // NOCOMMIT: Allow `js.host` of node for the CLI service. Assert the sertvice name
-                // is expected.
-                if (event.data["js.host"] !== "Web") {
-                    throw new InvalidArgumentError(
-                        "All events coming from an untrusted client must have `js.host` set to an untrusted host",
-                    );
+                switch (event.data["service.name"]) {
+                    case "AppClient": {
+                        if (event.data["js.host"] !== "Web") {
+                            throw new InvalidArgumentError(
+                                "All events coming from `AppClient` untrusted client must have `js.host` set to `Web`",
+                            );
+                        }
+                        break;
+                    }
+                    case "CliClient": {
+                        if (event.data["js.host"] !== "Node") {
+                            throw new InvalidArgumentError(
+                                "All events coming from `CliClient` untrusted client must have `js.host` set to `Node`",
+                            );
+                        }
+                        break;
+                    }
+                    default: {
+                        throw new InvalidArgumentError(
+                            "Unrecognized `service.name` for untrusted client",
+                        );
+                    }
                 }
 
                 // Now that we've validated our event, send it with our root tracer. The root
