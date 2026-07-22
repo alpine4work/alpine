@@ -271,6 +271,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 - [ ] Unresolved
 
 <blockquote>\n\ncurrent\n\n</blockquote>\n
+<time>May 14th at 11:00am EDT</time>\n
 <comment id="0" from="[Bob](/human/bob)">\n\nFirst comment.\n\n</comment>
 
 End of comments.`);
@@ -304,6 +305,8 @@ Document comment thread on [Launch Spec](/document/launch-spec). [Next page »](
 current
 
 </blockquote>
+
+<time>May 14th at 11:00am EDT</time>
 
 <comment id="0" from="[Bob](/human/bob)">
 
@@ -965,6 +968,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 - [ ] Unresolved
 
 <blockquote>\n\ncurrent\n\n</blockquote>\n
+<time>May 14th at 11:00am EDT</time>\n
 <comment id="0" from="[Bob](/human/bob)">\n\nNearby comment.\n\n</comment>\n
 <comment id="1" from="[Alice](/human/alice)" time="5 minutes later">\n\nSecond comment.\n\n</comment>\n
 <comment id="2" from="[Bob](/human/bob)" time="5 minutes later">\n\nNearby comment.\n\n</comment>
