@@ -83,8 +83,10 @@ test("activate and assign a task to another account in the same update", async (
     expect(
         await cli.run(`\
 alpine update /task/activate-and-assign \\
-  --old '- Status: Open' \\
-  --new '- Status: Open (Active)
+  --old '# Activate and assign' \\
+  --new '# Activate and assign
+
+- Status: Open (Active)
 - Assignee: [Alice](/human/alice)'
 `),
     ).toEqual(`\
@@ -99,14 +101,18 @@ Update was successful.
 `);
 });
 
-test("activate and assign a task to another account in the same update", async () => {
+test("activate and reassign a task to another account in the same update", async () => {
     await cli.session.space.createSession({name: "Alice"});
     await cli.session.space.createSession({name: "Bob"});
 
-    expect(await cli.run("alpine search 'Alice Bob'")).toEqual(`\
+    expect(await cli.run("alpine search Alice")).toEqual(`\
 1. [Alice](/human/alice)
+`);
 
-2. [Bob](/human/bob)
+    expect(await cli.run("alpine search Bob")).toEqual(`\
+1. [Bob](/human/bob)
+
+2. [My Bot](/bot/my-bot)
 `);
 
     await cli.run(`\
@@ -118,8 +124,7 @@ alpine create task '# Activate and assign
     expect(
         await cli.run(`\
 alpine update /task/activate-and-assign \\
-  --old '- Status: Open
-- Assignee: [Bob](/human/bob)' \\
+  --old '- Assignee: [Bob](/human/bob)' \\
   --new '- Status: Open (Active)
 - Assignee: [Alice](/human/alice)'
 `),
@@ -161,6 +166,70 @@ Error: Couldn\u2019t read \`${nextPagePath}&sort=-created\`. Invalid task query 
 `);
 });
 
+test("reject a task collection cursor after its default sorts change", async () => {
+    const collection = await TestTaskCollection.create(cli.session, {
+        name: "Changing default sorts roadmap",
+        access: "Public",
+    });
+    await collection.updateDefaults(cli.session, {
+        filters: [],
+        sorts: [{type: "CreatedTime", direction: "Descending"}],
+    });
+
+    await TestTask.create(cli.session, {
+        title: "Changing default sorts task 01",
+        collections: collection,
+    });
+    await TestTask.create(cli.session, {
+        title: "Changing default sorts task 02",
+        collections: collection,
+    });
+    await TestTask.create(cli.session, {
+        title: "Changing default sorts task 03",
+        collections: collection,
+    });
+    await TestTask.create(cli.session, {
+        title: "Changing default sorts task 04",
+        collections: collection,
+    });
+    await TestTask.create(cli.session, {
+        title: "Changing default sorts task 05",
+        collections: collection,
+    });
+    await TestTask.create(cli.session, {
+        title: "Changing default sorts task 06",
+        collections: collection,
+    });
+    await TestTask.create(cli.session, {
+        title: "Changing default sorts task 07",
+        collections: collection,
+    });
+    await TestTask.create(cli.session, {
+        title: "Changing default sorts task 08",
+        collections: collection,
+    });
+
+    expect(await cli.run("alpine search 'Changing default sorts roadmap'")).toEqual(`\
+1. [Changing default sorts roadmap](/task-collection/changing-default-sorts-roadmap)
+`);
+
+    const nextPagePath = (
+        await cli.run(`\
+page="$(alpine read /task-collection/changing-default-sorts-roadmap --limit 240b)"
+printf '%s' "$page" | sed -n '/Next page »/ { s/.*Next page »](//; s/).*//; p; }'
+`)
+    ).trim();
+
+    await collection.updateDefaults(cli.session, {
+        filters: [],
+        sorts: [{type: "CreatedTime", direction: "Ascending"}],
+    });
+
+    expect(await cli.run(`alpine read '${nextPagePath}'`)).toEqual(`\
+Error: Couldn’t read \`${nextPagePath}\`. Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts. (You may get this error if you’re paginating through a task collection when the task collection’s default sorts change. In that case try paginating from the start of the collection again and you’ll pick up the new sorts.)
+`);
+});
+
 test("shuffle task collection tasks and observe the order with a fresh read", async () => {
     await cli.run(`\
 alpine create task-collection '# Shuffle roadmap
@@ -174,20 +243,14 @@ alpine create task-collection '# Shuffle roadmap
     expect(
         await cli.run(`\
 alpine update /task-collection/shuffle-roadmap \\
-  --old '- [Shuffle alpha (Open)](/task/shuffle-alpha)
-
-- [Shuffle bravo (Open)](/task/shuffle-bravo)
-
-- [Shuffle charlie (Open)](/task/shuffle-charlie)
-
-- [Shuffle delta (Open)](/task/shuffle-delta)' \\
-  --new '- [Shuffle charlie (Open)](/task/shuffle-charlie)
-
-- [Shuffle alpha (Open)](/task/shuffle-alpha)
-
-- [Shuffle delta (Open)](/task/shuffle-delta)
-
-- [Shuffle bravo (Open)](/task/shuffle-bravo)'
+  --old '- Shuffle alpha (Open)
+- Shuffle bravo (Open)
+- Shuffle charlie (Open)
+- Shuffle delta (Open)' \\
+  --new '- Shuffle charlie (Open)
+- Shuffle alpha (Open)
+- Shuffle delta (Open)
+- Shuffle bravo (Open)'
 `),
     ).toEqual(`\
 Update was successful.
@@ -220,18 +283,13 @@ alpine create task-collection '# Move and add roadmap
     expect(
         await cli.run(`\
 alpine update /task-collection/move-and-add-roadmap \\
-  --old '- [Move add alpha (Open)](/task/move-add-alpha)
-
-- [Move add bravo (Open)](/task/move-add-bravo)
-
-- [Move add charlie (Open)](/task/move-add-charlie)' \\
-  --new '- [Move add charlie (Open)](/task/move-add-charlie)
-
+  --old '- Move add alpha (Open)
+- Move add bravo (Open)
+- Move add charlie (Open)' \\
+  --new '- Move add charlie (Open)
 - Move add new task (Open)
-
-- [Move add alpha (Open)](/task/move-add-alpha)
-
-- [Move add bravo (Open)](/task/move-add-bravo)'
+- Move add alpha (Open)
+- Move add bravo (Open)'
 `),
     ).toEqual(`\
 Update was successful.
@@ -265,36 +323,24 @@ alpine create task-collection '# Successive moves roadmap
     expect(
         await cli.run(`\
 alpine update /task-collection/successive-moves-roadmap \\
-  --old '- [Successive alpha (Open)](/task/successive-alpha)
-
-- [Successive bravo (Open)](/task/successive-bravo)
-
-- [Successive charlie (Open)](/task/successive-charlie)
-
-- [Successive delta (Open)](/task/successive-delta)' \\
-  --new '- [Successive delta (Open)](/task/successive-delta)
-
-- [Successive alpha (Open)](/task/successive-alpha)
-
-- [Successive bravo (Open)](/task/successive-bravo)
-
-- [Successive charlie (Open)](/task/successive-charlie)'
+  --old '- Successive alpha (Open)
+- Successive bravo (Open)
+- Successive charlie (Open)
+- Successive delta (Open)' \\
+  --new '- Successive delta (Open)
+- Successive alpha (Open)
+- Successive bravo (Open)
+- Successive charlie (Open)'
 
 alpine update /task-collection/successive-moves-roadmap \\
-  --old '- [Successive delta (Open)](/task/successive-delta)
-
-- [Successive alpha (Open)](/task/successive-alpha)
-
-- [Successive bravo (Open)](/task/successive-bravo)
-
-- [Successive charlie (Open)](/task/successive-charlie)' \\
-  --new '- [Successive delta (Open)](/task/successive-delta)
-
-- [Successive charlie (Open)](/task/successive-charlie)
-
-- [Successive alpha (Open)](/task/successive-alpha)
-
-- [Successive bravo (Open)](/task/successive-bravo)'
+  --old '- Successive delta (Open)
+- Successive alpha (Open)
+- Successive bravo (Open)
+- Successive charlie (Open)' \\
+  --new '- Successive delta (Open)
+- Successive charlie (Open)
+- Successive alpha (Open)
+- Successive bravo (Open)'
 `),
     ).toEqual(`\
 Update was successful.
@@ -332,7 +378,7 @@ alpine create task-collection '# Embedded existing roadmap
 
     expect(
         await cli.run(
-            "alpine update /task-collection/embedded-existing-roadmap --old '[Embedded existing task (Open)]' --new '[Embedded existing task (Open, active)]'",
+            "alpine update /task-collection/embedded-existing-roadmap --old 'Embedded existing task (Open)' --new 'Embedded existing task (Open, active)'",
         ),
     ).toEqual(`\
 Update was successful.
@@ -364,8 +410,8 @@ alpine create task-collection '# Embedded assignment roadmap
     expect(
         await cli.run(`\
 alpine update /task-collection/embedded-assignment-roadmap \\
-  --old '- [Embedded assignment task (Open)](/task/embedded-assignment-task)' \\
-  --new '- [Embedded assignment task (Open, active)](/task/embedded-assignment-task)
+  --old '- Embedded assignment task (Open)' \\
+  --new '- Embedded assignment task (Open, active)
   - Assignee: [Alice](/human/alice)'
 `),
     ).toEqual(`\
