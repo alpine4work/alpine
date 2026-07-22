@@ -257,9 +257,6 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
 
-    // NOCOMMIT: Add an integration test when a bot tries to use a `cursor` with
-    // different `sorts`. Or when an agent tries to use a `cursor` when the default
-    // sorts change from underneath them.
     const {afterCursor, query} = await parseAgentWebTaskQueryPageSearchParams(
         context.storage,
         pageLink,
