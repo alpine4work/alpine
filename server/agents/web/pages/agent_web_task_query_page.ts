@@ -997,12 +997,6 @@ export async function updateAgentWebTaskQueryPage(
         readonly task: AgentWebTaskQueryPageTask;
     }> = [];
 
-    // NOCOMMIT: Integration test where we shuffle task collection tasks and make sure
-    // after the API calls the resulting task order is correct with another read.
-    //
-    // NOCOMMIT: Lots of integration tests for moving tasks then also adding tasks at
-    // the same time (nearby). Also moving tasks in one `update` call and then making
-    // another `update` call that makes more moves.
     for (const oldTask of oldPageTasks) {
         assert(!oldTaskIds.has(oldTask.taskId));
         oldTaskIds.add(oldTask.taskId);
