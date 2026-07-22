@@ -16,6 +16,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 export type CliIntegrationTests = {
     readonly dataDirectoryPath: string;
     readonly services: TestServices;
+    readonly space: TestSpace;
     readonly session: TestSpaceSession;
     run(command: string): Promise<string>;
     runWithoutWaiting(command: string): Promise<string>;
@@ -48,13 +49,14 @@ export function setupCliForTest(): CliIntegrationTests {
         },
     );
 
+    let space: TestSpace | undefined;
     let session: TestSpaceSession | undefined;
     let dataDirectoryPath: string | undefined;
     let binDirectoryPath: string | undefined;
 
     beforeAll(async () => {
-        const space = await TestSpace.create(context);
-        session = await space.createSession({role: "Admin"});
+        space = await TestSpace.create(context);
+        session = await space.createSession({name: "Anthony Mose", role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session, {name: "My Bot"});
         const apiKey = await botAccount.createApiKey();
 
@@ -99,6 +101,9 @@ export function setupCliForTest(): CliIntegrationTests {
         services,
         get dataDirectoryPath() {
             return assertExists(dataDirectoryPath);
+        },
+        get space() {
+            return assertExists(space);
         },
         get session() {
             return assertExists(session);
