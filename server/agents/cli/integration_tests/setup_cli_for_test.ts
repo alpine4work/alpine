@@ -20,8 +20,7 @@ export type CliIntegrationTests = {
     readonly services: TestServices;
     readonly space: TestSpace;
     readonly session: TestSpaceSession;
-    run(command: string): Promise<string>;
-    runWithoutWaiting(command: string): Promise<string>;
+    run(command: string, options?: {baseUrl?: string}): Promise<string>;
 };
 
 /**
@@ -87,15 +86,18 @@ export function setupCliForTest(): CliIntegrationTests {
         await writeFile(joinPath(dataDirectoryPath, "auth.json"), JSON.stringify({apiKey}));
     });
 
-    async function run(command: string): Promise<string> {
+    async function run(command: string, options?: {baseUrl?: string}): Promise<string> {
         await ProcessContextModule.waitForTestTasks();
         await services.waitForSqsProcessJobs();
         await refreshSearchEntityKeywordIndexForTest(context);
 
-        return await runWithoutWaiting(command);
+        return await runWithoutWaiting(command, options);
     }
 
-    async function runWithoutWaiting(command: string): Promise<string> {
+    async function runWithoutWaiting(
+        command: string,
+        {baseUrl = services.getBaseUrl()}: {baseUrl?: string} = {},
+    ): Promise<string> {
         return await runProcess("/bin/sh", ["-c", command], {
             cwd: runfilesPath,
             isErrorExitCode: () => false,
@@ -104,7 +106,7 @@ export function setupCliForTest(): CliIntegrationTests {
                 PATH: process.env.PATH
                     ? `${binDirectoryPath}:${process.env.PATH}`
                     : binDirectoryPath,
-                ALPINE_URL: services.getBaseUrl(),
+                ALPINE_URL: baseUrl,
                 ALPINE_API_URL: services.getApiServiceBaseUrl(),
                 ALPINE_DATA_PATH: assertExists(dataDirectoryPath),
             },
@@ -123,6 +125,5 @@ export function setupCliForTest(): CliIntegrationTests {
             return assertExists(session);
         },
         run,
-        runWithoutWaiting,
     };
 }
