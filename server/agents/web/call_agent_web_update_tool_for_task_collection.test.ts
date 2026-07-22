@@ -586,7 +586,7 @@ test("sets an open task as active while assigning it", async () => {
                         status: {type: "Open", isActive: true},
                         assignee: alice,
                     },
-                    results: [{type: "SetAssignee"}, {type: "SetStatus"}],
+                    results: [{type: "SetStatus"}, {type: "SetAssignee"}],
                 },
             ],
         },
@@ -622,16 +622,16 @@ test("sets an open task as active while assigning it", async () => {
                     type: "Update",
                     id: task2.id,
                     patch: {
-                        type: "SetAssignee",
-                        assignee: {id: alice.id},
+                        type: "SetStatus",
+                        status: {type: "Open", isActive: true},
                     },
                 },
                 {
                     type: "Update",
                     id: task2.id,
                     patch: {
-                        type: "SetStatus",
-                        status: {type: "Open", isActive: true},
+                        type: "SetAssignee",
+                        assignee: {type: "Account", id: alice.id, title: "Alice"},
                     },
                 },
             ],
@@ -910,7 +910,7 @@ test("changes the assignee of an active task", async () => {
                     id: task2.id,
                     patch: {
                         type: "SetAssignee",
-                        assignee: {id: bob.id},
+                        assignee: {type: "Account", id: bob.id, title: "Bob"},
                     },
                 },
             ],
@@ -945,7 +945,7 @@ test("sets an active task as inactive while removing its assignee", async () => 
                         status: {type: "Open", isActive: false},
                         assignee: undefined,
                     },
-                    results: [{type: "SetAssignee"}, {type: "SetStatus"}],
+                    results: [{type: "SetStatus"}, {type: "SetAssignee"}],
                 },
             ],
         },
@@ -980,15 +980,15 @@ test("sets an active task as inactive while removing its assignee", async () => 
                 {
                     type: "Update",
                     id: task2.id,
-                    patch: {type: "SetAssignee", assignee: null},
-                },
-                {
-                    type: "Update",
-                    id: task2.id,
                     patch: {
                         type: "SetStatus",
                         status: {type: "Open", isActive: false},
                     },
+                },
+                {
+                    type: "Update",
+                    id: task2.id,
+                    patch: {type: "SetAssignee", assignee: null},
                 },
             ],
         },
@@ -1140,7 +1140,7 @@ test("updates task fields", async () => {
                     id: task1.id,
                     patch: {
                         type: "SetAssignee",
-                        assignee: {id: alice.id},
+                        assignee: {type: "Account", id: alice.id, title: "Alice"},
                     },
                 },
                 {
@@ -1302,7 +1302,7 @@ test("updates only a task assignee while leaving its other fields unchanged", as
                     id: task2.id,
                     patch: {
                         type: "SetAssignee",
-                        assignee: {id: bob.id},
+                        assignee: {type: "Account", id: bob.id, title: "Bob"},
                     },
                 },
             ],
