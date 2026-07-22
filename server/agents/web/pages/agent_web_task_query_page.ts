@@ -1358,15 +1358,6 @@ export async function updateAgentWebTaskQueryPage(
                 patches.push({type: "SetTitle", title: newPageTask.title});
             }
 
-            if (
-                oldPageTask.status.type !== newPageTask.status.type ||
-                (oldPageTask.status.type === "Open" &&
-                    newPageTask.status.type === "Open" &&
-                    oldPageTask.status.isActive !== newPageTask.status.isActive)
-            ) {
-                patches.push({type: "SetStatus", status: newPageTask.status});
-            }
-
             if (oldPageTask.parent?.id !== newPageTask.parent?.id) {
                 patches.push({
                     type: "SetParent",
@@ -1375,7 +1366,21 @@ export async function updateAgentWebTaskQueryPage(
             }
 
             if (oldPageTask.assignee?.id !== newPageTask.assignee?.id) {
-                patches.push({type: "SetAssignee", assignee: newPageTask.assignee ?? null});
+                patches.push({
+                    type: "SetAssignee",
+                    assignee: newPageTask.assignee ? {id: newPageTask.assignee.id} : null,
+                });
+            }
+
+            // Setting an assignee resets the assignee's status, so apply the requested status
+            // afterwards when both fields change.
+            if (
+                oldPageTask.status.type !== newPageTask.status.type ||
+                (oldPageTask.status.type === "Open" &&
+                    newPageTask.status.type === "Open" &&
+                    oldPageTask.status.isActive !== newPageTask.status.isActive)
+            ) {
+                patches.push({type: "SetStatus", status: newPageTask.status});
             }
 
             if (oldPageTask.dueDateString !== newPageTask.dueDateString) {
