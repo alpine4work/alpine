@@ -10,6 +10,7 @@ import * as prettier from "prettier";
 import * as markdownPrettierPlugin from "prettier/plugins/markdown";
 import stripAnsi from "strip-ansi";
 import {ApiClient, createApiClient} from "~/server/agents/api/api_client.js";
+import {createCliTracer} from "~/server/agents/cli/cli_tracer.js";
 import {
     AgentWebSessionLmdbStorageKey,
     createAgentWebSessionLmdbStorage,
@@ -31,7 +32,6 @@ import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/erro
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
     DateString,
@@ -44,10 +44,10 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-// Useful for when we read stdin (e.g. when creating a new entity).
+process.title = "alpine";
 process.stdin.setEncoding("utf8");
 
 main()
@@ -108,26 +108,17 @@ async function main() {
         }
     }
 
-    const tracer = TracerRoot.new({
-        serviceName: "CliClient",
-        jsHost: "Node",
-        // Events from our client tracer are untrusted because any bad actor could get
-        // ahold of our client tracer and send whatever event they want to the server.
-        //
-        // We can filter out events with this untrusted flag on the server to get clean
-        // data.
-        untrusted: true,
-        // We use the unsynchronized system clock with our tracer even though it's subject
-        // to user clock adjustments! That way the tracer object can be available
-        // immediately.
-        //
-        // Then when we send events to the server, we adjust times using the client offset
-        // from our synchronized system clock.
-        clock: unsynchronizedSystemClock,
-        sendEvent: () => {
-            // NOCOMMIT: Send events to Alpine!
-        },
-    });
+    const dataDirectoryPath = process.env.ALPINE_DATA_PATH ?? envPaths("Alpine", {suffix: ""}).data;
+
+    try {
+        await mkdir(dataDirectoryPath, {recursive: true});
+    } catch (error) {
+        throw FailedPreconditionError.from(error, "Couldn\u2019t create data directory", {
+            displayMessage: errorDisplayMessage`Couldn\u2019t create data directory at ${quote(dataDirectoryPath)}. Try changing the \`ALPINE_DATA_PATH\` environment variable to a location you can write to.`,
+        });
+    }
+
+    const {tracer, flushTracer} = createCliTracer({baseUrl, dataDirectoryPath});
 
     const [command = "", ...args] = process.argv.slice(2);
 
@@ -135,19 +126,8 @@ async function main() {
 
     const handleSpanName = `CLI ${commands.has(command) ? command : "unknown"}`;
 
-    return await tracer.withSpan(`Handle: ${handleSpanName}`, async span => {
+    await tracer.withSpan(`Handle: ${handleSpanName}`, async span => {
         span.addData({context: {handler: handleSpanName}});
-
-        const dataDirectoryPath =
-            process.env.ALPINE_DATA_PATH ?? envPaths("Alpine", {suffix: ""}).data;
-
-        try {
-            await mkdir(dataDirectoryPath, {recursive: true});
-        } catch (error) {
-            throw FailedPreconditionError.from(error, "Couldn\u2019t create data directory", {
-                displayMessage: errorDisplayMessage`Couldn\u2019t create data directory at ${quote(dataDirectoryPath)}. Try changing the \`ALPINE_DATA_PATH\` environment variable to a location you can write to.`,
-            });
-        }
 
         let auth: AgentsCliAuthJson;
 
@@ -213,6 +193,8 @@ async function main() {
 
         await write(markdown);
     });
+
+    flushTracer();
 }
 
 async function mainWithinTransaction({
