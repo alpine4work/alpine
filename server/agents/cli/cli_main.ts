@@ -14,6 +14,7 @@ import {
     AgentWebSessionLmdbStorageKey,
     createAgentWebSessionLmdbStorage,
 } from "~/server/agents/cli/create_agent_web_session_lmdb_storage.js";
+import {createAgentsCliTracerEventSender} from "~/server/agents/cli/create_agents_cli_tracer_event_sender.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
@@ -50,21 +51,26 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 // Useful for when we read stdin (e.g. when creating a new entity).
 process.stdin.setEncoding("utf8");
 
+const tracerEventSender = createAgentsCliTracerEventSender();
+
 main()
-    .then(() => {
+    .then(async () => {
+        await tracerEventSender.flush();
         process.exit(0);
     })
     .catch(async error => {
         const markdown = await printAgentWebError("Couldn\u2019t run command", error);
         await write(markdown);
+        await tracerEventSender.flush();
         process.exit(1);
     })
-    .catch(error => {
+    .catch(async error => {
         // Final error handler in case something goes wrong when we try to print the error
         // using our agent web error format.
 
         // eslint-disable-next-line no-console
         console.error(error);
+        await tracerEventSender.flush();
         process.exit(1);
     });
 
@@ -124,9 +130,7 @@ async function main() {
         // Then when we send events to the server, we adjust times using the client offset
         // from our synchronized system clock.
         clock: unsynchronizedSystemClock,
-        sendEvent: () => {
-            // NOCOMMIT: Send events to Alpine!
-        },
+        sendEvent: tracerEventSender.sendEvent,
     });
 
     const [command = "", ...args] = process.argv.slice(2);
@@ -148,6 +152,8 @@ async function main() {
                 displayMessage: errorDisplayMessage`Couldn\u2019t create data directory at ${quote(dataDirectoryPath)}. Try changing the \`ALPINE_DATA_PATH\` environment variable to a location you can write to.`,
             });
         }
+
+        tracerEventSender.start({baseUrl, dataDirectoryPath});
 
         let auth: AgentsCliAuthJson;
 

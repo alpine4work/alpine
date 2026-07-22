@@ -211,9 +211,6 @@ export async function createAgentWebTaskPage(
     // Force the agent to set an assignee if they're marking a task as active. By
     // default our API sets the bot as active when they make the task active if there's
     // no assignee, we want the agent to make this choice explicitly.
-    //
-    // NOCOMMIT: Integration test that makes sure the bot can create an active task
-    // assigned to another account.
     if (newPage.status.type === "Open" && newPage.status.isActive && !newPage.assignee) {
         const assigneeLink: Link = {
             type: "link",
@@ -329,10 +326,6 @@ export async function updateAgentWebTaskPage(
     // Force the agent to set an assignee if they're marking a task as active. By
     // default our API sets the bot as active when they make the task active if there's
     // no assignee, we want the agent to make this choice explicitly.
-    //
-    // NOCOMMIT: Integration test that makes sure the bot can update a task to active
-    // when the task is already assigned to another account. Also that the bot can
-    // update a task to active and update the assignee at the same time.
     if (newPage.status.type === "Open" && newPage.status.isActive && !newPage.assignee) {
         const assigneeLink: Link = {
             type: "link",
@@ -360,15 +353,6 @@ export async function updateAgentWebTaskPage(
         patches.push({type: "SetTitle", title: newPage.title});
     }
 
-    if (
-        oldPage.status.type !== newPage.status.type ||
-        (oldPage.status.type === "Open" &&
-            newPage.status.type === "Open" &&
-            oldPage.status.isActive !== newPage.status.isActive)
-    ) {
-        patches.push({type: "SetStatus", status: newPage.status});
-    }
-
     if (oldPage.parent?.id !== newPage.parent?.id) {
         patches.push({
             type: "SetParent",
@@ -377,7 +361,21 @@ export async function updateAgentWebTaskPage(
     }
 
     if (oldPage.assignee?.id !== newPage.assignee?.id) {
-        patches.push({type: "SetAssignee", assignee: newPage.assignee ?? null});
+        patches.push({
+            type: "SetAssignee",
+            assignee: newPage.assignee ? {id: newPage.assignee.id} : null,
+        });
+    }
+
+    // Setting an assignee resets the assignee's status, so apply the requested status
+    // afterwards when both fields change.
+    if (
+        oldPage.status.type !== newPage.status.type ||
+        (oldPage.status.type === "Open" &&
+            newPage.status.type === "Open" &&
+            oldPage.status.isActive !== newPage.status.isActive)
+    ) {
+        patches.push({type: "SetStatus", status: newPage.status});
     }
 
     if (oldPage.dueDateString !== newPage.dueDateString) {

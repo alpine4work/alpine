@@ -257,9 +257,6 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
 
-    // NOCOMMIT: Add an integration test when a bot tries to use a `cursor` with
-    // different `sorts`. Or when an agent tries to use a `cursor` when the default
-    // sorts change from underneath them.
     const {afterCursor, query} = await parseAgentWebTaskQueryPageSearchParams(
         context.storage,
         pageLink,
@@ -984,12 +981,6 @@ export async function updateAgentWebTaskQueryPage(
         readonly task: AgentWebTaskQueryPageTask;
     }> = [];
 
-    // NOCOMMIT: Integration test where we shuffle task collection tasks and make sure
-    // after the API calls the resulting task order is correct with another read.
-    //
-    // NOCOMMIT: Lots of integration tests for moving tasks then also adding tasks at
-    // the same time (nearby). Also moving tasks in one `update` call and then making
-    // another `update` call that makes more moves.
     for (const oldTask of oldPageTasks) {
         assert(!oldTaskIds.has(oldTask.taskId));
         oldTaskIds.add(oldTask.taskId);
@@ -1302,10 +1293,6 @@ export async function updateAgentWebTaskQueryPage(
             // Force the agent to set an assignee if they're marking a task as active. By
             // default our API sets the bot as active when they make the task active if there's
             // no assignee, we want the agent to make this choice explicitly.
-            //
-            // NOCOMMIT: Integration test that makes sure the bot can update a task to active
-            // when the task is already assigned to another account. Also that the bot can
-            // update a task to active and update the assignee at the same time.
             if (
                 newPageTask.status.type === "Open" &&
                 newPageTask.status.isActive &&
@@ -1342,15 +1329,6 @@ export async function updateAgentWebTaskQueryPage(
                 patches.push({type: "SetTitle", title: newPageTask.title});
             }
 
-            if (
-                oldPageTask.status.type !== newPageTask.status.type ||
-                (oldPageTask.status.type === "Open" &&
-                    newPageTask.status.type === "Open" &&
-                    oldPageTask.status.isActive !== newPageTask.status.isActive)
-            ) {
-                patches.push({type: "SetStatus", status: newPageTask.status});
-            }
-
             if (oldPageTask.parent?.id !== newPageTask.parent?.id) {
                 patches.push({
                     type: "SetParent",
@@ -1359,7 +1337,21 @@ export async function updateAgentWebTaskQueryPage(
             }
 
             if (oldPageTask.assignee?.id !== newPageTask.assignee?.id) {
-                patches.push({type: "SetAssignee", assignee: newPageTask.assignee ?? null});
+                patches.push({
+                    type: "SetAssignee",
+                    assignee: newPageTask.assignee ? {id: newPageTask.assignee.id} : null,
+                });
+            }
+
+            // Setting an assignee resets the assignee's status, so apply the requested status
+            // afterwards when both fields change.
+            if (
+                oldPageTask.status.type !== newPageTask.status.type ||
+                (oldPageTask.status.type === "Open" &&
+                    newPageTask.status.type === "Open" &&
+                    oldPageTask.status.isActive !== newPageTask.status.isActive)
+            ) {
+                patches.push({type: "SetStatus", status: newPageTask.status});
             }
 
             if (oldPageTask.dueDateString !== newPageTask.dueDateString) {
