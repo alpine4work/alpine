@@ -55,9 +55,6 @@ alpine create task '# Activate existing assignment
 Create was successful. New task: [Activate existing assignment](/task/activate-existing-assignment).
 `);
 
-    // NOCOMMIT: Should be able to `update` immediately after create?
-    await cli.run("alpine read /task/activate-existing-assignment");
-
     expect(
         await cli.run(
             "alpine update /task/activate-existing-assignment --old '- Status: Open' --new '- Status: Open (Active)'",
@@ -83,13 +80,46 @@ test("activate and assign a task to another account in the same update", async (
 
     await cli.run("alpine create task '# Activate and assign'");
 
-    // NOCOMMIT: Should be able to `update` immediately after create?
-    await cli.run("alpine read /task/activate-and-assign");
-
     expect(
         await cli.run(`\
 alpine update /task/activate-and-assign \\
   --old '- Status: Open' \\
+  --new '- Status: Open (Active)
+- Assignee: [Alice](/human/alice)'
+`),
+    ).toEqual(`\
+Update was successful.
+`);
+
+    expect(await cli.run("alpine read /task/activate-and-assign")).toEqual(`\
+# Activate and assign
+
+- Status: Open (Active)
+- Assignee: [Alice](/human/alice)
+`);
+});
+
+test("activate and assign a task to another account in the same update", async () => {
+    await cli.session.space.createSession({name: "Alice"});
+    await cli.session.space.createSession({name: "Bob"});
+
+    expect(await cli.run("alpine search 'Alice Bob'")).toEqual(`\
+1. [Alice](/human/alice)
+
+2. [Bob](/human/bob)
+`);
+
+    await cli.run(`\
+alpine create task '# Activate and assign
+
+- Assignee: [Bob](/human/bob)'
+`);
+
+    expect(
+        await cli.run(`\
+alpine update /task/activate-and-assign \\
+  --old '- Status: Open
+- Assignee: [Bob](/human/bob)' \\
   --new '- Status: Open (Active)
 - Assignee: [Alice](/human/alice)'
 `),
@@ -141,9 +171,6 @@ alpine create task-collection '# Shuffle roadmap
 - Shuffle delta (Open)'
 `);
 
-    // NOCOMMIT: Should be able to `update` immediately after create?
-    await cli.run("alpine read /task-collection/shuffle-roadmap");
-
     expect(
         await cli.run(`\
 alpine update /task-collection/shuffle-roadmap \\
@@ -190,9 +217,6 @@ alpine create task-collection '# Move and add roadmap
 - Move add charlie (Open)'
 `);
 
-    // NOCOMMIT: Should be able to `update` immediately after create?
-    await cli.run("alpine read /task-collection/move-and-add-roadmap");
-
     expect(
         await cli.run(`\
 alpine update /task-collection/move-and-add-roadmap \\
@@ -237,9 +261,6 @@ alpine create task-collection '# Successive moves roadmap
 - Successive charlie (Open)
 - Successive delta (Open)'
 `);
-
-    // NOCOMMIT: Should be able to `update` immediately after create?
-    await cli.run("alpine read /task-collection/successive-moves-roadmap");
 
     expect(
         await cli.run(`\
@@ -309,9 +330,6 @@ alpine create task-collection '# Embedded existing roadmap
   - Assignee: [Alice](/human/alice)'
 `);
 
-    // NOCOMMIT: Should be able to `update` immediately after create?
-    await cli.run("alpine read /task-collection/embedded-existing-roadmap");
-
     expect(
         await cli.run(
             "alpine update /task-collection/embedded-existing-roadmap --old '[Embedded existing task (Open)]' --new '[Embedded existing task (Open, active)]'",
@@ -342,9 +360,6 @@ alpine create task-collection '# Embedded assignment roadmap
 
 - Embedded assignment task (Open)'
 `);
-
-    // NOCOMMIT: Should be able to `update` immediately after create?
-    await cli.run("alpine read /task-collection/embedded-assignment-roadmap");
 
     expect(
         await cli.run(`\
