@@ -120,81 +120,83 @@ async function main() {
 
     const {tracer, flushTracer} = createCliTracer({baseUrl, dataDirectoryPath});
 
-    const [command = "", ...args] = process.argv.slice(2);
+    try {
+        const [command = "", ...args] = process.argv.slice(2);
 
-    const commands = new Set(["read", "create", "update", "scroll", "find", "search"]);
+        const commands = new Set(["read", "create", "update", "scroll", "find", "search"]);
 
-    const handleSpanName = `CLI ${commands.has(command) ? command : "unknown"}`;
+        const handleSpanName = `CLI ${commands.has(command) ? command : "unknown"}`;
 
-    await tracer.withSpan(`Handle: ${handleSpanName}`, async span => {
-        span.addData({context: {handler: handleSpanName}});
+        await tracer.withSpan(`Handle: ${handleSpanName}`, async span => {
+            span.addData({context: {handler: handleSpanName}});
 
-        let auth: AgentsCliAuthJson;
+            let auth: AgentsCliAuthJson;
 
-        try {
-            auth = JSON.parse(await readFile(joinPath(dataDirectoryPath, "auth.json"), "utf8"));
-        } catch (error) {
-            throw FailedPreconditionError.from(error, "Couldn\u2019t read `auth.json`", {
-                // TODO(#public-api-blocking): Once Rachel adds a login setup for the API we should
-                // update this message to be "Try running `alpine auth`" again or whatever the
-                // command is.
-                //
-                // What happens if this file doesn't exist??
-                displayMessage: errorDisplayMessage`Couldn\u2019t read \`auth.json\` from ${quote(dataDirectoryPath)}.`,
-            });
-        }
-
-        const apiKey = process.env.ALPINE_API_KEY ?? auth.apiKey;
-
-        if (apiKey === undefined) {
-            throw new FailedPreconditionError("Missing `apiKey` in `auth.json`", {
-                // TODO(#public-api-blocking): Once Rachel adds a login setup for the API we should
-                // update this message to be "Try running `alpine auth`" again or whatever the
-                // command is.
-                displayMessage: errorDisplayMessage`Couldn\u2019t find an \`apiKey\` property in \`auth.json\`.`,
-            });
-        }
-
-        const api = createApiClient({baseUrl: baseApiUrl.toString(), apiKey});
-
-        let database;
-        try {
-            database = open<string, AgentWebSessionLmdbStorageKey>({
-                path: joinPath(dataDirectoryPath, "agents-web.db"),
-                noSubdir: true,
-            });
-        } catch (error) {
-            throw FailedPreconditionError.from(error, "Couldn\u2019t open `agents-web.db`", {
-                displayMessage: errorDisplayMessage`Couldn\u2019t open the database in ${quote(dataDirectoryPath)}. Maybe you can\u2019t write to ${quote(dataDirectoryPath)}? Try changing the \`ALPINE_DATA_PATH\` environment variable to a location you can write to.`,
-            });
-        }
-
-        let markdown: string;
-        try {
-            // LMDB allows only one write transaction at a time across processes. Its
-            // transaction remains open while this async callback is pending, so complete CLI
-            // runs execute in sequence. `AgentWebSessionStorage` assumes exclusive access to
-            // the underlying storage so this is good.
-            markdown = await database.transaction(async () => {
-                return await mainWithinTransaction({
-                    command,
-                    args,
-                    span,
-                    dataDirectoryPath,
-                    auth,
-                    baseApiUrl,
-                    api,
-                    database,
+            try {
+                auth = JSON.parse(await readFile(joinPath(dataDirectoryPath, "auth.json"), "utf8"));
+            } catch (error) {
+                throw FailedPreconditionError.from(error, "Couldn\u2019t read `auth.json`", {
+                    // TODO(#public-api-blocking): Once Rachel adds a login setup for the API we should
+                    // update this message to be "Try running `alpine auth`" again or whatever the
+                    // command is.
+                    //
+                    // What happens if this file doesn't exist??
+                    displayMessage: errorDisplayMessage`Couldn\u2019t read \`auth.json\` from ${quote(dataDirectoryPath)}.`,
                 });
-            });
-        } finally {
-            await database.close();
-        }
+            }
 
-        await write(markdown);
-    });
+            const apiKey = process.env.ALPINE_API_KEY ?? auth.apiKey;
 
-    flushTracer();
+            if (apiKey === undefined) {
+                throw new FailedPreconditionError("Missing `apiKey` in `auth.json`", {
+                    // TODO(#public-api-blocking): Once Rachel adds a login setup for the API we should
+                    // update this message to be "Try running `alpine auth`" again or whatever the
+                    // command is.
+                    displayMessage: errorDisplayMessage`Couldn\u2019t find an \`apiKey\` property in \`auth.json\`.`,
+                });
+            }
+
+            const api = createApiClient({baseUrl: baseApiUrl.toString(), apiKey});
+
+            let database;
+            try {
+                database = open<string, AgentWebSessionLmdbStorageKey>({
+                    path: joinPath(dataDirectoryPath, "agents-web.db"),
+                    noSubdir: true,
+                });
+            } catch (error) {
+                throw FailedPreconditionError.from(error, "Couldn\u2019t open `agents-web.db`", {
+                    displayMessage: errorDisplayMessage`Couldn\u2019t open the database in ${quote(dataDirectoryPath)}. Maybe you can\u2019t write to ${quote(dataDirectoryPath)}? Try changing the \`ALPINE_DATA_PATH\` environment variable to a location you can write to.`,
+                });
+            }
+
+            let markdown: string;
+            try {
+                // LMDB allows only one write transaction at a time across processes. Its
+                // transaction remains open while this async callback is pending, so complete CLI
+                // runs execute in sequence. `AgentWebSessionStorage` assumes exclusive access to
+                // the underlying storage so this is good.
+                markdown = await database.transaction(async () => {
+                    return await mainWithinTransaction({
+                        command,
+                        args,
+                        span,
+                        dataDirectoryPath,
+                        auth,
+                        baseApiUrl,
+                        api,
+                        database,
+                    });
+                });
+            } finally {
+                await database.close();
+            }
+
+            await write(markdown);
+        });
+    } finally {
+        flushTracer();
+    }
 }
 
 async function mainWithinTransaction({
