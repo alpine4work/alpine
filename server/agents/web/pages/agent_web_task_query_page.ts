@@ -880,6 +880,22 @@ export function normalizeAgentWebTaskQueryPage(
     page: Pick<AgentWebTaskQueryPage, "tasks">,
 ) {
     for (const pageTask of page.tasks) {
+        if (pageTask.taskId !== null) {
+            // Create a stub reference to "register" the title/status used for a task in the
+            // page for a task at a top-level. However, we don't want to change the
+            // title/status at the top-level since the top-level title/status is used to make
+            // updates. But we do want parents of other tasks with the same `TaskId` to be
+            // influenced by other references in the query to the same `TaskId`.
+            const referenceStub: ApiTaskReferenceResponse = {
+                type: "Task",
+                id: pageTask.taskId,
+                title: pageTask.title,
+                status: pageTask.status,
+            };
+
+            normalizer.normalizeReference(referenceStub);
+        }
+
         if (pageTask.parent) normalizer.normalizeReference(pageTask.parent);
         if (pageTask.assignee) normalizer.normalizeReference(pageTask.assignee);
         for (const collection of pageTask.collections) normalizer.normalizeReference(collection);

@@ -12,7 +12,7 @@ import {
     ApiTaskCollectionReferenceResponse,
     ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {generateId} from "~/shared/id/id.js";
+import {assertId, generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 
 const collectionId = generateId<TaskCollectionId>();
@@ -1830,6 +1830,116 @@ Default filters:
             parseError:
                 "Unexpected task assignee link \u201CEngineering\u201D on line 4. Try again with " +
                 "a link to a human or bot you\u2019ve seen before (e.g. `[John](/human/john-doe)`).",
+        },
+        {
+            name: "parent task with different title to same task later in collection",
+            pageLink: collectionId,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Test",
+                color: null,
+                defaults: null,
+                pagination: null,
+                tasks: [
+                    {
+                        taskId: assertId<TaskId>("pn4e6ceqf466dqdptxtz3qs3y8"),
+                        title: "foo",
+                        status: {type: "Closed"},
+                        parent: {
+                            type: "Task",
+                            id: assertId<TaskId>("vb58nma5ndj39yfb6gkrbymmer"),
+                            title: "bar",
+                            status: {type: "Closed"},
+                        },
+                        subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                        assignee: null,
+                        priority: {type: "High"},
+                        dueDateString: null,
+                        collections: [],
+                        additionalCollectionsCount: 0,
+                    },
+                    {
+                        taskId: assertId<TaskId>("vb58nma5ndj39yfb6gkrbymmer"),
+                        title: "qux",
+                        status: {type: "Closed"},
+                        parent: null,
+                        subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                        assignee: null,
+                        priority: null,
+                        dueDateString: null,
+                        collections: [],
+                        additionalCollectionsCount: 0,
+                    },
+                ],
+                isEndOfTasks: true,
+            },
+            markdown: `\
+# Test
+
+- [foo (Closed)](/task/foo)
+  - Parent: [qux](/task/qux)
+  - Priority: High
+
+- [qux (Closed)](/task/qux)
+
+End of tasks.
+`,
+        },
+        {
+            name: "parent task with different title to same task earlier in collection",
+            pageLink: collectionId,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Test",
+                color: null,
+                defaults: null,
+                pagination: null,
+                tasks: [
+                    {
+                        taskId: assertId<TaskId>("vb58nma5ndj39yfb6gkrbymmer"),
+                        title: "qux",
+                        status: {type: "Closed"},
+                        parent: null,
+                        subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                        assignee: null,
+                        priority: null,
+                        dueDateString: null,
+                        collections: [],
+                        additionalCollectionsCount: 0,
+                    },
+                    {
+                        taskId: assertId<TaskId>("pn4e6ceqf466dqdptxtz3qs3y8"),
+                        title: "foo",
+                        status: {type: "Closed"},
+                        parent: {
+                            type: "Task",
+                            id: assertId<TaskId>("vb58nma5ndj39yfb6gkrbymmer"),
+                            title: "bar",
+                            status: {type: "Closed"},
+                        },
+                        subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                        assignee: null,
+                        priority: {type: "High"},
+                        dueDateString: null,
+                        collections: [],
+                        additionalCollectionsCount: 0,
+                    },
+                ],
+                isEndOfTasks: true,
+            },
+            markdown: `\
+# Test
+
+- [qux (Closed)](/task/qux)
+
+- [foo (Closed)](/task/foo)
+  - Parent: [bar](/task/bar)
+  - Priority: High
+
+End of tasks.
+`,
         },
     ],
 });
