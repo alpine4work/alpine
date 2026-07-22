@@ -1331,6 +1331,45 @@ export namespace ApiSpecification {
             };
             readonly trace?: never;
         };
+        readonly "/channels": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path?: never;
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly spaceId: components["schemas"]["SpaceId"];
+                            readonly channel: {
+                                readonly creator?: components["schemas"]["Actor"];
+                                readonly name: string;
+                                readonly description: components["schemas"]["Content"];
+                            };
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: components["responses"]["GetChannel"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/channels/{id}": {
             readonly parameters: {
                 readonly query?: never;
@@ -1351,17 +1390,7 @@ export namespace ApiSpecification {
                 };
                 readonly requestBody?: never;
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly channel: components["schemas"]["Channel_Response"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetChannel"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -1370,7 +1399,27 @@ export namespace ApiSpecification {
             readonly delete?: never;
             readonly options?: never;
             readonly head?: never;
-            readonly patch?: never;
+            readonly patch: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["ChannelId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly patches: readonly components["schemas"]["ChannelPatch"][];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: components["responses"]["GetChannel"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly trace?: never;
         };
         readonly "/channels/{id}-reference": {
@@ -1525,6 +1574,7 @@ export namespace ApiSpecification {
                         readonly "application/json": {
                             readonly spaceId: components["schemas"]["SpaceId"];
                             readonly post: {
+                                readonly creator?: components["schemas"]["Actor"];
                                 readonly createdTimeZone?: components["schemas"]["TimeZone"];
                                 readonly channel: {
                                     readonly id: components["schemas"]["ChannelId"];
@@ -4280,6 +4330,25 @@ export namespace ApiSpecification {
                 readonly name: components["schemas"]["LabelString"];
                 readonly description: components["schemas"]["Content"];
             };
+            readonly ChannelPatch:
+                | components["schemas"]["ChannelSetNamePatch"]
+                | components["schemas"]["ChannelSetDescriptionPatch"];
+            readonly ChannelSetNamePatch: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetName";
+                readonly name: components["schemas"]["LabelString"];
+            };
+            readonly ChannelSetDescriptionPatch: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetDescription";
+                readonly description: components["schemas"]["Content"];
+            };
             readonly Post: {
                 readonly id: components["schemas"]["PostId"];
                 readonly author: components["schemas"]["Account"];
@@ -4298,6 +4367,7 @@ export namespace ApiSpecification {
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
                 readonly contentSnippet: components["schemas"]["Content"];
+                readonly commentCount: number;
                 readonly reference: {
                     readonly title: string;
                 };
@@ -5919,6 +5989,7 @@ export namespace ApiSpecification {
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
                 readonly contentSnippet: components["schemas"]["Content_Response_WithoutKeys"];
+                readonly commentCount: number;
                 readonly reference: {
                     readonly title: string;
                 };
@@ -6751,11 +6822,6 @@ export namespace ApiSpecification {
                 readonly title: string;
                 readonly content: components["schemas"]["Content_Response"];
             };
-            readonly Channel_Response: {
-                readonly id: components["schemas"]["ChannelId"];
-                readonly name: components["schemas"]["LabelString"];
-                readonly description: components["schemas"]["Content_Response"];
-            };
             readonly TaskBatchPatch_Response:
                 | components["schemas"]["TaskBatchCreatePatch_Response"]
                 | components["schemas"]["TaskBatchUpdatePatch_Response"];
@@ -6763,6 +6829,11 @@ export namespace ApiSpecification {
                 | components["schemas"]["BotWebhookCreatedMessageEvent_Response"]
                 | components["schemas"]["BotWebhookCreatedPostEvent"]
                 | components["schemas"]["BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent"];
+            readonly Channel_Response: {
+                readonly id: components["schemas"]["ChannelId"];
+                readonly name: components["schemas"]["LabelString"];
+                readonly description: components["schemas"]["Content_Response"];
+            };
             readonly TaskNotes_Response: {
                 readonly version: number;
                 readonly content: components["schemas"]["Content_Response"];
@@ -6783,6 +6854,14 @@ export namespace ApiSpecification {
                 readonly type: "SetContent";
                 readonly version: number;
                 readonly content: components["schemas"]["Content_Response"];
+            };
+            readonly ChannelSetDescriptionPatch_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetDescription";
+                readonly description: components["schemas"]["Content_Response"];
             };
             readonly TaskBatchUpdatePatch_Response: {
                 /**
@@ -6891,6 +6970,9 @@ export namespace ApiSpecification {
             readonly DocumentPatch_Response:
                 | components["schemas"]["DocumentSetTitlePatch"]
                 | components["schemas"]["DocumentSetContentPatch_Response"];
+            readonly ChannelPatch_Response:
+                | components["schemas"]["ChannelSetNamePatch"]
+                | components["schemas"]["ChannelSetDescriptionPatch_Response"];
             readonly TaskNotesPatch_Response: components["schemas"]["TaskNotesSetContentPatch_Response"];
             readonly TaskQueryFilter_Response:
                 | components["schemas"]["TaskQueryStatusFilter"]
@@ -7026,6 +7108,17 @@ export namespace ApiSpecification {
                                 readonly able: boolean;
                             };
                         };
+                    };
+                };
+            };
+            readonly GetChannel: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId: components["schemas"]["SpaceId"];
+                        readonly channel: components["schemas"]["Channel_Response"];
                     };
                 };
             };

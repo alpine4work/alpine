@@ -70,7 +70,7 @@ export async function getChannelNameAndDescriptionContentAndContributors(
         name: channelItem.name,
         description: channelItem.description,
         createdTime: channelItem.createdTime,
-        creatorId: channelItem.creatorId,
+        creatorId: channelItem.creator.accountId,
         accessPolicy: channelItem.accessPolicy,
         contributionCountByAccountId: contributorsItem?.contributionCountByAccountId ?? emptyMap,
     };

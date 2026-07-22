@@ -114,7 +114,7 @@ Updates from the team.
 
 [Next page »](/channel/announcements?after=2026-05-14T15:05:00.000Z)
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="3">
 
 Launch summary.
 
@@ -122,7 +122,7 @@ Launch summary.
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT" comments="0">
 
 Roadmap summary.
 
@@ -141,6 +141,7 @@ Roadmap summary.
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        commentCount: 3,
                         contentSnippet: content([paragraph([text("Launch summary.")])]),
                         reference: launchPostReference,
                     },
@@ -148,6 +149,7 @@ Roadmap summary.
                         type: "Post",
                         author: bobReference,
                         timeAttribute: "May 14th at 11:05am EDT",
+                        commentCount: 0,
                         contentSnippet: content([paragraph([text("Roadmap summary.")])]),
                         reference: roadmapPostReference,
                     },
@@ -247,7 +249,7 @@ End of posts.
             markdown: `\
 Posts in Announcements. [Next page »](/channel/announcements?after=2026-05-14T15:05:00.000Z)
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 Launch summary.
 
@@ -265,6 +267,7 @@ Launch summary.
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        commentCount: 0,
                         contentSnippet: content([paragraph([text("Launch summary.")])]),
                         reference: launchPostReference,
                     },
@@ -295,7 +298,7 @@ End of posts.
             markdown: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)">
+<post from="[Alice](/human/alice)" comments="0">
 
 Launch summary.
 
@@ -313,6 +316,7 @@ Launch summary.
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: null,
+                        commentCount: 0,
                         contentSnippet: content([paragraph([text("Launch summary.")])]),
                         reference: launchPostReference,
                     },
@@ -326,7 +330,7 @@ Launch summary.
             markdown: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 Read the full context: [See more »](https://example.com/context)
 
@@ -344,6 +348,7 @@ Read the full context: [See more »](https://example.com/context)
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        commentCount: 0,
                         contentSnippet: content([
                             paragraph([
                                 text("Read the full context: "),
@@ -364,7 +369,7 @@ Read the full context: [See more »](https://example.com/context)
             markdown: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 Review **launch scope** and *risks*.
 
@@ -386,6 +391,7 @@ Review **launch scope** and *risks*.
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        commentCount: 0,
                         contentSnippet: content([
                             paragraph([
                                 text("Review "),
@@ -416,7 +422,7 @@ Review **launch scope** and *risks*.
             markdown: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 [See more »](https://example.com/context)
 
@@ -434,6 +440,7 @@ Posts in Announcements.
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        commentCount: 0,
                         contentSnippet: content([
                             paragraph([
                                 text("See more »", [
@@ -453,7 +460,7 @@ Posts in Announcements.
             markdown: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 [See more »](https://alpine.inc/post/see-more)
 
@@ -469,6 +476,7 @@ Posts in Announcements.
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        commentCount: 0,
                         contentSnippet: content([
                             paragraph([
                                 text("See more »", [{type: "Link", url: "/post/see-more"}]),
@@ -486,7 +494,7 @@ Posts in Announcements.
             markdown: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 [See more »](/post/roadmap)
 
@@ -497,7 +505,7 @@ Posts in Announcements.
             printMarkdown: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 [Roadmap](/post/roadmap)
 
@@ -515,6 +523,7 @@ Posts in Announcements.
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        commentCount: 0,
                         contentSnippet: content([paragraph([mention(roadmapPostReference)])]),
                         reference: launchPostReference,
                     },
@@ -550,7 +559,7 @@ End of posts.
             markdown: `\
 # Announcements
 
-<post>
+<post comments="0">
 
 Launch notes
 
@@ -623,7 +632,7 @@ Not a post.
             markdown: `\
 Posts in Announcements.
 
-<post>
+<post comments="0">
 
 Launch notes
 `,
@@ -653,7 +662,7 @@ Updates from the team.
             markdown: `\
 Posts in Announcements.
 
-<post>
+<post comments="0">
 
 Launch notes
 
@@ -669,6 +678,7 @@ Launch notes
                         type: "Post",
                         author: null,
                         timeAttribute: null,
+                        commentCount: 0,
                         contentSnippet: content([paragraph([text("Launch notes")])]),
                         reference: null,
                     },
@@ -682,7 +692,7 @@ Launch notes
             markdown: `\
 Posts in Announcements.
 
-<post>
+<post comments="0">
 
 Launch notes
 
@@ -693,7 +703,7 @@ Launch notes
             printMarkdown: `\
 Posts in Announcements.
 
-<post>
+<post comments="0">
 
 Launch notes
 
@@ -711,6 +721,7 @@ Launch notes
                         type: "Post",
                         author: null,
                         timeAttribute: null,
+                        commentCount: 0,
                         contentSnippet: content([
                             paragraph([text("Launch notes")]),
                             paragraph([mention(launchPostReference)]),
@@ -727,7 +738,7 @@ Launch notes
             markdown: `\
 Posts in Announcements.
 
-<post from="Alice">
+<post from="Alice" comments="0">
 
 Launch notes
 
@@ -764,7 +775,7 @@ Launch notes
             markdown: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 [See more »](/post/see-more)
 
@@ -775,7 +786,7 @@ Posts in Announcements.
             printMarkdown: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 [See more](/post/see-more)
 
@@ -793,6 +804,7 @@ Posts in Announcements.
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        commentCount: 0,
                         contentSnippet: content([
                             paragraph([{type: "Mention", reference: seeMorePostReference}]),
                         ]),
@@ -808,7 +820,7 @@ Posts in Announcements.
             markdown: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 [See more](/post/see-more)
 
@@ -824,6 +836,7 @@ Posts in Announcements.
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        commentCount: 0,
                         contentSnippet: content([
                             paragraph([{type: "Mention", reference: seeMorePostReference}]),
                         ]),

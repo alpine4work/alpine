@@ -24,11 +24,12 @@ import {intoApiAccountReference} from "~/shared/api/specification/into_api_accou
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccountReferenceResponse,
+    ApiChannelPatch,
     ApiPostPreviewResponse,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
-import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -77,6 +78,7 @@ export type AgentWebChannelPagePostBlock = {
     readonly timeAttribute: string | null;
     readonly contentSnippet: ApiContentResponseWithoutKeys;
     readonly reference: ApiPostReferenceResponse | null;
+    readonly commentCount: number;
 };
 
 export type AgentWebChannelPageWithMetadata = AgentWebChannelPage & {
@@ -169,6 +171,7 @@ export async function readAgentWebChannelPage(
                 author: intoApiAccountReference(post.author),
                 timeAttribute: `${formattedTime} ${formattedTimeZone}`,
                 contentSnippet: post.contentSnippet,
+                commentCount: post.commentCount,
                 reference: {
                     type: "Post",
                     id: post.id,
@@ -546,11 +549,27 @@ export async function createAgentWebChannelPage(
         });
     }
 
-    // TODO(#agents-web): Implement channel create endpoint. When we add the ability to
-    // create make sure to also test that you can update the channel name +
-    // description. Maybe even that you can add a divider with the `<hr />` syntax (and
-    // any end dividers are ignored).
-    throw new UnimplementedError("Channel create API endpoint hasn\u2019t been implemented yet");
+    const {
+        data: {channel},
+    } = await context.api.post(context.span, "/channels", {
+        body: {
+            spaceId: context.spaceId,
+            channel: {
+                name: newPage.name,
+                description: newPage.description,
+            },
+        },
+    });
+
+    return {
+        pageMetadata: {
+            type: "Channel",
+            id: channel.id,
+            isEndOfPosts: newPage.isEndOfPosts,
+            posts: [],
+        },
+        pageLink: {type: "Channel", id: channel.id, title: channel.name},
+    };
 }
 
 export async function updateAgentWebChannelPage(
@@ -610,17 +629,19 @@ export async function updateAgentWebChannelPage(
         const oldPostMetadata = {
             author: oldPost.author ? {id: oldPost.author.id} : null,
             timeAttribute: oldPost.timeAttribute,
+            commentCount: oldPost.commentCount,
             reference: oldPost.reference ? {id: oldPost.reference.id} : null,
         };
         const newPostMetadata = {
             author: newPost.author ? {id: newPost.author.id} : null,
             timeAttribute: newPost.timeAttribute,
+            commentCount: newPost.commentCount,
             reference: newPost.reference ? {id: newPost.reference.id} : null,
         };
 
         if (!isDeepEqual(oldPostMetadata, newPostMetadata)) {
             throw new InvalidArgumentError("Can\u2019t update message created by someone else", {
-                displayMessage: errorDisplayMessage`You can only update the channel name and description on a channel page. Any metadata on \`<post>\`s (the \`from\`/\`time\` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.`,
+                displayMessage: errorDisplayMessage`You can only update the channel name and description on a channel page. Any metadata on \`<post>\`s (the \`from\`/\`time\`/\`comments\` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.`,
             });
         }
 
@@ -648,11 +669,10 @@ export async function updateAgentWebChannelPage(
     if (oldPage.subType === "Head") {
         assert(newPage.subType === "Head");
 
+        const patches: Array<ApiChannelPatch> = [];
+
         if (oldPage.name !== newPage.name) {
-            // TODO(#agents-web): Implement channel rename endpoint.
-            throw new UnimplementedError(
-                "Channel rename API endpoint hasn\u2019t been implemented yet",
-            );
+            patches.push({type: "SetName", name: newPage.name});
         }
 
         if (
@@ -661,10 +681,14 @@ export async function updateAgentWebChannelPage(
                 normalizeApiContent(newPage.description),
             )
         ) {
-            // TODO(#agents-web): Implement channel description update endpoint.
-            throw new UnimplementedError(
-                "Channel description update API endpoint hasn\u2019t been implemented yet",
-            );
+            patches.push({type: "SetDescription", description: newPage.description});
+        }
+
+        if (patches.length > 0) {
+            await context.api.patch(context.span, "/channels/{id}", {
+                params: {path: {id: oldPageMetadata.id}},
+                body: {patches},
+            });
         }
     }
 
@@ -882,6 +906,8 @@ async function printAgentWebChannelPagePostBlock(
     if (post.timeAttribute !== null) {
         openTag += ` time="${escapeHtml(post.timeAttribute)}"`;
     }
+
+    openTag += ` comments="${post.commentCount}"`;
 
     openTag += ">";
 
@@ -1221,11 +1247,16 @@ async function parseAgentWebChannelPagePostBlock(
         openTagPosition: Html["position"];
     },
 ): Promise<AgentWebChannelPagePostBlock> {
-    const {fromAttribute, timeAttribute} = parseAgentWebChannelPagePostOpenTag(openTag);
+    const {fromAttribute, timeAttribute, commentsAttribute} =
+        parseAgentWebChannelPagePostOpenTag(openTag);
     const author =
         fromAttribute === null
             ? null
             : await parseAgentWebChannelPageAccountLink(storage, openTagPosition, fromAttribute);
+    const commentCount = parseAgentWebChannelPagePostCommentCountAttribute(
+        openTagPosition,
+        commentsAttribute,
+    );
 
     const seeMore = root.children[root.children.length - 1];
     const seeMoreLink =
@@ -1268,18 +1299,21 @@ async function parseAgentWebChannelPagePostBlock(
         timeAttribute,
         contentSnippet,
         reference,
+        commentCount,
     };
 }
 
 function parseAgentWebChannelPagePostOpenTag(openTag: string): {
     fromAttribute: string | null;
     timeAttribute: string | null;
+    commentsAttribute: string | null;
 } {
     let hasPostOpenTag = false;
     let hasEndedPostOpenTag = false;
-    let startedAttribute: "from" | "time" | null = null;
+    let startedAttribute: "from" | "time" | "comments" | null = null;
     let fromAttribute: string | null = null;
     let timeAttribute: string | null = null;
+    let commentsAttribute: string | null = null;
 
     const tokenizer = new HtmlTokenizer(
         {},
@@ -1306,6 +1340,9 @@ function parseAgentWebChannelPagePostOpenTag(openTag: string): {
                 } else if (attributeName === "time") {
                     startedAttribute = "time";
                     timeAttribute = "";
+                } else if (attributeName === "comments") {
+                    startedAttribute = "comments";
+                    commentsAttribute = "";
                 }
             },
             onattribdata: (start, end) => {
@@ -1318,6 +1355,9 @@ function parseAgentWebChannelPagePostOpenTag(openTag: string): {
                     case "time":
                         timeAttribute += attributeData;
                         break;
+                    case "comments":
+                        commentsAttribute += attributeData;
+                        break;
                 }
             },
             onattribentity: codepoint => {
@@ -1329,6 +1369,9 @@ function parseAgentWebChannelPagePostOpenTag(openTag: string): {
                         break;
                     case "time":
                         timeAttribute += attributeData;
+                        break;
+                    case "comments":
+                        commentsAttribute += attributeData;
                         break;
                 }
             },
@@ -1352,7 +1395,22 @@ function parseAgentWebChannelPagePostOpenTag(openTag: string): {
 
     assert(hasPostOpenTag);
 
-    return {fromAttribute, timeAttribute};
+    return {fromAttribute, timeAttribute, commentsAttribute};
+}
+
+function parseAgentWebChannelPagePostCommentCountAttribute(
+    position: Html["position"],
+    commentsAttribute: string | null,
+): number {
+    if (commentsAttribute === null) return 0;
+
+    if (!/^(0|[1-9]\d*)$/.test(commentsAttribute)) {
+        throw new InvalidArgumentError("Invalid channel post comments attribute", {
+            displayMessage: errorDisplayMessage`Expected the \`comments\` attribute on \`<post>\` to be a non-negative integer on line ${position?.start.line ?? "unknown"}. Try again with a valid comment count such as \`comments="0"\`.`,
+        });
+    }
+
+    return Number(commentsAttribute);
 }
 
 async function parseAgentWebChannelPageAccountLink(

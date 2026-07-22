@@ -88,10 +88,12 @@ function mockGetChannelPosts({
     cursor,
     totalPostCount,
     createdTimes,
+    commentCounts,
 }: {
     cursor?: string;
     totalPostCount?: number;
     createdTimes?: ReadonlyArray<DateString>;
+    commentCounts?: ReadonlyArray<number>;
 }) {
     let postCreatedTimes: ReadonlyArray<DateString>;
 
@@ -144,6 +146,7 @@ function mockGetChannelPosts({
                     author: author[postIndex % author.length]!,
                     createdTime: postCreatedTimes[postIndex]!,
                     createdTimeZone: defaultTimeZone,
+                    commentCount: commentCounts?.[postIndex] ?? 0,
                     channel: {id: channelId, name: "Announcements"},
                     contentSnippet: contentFromText(getChannelPostTitle(postIndex)),
                     reference: {title: getChannelPostTitle(postIndex)},
@@ -165,9 +168,10 @@ function getChannelPostTitle(index: number): string {
     return `Test post content ${index + 1}`;
 }
 
-test("reads the first channel page with posts", async () => {
+test("reads the first channel page with posts and comment counts", async () => {
     mockGetChannel();
     mockGetChannelPosts({
+        commentCounts: [3, 0],
         totalPostCount: 2,
     });
 
@@ -179,7 +183,7 @@ Updates from the team.
 
 ---
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="3">
 
 Test post content 1
 
@@ -187,7 +191,7 @@ Test post content 1
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT" comments="0">
 
 Test post content 2
 
@@ -226,7 +230,7 @@ test("reads later channel posts after a cursor", async () => {
         response: `\
 Posts in Announcements.
 
-<post from="[Alice](/human/alice)" time="May 14th at 12:10pm EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 12:10pm EDT" comments="0">
 
 Test post content 15
 
@@ -234,7 +238,7 @@ Test post content 15
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 12:15pm EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 12:15pm EDT" comments="0">
 
 Test post content 16
 
@@ -277,7 +281,7 @@ test("reads later channel posts after a date-only cursor", async () => {
         response: `\
 Posts in Announcements.
 
-<post from="[Bob](/human/bob)" time="May 15th at 11:00am EDT">
+<post from="[Bob](/human/bob)" time="May 15th at 11:00am EDT" comments="0">
 
 Test post content 2
 
@@ -320,7 +324,7 @@ test("reads later channel posts after a seconds cursor", async () => {
         response: `\
 Posts in Announcements.
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT" comments="0">
 
 Test post content 2
 
@@ -363,7 +367,7 @@ test("reads later channel posts after a milliseconds cursor", async () => {
         response: `\
 Posts in Announcements.
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT" comments="0">
 
 Test post content 2
 
@@ -429,46 +433,46 @@ Updates from the team.
 
 ---
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">\n\nTest post content 1\n\n[See more »](/post/test-post-content-1)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">\n\nTest post content 2\n\n[See more »](/post/test-post-content-2)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">\n\nTest post content 3\n\n[See more »](/post/test-post-content-3)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">\n\nTest post content 4\n\n[See more »](/post/test-post-content-4)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:20am EDT">\n\nTest post content 5\n\n[See more »](/post/test-post-content-5)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:25am EDT">\n\nTest post content 6\n\n[See more »](/post/test-post-content-6)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:30am EDT">\n\nTest post content 7\n\n[See more »](/post/test-post-content-7)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:35am EDT">\n\nTest post content 8\n\n[See more »](/post/test-post-content-8)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:40am EDT">\n\nTest post content 9\n\n[See more »](/post/test-post-content-9)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:45am EDT">\n\nTest post content 10\n\n[See more »](/post/test-post-content-10)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:50am EDT">\n\nTest post content 11\n\n[See more »](/post/test-post-content-11)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:55am EDT">\n\nTest post content 12\n\n[See more »](/post/test-post-content-12)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 12:00pm EDT">\n\nTest post content 13\n\n[See more »](/post/test-post-content-13)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 12:05pm EDT">\n\nTest post content 14\n\n[See more »](/post/test-post-content-14)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 12:10pm EDT">\n\nTest post content 15\n\n[See more »](/post/test-post-content-15)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 12:15pm EDT">\n\nTest post content 16\n\n[See more »](/post/test-post-content-16)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 12:20pm EDT">\n\nTest post content 17\n\n[See more »](/post/test-post-content-17)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 12:25pm EDT">\n\nTest post content 18\n\n[See more »](/post/test-post-content-18)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 12:30pm EDT">\n\nTest post content 19\n\n[See more »](/post/test-post-content-19)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 12:35pm EDT">\n\nTest post content 20\n\n[See more »](/post/test-post-content-20)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 12:40pm EDT">\n\nTest post content 21\n\n[See more »](/post/test-post-content-21)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 12:45pm EDT">\n\nTest post content 22\n\n[See more »](/post/test-post-content-22)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 12:50pm EDT">\n\nTest post content 23\n\n[See more »](/post/test-post-content-23)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 12:55pm EDT">\n\nTest post content 24\n\n[See more »](/post/test-post-content-24)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 1:00pm EDT">\n\nTest post content 25\n\n[See more »](/post/test-post-content-25)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 1:05pm EDT">\n\nTest post content 26\n\n[See more »](/post/test-post-content-26)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 1:10pm EDT">\n\nTest post content 27\n\n[See more »](/post/test-post-content-27)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 1:15pm EDT">\n\nTest post content 28\n\n[See more »](/post/test-post-content-28)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 1:20pm EDT">\n\nTest post content 29\n\n[See more »](/post/test-post-content-29)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 1:25pm EDT">\n\nTest post content 30\n\n[See more »](/post/test-post-content-30)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 1:30pm EDT">\n\nTest post content 31\n\n[See more »](/post/test-post-content-31)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 1:35pm EDT">\n\nTest post content 32\n\n[See more »](/post/test-post-content-32)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 1:40pm EDT">\n\nTest post content 33\n\n[See more »](/post/test-post-content-33)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 1:45pm EDT">\n\nTest post content 34\n\n[See more »](/post/test-post-content-34)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 1:50pm EDT">\n\nTest post content 35\n\n[See more »](/post/test-post-content-35)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 1:55pm EDT">\n\nTest post content 36\n\n[See more »](/post/test-post-content-36)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 2:00pm EDT">\n\nTest post content 37\n\n[See more »](/post/test-post-content-37)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 2:05pm EDT">\n\nTest post content 38\n\n[See more »](/post/test-post-content-38)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 2:10pm EDT">\n\nTest post content 39\n\n[See more »](/post/test-post-content-39)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 2:15pm EDT">\n\nTest post content 40\n\n[See more »](/post/test-post-content-40)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">\n\nTest post content 1\n\n[See more »](/post/test-post-content-1)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT" comments="0">\n\nTest post content 2\n\n[See more »](/post/test-post-content-2)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT" comments="0">\n\nTest post content 3\n\n[See more »](/post/test-post-content-3)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT" comments="0">\n\nTest post content 4\n\n[See more »](/post/test-post-content-4)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:20am EDT" comments="0">\n\nTest post content 5\n\n[See more »](/post/test-post-content-5)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:25am EDT" comments="0">\n\nTest post content 6\n\n[See more »](/post/test-post-content-6)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:30am EDT" comments="0">\n\nTest post content 7\n\n[See more »](/post/test-post-content-7)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:35am EDT" comments="0">\n\nTest post content 8\n\n[See more »](/post/test-post-content-8)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:40am EDT" comments="0">\n\nTest post content 9\n\n[See more »](/post/test-post-content-9)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:45am EDT" comments="0">\n\nTest post content 10\n\n[See more »](/post/test-post-content-10)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:50am EDT" comments="0">\n\nTest post content 11\n\n[See more »](/post/test-post-content-11)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:55am EDT" comments="0">\n\nTest post content 12\n\n[See more »](/post/test-post-content-12)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 12:00pm EDT" comments="0">\n\nTest post content 13\n\n[See more »](/post/test-post-content-13)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 12:05pm EDT" comments="0">\n\nTest post content 14\n\n[See more »](/post/test-post-content-14)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 12:10pm EDT" comments="0">\n\nTest post content 15\n\n[See more »](/post/test-post-content-15)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 12:15pm EDT" comments="0">\n\nTest post content 16\n\n[See more »](/post/test-post-content-16)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 12:20pm EDT" comments="0">\n\nTest post content 17\n\n[See more »](/post/test-post-content-17)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 12:25pm EDT" comments="0">\n\nTest post content 18\n\n[See more »](/post/test-post-content-18)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 12:30pm EDT" comments="0">\n\nTest post content 19\n\n[See more »](/post/test-post-content-19)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 12:35pm EDT" comments="0">\n\nTest post content 20\n\n[See more »](/post/test-post-content-20)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 12:40pm EDT" comments="0">\n\nTest post content 21\n\n[See more »](/post/test-post-content-21)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 12:45pm EDT" comments="0">\n\nTest post content 22\n\n[See more »](/post/test-post-content-22)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 12:50pm EDT" comments="0">\n\nTest post content 23\n\n[See more »](/post/test-post-content-23)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 12:55pm EDT" comments="0">\n\nTest post content 24\n\n[See more »](/post/test-post-content-24)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 1:00pm EDT" comments="0">\n\nTest post content 25\n\n[See more »](/post/test-post-content-25)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 1:05pm EDT" comments="0">\n\nTest post content 26\n\n[See more »](/post/test-post-content-26)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 1:10pm EDT" comments="0">\n\nTest post content 27\n\n[See more »](/post/test-post-content-27)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 1:15pm EDT" comments="0">\n\nTest post content 28\n\n[See more »](/post/test-post-content-28)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 1:20pm EDT" comments="0">\n\nTest post content 29\n\n[See more »](/post/test-post-content-29)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 1:25pm EDT" comments="0">\n\nTest post content 30\n\n[See more »](/post/test-post-content-30)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 1:30pm EDT" comments="0">\n\nTest post content 31\n\n[See more »](/post/test-post-content-31)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 1:35pm EDT" comments="0">\n\nTest post content 32\n\n[See more »](/post/test-post-content-32)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 1:40pm EDT" comments="0">\n\nTest post content 33\n\n[See more »](/post/test-post-content-33)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 1:45pm EDT" comments="0">\n\nTest post content 34\n\n[See more »](/post/test-post-content-34)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 1:50pm EDT" comments="0">\n\nTest post content 35\n\n[See more »](/post/test-post-content-35)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 1:55pm EDT" comments="0">\n\nTest post content 36\n\n[See more »](/post/test-post-content-36)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 2:00pm EDT" comments="0">\n\nTest post content 37\n\n[See more »](/post/test-post-content-37)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 2:05pm EDT" comments="0">\n\nTest post content 38\n\n[See more »](/post/test-post-content-38)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 2:10pm EDT" comments="0">\n\nTest post content 39\n\n[See more »](/post/test-post-content-39)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 2:15pm EDT" comments="0">\n\nTest post content 40\n\n[See more »](/post/test-post-content-40)\n\n</post>\n
 End of posts.`,
     });
 });
@@ -488,20 +492,20 @@ Updates from the team.
 
 [Next page »](/channel/announcements?after=2026-05-14T16:05)
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">\n\nTest post content 1\n\n[See more »](/post/test-post-content-1)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">\n\nTest post content 2\n\n[See more »](/post/test-post-content-2)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">\n\nTest post content 3\n\n[See more »](/post/test-post-content-3)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">\n\nTest post content 4\n\n[See more »](/post/test-post-content-4)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:20am EDT">\n\nTest post content 5\n\n[See more »](/post/test-post-content-5)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:25am EDT">\n\nTest post content 6\n\n[See more »](/post/test-post-content-6)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:30am EDT">\n\nTest post content 7\n\n[See more »](/post/test-post-content-7)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:35am EDT">\n\nTest post content 8\n\n[See more »](/post/test-post-content-8)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:40am EDT">\n\nTest post content 9\n\n[See more »](/post/test-post-content-9)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:45am EDT">\n\nTest post content 10\n\n[See more »](/post/test-post-content-10)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:50am EDT">\n\nTest post content 11\n\n[See more »](/post/test-post-content-11)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:55am EDT">\n\nTest post content 12\n\n[See more »](/post/test-post-content-12)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 12:00pm EDT">\n\nTest post content 13\n\n[See more »](/post/test-post-content-13)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 12:05pm EDT">\n\nTest post content 14\n\n[See more »](/post/test-post-content-14)\n\n</post>`;
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">\n\nTest post content 1\n\n[See more »](/post/test-post-content-1)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT" comments="0">\n\nTest post content 2\n\n[See more »](/post/test-post-content-2)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT" comments="0">\n\nTest post content 3\n\n[See more »](/post/test-post-content-3)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT" comments="0">\n\nTest post content 4\n\n[See more »](/post/test-post-content-4)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:20am EDT" comments="0">\n\nTest post content 5\n\n[See more »](/post/test-post-content-5)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:25am EDT" comments="0">\n\nTest post content 6\n\n[See more »](/post/test-post-content-6)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:30am EDT" comments="0">\n\nTest post content 7\n\n[See more »](/post/test-post-content-7)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:35am EDT" comments="0">\n\nTest post content 8\n\n[See more »](/post/test-post-content-8)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:40am EDT" comments="0">\n\nTest post content 9\n\n[See more »](/post/test-post-content-9)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:45am EDT" comments="0">\n\nTest post content 10\n\n[See more »](/post/test-post-content-10)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:50am EDT" comments="0">\n\nTest post content 11\n\n[See more »](/post/test-post-content-11)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:55am EDT" comments="0">\n\nTest post content 12\n\n[See more »](/post/test-post-content-12)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 12:00pm EDT" comments="0">\n\nTest post content 13\n\n[See more »](/post/test-post-content-13)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 12:05pm EDT" comments="0">\n\nTest post content 14\n\n[See more »](/post/test-post-content-14)\n\n</post>`;
 
     const response = await callAgentWebReadTool(context, {
         path: "/channel/announcements",
@@ -547,7 +551,7 @@ test("truncates channel posts and updates the next page cursor", async () => {
         totalPostCount: 6,
     });
 
-    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "720b"}))
+    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "780b"}))
         .toEqual(`\
 # Announcements
 
@@ -557,7 +561,7 @@ Updates from the team.
 
 [Next page »](/channel/announcements?after=2026-05-14T15:15)
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 Test post content 1
 
@@ -565,7 +569,7 @@ Test post content 1
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT" comments="0">
 
 Test post content 2
 
@@ -573,7 +577,7 @@ Test post content 2
 
 </post>
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT" comments="0">
 
 Test post content 3
 
@@ -581,7 +585,7 @@ Test post content 3
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT" comments="0">
 
 Test post content 4
 
@@ -603,7 +607,7 @@ test("truncates channel posts with a date-only next page cursor", async () => {
         ],
     });
 
-    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "720b"}))
+    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "780b"}))
         .toEqual(`\
 # Announcements
 
@@ -613,7 +617,7 @@ Updates from the team.
 
 [Next page »](/channel/announcements?after=2026-05-14)
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 Test post content 1
 
@@ -621,7 +625,7 @@ Test post content 1
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT" comments="0">
 
 Test post content 2
 
@@ -629,7 +633,7 @@ Test post content 2
 
 </post>
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT" comments="0">
 
 Test post content 3
 
@@ -637,7 +641,7 @@ Test post content 3
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT" comments="0">
 
 Test post content 4
 
@@ -659,7 +663,7 @@ test("truncates channel posts with a seconds next page cursor", async () => {
         ],
     });
 
-    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "720b"}))
+    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "780b"}))
         .toEqual(`\
 # Announcements
 
@@ -669,7 +673,7 @@ Updates from the team.
 
 [Next page »](/channel/announcements?after=2026-05-14T15:15:10)
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 Test post content 1
 
@@ -677,7 +681,7 @@ Test post content 1
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT" comments="0">
 
 Test post content 2
 
@@ -685,7 +689,7 @@ Test post content 2
 
 </post>
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT" comments="0">
 
 Test post content 3
 
@@ -693,7 +697,7 @@ Test post content 3
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT" comments="0">
 
 Test post content 4
 
@@ -715,7 +719,7 @@ test("truncates channel posts with a milliseconds next page cursor", async () =>
         ],
     });
 
-    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "720b"}))
+    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "780b"}))
         .toEqual(`\
 # Announcements
 
@@ -725,7 +729,7 @@ Updates from the team.
 
 [Next page »](/channel/announcements?after=2026-05-14T15:15:10.123)
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 Test post content 1
 
@@ -733,7 +737,7 @@ Test post content 1
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT" comments="0">
 
 Test post content 2
 
@@ -741,7 +745,7 @@ Test post content 2
 
 </post>
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT" comments="0">
 
 Test post content 3
 
@@ -749,7 +753,7 @@ Test post content 3
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT" comments="0">
 
 Test post content 4
 
@@ -774,7 +778,7 @@ Updates from the team.
 
 [Next page »](/channel/announcements?after=2026-05-14T15:15)
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
 Test post content 1
 
@@ -782,7 +786,7 @@ Test post content 1
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT" comments="0">
 
 Test post content 2
 
@@ -790,7 +794,7 @@ Test post content 2
 
 </post>
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT" comments="0">
 
 Test post content 3
 
@@ -798,7 +802,7 @@ Test post content 3
 
 </post>
 
-<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT" comments="0">
 
 Test post content 4
 

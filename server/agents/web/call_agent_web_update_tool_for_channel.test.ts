@@ -7,6 +7,7 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {agentWebChannelPageApiPostsBatchCount} from "~/server/agents/web/pages/agent_web_channel_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -64,6 +65,43 @@ function contentFromText(text: string): ApiContentResponse {
     });
 }
 
+function contentWithoutKeysFromText(text: string): ApiContentResponseWithoutKeys {
+    return {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text}],
+            },
+        ],
+    };
+}
+
+function mockPatchChannel({
+    name = "Announcements",
+    description = contentFromText("Updates from the team."),
+}: {
+    name?: string;
+    description?: ApiContentResponse;
+} = {}) {
+    api.mockPatch("/channels/{id}", {
+        params: {path: {id: channelId}},
+        data: {
+            spaceId,
+            channel: {
+                id: channelId,
+                name,
+                description,
+            },
+        },
+    });
+}
+
+function getChannelPatchRequests() {
+    return api
+        .getRequestHistory()
+        .filter(record => record.method === "PATCH" && record.path === "/channels/{id}");
+}
+
 function mockGetChannel() {
     api.mockGet("/channels/{id}", {
         params: {path: {id: channelId}},
@@ -91,6 +129,7 @@ function mockGetChannelPosts({
             author: aliceAccount,
             createdTime: serializeDateString(new Date("2026-05-14T15:00:00.000Z")),
             createdTimeZone: defaultTimeZone,
+            commentCount: 0,
             channel: {id: channelId, name: "Announcements"},
             contentSnippet: contentFromText("Launch summary."),
             reference: {title: "Launch notes"},
@@ -100,6 +139,7 @@ function mockGetChannelPosts({
             author: bobAccount,
             createdTime: serializeDateString(new Date("2026-05-14T15:05:00.000Z")),
             createdTimeZone: defaultTimeZone,
+            commentCount: 0,
             channel: {id: channelId, name: "Announcements"},
             contentSnippet: contentFromText("Roadmap summary."),
             reference: {title: "Roadmap"},
@@ -113,6 +153,7 @@ function mockGetChannelPosts({
             author: index % 2 === 0 ? aliceAccount : bobAccount,
             createdTime: serializeDateString(new Date(Date.UTC(2026, 4, 14, 15, index * 5))),
             createdTimeZone: defaultTimeZone,
+            commentCount: 0,
             channel: {id: channelId, name: "Announcements"},
             contentSnippet: contentFromText(`Extra summary ${index + 1}.`),
             reference: {title: `Extra post ${index + 1}`},
@@ -167,22 +208,31 @@ async function readHeadChannelPage({
     });
 }
 
-test("throws unimplemented when updating the channel name", async () => {
+test("updates the channel name", async () => {
     await readHeadChannelPage();
+    mockPatchChannel({name: "Product Updates"});
 
     await expect(
         callAgentWebUpdateTool(context, {
             path: "/channel/announcements",
             updates: [{old: "# Announcements", new: "# Product Updates", replaceAll: false}],
         }),
-    ).resolves.toEqual(`\
-Error: Couldn\u2019t update \`/channel/announcements\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+    ).resolves.toEqual("Update was successful.");
 
-> Internal error: Channel rename API endpoint hasn\u2019t been implemented yet`);
+    expect(getChannelPatchRequests()).toMatchObject([
+        {
+            body: {
+                patches: [{type: "SetName", name: "Product Updates"}],
+            },
+        },
+    ]);
 });
 
-test("throws unimplemented when updating the channel description", async () => {
+test("updates the channel description", async () => {
     await readHeadChannelPage();
+    mockPatchChannel({
+        description: contentFromText("Updates from the product team."),
+    });
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -195,10 +245,61 @@ test("throws unimplemented when updating the channel description", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual(`\
-Error: Couldn\u2019t update \`/channel/announcements\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+    ).resolves.toEqual("Update was successful.");
 
-> Internal error: Channel description update API endpoint hasn\u2019t been implemented yet`);
+    expect(getChannelPatchRequests()).toMatchObject([
+        {
+            body: {
+                patches: [
+                    {
+                        type: "SetDescription",
+                        description: contentWithoutKeysFromText("Updates from the product team."),
+                    },
+                ],
+            },
+        },
+    ]);
+});
+
+test("updates the channel name and description together", async () => {
+    await readHeadChannelPage();
+    mockPatchChannel({
+        name: "Product Updates",
+        description: contentFromText("Updates from the product team."),
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/channel/announcements",
+            updates: [
+                {
+                    old: `\
+# Announcements
+
+Updates from the team.`,
+                    new: `\
+# Product Updates
+
+Updates from the product team.`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.");
+
+    expect(getChannelPatchRequests()).toMatchObject([
+        {
+            body: {
+                patches: [
+                    {type: "SetName", name: "Product Updates"},
+                    {
+                        type: "SetDescription",
+                        description: contentWithoutKeysFromText("Updates from the product team."),
+                    },
+                ],
+            },
+        },
+    ]);
 });
 
 test("rejects converting a head channel page into a tail channel page", async () => {
@@ -276,7 +377,7 @@ End of posts.`,
 test("rejects removing posts", async () => {
     const response = await readHeadChannelPage();
     const firstPostMatch = response.match(
-        /<post from="\[Alice\]\(\/human\/alice\)" time="May 14th at 11:00am EDT">[\s\S]*?<\/post>\n\n/,
+        /<post from="\[Alice\]\(\/human\/alice\)" time="May 14th at 11:00am EDT" comments="0">[\s\S]*?<\/post>\n\n/,
     );
     assert(firstPostMatch);
     const firstPost = firstPostMatch[0];
@@ -308,7 +409,7 @@ test("rejects changing a post see more link", async () => {
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t update `/channel/announcements`. " +
-            "You can only update the channel name and description on a channel page. Any metadata on `<post>`s (the `from`/`time` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.",
+            "You can only update the channel name and description on a channel page. Any metadata on `<post>`s (the `from`/`time`/`comments` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.",
     );
 });
 
@@ -328,7 +429,7 @@ test("rejects removing a post see more link", async () => {
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t update `/channel/announcements`. " +
-            "You can only update the channel name and description on a channel page. Any metadata on `<post>`s (the `from`/`time` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.",
+            "You can only update the channel name and description on a channel page. Any metadata on `<post>`s (the `from`/`time`/`comments` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.",
     );
 });
 
@@ -348,7 +449,27 @@ test("rejects changing a post time attribute", async () => {
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t update `/channel/announcements`. " +
-            "You can only update the channel name and description on a channel page. Any metadata on `<post>`s (the `from`/`time` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.",
+            "You can only update the channel name and description on a channel page. Any metadata on `<post>`s (the `from`/`time`/`comments` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.",
+    );
+});
+
+test("rejects changing a post comments attribute", async () => {
+    await readHeadChannelPage();
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/channel/announcements",
+            updates: [
+                {
+                    old: '<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">',
+                    new: '<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="1">',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/channel/announcements`. " +
+            "You can only update the channel name and description on a channel page. Any metadata on `<post>`s (the `from`/`time`/`comments` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.",
     );
 });
 
@@ -368,7 +489,7 @@ test("rejects changing a post from attribute", async () => {
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t update `/channel/announcements`. " +
-            "You can only update the channel name and description on a channel page. Any metadata on `<post>`s (the `from`/`time` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.",
+            "You can only update the channel name and description on a channel page. Any metadata on `<post>`s (the `from`/`time`/`comments` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.",
     );
 });
 

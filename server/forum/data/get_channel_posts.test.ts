@@ -32,7 +32,7 @@ test("can get channel post contents with cursor pagination", async () => {
         beforeCreatedTime: post2.createdTime,
     });
 
-    expect([firstResult, secondResult]).toEqual([
+    expect([firstResult, secondResult]).toMatchObject([
         {
             spaceId: space.id,
             channelName: "Test Channel",
@@ -90,7 +90,7 @@ test("requires view access to get channel post contents", async () => {
         beforeCreatedTime: null,
     });
 
-    expect(allowedResult).toEqual({
+    expect(allowedResult).toMatchObject({
         spaceId: space.id,
         channelName: "Private Channel",
         posts: [

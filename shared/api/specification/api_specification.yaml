@@ -853,6 +853,34 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageExperimentalApprovals"}
 
+    /channels:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, channel]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                channel:
+                                    type: object
+                                    required: [name, description]
+                                    additionalProperties: false
+                                    properties:
+                                        creator:
+                                            $ref: "#/components/schemas/Actor"
+                                        name:
+                                            type: string
+                                        description:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetChannel"}
+
     /channels/{id}:
         parameters:
             - name: id
@@ -862,18 +890,26 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, channel]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    channel:
-                                        $ref: "#/components/schemas/Channel"
+                "200": {$ref: "#/components/responses/GetChannel"}
+        patch:
+            patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [patches]
+                            additionalProperties: false
+                            properties:
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/ChannelPatch"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetChannel"}
 
     /channels/{id}-reference:
         parameters:
@@ -984,6 +1020,8 @@ paths:
                                     # a backwards compatible change when the time comes.
                                     required: [channel, content]
                                     properties:
+                                        creator:
+                                            $ref: "#/components/schemas/Actor"
                                         createdTimeZone:
                                             $ref: "#/components/schemas/TimeZone"
                                         channel:
@@ -2081,6 +2119,19 @@ components:
                                                 description:
                                                     If true, it indicates that the request should
                                                     succeed if tried again.
+
+        GetChannel:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, channel]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            channel:
+                                $ref: "#/components/schemas/Channel"
 
         GetChat:
             content:
@@ -4232,6 +4283,36 @@ components:
                 description:
                     $ref: "#/components/schemas/Content"
 
+        ChannelPatch:
+            oneOf:
+                - $ref: "#/components/schemas/ChannelSetNamePatch"
+                - $ref: "#/components/schemas/ChannelSetDescriptionPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetName: "#/components/schemas/ChannelSetNamePatch"
+                    SetDescription: "#/components/schemas/ChannelSetDescriptionPatch"
+
+        ChannelSetNamePatch:
+            type: object
+            required: [type, name]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetName
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        ChannelSetDescriptionPatch:
+            type: object
+            required: [type, description]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetDescription
+                description:
+                    $ref: "#/components/schemas/Content"
+
         Post:
             type: object
             # `channel` is intentionally optional since we may allow users to create posts
@@ -4243,6 +4324,7 @@ components:
                     $ref: "#/components/schemas/PostId"
                 # For any useful rendering of a post, you need the author's name. Which is why
                 # we include more than just the `AccountId`.
+                # TODO(#public-api-blocking): Use `$ref: "#/components/schemas/Actor"` instead.
                 author:
                     $ref: "#/components/schemas/Account"
                 createdTime:
@@ -4271,13 +4353,15 @@ components:
             type: object
             # `channel` is intentionally optional since we may allow users to create posts
             # that aren't in a channel in the future.
-            required: [id, author, createdTime, createdTimeZone, contentSnippet, reference]
+            required:
+                [id, author, createdTime, createdTimeZone, contentSnippet, commentCount, reference]
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/PostId"
                 # For any useful rendering of a post, you need the author's name. Which is why
                 # we include more than just the `AccountId`.
+                # TODO(#public-api-blocking): Use `$ref: "#/components/schemas/Actor"` instead.
                 author:
                     $ref: "#/components/schemas/Account"
                 createdTime:
@@ -4288,6 +4372,9 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 contentSnippet:
                     $ref: "#/components/schemas/Content_WithoutKeys"
+                commentCount:
+                    type: integer
+                    minimum: 0
                 # TODO(#public-api): Document how this is the same as the chat's `title` when
                 # displayed as a mention.
                 reference:
@@ -6835,6 +6922,7 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                # TODO(#public-api-blocking): Use `$ref: "#/components/schemas/Actor"` instead.
                 author:
                     $ref: "#/components/schemas/Account"
 

@@ -31,6 +31,7 @@ const AgentWebChannelPagePostBlockArbitrary: Arbitrary<AgentWebChannelPagePostBl
         {weight: 10, arbitrary: ApiContentTextArbitrary},
         {weight: 1, arbitrary: fc.constant(null)},
     ),
+    commentCount: fc.integer({min: 0, max: 1000}),
     contentSnippet: ApiContentWithoutCommentMarkArbitrary,
     reference: fc.oneof(
         {weight: 10, arbitrary: ApiPostReferenceArbitrary},

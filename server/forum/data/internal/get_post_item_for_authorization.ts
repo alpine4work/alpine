@@ -19,7 +19,7 @@ export const PostItemAuthorizationCache = new DynamoContextCache<
         | "postId"
         | "spaceId"
         | "channelId"
-        | "authorId"
+        | "author"
         | "createdTime"
         | "contentUpdate"
         | "commentsSummary"
@@ -38,7 +38,7 @@ export type PostItemForAuthorization = Pick<
     | "postId"
     | "spaceId"
     | "channelId"
-    | "authorId"
+    | "author"
     | "createdTime"
     | "contentUpdate"
     | "commentsSummary"
@@ -63,7 +63,7 @@ export async function getPostItemForAuthorizationIfExists(
                 attributes: [
                     "spaceId",
                     "channelId",
-                    "authorId",
+                    "author",
                     "createdTime",
                     "contentUpdate",
                     "commentsSummary",

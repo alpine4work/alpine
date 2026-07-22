@@ -23,6 +23,7 @@ import {
 } from "~/shared/content/message_content_schema.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {ChannelCreatorSchema} from "~/shared/forum/channel_creator.js";
 import {
     ChannelContributorsModel,
     ChannelModel,
@@ -31,6 +32,7 @@ import {
     maxChannelTopContributorCount,
 } from "~/shared/forum/channel_model.js";
 import {ChannelBroadcastRealtimeEventsSchema} from "~/shared/forum/channel_realtime_protocol.js";
+import {PostActor, PostActorSchema} from "~/shared/forum/post_actor.js";
 import {PostContent, PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostModel, maxPostPreviewCommentAuthorCount} from "~/shared/forum/post_model.js";
 import {PostBroadcastRealtimeEventsSchema} from "~/shared/forum/post_realtime_protocol.js";
@@ -80,8 +82,10 @@ export const ForumRealtimeTable = RynamoTableSchema.new({
                         /** When was this channel created? */
                         createdTime: Schema.date,
 
-                        /** Account who created the channel. */
-                        creatorId: Schema.id<AccountId>().nullable().default(null),
+                        /** Actor who created the channel. */
+                        creator: ChannelCreatorSchema.wrapOriginalPropertyInObject("accountId", {
+                            from: null,
+                        }).originalPropertyKey("creatorId"),
 
                         /** The name of this channel. */
                         name: LabelStringSchema,
@@ -222,8 +226,10 @@ export const ForumRealtimeTable = RynamoTableSchema.new({
                         /** What channel was this post created in? */
                         channelId: Schema.id<ChannelId>(),
 
-                        /** Which account created this post? */
-                        authorId: Schema.id<AccountId>(),
+                        /** Actor who authored this post. */
+                        author: PostActorSchema.wrapOriginalPropertyInObject("accountId", {
+                            from: null,
+                        }).originalPropertyKey("authorId"),
 
                         /** The contents of this post. */
                         content: PostContentSchema,
@@ -695,7 +701,7 @@ async function createPostModelFromItem(
         readonly spaceId: SpaceId;
         readonly createdTime: Date;
         readonly channelId: ChannelId;
-        readonly authorId: AccountId;
+        readonly author: PostActor;
         readonly content: PostContent;
         readonly contentUpdate: {
             readonly time: Date;
@@ -710,7 +716,11 @@ async function createPostModelFromItem(
 ): Promise<PostModel> {
     const [channel, author, previewCommentAuthors, contentReferences] = await runAllPromises([
         channelPromise,
-        getAccountOrDangerouslyGetStubWithoutAuthorization(context, item.spaceId, item.authorId),
+        getAccountOrDangerouslyGetStubWithoutAuthorization(
+            context,
+            item.spaceId,
+            item.author.accountId,
+        ),
         runAllPromises(
             Array.from(
                 sliceIterable(

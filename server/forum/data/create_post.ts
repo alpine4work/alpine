@@ -33,7 +33,7 @@ import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -45,11 +45,13 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
 /**
- * Create a new post by the current account in the provided channel.
+ * Create a new post in the provided channel.
+ *
+ * Bots can pass `creatorId` to create the post on behalf of another account.
  *
  * If we're creating a post from a draft then a `draftId` parameter should be
  * provided so we can delete the draft.
@@ -59,6 +61,7 @@ export async function createPost(
     {
         id: postId = generateId<PostId>(),
         channelId,
+        creatorId,
         draftId = null,
         content,
         createdTimeZone,
@@ -67,6 +70,7 @@ export async function createPost(
     }: {
         id?: PostId;
         channelId: ChannelId;
+        creatorId?: AccountId;
         draftId?: PostDraftId | null;
         content: PostContent;
         createdTimeZone: TimeZone;
@@ -87,6 +91,23 @@ export async function createPost(
     if (overrideCreatedTimeForTest) {
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
+
+    if (
+        creatorId &&
+        context.actor.type !== "Bot" &&
+        creatorId !== context.actor.getPossiblyBotAccountId()
+    ) {
+        throw new PermissionDeniedError("Only bots can create posts on behalf of other accounts");
+    }
+
+    const authorId = creatorId ?? context.actor.getPossiblyBotAccountId();
+    const author = {
+        accountId: authorId,
+        from:
+            context.actor.type === "Bot" && authorId !== context.actor.getBotAccountId()
+                ? {type: "Bot" as const, accountId: context.actor.getBotAccountId()}
+                : null,
+    };
 
     return await context.dynamo.retryTransaction(async context => {
         const [{spaceId, channelName, accessPolicy: channelAccessPolicy}, channelPostsItem] =
@@ -125,7 +146,7 @@ export async function createPost(
                 ),
             ),
             createdTimeZone,
-            authorId: context.actor.getPossiblyBotAccountId(),
+            author,
             content,
             contentUpdate: null,
             commentsSummary: {
@@ -153,7 +174,7 @@ export async function createPost(
                         from: FilePostAuthorizer.bind({
                             type: "PostDraft",
                             spaceId: postItem.spaceId,
-                            accountId: postItem.authorId,
+                            accountId: postItem.author.accountId,
                             draftId,
                         }),
                         to: FilePostAuthorizer.bind({
@@ -272,7 +293,7 @@ function afterCreatePost(
             type: "Post",
             postId,
             channelId: postItem.channelId,
-            authorId: postItem.authorId,
+            authorId: postItem.author.accountId,
             createdTime: postItem.createdTime,
         });
     });
@@ -297,13 +318,13 @@ function afterCreatePost(
                     partitionType: "Account",
                     sortRangeType: "PostDraft",
                     spaceId: postItem.spaceId,
-                    accountId: postItem.authorId,
+                    accountId: postItem.author.accountId,
                     draftId,
                 }),
                 getPostDraftFileAttachments(
                     context,
                     postItem.spaceId,
-                    postItem.authorId,
+                    postItem.author.accountId,
                     draftId,
                     FilePostAuthorizer,
                 ),
@@ -320,7 +341,7 @@ function afterCreatePost(
                         FilePostAuthorizer.bind({
                             type: "PostDraft",
                             spaceId: postItem.spaceId,
-                            accountId: postItem.authorId,
+                            accountId: postItem.author.accountId,
                             draftId,
                         }),
                     ),
@@ -340,6 +361,16 @@ function afterCreatePost(
             context,
             {partitionType: "Channel", sortRangeType: "Contributors", channelId},
             contributorsItem => {
+                // NOTE(ifitzsimmons, 2026-07-22): We made an intentional decision to omit the bot
+                // account from the contributors if it created the post on the behalf of another
+                // account. The reasoning here is that the Post UX is responsible for explaining
+                // that, for example, Ian is the author of the post via ChatGpt. Maybe something
+                // like "Ian in Channel: ..." where the avatar is a pile and Ian's avatar is first
+                // and the bot's is second.
+                //
+                // So if at the post level the messaging is "Ian did this, ChatGpt was involved",
+                // it feels strange to give ChatGpt the same level of importance as post authors at
+                // the channel-level.
                 contributorsItem ??= DynamoItem.create({
                     partitionType: "Channel",
                     sortRangeType: "Contributors",
@@ -350,9 +381,8 @@ function afterCreatePost(
                 });
 
                 oldContributionCount =
-                    contributorsItem.contributionCountByAccountId.get(
-                        context.actor.getPossiblyBotAccountId(),
-                    ) ?? 0;
+                    contributorsItem.contributionCountByAccountId.get(postItem.author.accountId) ??
+                    0;
 
                 newContributionCount = Math.min(
                     oldContributionCount + 1,
@@ -370,7 +400,7 @@ function afterCreatePost(
                 );
 
                 newContributionCountByAccountId.set(
-                    context.actor.getPossiblyBotAccountId(),
+                    postItem.author.accountId,
                     newContributionCount,
                 );
 
@@ -411,7 +441,7 @@ function afterCreatePost(
             channelId: postItem.channelId,
             postId,
             createdTime: postItem.createdTime,
-            authorId: postItem.authorId,
+            authorId: postItem.author.accountId,
             mentionedAccountIds,
             isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
             contentSnippet,

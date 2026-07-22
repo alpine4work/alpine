@@ -53,6 +53,8 @@ import {quote} from "~/shared/helpers/string/quote.js";
 export async function callAgentWebCreateTool(
     context: AgentWebContext,
     options: {
+        // TODO(#agents-web): Make `type` strongly typed. we should be able to pass a union
+        // of possible types to this
         type: string;
         content: string;
     },

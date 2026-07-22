@@ -7,6 +7,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
+import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
@@ -55,6 +56,17 @@ function expectApiContentWithTextBlockKeys(content: {
     };
 }
 
+function createApiParagraphContent(text: string) {
+    return {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text}],
+            },
+        ],
+    };
+}
+
 test("can read channel information", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
@@ -95,6 +107,129 @@ test("can read channel information", async () => {
                 }),
             }),
         }),
+    });
+});
+
+test("can create channel information", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const response = await server.POST("/channels", {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            spaceId: space.id,
+            channel: {
+                creator: {account: {id: session.account.id}},
+                name: "Created API Channel",
+                description: createApiParagraphContent("Created through the API"),
+            },
+        },
+    });
+
+    expect(response).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            spaceId: space.id,
+            channel: {
+                id: expect.any(String),
+                name: "Created API Channel",
+                description: expectApiContentWithTextBlockKeys({
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Created through the API"}],
+                        },
+                    ],
+                }),
+            },
+        },
+    });
+
+    await expect(
+        getChannelNameAndDescriptionContent(space.systemAction(), response.body.channel.id, {
+            consistency: "StrongWithinCache",
+        }),
+    ).resolves.toMatchObject({
+        creatorId: session.account.id,
+    });
+});
+
+test("can update channel information", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session, {
+        name: "Original Channel",
+        description: "Original description",
+        access: "Public",
+    });
+
+    expect(
+        await server.PATCH(`/channels/${channel.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {type: "SetName", name: "Updated Channel"},
+                    {
+                        type: "SetDescription",
+                        description: createApiParagraphContent("Updated description"),
+                    },
+                ],
+            },
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            spaceId: space.id,
+            channel: {
+                id: channel.id,
+                name: "Updated Channel",
+                description: expectApiContentWithTextBlockKeys({
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Updated description"}],
+                        },
+                    ],
+                }),
+            },
+        },
+    });
+});
+
+test("can\u2019t update channel information without access", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({role: "Admin"});
+    const session2 = await space.createSession();
+
+    const bot = await TestBot.createAndInstantiate(session1);
+    const apiKey = await bot.createApiKey(session1);
+
+    const channel = await TestChannel.create(session2, {access: "Private"});
+
+    expect(
+        await server.PATCH(`/channels/${channel.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [{type: "SetName", name: "Updated Channel"}],
+            },
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: expect.objectContaining({
+                message: expect.stringMatching("You aren\u2019t allowed"),
+            }),
+        },
     });
 });
 
@@ -292,6 +427,7 @@ describe("/channels/{id}/posts", () => {
                         }),
                         createdTime: expect.any(String),
                         createdTimeZone: defaultTimeZone,
+                        commentCount: 0,
                         channel: {
                             id: channel.id,
                             name: "Test Channel",
@@ -314,6 +450,7 @@ describe("/channels/{id}/posts", () => {
                         }),
                         createdTime: expect.any(String),
                         createdTimeZone: defaultTimeZone,
+                        commentCount: 0,
                         channel: {
                             id: channel.id,
                             name: "Test Channel",
@@ -364,6 +501,7 @@ describe("/channels/{id}/posts", () => {
                         }),
                         createdTime: expect.any(String),
                         createdTimeZone: defaultTimeZone,
+                        commentCount: 0,
                         channel: {
                             id: channel.id,
                             name: "Test Channel",
@@ -873,6 +1011,59 @@ describe("post creation", () => {
                         }).elements,
                     },
                     reference: {title: "in Rich Content Channel: Important Announcement"},
+                },
+            },
+        });
+    });
+
+    test("can create a post with an explicit creator", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Post Creator", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session, {name: "Test Bot"});
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Creator Channel",
+            access: "Public",
+        });
+
+        const response = await server.POST("/posts", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                post: {
+                    creator: {account: {id: session.account.id}},
+                    channel: {id: channel.id},
+                    content: createApiParagraphContent("This post has an explicit creator."),
+                },
+            },
+        });
+
+        assert(response.status === 200);
+
+        expect(response.body.post.author).toMatchObject({
+            id: session.account.id,
+            name: "Post Creator",
+            shortName: "Post",
+            space: {
+                role: "Admin",
+            },
+        });
+
+        expect(
+            await server.GET(`/posts/${response.body.post.id}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toMatchObject({
+            status: 200,
+            body: {
+                post: {
+                    author: {
+                        id: session.account.id,
+                        name: "Post Creator",
+                        shortName: "Post",
+                    },
                 },
             },
         });

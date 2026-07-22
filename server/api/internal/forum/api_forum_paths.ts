@@ -1,5 +1,7 @@
+import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createIntoApiPostCommentContentPayloadParent} from "~/server/api/internal/forum/internal/create_into_api_post_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
+import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
@@ -13,6 +15,7 @@ import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
 import {getContentReferencesForServerPrintSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
+import {createChannel} from "~/server/forum/data/create_channel.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
@@ -31,11 +34,18 @@ import {
     putPostCommentMessageApprovalDecisions,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
+import {updateChannelDescription} from "~/server/forum/data/update_channel_description.js";
+import {updateChannelName} from "~/server/forum/data/update_channel_name.js";
+import {updateChannelNameAndDescription} from "~/server/forum/data/update_channel_name_and_description.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
-import {ApiChannelPreview} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiChannelPreview,
+    ApiContent,
+    ApiGetChannelResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -47,42 +57,117 @@ import {
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId, isId} from "~/shared/id/id.js";
-import {FileId, PostId} from "~/shared/id/types/id_types.js";
+import {ChannelId, FileId, PostId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 
 export const apiForumPaths: Pick<
     ApiPaths,
-    keyof ApiPaths & (`/channels/${string}` | `/posts${string}`)
+    keyof ApiPaths & ("/channels" | `/channels/${string}` | `/posts${string}`)
 > = {
-    "/channels/{id}": {
-        get: async (context, {pathParameters}) => {
-            const channel = await getChannelNameAndDescriptionContent(context, pathParameters.id, {
-                consistency: "StrongWithinCache",
+    "/channels": {
+        post: async (context, {requestBody}) => {
+            const consistency = "StrongWithinCache" as const;
+            const channelId = generateId<ChannelId>();
+            const accessPolicy = await createAccessPolicyForContentCreatedByBot(
+                context,
+                requestBody.spaceId,
+                {consistency},
+            );
+            const createContext = context.dynamo.unexpectStrongReadConsistency();
+            const description = assertMessageContent(
+                fromApiContent(MessageContentProsemirrorSchema, requestBody.channel.description),
+            );
+
+            await createChannel(createContext, {
+                spaceId: requestBody.spaceId,
+                channelId,
+                creatorId: requestBody.channel.creator?.account.id,
+                name: requestBody.channel.name,
+                description,
+                accessPolicy,
             });
 
             return {
                 content: {
-                    spaceId: channel.spaceId,
+                    spaceId: requestBody.spaceId,
                     channel: {
-                        id: pathParameters.id,
-                        name: channel.name,
+                        id: channelId,
+                        name: requestBody.channel.name,
                         description: await intoApiMessageContentWithReferences(context, {
-                            spaceId: channel.spaceId,
-                            content: channel.description,
+                            spaceId: requestBody.spaceId,
+                            content: description,
                             contentKeyEncoder: new ApiContentKeyEncoder({
-                                entityId: `Channel:${pathParameters.id}`,
-                                // We don't track channel versions like we do for messages/posts
+                                entityId: `Channel:${channelId}`,
+                                // We don't track channel versions like we do for messages/posts.
                                 version: 0,
                             }),
                         }),
                     },
                 },
+            };
+        },
+    },
+
+    "/channels/{id}": {
+        get: async (context, {pathParameters}) => {
+            return {
+                content: await intoApiChannelResponse(context, pathParameters.id),
+            };
+        },
+
+        patch: async (context, {pathParameters, requestBody}) => {
+            let name: string | undefined;
+            let patchDescription: ApiContent | undefined;
+
+            // NOTE: Last write wins, so if someone sends the `SetName` patch three times,
+            // we'll only write the third name
+            for (const patch of requestBody.patches) {
+                switch (patch.type) {
+                    case "SetName":
+                        name = patch.name;
+                        break;
+                    case "SetDescription":
+                        patchDescription = patch.description;
+                        break;
+                    default:
+                        throw exhaustive(patch);
+                }
+            }
+
+            const description = patchDescription
+                ? assertMessageContent(
+                      fromApiContent(MessageContentProsemirrorSchema, patchDescription),
+                  )
+                : undefined;
+
+            const consistency = "StrongWithinCache" as const;
+
+            if (name !== undefined && description !== undefined) {
+                await updateChannelNameAndDescription(context, {
+                    channelId: pathParameters.id,
+                    name,
+                    description,
+                    consistency,
+                });
+            } else if (name !== undefined) {
+                await updateChannelName(context, {channelId: pathParameters.id, name, consistency});
+            } else if (description !== undefined) {
+                await updateChannelDescription(context, {
+                    channelId: pathParameters.id,
+                    description,
+                    consistency,
+                });
+            }
+
+            return {
+                content: await intoApiChannelResponse(context, pathParameters.id),
             };
         },
     },
@@ -141,6 +226,7 @@ export const apiForumPaths: Pick<
                         createdTimeZone: post.createdTimeZone,
                         channel,
                         contentSnippet,
+                        commentCount: post.commentCount,
                         reference: {
                             // NOCOMMIT: Title should include account name?
                             title: createPostSearchEntityTitle(
@@ -231,19 +317,18 @@ export const apiForumPaths: Pick<
             }
 
             const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+            const creatorId =
+                requestBody.post.creator?.account.id ?? referencesContext.actor.getBotAccountId();
             const [post, author] = await runAllPromises([
                 createPost(context, {
                     id: postId,
                     channelId,
+                    creatorId,
                     createdTimeZone: requestBody.post.createdTimeZone ?? defaultTimeZone,
                     content,
                     consistency: "StrongWithinCache",
                 }),
-                getApiAccount(
-                    referencesContext,
-                    referencesContext.actor.getSpaceId(),
-                    referencesContext.actor.getBotAccountId(),
-                ),
+                getApiAccount(referencesContext, referencesContext.actor.getSpaceId(), creatorId),
             ]);
 
             // Resolve content references after creating the post so the file authorizer can
@@ -401,6 +486,7 @@ export const apiForumPaths: Pick<
                             name: post.channel.name,
                         },
                         contentSnippet: post.content.contentSnippet,
+                        commentCount: post.commentCount,
                         reference: {
                             // NOCOMMIT: Title should include account name?
                             title: createPostSearchEntityTitle(
@@ -787,3 +873,29 @@ export const apiForumPaths: Pick<
         },
     },
 };
+
+async function intoApiChannelResponse(
+    context: ApiServiceBotActionContext,
+    channelId: ChannelId,
+): Promise<ApiGetChannelResponse> {
+    const channel = await getChannelNameAndDescriptionContent(context, channelId, {
+        consistency: "StrongWithinCache",
+    });
+
+    return {
+        spaceId: channel.spaceId,
+        channel: {
+            id: channelId,
+            name: channel.name,
+            description: await intoApiMessageContentWithReferences(context, {
+                spaceId: channel.spaceId,
+                content: channel.description,
+                contentKeyEncoder: new ApiContentKeyEncoder({
+                    entityId: `Channel:${channelId}`,
+                    // We don't track channel versions like we do for messages/posts.
+                    version: 0,
+                }),
+            }),
+        },
+    };
+}

@@ -22,7 +22,7 @@ export async function seedTestChannels(
             channelId: testChannelId,
             spaceId: defaultSpaceId,
             createdTime: new Date(),
-            creatorId: null,
+            creator: {accountId: null, from: null},
             name: "Test",
             description: emptyMessageContent,
             accessPolicy: {

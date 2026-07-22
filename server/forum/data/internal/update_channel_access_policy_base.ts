@@ -196,7 +196,7 @@ export async function updateChannelAccessPolicyBase(
                 channelId,
                 sharedTime: currentTime,
                 sharerId: context.actor.getAccountId(),
-                creatorId: channelItem.creatorId,
+                creatorId: channelItem.creator.accountId,
                 event: "SharedWithAccessPolicyDefaultGrant",
             });
         });

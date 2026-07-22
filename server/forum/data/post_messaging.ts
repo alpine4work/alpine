@@ -241,7 +241,7 @@ export async function createPostComment(
 
                         return {
                             type: "Post",
-                            author: {id: postItem.authorId},
+                            author: {id: postItem.author.accountId},
                         };
                     }
                     default:
@@ -351,7 +351,7 @@ export async function createPostComment(
         // update the contributors map. It's ok to do this in
         // `context.process.waitUntil()`. It's fine if `AppService` crashes and we don't
         // record the contribution.
-        if (postItem.authorId !== authorId && oldCommentCount === 0) {
+        if (postItem.author.accountId !== authorId && oldCommentCount === 0) {
             context.process.waitUntil(async () => {
                 let oldContributionCount = 0;
                 let newContributionCount = 0;
@@ -2611,7 +2611,7 @@ export async function getPostCommentParentContent(
             const content = postItem.content;
 
             return {
-                authorId: postItem.authorId,
+                authorId: postItem.author.accountId,
                 content: assertPostContent(
                     cutContent(
                         postItem.content,

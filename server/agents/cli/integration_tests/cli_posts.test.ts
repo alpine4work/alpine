@@ -70,6 +70,49 @@ End of comments.'
     });
 });
 
+test("read channel posts with comment counts", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+    const channel = await TestChannel.create(cli.session, {name: "Post Comment Counts"});
+    const commentedPost = await channel.createPost(aliceSession, "Commented launch summary", {
+        overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z"),
+    });
+    await commentedPost.sendMessage(aliceSession, "First comment on the launch summary.", {
+        overrideCreatedTime: new Date("2026-05-14T15:05:00.000Z"),
+    });
+    await commentedPost.sendMessage(aliceSession, "Second comment on the launch summary.", {
+        overrideCreatedTime: new Date("2026-05-14T15:10:00.000Z"),
+    });
+    await channel.createPost(aliceSession, "Uncommented roadmap summary", {
+        overrideCreatedTime: new Date("2026-05-14T15:15:00.000Z"),
+    });
+
+    await cli.run("alpine search 'Post Comment Counts'");
+
+    expect(await cli.run("alpine read /channel/post-comment-counts")).toEqual(`\
+# Post Comment Counts
+
+---
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:15am EDT" comments="0">
+
+Uncommented roadmap summary
+
+[See more »](/post/in-post-comment-counts-uncommented-roadmap-summary)
+
+</post>
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="2">
+
+Commented launch summary
+
+[See more »](/post/in-post-comment-counts-commented-launch-summary)
+
+</post>
+
+End of posts.
+`);
+});
+
 test("add a post comment with a file attachment", async () => {
     const aliceSession = await cli.session.space.createSession({name: "Alice"});
     // TODO: Remove the source document once agents can upload files through the API.

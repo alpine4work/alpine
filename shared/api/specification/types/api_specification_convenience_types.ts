@@ -316,6 +316,13 @@ export type ApiChannelPreview = ApiSpecification.components["schemas"]["ChannelP
 
 export type ApiChannel = ApiSpecification.components["schemas"]["Channel"];
 
+export type ApiChannelPatch = ApiSpecification.components["schemas"]["ChannelPatch"];
+
+export type ApiChannelSetNamePatch = ApiSpecification.components["schemas"]["ChannelSetNamePatch"];
+
+export type ApiChannelSetDescriptionPatch =
+    ApiSpecification.components["schemas"]["ChannelSetDescriptionPatch"];
+
 export type ApiPost = ApiSpecification.components["schemas"]["Post"];
 
 export type ApiPostPreview = ApiSpecification.components["schemas"]["PostPreview"];
@@ -1146,13 +1153,13 @@ export type ApiContentTableBlockElementCellResponseWithoutKeys =
 
 export type ApiDocumentResponse = ApiSpecification.components["schemas"]["Document_Response"];
 
-export type ApiChannelResponse = ApiSpecification.components["schemas"]["Channel_Response"];
-
 export type ApiTaskBatchPatchResponse =
     ApiSpecification.components["schemas"]["TaskBatchPatch_Response"];
 
 export type ApiBotWebhookEventResponse =
     ApiSpecification.components["schemas"]["BotWebhookEvent_Response"];
+
+export type ApiChannelResponse = ApiSpecification.components["schemas"]["Channel_Response"];
 
 export type ApiTaskNotesResponse = ApiSpecification.components["schemas"]["TaskNotes_Response"];
 
@@ -1164,6 +1171,9 @@ export type ApiContentInlineElementResponse =
 
 export type ApiDocumentSetContentPatchResponse =
     ApiSpecification.components["schemas"]["DocumentSetContentPatch_Response"];
+
+export type ApiChannelSetDescriptionPatchResponse =
+    ApiSpecification.components["schemas"]["ChannelSetDescriptionPatch_Response"];
 
 export type ApiTaskBatchUpdatePatchResponse =
     ApiSpecification.components["schemas"]["TaskBatchUpdatePatch_Response"];
@@ -1216,6 +1226,9 @@ export type ApiContentListBlockElementResponseWithoutKeys =
 export type ApiDocumentPatchResponse =
     ApiSpecification.components["schemas"]["DocumentPatch_Response"];
 
+export type ApiChannelPatchResponse =
+    ApiSpecification.components["schemas"]["ChannelPatch_Response"];
+
 export type ApiTaskNotesPatchResponse =
     ApiSpecification.components["schemas"]["TaskNotesPatch_Response"];
 
@@ -1266,6 +1279,9 @@ export type ApiMessageExperimentalApprovalDecisionSchemaResponse =
 
 export type ApiErrorResponse =
     ApiSpecification.components["responses"]["Error"]["content"]["application/json"];
+
+export type ApiGetChannelResponse =
+    ApiSpecification.components["responses"]["GetChannel"]["content"]["application/json"];
 
 export type ApiGetChatResponse =
     ApiSpecification.components["responses"]["GetChat"]["content"]["application/json"];

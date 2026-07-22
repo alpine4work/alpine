@@ -894,6 +894,39 @@ paths:
                     $ref: "#/components/responses/GetMessageExperimentalApprovals"
                 default:
                     $ref: "#/components/responses/Error"
+    /channels:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - spaceId
+                                - channel
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                channel:
+                                    type: object
+                                    required:
+                                        - name
+                                        - description
+                                    additionalProperties: false
+                                    properties:
+                                        creator:
+                                            $ref: "#/components/schemas/Actor"
+                                        name:
+                                            type: string
+                                        description:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetChannel"
+                default:
+                    $ref: "#/components/responses/Error"
     /channels/{id}:
         parameters:
             - name: id
@@ -904,19 +937,29 @@ paths:
         get:
             responses:
                 "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required:
-                                    - spaceId
-                                    - channel
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    channel:
-                                        $ref: "#/components/schemas/Channel_Response"
+                    $ref: "#/components/responses/GetChannel"
+                default:
+                    $ref: "#/components/responses/Error"
+        patch:
+            patch: null
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - patches
+                            additionalProperties: false
+                            properties:
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/ChannelPatch"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetChannel"
                 default:
                     $ref: "#/components/responses/Error"
     /channels/{id}-reference:
@@ -1037,6 +1080,8 @@ paths:
                                         - channel
                                         - content
                                     properties:
+                                        creator:
+                                            $ref: "#/components/schemas/Actor"
                                         createdTimeZone:
                                             $ref: "#/components/schemas/TimeZone"
                                         channel:
@@ -2269,6 +2314,20 @@ components:
                                                 type: boolean
                                                 description: If true, it indicates that the request should succeed if tried
                                                     again.
+        GetChannel:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - channel
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            channel:
+                                $ref: "#/components/schemas/Channel_Response"
         GetChat:
             content:
                 application/json:
@@ -4885,6 +4944,37 @@ components:
                     $ref: "#/components/schemas/LabelString"
                 description:
                     $ref: "#/components/schemas/Content"
+        ChannelPatch:
+            oneOf:
+                - $ref: "#/components/schemas/ChannelSetNamePatch"
+                - $ref: "#/components/schemas/ChannelSetDescriptionPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetName: "#/components/schemas/ChannelSetNamePatch"
+                    SetDescription: "#/components/schemas/ChannelSetDescriptionPatch"
+        ChannelSetNamePatch:
+            type: object
+            required:
+                - type
+                - name
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetName
+                name:
+                    $ref: "#/components/schemas/LabelString"
+        ChannelSetDescriptionPatch:
+            type: object
+            required:
+                - type
+                - description
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetDescription
+                description:
+                    $ref: "#/components/schemas/Content"
         Post:
             type: object
             required:
@@ -4924,6 +5014,7 @@ components:
                 - createdTime
                 - createdTimeZone
                 - contentSnippet
+                - commentCount
                 - reference
             additionalProperties: false
             properties:
@@ -4939,6 +5030,9 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 contentSnippet:
                     $ref: "#/components/schemas/Content"
+                commentCount:
+                    type: integer
+                    minimum: 0
                 reference:
                     type: object
                     required:
@@ -7912,6 +8006,7 @@ components:
                 - createdTime
                 - createdTimeZone
                 - contentSnippet
+                - commentCount
                 - reference
             additionalProperties: false
             properties:
@@ -7927,6 +8022,9 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 contentSnippet:
                     $ref: "#/components/schemas/Content_Response_WithoutKeys"
+                commentCount:
+                    type: integer
+                    minimum: 0
                 reference:
                     type: object
                     required:
@@ -9791,20 +9889,6 @@ components:
                     type: string
                 content:
                     $ref: "#/components/schemas/Content_Response"
-        Channel_Response:
-            type: object
-            required:
-                - id
-                - name
-                - description
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/ChannelId"
-                name:
-                    $ref: "#/components/schemas/LabelString"
-                description:
-                    $ref: "#/components/schemas/Content_Response"
         TaskBatchPatch_Response:
             oneOf:
                 - $ref: "#/components/schemas/TaskBatchCreatePatch_Response"
@@ -9827,6 +9911,20 @@ components:
                     CreatedPost: "#/components/schemas/BotWebhookCreatedPostEvent"
                     UpdatedMessageStreamExperimentalApprovalsPart: "#/components/schemas/BotWebhook\
                         UpdatedMessageStreamExperimentalApprovalsPartEvent"
+        Channel_Response:
+            type: object
+            required:
+                - id
+                - name
+                - description
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                description:
+                    $ref: "#/components/schemas/Content_Response"
         TaskNotes_Response:
             type: object
             required:
@@ -9875,6 +9973,17 @@ components:
                     type: integer
                     minimum: 0
                 content:
+                    $ref: "#/components/schemas/Content_Response"
+        ChannelSetDescriptionPatch_Response:
+            type: object
+            required:
+                - type
+                - description
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetDescription
+                description:
                     $ref: "#/components/schemas/Content_Response"
         TaskBatchUpdatePatch_Response:
             type: object
@@ -10087,6 +10196,15 @@ components:
                 mapping:
                     SetTitle: "#/components/schemas/DocumentSetTitlePatch"
                     SetContent: "#/components/schemas/DocumentSetContentPatch_Response"
+        ChannelPatch_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ChannelSetNamePatch"
+                - $ref: "#/components/schemas/ChannelSetDescriptionPatch_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetName: "#/components/schemas/ChannelSetNamePatch"
+                    SetDescription: "#/components/schemas/ChannelSetDescriptionPatch_Response"
         TaskNotesPatch_Response:
             oneOf:
                 - $ref: "#/components/schemas/TaskNotesSetContentPatch_Response"

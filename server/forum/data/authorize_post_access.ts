@@ -70,7 +70,7 @@ export async function authorizePostAccessIfPossible(
                 case "Session":
                 case "ImpersonatedAccount":
                 case "Bot": {
-                    if (postItem.authorId !== context.actor.getPossiblyBotAccountId()) {
+                    if (postItem.author.accountId !== context.actor.getPossiblyBotAccountId()) {
                         return {
                             ok: false,
                             error: new PermissionDeniedError(
