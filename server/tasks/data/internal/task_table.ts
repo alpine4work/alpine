@@ -852,7 +852,7 @@ type TaskNotesStepTransactionItem = DynamoTableItemType<
 export const InternalFileTaskAuthorizer = FileAuthorizer.new(
     TaskTable,
     "Task",
-    async (context, target, expectedAccessLevel) => {
+    async (context, target, expectedAccessLevel, options) => {
         let taskId: TaskId;
         let accessLevel: AccessLevel;
 
@@ -869,7 +869,13 @@ export const InternalFileTaskAuthorizer = FileAuthorizer.new(
                 throw exhaustive(target);
         }
 
-        const result = await authorizeTaskAccessIfPossible(context, taskId, accessLevel);
+        const result = await authorizeTaskAccessIfPossible(
+            context,
+            taskId,
+            accessLevel,
+            null,
+            options,
+        );
         if (result === null) return {ok: false, error: createTaskNotFoundError(taskId)};
 
         return mapResult(result, () => {});

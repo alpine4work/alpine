@@ -4,6 +4,7 @@ import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_m
 import {ErrorBase} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 
 /**
  * Prints an error to a Markdown string to be returned to an agent. Uses the
@@ -37,9 +38,25 @@ export async function printAgentWebError(title: string, error: unknown): Promise
     }
 
     let markdown = "";
+    let internalErrorMessage: string | null = null;
 
     if (displayMessages.length === 1) {
         markdown = `Error: ${title.length > 0 ? `${title}. ` : ""}${printErrorDisplayMessage(displayMessages[0]!)}`;
+
+        // API errors include their server stack in non-production environments. Preserve
+        // the internal message when the API could only return the generic display message
+        // so agents still get an actionable explanation.
+        if (
+            error instanceof ErrorBase &&
+            printErrorDisplayMessage(displayMessages[0]!) ===
+                printErrorDisplayMessage(defaultErrorDisplayMessage) &&
+            isObject(error.cause) &&
+            isObject(error.cause.error) &&
+            typeof error.cause.error.stack === "string"
+        ) {
+            const stackFirstLine = error.cause.error.stack.split("\n", 1)[0]!;
+            internalErrorMessage = stackFirstLine.replace(/^[^:\n]*Error: /, "");
+        }
     } else if (displayMessages.length > 0) {
         markdown = `Error: ${title.length > 0 ? `${title}. ` : ""}(${displayMessages.length} errors)\n\n`;
         markdown += displayMessages.map(printErrorDisplayMessage).join("\n\n");
@@ -50,20 +67,20 @@ export async function printAgentWebError(title: string, error: unknown): Promise
         // message so we don't show just a generic "Unexpected error" message. An agent web
         // user (either developer or agent) is technical and so some potentially confusing
         // information is better than no information.
-        if (error instanceof Error) {
-            let errorMessage = error.message;
+        if (error instanceof Error) internalErrorMessage = error.message;
+    }
 
-            // Escape special characters like `\n`.
-            errorMessage = JSON.stringify(errorMessage).slice(1, -1);
+    if (internalErrorMessage !== null) {
+        // Escape special characters like `\n`.
+        internalErrorMessage = JSON.stringify(internalErrorMessage).slice(1, -1);
 
-            // Escape markdown formatting characters like `**foo**` and what not.
-            errorMessage = printMarkdownTree({
-                type: "paragraph",
-                children: [{type: "text", value: errorMessage}],
-            }).trim();
+        // Escape markdown formatting characters like `**foo**` and what not.
+        internalErrorMessage = printMarkdownTree({
+            type: "paragraph",
+            children: [{type: "text", value: internalErrorMessage}],
+        }).trim();
 
-            markdown += `\n\n> Internal error: ${errorMessage}`;
-        }
+        markdown += `\n\n> Internal error: ${internalErrorMessage}`;
     }
 
     return await formatAgentWebMarkdown(markdown);

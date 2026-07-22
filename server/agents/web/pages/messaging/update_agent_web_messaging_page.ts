@@ -17,6 +17,7 @@ import {printAgentWebMessagingPageMessageIndexRange} from "~/server/agents/web/p
 import {findApiContentRanges} from "~/shared/api/content/find_api_content_ranges.js";
 import {
     normalizeApiContent,
+    normalizeApiContentBlockElement,
     normalizeApiReference,
 } from "~/shared/api/content/normalize_api_content.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
@@ -389,14 +390,6 @@ export async function updateAgentWebMessagingPage<
 
         const {content, files} = extractApiMessageFilesFromContent(newBlock.content);
 
-        if (files.length > 0) {
-            // TODO(#agents-web): Implement sending message file attachments from agent web
-            // pages.
-            throw new UnimplementedError(
-                "Sending messages with files as agent isn\u2019t implemented yet",
-            );
-        }
-
         let newBlockParentRange: {
             messageRange: AgentWebMessagingPageMessageRange;
             contentRange: ApiContentRange;
@@ -581,6 +574,18 @@ export async function updateAgentWebMessagingPage<
                 data: {message},
             } = await createApiMessage(context.span, context.api, actualRoom, {
                 content,
+                ...(files.length > 0
+                    ? {
+                          files: files.map(element => {
+                              const normalizedElement = normalizeApiContentBlockElement(element);
+                              assert(
+                                  normalizedElement.type === "File" ||
+                                      normalizedElement.type === "Preview",
+                              );
+                              return {element: normalizedElement};
+                          }),
+                      }
+                    : {}),
             });
 
             const keys =

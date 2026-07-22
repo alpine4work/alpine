@@ -1,7 +1,8 @@
 /* eslint-disable cyberworlds/no-global-error */
 
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
+import {InternalError, InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 
 test("prints every display message segment without the link URL", async () => {
@@ -113,6 +114,26 @@ test("prints an ErrorBase without a display message as an unexpected internal er
 Error: An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
 > Internal error: Task ID is invalid`);
+});
+
+test("prints the server error behind a generic API display message", async () => {
+    const error = new InternalError("API request failed", {
+        displayMessage: defaultErrorDisplayMessage,
+        cause: {
+            status: 500,
+            error: {
+                message:
+                    "An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc",
+                retry: {able: false},
+                stack: "UnimplementedError: Creating room chats from the API isn\u2019t implemented yet\n    at createChat",
+            },
+        },
+    });
+
+    await expect(printAgentWebError("Couldn\u2019t create chat", error)).resolves.toBe(`\
+Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Creating room chats from the API isn\u2019t implemented yet`);
 });
 
 test("prints a non-Error value without an internal error message", async () => {

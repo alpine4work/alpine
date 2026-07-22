@@ -37,7 +37,7 @@ import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, ChatId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();
@@ -277,15 +277,32 @@ test("creates a message without a from attribute", async () => {
     ]);
 });
 
-test("throws UnimplementedError when creating a message with a file", async () => {
-    const filePathname = await createAgentWebPageStoredLinkPathname(storage, {
+test("creates a message with file attachments", async () => {
+    const firstFileId = generateChronologicalId<FileId>();
+    const firstFilePathname = await createAgentWebPageStoredLinkPathname(storage, {
         type: "File",
-        id: generateChronologicalId<FileId>(),
+        id: firstFileId,
         contentType: "image/png",
         contentLength: 100,
     });
 
+    const secondFileId = generateChronologicalId<FileId>();
+    const secondFilePathname = await createAgentWebPageStoredLinkPathname(storage, {
+        type: "File",
+        id: secondFileId,
+        contentType: "image/png",
+        contentLength: 200,
+    });
+
+    const documentId = generateId<DocumentId>();
+    const documentPathname = await createAgentWebPageStoredLinkPathname(storage, {
+        type: "Document",
+        id: documentId,
+        title: "Launch plan",
+    });
+
     await readChat({totalMessageCount: 0});
+    mockCreateMessages({count: 1});
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -293,17 +310,23 @@ test("throws UnimplementedError when creating a message with a file", async () =
             updates: [
                 {
                     old: "\n\nEnd of messages.",
-                    new: `\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\n![](${filePathname})\n\n</message>\n\nEnd of messages.`,
+                    new: `\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nFiles for review.\n\n<div style="display: flex">\n<img src="${firstFilePathname}" />\n<img src="${secondFilePathname}" />\n</div>\n\n![Launch plan](${documentPathname})\n\n</message>\n\nEnd of messages.`,
                     replaceAll: false,
                 },
             ],
         }),
-    ).resolves.toEqual(`\
-Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+    ).resolves.toEqual("Update was successful.");
 
-> Internal error: Sending messages with files as agent isn\u2019t implemented yet`);
-
-    expect(getCreateMessageRequests()).toEqual([]);
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("Files for review."),
+            files: [
+                {element: {type: "File", file: {id: firstFileId}}},
+                {element: {type: "File", file: {id: secondFileId}}},
+                {element: {type: "Preview", reference: {type: "Document", id: documentId}}},
+            ],
+        },
+    ]);
 });
 
 test("creates a message with the next valid id after existing messages", async () => {

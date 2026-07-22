@@ -3,6 +3,7 @@ import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_a
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
+import {getFileIdOrFileEntityIdFromApiMessageContentPayloadFile} from "~/server/api/internal/shared/get_file_id_or_file_entity_id_from_api_message_content_payload_file.js";
 import {
     getApiMentionTitleWithStrongConsistency,
     getApiTaskMentionTitleWithStrongConsistency,
@@ -18,6 +19,7 @@ import {intoApiTaskCollection} from "~/server/api/internal/tasks/internal/into_a
 import {loadTasksFromApiQuery} from "~/server/api/internal/tasks/internal/load_tasks_from_api_query.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
+import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {
@@ -50,8 +52,8 @@ import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {generateId, isId} from "~/shared/id/id.js";
+import {FileId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -492,13 +494,30 @@ export const apiTasksPaths: Pick<
             );
 
             const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
+            const fileIds = (requestBody.files ?? []).map(
+                getFileIdOrFileEntityIdFromApiMessageContentPayloadFile,
+            );
+            const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
+
+            await runAllPromises(
+                attachmentFileIds.map(fileId =>
+                    attachFileToTargetAsBot(
+                        context,
+                        fileId,
+                        FileTaskAuthorizer.bind({
+                            type: "TaskComments",
+                            taskId: pathParameters.id,
+                        }),
+                    ),
+                ),
+            );
 
             const {spaceId, index, createdTime} = await createTaskComment(context, {
                 taskId: pathParameters.id,
                 parent,
                 content,
                 createdTimeZone,
-                fileIds: [],
+                fileIds,
                 isStream: requestBody.isStream,
                 consistency: "StrongWithinCache",
             });
@@ -508,7 +527,7 @@ export const apiTasksPaths: Pick<
                 parent,
                 content,
                 contentUpdate: null,
-                fileIds: [],
+                fileIds,
                 reactionsByPos: emptyMap,
                 filesReactions: emptyReactionSet,
             };

@@ -2,7 +2,9 @@
 
 import {setupCliForTest} from "~/server/agents/cli/integration_tests/setup_cli_for_test.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {processIndexSearchEntityJob} from "~/server/search/data/index/search_entity_index.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const cli = setupCliForTest();
@@ -922,6 +924,153 @@ End of comments.
 `);
 });
 
+test("add a document comment", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+
+    const title = "YouTube evidence review";
+    const body = "Review the launch evidence.";
+    const commentedText = "launch evidence";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    const commentThread = await document.createCommentThread(
+        aliceSession,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Please review this evidence.",
+        {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
+    );
+
+    await indexDocumentSearchEntityImmediately(document);
+    await cli.run("alpine search 'YouTube evidence review'");
+    await cli.run("alpine read /document/youtube-evidence-review");
+
+    expect(await cli.run("alpine read /document/youtube-evidence-review/comments/1")).toEqual(`\
+Document comment thread on [YouTube evidence review](/document/youtube-evidence-review).
+
+- [ ] Unresolved
+
+<blockquote>
+
+launch evidence
+
+</blockquote>
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Alice](/human/alice)">
+
+Please review this evidence.
+
+</comment>
+
+End of comments.
+`);
+
+    const updateOutput = await cli.run(`\
+alpine update /document/youtube-evidence-review/comments/1 --old 'End of comments.' --new '<comment>
+
+I reviewed the launch evidence.
+
+</comment>
+
+End of comments.'
+`);
+
+    const newComment = await commentThread._getMessage(cli.session.action(), 1);
+    assert(newComment.payload.type === "Content");
+
+    expect({
+        updateOutput,
+        text: newComment.payload.content.doc.textContent,
+    }).toEqual({
+        updateOutput: "Update was successful.\n",
+        text: "I reviewed the launch evidence.",
+    });
+});
+
+test("add a document comment with a file attachment", async () => {
+    // TODO: Remove the source document once agents can upload files through the API.
+    // Until then, it gives the agent a path it can use to reference the file.
+    const sourceDocument = await TestDocument.create(cli.session, {
+        title: "Attachment source",
+        body: "Attachment available below.",
+        access: "Public",
+    });
+    const file = await TestFile.create(cli.session);
+    await sourceDocument.attachFile(cli.session, file);
+
+    const targetTitle = "YouTube evidence review";
+    const targetBody = "Review the attached launch evidence.";
+    const commentedText = "launch evidence";
+    const targetDocument = await TestDocument.create(cli.session, {
+        title: targetTitle,
+        body: targetBody,
+        access: "Public",
+    });
+    const commentStart = targetTitle.length + 3 + targetBody.indexOf(commentedText);
+    const commentThread = await targetDocument.createCommentThread(
+        cli.session,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Please attach the source image.",
+    );
+
+    await indexDocumentSearchEntityImmediately(sourceDocument);
+    await indexDocumentSearchEntityImmediately(targetDocument);
+
+    // Reading the source gives the CLI a stable pathname for the file that can be
+    // reused in the document comment update.
+    await cli.run("alpine search 'Attachment source'");
+    await cli.run("alpine search 'YouTube evidence review'");
+    const sourceReadOutput = await cli.run("alpine read /document/attachment-source");
+    const targetReadOutput = await cli.run("alpine read /document/youtube-evidence-review");
+    await cli.run("alpine read /document/youtube-evidence-review/comments/1");
+
+    const updateOutput = await cli.run(`\
+alpine update /document/youtube-evidence-review/comments/1 --old 'End of comments.' --new '<comment>
+
+Attached launch evidence.
+
+![](/file/image.png)
+
+</comment>
+
+End of comments.'
+`);
+    assert(updateOutput === "Update was successful.\n", updateOutput);
+
+    const newComment = await commentThread._getMessage(cli.session.action(), 1);
+    assert(newComment.payload.type === "Content");
+
+    expect({
+        sourceReadOutput,
+        targetReadOutput,
+        updateOutput,
+        files: newComment.payload.files.map(commentFile =>
+            commentFile.type === "File"
+                ? {type: commentFile.type, id: commentFile.file.id}
+                : commentFile,
+        ),
+    }).toEqual({
+        sourceReadOutput: `\
+# Attachment source
+
+Attachment available below.
+
+![](/file/image.png)
+`,
+        targetReadOutput: `\
+# YouTube evidence review
+
+Review the attached <comment id="1">launch evidence</comment>.
+`,
+        updateOutput: "Update was successful.\n",
+        files: [{type: "File", id: file.id}],
+    });
+});
+
 test("search for a document and read one of its comment threads", async () => {
     const aliceSession = await cli.session.space.createSession({name: "Alice"});
 
@@ -998,6 +1147,38 @@ Paginated comment 2. This comment has enough detail to make the response require
 <comment id="3" from="[Alice](/human/alice)" time="5 minutes later">
 
 Paginated comment 3. This comment has enough detail to make the response require pagination.
+
+</comment>
+`);
+
+    expect(
+        await cli.run("alpine read '/document/youtube-moderation/comments/1?after=3' --limit=1kb"),
+    ).toEqual(`\
+Document comment thread on [YouTube moderation](/document/youtube-moderation). [Next page »](/document/youtube-moderation/comments/1?after=7)
+
+<time>May 14th at 11:20am EDT</time>
+
+<comment id="4" from="[Alice](/human/alice)">
+
+Paginated comment 4. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="5" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 5. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="6" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 6. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="7" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 7. This comment has enough detail to make the response require pagination.
 
 </comment>
 `);

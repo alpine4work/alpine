@@ -12,6 +12,7 @@ import {
     ApiErrorResponse,
     ApiMentionReference,
     ApiMentionReferenceResponse,
+    ApiMessageContentPayloadFile,
     ApiMessageContentPayloadParent,
     ApiMessageExperimentalApprovalDecisionValue,
     ApiMessageRoomReference,
@@ -338,6 +339,7 @@ export function createApiMessage(
         isStream?: boolean;
         parent?: ApiMessageContentPayloadParent;
         content: ApiContent;
+        files?: ReadonlyArray<ApiMessageContentPayloadFile>;
         createdTimeZone?: TimeZone;
     },
 ) {

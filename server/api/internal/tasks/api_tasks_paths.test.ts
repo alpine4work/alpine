@@ -4,6 +4,7 @@ import {apiTasksPaths} from "~/server/api/internal/tasks/api_tasks_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/backfill_task_action_transaction_history.js";
@@ -1134,10 +1135,53 @@ test("can create a project task with parent task and collections", async () => {
     ).toEqual(collections.map(collection => collection.id));
 });
 
-// NOTE: File attachment is tested through the full API flow where the bot uploads
-// a file first via POST /files, then references it in the task content. The unit
-// test would need the bot's own file upload which isn't set up in TestFile.create.
-// The handler follows the same attachFileToTargetAsBot pattern as POST /documents.
+test("can send a task comment with file attachments", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+    const task = await TestTask.create(session);
+    const file = await TestFile.create(session);
+    await task.attachFile(session, file);
+
+    const response = await server.POST(`/tasks/${task.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            content: {
+                elements: [
+                    {type: "Paragraph", elements: [{type: "Text", text: "Comment with file"}]},
+                ],
+            },
+            files: [{element: {type: "File", file: {id: file.id}}}],
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            message: {
+                payload: {
+                    type: "Content",
+                    files: [
+                        {
+                            rowIndex: 0,
+                            width: 1,
+                            element: {
+                                type: "File",
+                                file: {
+                                    id: file.id,
+                                    contentType: expect.any(String),
+                                    contentLength: expect.any(Number),
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        },
+    });
+});
 
 test("can update a task title", async () => {
     const space = await TestSpace.create(context);
