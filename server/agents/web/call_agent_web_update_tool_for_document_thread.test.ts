@@ -381,6 +381,7 @@ test("creates the first comment on a document thread", async () => {
     expect(getCreateCommentRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First bot comment."),
+            createdTimeZone: defaultTimeZone,
         },
     ]);
 });
@@ -405,6 +406,7 @@ test("creates comment without author on a document thread", async () => {
     expect(getCreateCommentRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First bot comment."),
+            createdTimeZone: defaultTimeZone,
         },
     ]);
 });

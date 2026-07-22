@@ -148,6 +148,7 @@ test("adds a task comment", async () => {
     expect(getCreateTaskCommentRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First bot comment."),
+            createdTimeZone: defaultTimeZone,
         },
     ]);
 });

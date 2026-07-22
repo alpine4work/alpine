@@ -67,8 +67,14 @@ beforeEach(async () => {
     assert(actualBotAccountPathname === context.botAccount.pathname);
 });
 
-function createTextContent(text: string): ApiContentResponseWithoutKeys {
-    return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
+function createTextMessageRequestBody(text: string): {
+    content: ApiContentResponseWithoutKeys;
+    createdTimeZone: typeof defaultTimeZone;
+} {
+    return {
+        content: {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]},
+        createdTimeZone: defaultTimeZone,
+    };
 }
 
 function mockCreateDirectChat({
@@ -265,8 +271,8 @@ End of messages.`,
         },
     ]);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I can help coordinate the handoff.")},
-        {content: createTextContent("I will summarize the open questions next.")},
+        createTextMessageRequestBody("I can help coordinate the handoff."),
+        createTextMessageRequestBody("I will summarize the open questions next."),
     ]);
     expect(await storage.readResponseByPath.get("/chat/alice-and-bob-kickoff")).toMatchObject({
         pageMetadata: {
@@ -318,8 +324,8 @@ I will summarize the open questions next.
         },
     ]);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I can help coordinate the handoff.")},
-        {content: createTextContent("I will summarize the open questions next.")},
+        createTextMessageRequestBody("I can help coordinate the handoff."),
+        createTextMessageRequestBody("I will summarize the open questions next."),
     ]);
     expect(await storage.readResponseByPath.get("/chat/alice-and-bob-kickoff")).toMatchObject({
         pageMetadata: {
@@ -401,8 +407,8 @@ End of messages.`,
         },
     ]);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I can help coordinate the handoff.")},
-        {content: createTextContent("I will summarize the open questions next.")},
+        createTextMessageRequestBody("I can help coordinate the handoff."),
+        createTextMessageRequestBody("I will summarize the open questions next."),
     ]);
     expect(await storage.readResponseByPath.get("/chat/alice-and-bob-kickoff")).toMatchObject({
         pageMetadata: {
@@ -658,8 +664,8 @@ End of messages.`,
 
     expect(getCreateChatRequests()).toHaveLength(1);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("Duplicate parent")},
-        {content: createTextContent("Duplicate parent")},
+        createTextMessageRequestBody("Duplicate parent"),
+        createTextMessageRequestBody("Duplicate parent"),
     ]);
 });
 
@@ -734,7 +740,7 @@ End of messages.`,
     );
     expect(getCreateChatRequests()).toHaveLength(1);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("needle needle")},
+        createTextMessageRequestBody("needle needle"),
     ]);
 });
 
@@ -787,7 +793,7 @@ End of messages.`,
         },
     ]);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("Parent from this create call.")},
+        createTextMessageRequestBody("Parent from this create call."),
     ]);
 });
 
@@ -863,8 +869,8 @@ End of messages.`,
         },
     ]);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I opened this room for launch triage.")},
-        {content: createTextContent("Please post blockers here.")},
+        createTextMessageRequestBody("I opened this room for launch triage."),
+        createTextMessageRequestBody("Please post blockers here."),
     ]);
     expect(await storage.readResponseByPath.get("/chat/incident-launch-room")).toMatchObject({
         pageMetadata: {
@@ -913,8 +919,8 @@ Please post blockers here.
         },
     ]);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I opened this room for launch triage.")},
-        {content: createTextContent("Please post blockers here.")},
+        createTextMessageRequestBody("I opened this room for launch triage."),
+        createTextMessageRequestBody("Please post blockers here."),
     ]);
     expect(await storage.readResponseByPath.get("/chat/incident-launch-room")).toMatchObject({
         pageMetadata: {
@@ -963,9 +969,9 @@ End of messages.`,
     ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I opened this room for launch triage.")},
-        {content: createTextContent("I found the first blocker.")},
-        {content: createTextContent("I will post the next update here.")},
+        createTextMessageRequestBody("I opened this room for launch triage."),
+        createTextMessageRequestBody("I found the first blocker."),
+        createTextMessageRequestBody("I will post the next update here."),
     ]);
     expect(await storage.readResponseByPath.get("/chat/incident-launch-updates")).toMatchObject({
         pageMetadata: {
@@ -1020,10 +1026,10 @@ End of messages.`,
     ).resolves.toEqual("Update was successful.");
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I opened this room without an id attribute.")},
-        {content: createTextContent("This second message also has no id attribute.")},
-        {content: createTextContent("A third no-id message should append at index two.")},
-        {content: createTextContent("A fourth no-id message should append at index three.")},
+        createTextMessageRequestBody("I opened this room without an id attribute."),
+        createTextMessageRequestBody("This second message also has no id attribute."),
+        createTextMessageRequestBody("A third no-id message should append at index two."),
+        createTextMessageRequestBody("A fourth no-id message should append at index three."),
     ]);
     expect(await storage.readResponseByPath.get("/chat/incident-launch-no-ids")).toMatchObject({
         pageMetadata: {
@@ -1058,7 +1064,7 @@ End of messages.`,
     );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I am following up in the existing direct chat.")},
+        createTextMessageRequestBody("I am following up in the existing direct chat."),
     ]);
 });
 
@@ -1092,7 +1098,7 @@ End of messages.`,
     );
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I am following up in the existing direct chat.")},
-        {content: createTextContent("These should land after the existing history.")},
+        createTextMessageRequestBody("I am following up in the existing direct chat."),
+        createTextMessageRequestBody("These should land after the existing history."),
     ]);
 });
