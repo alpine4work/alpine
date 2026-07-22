@@ -16,7 +16,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  */
 export class PromiseWaiter {
     private _promises = new Set<PromiseLike<unknown>>();
-    private _errors: Array<unknown> = [];
+    private _errors: Array<unknown> | null = null;
     private _waitPromise: Promise<void> | null = null;
 
     /**
@@ -71,7 +71,7 @@ export class PromiseWaiter {
 
                     if (this._errors !== null) {
                         const errors = this._errors;
-                        this._errors = [];
+                        this._errors = null;
                         throw createAggregateError(errors);
                     }
                 } finally {
