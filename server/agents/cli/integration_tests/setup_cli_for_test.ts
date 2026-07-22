@@ -55,11 +55,6 @@ export function setupCliForTest(): CliIntegrationTests {
     let binDirectoryPath: string | undefined;
 
     beforeAll(async () => {
-        space = await TestSpace.create(context);
-        session = await space.createSession({name: "Anthony Mose", role: "Admin"});
-        const botAccount = await TestBot.createAndInstantiate(session, {name: "My Bot"});
-        const apiKey = await botAccount.createApiKey();
-
         dataDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "alpine-data");
         await mkdir(dataDirectoryPath, {recursive: true});
 
@@ -70,8 +65,19 @@ export function setupCliForTest(): CliIntegrationTests {
             joinPath(runfilesPath, "cyberworlds/server/agents/cli/cli.sh"),
             joinPath(binDirectoryPath, "alpine"),
         );
+    });
 
-        await writeFile(joinPath(dataDirectoryPath, "auth.json"), JSON.stringify({apiKey}));
+    beforeEach(async () => {
+        space = await TestSpace.create(context);
+        session = await space.createSession({name: "Anthony Mose", role: "Admin"});
+
+        const botAccount = await TestBot.createAndInstantiate(session, {name: "My Bot"});
+        const apiKey = await botAccount.createApiKey();
+
+        await writeFile(
+            joinPath(assertExists(dataDirectoryPath), "auth.json"),
+            JSON.stringify({apiKey}),
+        );
     });
 
     async function run(command: string): Promise<string> {
