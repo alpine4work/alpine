@@ -340,6 +340,18 @@ esbuild_runfiles_without_sources(
     srcs = [":app_lib"],
 )
 
+# The Landing static exporter needs the built client, Remix server bundle, and
+# their generated documentation runfiles as one visibility-safe unit.
+filegroup(
+    name = "app_landing_static_generation",
+    data = [
+        ":app_build",
+        "//client/web/docs:docs_generated",
+        "//client/web/docs/internal/codegen:docs_markdown",
+    ],
+    visibility = ["//admin/analysis:__pkg__"],
+)
+
 alias(
     name = "app_static",
     actual = ":app_build_client",

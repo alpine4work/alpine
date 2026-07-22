@@ -259,6 +259,12 @@ jobs:
                       echo "Coverage outputs missing for $missing_count target(s)." >&2
                   fi
 
+                  landing_outputs_path="$bazel_testlogs_path/admin/analysis/generate_landing_html_test/test.outputs/outputs.zip"
+                  if [ -f "$landing_outputs_path" ]; then
+                      mkdir -p "$coverage_artifact_path/landing"
+                      cp "$landing_outputs_path" "$coverage_artifact_path/landing/outputs.zip"
+                  fi
+
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for
             # tests that failed.
@@ -514,12 +520,23 @@ jobs:
                       --coverage-output "$GITHUB_WORKSPACE/admin/coverage/all" \
                       --workspace "$GITHUB_WORKSPACE"
 
-            # Merge coverage on every branch for Honeycomb, but only ship the
-            # static analysis site from `main`.
-            - if:
-                  needs.prepare-ci.result == 'success' && needs.unit-tests.result == 'success' &&
-                  github.ref == 'refs/heads/main'
-              name: Publish analysis branch
+            - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result == 'success'
+              name: Extract Landing HTML
+              run: |
+                  set -euo pipefail
+
+                  mapfile -t landing_archives < <(find "$RUNNER_TEMP/unit-coverage-artifacts" -path '*/landing/outputs.zip' -type f)
+                  if [ "${#landing_archives[@]}" -ne 1 ]; then
+                      echo "Expected one Landing artifact, found ${#landing_archives[@]}." >&2
+                      exit 1
+                  fi
+                  rm -rf "$RUNNER_TEMP/landing-output"
+                  mkdir -p "$RUNNER_TEMP/landing-output"
+                  unzip -q "${landing_archives[0]}" -d "$RUNNER_TEMP/landing-output"
+                  test -f "$RUNNER_TEMP/landing-output/landing-html/landing/index.html"
+
+            - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result == 'success'
+              name: Publish analysis branch deploy
               env:
                   CYBERWORLDS_ANALYSIS_PAT: ${{ secrets.CYBERWORLDS_ANALYSIS_PAT }}
                   GH_TOKEN: ${{ github.token }}
@@ -549,10 +566,21 @@ jobs:
                   NODE_PATH="$RUNNER_TEMP/analysis-node/node_modules" \
                       node admin/analysis/publish_analysis_html.cjs \
                       --workspace "$GITHUB_WORKSPACE" \
+                      --landing "$RUNNER_TEMP/landing-output/landing-html" \
                       --message "$analysis_publish_job_url" \
                       --remote "$analysis_remote" \
-                      --remote-branch main \
+                      --source-branch "$GITHUB_REF_NAME" \
+                      --source-commit "$GITHUB_SHA" \
                       --push
+
+                  GIT_CONFIG_COUNT=1 \
+                  GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" \
+                  GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $analysis_auth" \
+                  NODE_PATH="$RUNNER_TEMP/analysis-node/node_modules" \
+                      node admin/analysis/publish_landing_catalog.cjs \
+                      --workspace "$GITHUB_WORKSPACE" \
+                      --message "$analysis_publish_job_url" \
+                      --remote "$analysis_remote"
 
     integration-tests-check:
         name: Integration tests

@@ -21,6 +21,7 @@ yarn-error.log*
 .pnpm-debug.log*
 /admin/coverage
 /admin/analysis/html
+/admin/analysis/landing-html
 
 # TypeScript
 *.tsbuildinfo
