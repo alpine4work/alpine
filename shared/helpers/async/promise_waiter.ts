@@ -16,6 +16,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  */
 export class PromiseWaiter {
     private _promises = new Set<PromiseLike<unknown>>();
+    private _errors: Array<unknown> = [];
     private _waitPromise: Promise<void> | null = null;
 
     /**
@@ -32,7 +33,9 @@ export class PromiseWaiter {
             () => {
                 this._promises.delete(promise);
             },
-            () => {
+            error => {
+                this._errors ??= [];
+                this._errors.push(error);
                 this._promises.delete(promise);
             },
         );
@@ -55,19 +58,20 @@ export class PromiseWaiter {
 
             this._waitPromise = (async () => {
                 try {
-                    const errors: Array<unknown> = [];
-
                     while (this._promises.size > 0) {
                         try {
                             const promises = this._promises;
                             this._promises = new Set();
                             await runAllPromises(promises);
                         } catch (error) {
-                            errors.push(error);
+                            this._errors ??= [];
+                            this._errors.push(error);
                         }
                     }
 
-                    if (errors.length > 0) {
+                    if (this._errors !== null) {
+                        const errors = this._errors;
+                        this._errors = [];
                         throw createAggregateError(errors);
                     }
                 } finally {
