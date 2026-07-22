@@ -1052,7 +1052,7 @@ test("sets and clears task assignee", async () => {
     });
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
-        {patches: [{type: "SetAssignee", assignee: intoApiAccountReference(aliceAccount)}]},
+        {patches: [{type: "SetAssignee", assignee: {id: aliceAccount.id}}]},
         {patches: [{type: "SetAssignee", assignee: null}]},
     ]);
 });
@@ -1083,7 +1083,7 @@ test("sets and clears task assignee by removing assignee field entirely", async 
     });
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
-        {patches: [{type: "SetAssignee", assignee: intoApiAccountReference(aliceAccount)}]},
+        {patches: [{type: "SetAssignee", assignee: {id: aliceAccount.id}}]},
         {patches: [{type: "SetAssignee", assignee: null}]},
     ]);
 });
@@ -1134,7 +1134,7 @@ test("changes task assignee after reading task with assignee set", async () => {
     ).resolves.toEqual("Update was successful.");
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
-        {patches: [{type: "SetAssignee", assignee: intoApiAccountReference(bobAccount)}]},
+        {patches: [{type: "SetAssignee", assignee: {id: bobAccount.id}}]},
     ]);
 });
 
