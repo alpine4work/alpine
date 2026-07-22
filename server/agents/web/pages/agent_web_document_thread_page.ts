@@ -150,9 +150,6 @@ function buildAgentWebDocumentThreadPage(
     };
 }
 
-// NOCOMMIT: Integration test that you can read a document comment link from search
-// without first reading the document. This should work and it should end up
-// reading the document under-the-hood.
 export async function readAgentWebDocumentThreadPage(
     context: AgentWebContext,
     id: DocumentId,
@@ -272,9 +269,6 @@ export async function readAgentWebDocumentThreadPage(
                 // In this case, the server keeps track of a "fallback" content snippet we can use
                 // to preview the content that was in the document before the comment was removed.
                 // Use that as our content instead of a slice from the current document.
-                //
-                // NOCOMMIT: Add an integration test to make sure we render the fallback if the
-                // comment was removed from the document.
                 assertExists(
                     extractCommentSliceFromApiContent(
                         threadId,
