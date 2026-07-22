@@ -704,7 +704,12 @@ function buildAgentWebMessagingPageFromApiMessages<
                   differenceInMinutes(createdTime, roomMetadata.startCustomBlock.time)
                 : currentBlock !== null
                   ? differenceInMinutes(createdTime, currentBlock.lastCreatedTime)
-                  : 0;
+                  : // In this case we're the first message after a custom block. In this case, we
+                    // don't want to attempt any kind of merging with the previous block. The main
+                    // place we observe this is the first comment in a document comment thread after
+                    // the `<blockquote>`. We want to add `<time>` after the `<blockquote>` which does
+                    // not include the time.
+                    Infinity;
 
         // If there are consecutive messages from the same author, we put them within the
         // same message block IF:

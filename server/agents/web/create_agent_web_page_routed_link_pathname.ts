@@ -10,9 +10,6 @@ export async function createAgentWebPageRoutedLinkPathname(
     pageLink: AgentWebPageRoutedLink,
 ): Promise<string> {
     switch (pageLink.type) {
-        // NOCOMMIT: Integration test at some point searching for a document comment in a
-        // resolved comment thread. This won't have been present in the underlying document
-        // so we'll need to generate a comment thread ID.
         case "DocumentThread": {
             const pathname = await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
             assert(pathname.startsWith("/document/"));

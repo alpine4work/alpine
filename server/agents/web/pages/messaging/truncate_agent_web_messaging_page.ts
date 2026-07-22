@@ -448,16 +448,11 @@ export async function truncateAgentWebMessagingPage<
             // `truncatedResponse` currently doesn't include an initial `<time>` element. So
             // add one back. Either by using `timeContent` from `truncatedBlocks` or adding a
             // new `Time` block to `truncatedBlocks` and using that.
-            if (truncatedBlocks[0]!.type === "Time") {
-                truncatedResponse =
-                    truncatedResponse.slice(
-                        0,
-                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
-                    ) +
-                    `<time>${escapeHtml(truncatedBlocks[0]!.timeContent)}</time>\n\n` +
-                    truncatedResponse.slice(
-                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
-                    );
+            if (
+                truncatedBlocks[0]!.type === "Time" ||
+                (truncatedBlocks[0]!.type === "Custom" && truncatedBlocks[1]?.type === "Time")
+            ) {
+                // `<time>` still exists in truncated blocks.
             } else {
                 const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
                     defaultLocale,
@@ -1042,16 +1037,11 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     // `truncatedResponse` currently doesn't include an initial `<time>` element. So
     // add one back. Either by using `timeContent` from `truncatedBlocks` or adding a
     // new `Time` block to `truncatedBlocks` and using that.
-    if (truncatedBlocks[0]!.type === "Time") {
-        truncatedResponse =
-            truncatedResponse.slice(
-                0,
-                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
-            ) +
-            `<time>${escapeHtml(truncatedBlocks[0]!.timeContent)}</time>\n\n` +
-            truncatedResponse.slice(
-                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
-            );
+    if (
+        truncatedBlocks[0]!.type === "Time" ||
+        (truncatedBlocks[0]!.type === "Custom" && truncatedBlocks[1]?.type === "Time")
+    ) {
+        // `<time>` still exists in truncated blocks.
     } else {
         const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
             defaultLocale,

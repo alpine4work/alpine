@@ -1,4 +1,4 @@
-import {mkdir, mkdtemp, symlink, writeFile} from "fs/promises";
+import {mkdir, mkdtemp, rmdir, symlink, writeFile} from "fs/promises";
 import {join as joinPath} from "path";
 import {
     TestServices,
@@ -11,7 +11,9 @@ import {refreshSearchEntityKeywordIndexForTest} from "~/server/search/data/index
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 export type CliIntegrationTests = {
     readonly dataDirectoryPath: string;
@@ -56,7 +58,6 @@ export function setupCliForTest(): CliIntegrationTests {
 
     beforeAll(async () => {
         dataDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "alpine-data");
-        await mkdir(dataDirectoryPath, {recursive: true});
 
         binDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "alpine-bin");
         await mkdir(binDirectoryPath, {recursive: true});
@@ -67,17 +68,23 @@ export function setupCliForTest(): CliIntegrationTests {
         );
     });
 
+    let hasInitiallyRun = false;
+
     beforeEach(async () => {
+        const isInitialRun = !hasInitiallyRun;
+        hasInitiallyRun = true;
+
         space = await TestSpace.create(context);
         session = await space.createSession({name: "Anthony Mose", role: "Admin"});
 
         const botAccount = await TestBot.createAndInstantiate(session, {name: "My Bot"});
         const apiKey = await botAccount.createApiKey();
 
-        await writeFile(
-            joinPath(assertExists(dataDirectoryPath), "auth.json"),
-            JSON.stringify({apiKey}),
-        );
+        assert(dataDirectoryPath);
+
+        if (!isInitialRun) await rmdir(dataDirectoryPath, {recursive: true});
+        await mkdir(dataDirectoryPath, {recursive: true});
+        await writeFile(joinPath(dataDirectoryPath, "auth.json"), JSON.stringify({apiKey}));
     });
 
     async function run(command: string): Promise<string> {
@@ -93,12 +100,13 @@ export function setupCliForTest(): CliIntegrationTests {
             cwd: runfilesPath,
             isErrorExitCode: () => false,
             env: {
-                ALPINE_URL: services.getBaseUrl(),
-                ALPINE_API_URL: services.getApiServiceBaseUrl(),
-                ALPINE_DATA_PATH: assertExists(dataDirectoryPath),
+                TZ: defaultTimeZone,
                 PATH: process.env.PATH
                     ? `${binDirectoryPath}:${process.env.PATH}`
                     : binDirectoryPath,
+                ALPINE_URL: services.getBaseUrl(),
+                ALPINE_API_URL: services.getApiServiceBaseUrl(),
+                ALPINE_DATA_PATH: assertExists(dataDirectoryPath),
             },
         });
     }

@@ -2,8 +2,33 @@
 
 import {setupCliForTest} from "~/server/agents/cli/integration_tests/setup_cli_for_test.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {processIndexSearchEntityJob} from "~/server/search/data/index/search_entity_index.js";
+import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const cli = setupCliForTest();
+
+// Documents are indexed on a delay. We can call this in tests to immediately index
+// a document in search so it's visible to CLI commands like `alpine search`.
+// Generally prefer calling `context.services.waitForSqsProcessJobs()` instead when
+// you know a search job has been queued (which is most of the time).
+async function indexDocumentSearchEntityImmediately(document: TestDocument) {
+    await testTracer.withSpan("Process job document IndexSearchEntity immediately", async span => {
+        await processIndexSearchEntityJob(
+            cli.space.systemAction(),
+            {
+                type: "IndexSearchEntity",
+                spaceId: document.space.id,
+                update: {
+                    type: "Document",
+                    documentId: document.id,
+                    updatedTraits: {type: "Any"},
+                },
+            },
+            new Date(),
+            span,
+        );
+    });
+}
 
 test("create document", async () => {
     expect(
@@ -44,16 +69,14 @@ YouTube is an American online video sharing and social media platform headquarte
 });
 
 test("search for and read document created by a test helper", async () => {
-    await TestDocument.create(cli.session, {
+    const document = await TestDocument.create(cli.session, {
         title: "Me at the zoo",
         body: "The first video, “Me at the zoo,” was uploaded on April 23, 2005.",
         access: "Public",
     });
 
-    // New documents are indexed after the production document-indexing throttle.
-    //
-    // NOCOMMIT: Uh oh! Not good!
-    await new Promise(resolve => setTimeout(resolve, 10 * 1000));
+    // Don't wait for the document indexing throttle.
+    await indexDocumentSearchEntityImmediately(document);
 
     expect(await cli.run("alpine search 'Me zoo'")).toEqual(`\
 1. [Me at the zoo](/document/me-at-the-zoo)
@@ -529,4 +552,457 @@ ALPINE_DATA_PATH="$data_path" alpine read /document/example`),
     ).resolves.toEqual(
         `Error: Couldn\u2019t run command. Couldn\u2019t write \`auth.json\` to \`${dataDirectoryPath}\`. Try again after confirming the user running this CLI is allowed to write to \`${dataDirectoryPath}\`.\n`,
     );
+});
+
+test("search for and read a comment at the start of an unresolved document comment thread", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+
+    const title = "Resolved YouTube moderation";
+    const body = "The moderation decision was documented here.";
+    const commentedText = "moderation decision";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    const commentThread = await document.createCommentThread(
+        aliceSession,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Solenodon first comment.",
+        {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
+    );
+
+    for (let index = 1; index < 17; index++) {
+        await commentThread.createComment(
+            aliceSession,
+            `Paginated comment ${index}. This comment has enough detail to make the response require pagination.`,
+            {overrideCreatedTime: new Date(Date.UTC(2026, 4, 14, 15, index * 5))},
+        );
+    }
+
+    expect(await cli.run("alpine search solenodon")).toEqual(`\
+1. [Alice: **Solenodon** first comment.](/document-comment/alice-solenodon-first-comment)
+`);
+
+    expect(await cli.run("alpine read /document-comment/alice-solenodon-first-comment --limit=1kb"))
+        .toEqual(`\
+Document comment thread on [Resolved YouTube moderation](/document/resolved-youtube-moderation). [Next page »](/document/resolved-youtube-moderation/comments/1?after=2)
+
+TODO
+`);
+});
+
+test("search for and read a comment at the end of an unresolved document comment thread", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+
+    const title = "Resolved YouTube moderation";
+    const body = "The moderation decision was documented here.";
+    const commentedText = "moderation decision";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    const commentThread = await document.createCommentThread(
+        aliceSession,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Paginated comment 0. This comment has enough detail to make the response require pagination.",
+        {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
+    );
+
+    for (let index = 1; index < 17; index++) {
+        await commentThread.createComment(
+            aliceSession,
+            index === 16
+                ? "Solenodon final comment."
+                : `Paginated comment ${index}. This comment has enough detail to make the response require pagination.`,
+            {overrideCreatedTime: new Date(Date.UTC(2026, 4, 14, 15, index * 5))},
+        );
+    }
+
+    expect(await cli.run("alpine search solenodon")).toEqual(`\
+1. [Alice: **Solenodon** final comment.](/document-comment/alice-solenodon-final-comment)
+`);
+
+    expect(await cli.run("alpine read /document-comment/alice-solenodon-final-comment --limit=1kb"))
+        .toEqual(`\
+Document comment thread on [Resolved YouTube moderation](/document/resolved-youtube-moderation). [Previous page »](/document/resolved-youtube-moderation/comments/1?before=13)
+
+<time>May 14th at 12:05pm EDT</time>
+
+<comment id="13" from="[Alice](/human/alice)">
+
+Paginated comment 13. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="14" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 14. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="15" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 15. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="16" from="[Alice](/human/alice)" time="5 minutes later">
+
+Solenodon final comment.
+
+</comment>
+
+End of comments.
+`);
+});
+
+test("search for and read a comment at the start of a resolved document comment thread", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+
+    const title = "Resolved YouTube moderation";
+    const body = "The moderation decision was documented here.";
+    const commentedText = "moderation decision";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    const commentThread = await document.createCommentThread(
+        aliceSession,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Solenodon first comment.",
+        {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
+    );
+
+    for (let index = 1; index < 17; index++) {
+        await commentThread.createComment(
+            aliceSession,
+            `Paginated comment ${index}. This comment has enough detail to make the response require pagination.`,
+            {overrideCreatedTime: new Date(Date.UTC(2026, 4, 14, 15, index * 5))},
+        );
+    }
+
+    await commentThread.resolve(aliceSession);
+
+    expect(await cli.run("alpine search solenodon")).toEqual(`\
+1. [Alice: **Solenodon** first comment.](/document-comment/alice-solenodon-first-comment)
+`);
+
+    expect(await cli.run("alpine read /document-comment/alice-solenodon-first-comment --limit=1kb"))
+        .toEqual(`\
+Document comment thread on [Resolved YouTube moderation](/document/resolved-youtube-moderation). [Next page »](/document/resolved-youtube-moderation/comments/1?after=2)
+
+- [x] Resolved
+
+<blockquote>
+
+moderation decision
+
+</blockquote>
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Alice](/human/alice)">
+
+Solenodon first comment.
+
+</comment>
+
+<comment id="1" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 1. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 2. This comment has enough detail to make the response require pagination.
+
+</comment>
+`);
+
+    expect(
+        await cli.run(
+            "alpine read /document/resolved-youtube-moderation/comments/1?after=2 --limit=1kb",
+        ),
+    ).toEqual(`\
+Document comment thread on [Resolved YouTube moderation](/document/resolved-youtube-moderation). [Next page »](/document/resolved-youtube-moderation/comments/1?after=6)
+
+<comment id="3" from="[Alice](/human/alice)">
+
+Paginated comment 3. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="4" from="[Alice](/human/alice)">
+
+Paginated comment 4. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="5" from="[Alice](/human/alice)">
+
+Paginated comment 5. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="6" from="[Alice](/human/alice)">
+
+Paginated comment 6. This comment has enough detail to make the response require pagination.
+
+</comment>
+`);
+});
+
+test("search for and read a comment at the end of a resolved document comment thread", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+
+    const title = "Resolved YouTube moderation";
+    const body = "The moderation decision was documented here.";
+    const commentedText = "moderation decision";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    const commentThread = await document.createCommentThread(
+        aliceSession,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Paginated comment 0. This comment has enough detail to make the response require pagination.",
+        {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
+    );
+
+    for (let index = 1; index < 17; index++) {
+        await commentThread.createComment(
+            aliceSession,
+            index === 16
+                ? "Solenodon final comment."
+                : `Paginated comment ${index}. This comment has enough detail to make the response require pagination.`,
+            {overrideCreatedTime: new Date(Date.UTC(2026, 4, 14, 15, index * 5))},
+        );
+    }
+    await commentThread.resolve(aliceSession);
+
+    expect(await cli.run("alpine search solenodon")).toEqual(`\
+1. [Alice: **Solenodon** final comment.](/document-comment/alice-solenodon-final-comment)
+`);
+
+    expect(await cli.run("alpine read /document-comment/alice-solenodon-final-comment --limit=1kb"))
+        .toEqual(`\
+Document comment thread on [Resolved YouTube moderation](/document/resolved-youtube-moderation). [Previous page »](/document/resolved-youtube-moderation/comments/1?before=13)
+
+<time>May 14th at 12:05pm EDT</time>
+
+<comment id="13" from="[Alice](/human/alice)">
+
+Paginated comment 13. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="14" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 14. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="15" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 15. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="16" from="[Alice](/human/alice)" time="5 minutes later">
+
+Solenodon final comment.
+
+</comment>
+
+End of comments.
+`);
+});
+
+test("read fallback content after removing an unresolved document comment mark", async () => {
+    const dianaSession = await cli.session.space.createSession({name: "Diana"});
+
+    const title = "Removed YouTube comment preview";
+    const body = "The retired playback note should stay xylophonic and visible.";
+    const commentedText = "retired playback note";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+
+    await document.createCommentThread(
+        dianaSession,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Why was this playback note removed?",
+        {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
+    );
+
+    // Don't wait for the document indexing throttle.
+    await indexDocumentSearchEntityImmediately(document);
+
+    expect(await cli.run("alpine search xylophonic")).toEqual(`\
+1. [Removed YouTube comment preview](/document/removed-youtube-comment-preview)
+
+   The retired playback note should stay **xylophonic** and visible.
+`);
+
+    expect(await cli.run("alpine read /document/removed-youtube-comment-preview")).toEqual(`\
+# Removed YouTube comment preview
+
+The <comment id="1">retired playback note</comment> should stay xylophonic and visible.
+`);
+
+    expect(
+        await cli.run(
+            `alpine update /document/removed-youtube-comment-preview --old '<comment id="1">retired playback note</comment>' --new 'retired playback note'`,
+        ),
+    ).toEqual(`\
+Update was successful.
+`);
+
+    expect(await cli.run("alpine read /document/removed-youtube-comment-preview/comments/1"))
+        .toEqual(`\
+Document comment thread on [Removed YouTube comment preview](/document/removed-youtube-comment-preview).
+
+- [ ] Unresolved
+
+<blockquote match="deleted">
+
+retired playback note
+
+</blockquote>
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Diana](/human/diana)">
+
+Why was this playback note removed?
+
+</comment>
+
+End of comments.
+`);
+});
+
+test("search for a document and read one of its comment threads", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+
+    const title = "YouTube moderation";
+    const body = "The moderation decision was documented here. Solenodon.";
+    const commentedText = "moderation decision";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    const commentThread = await document.createCommentThread(
+        aliceSession,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "First comment.",
+        {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
+    );
+
+    for (let index = 1; index < 17; index++) {
+        await commentThread.createComment(
+            aliceSession,
+            `Paginated comment ${index}. This comment has enough detail to make the response require pagination.`,
+            {overrideCreatedTime: new Date(Date.UTC(2026, 4, 14, 15, index * 5))},
+        );
+    }
+
+    await indexDocumentSearchEntityImmediately(document);
+
+    expect(await cli.run("alpine search solenodon")).toEqual(`\
+1. [YouTube moderation](/document/youtube-moderation)
+
+   **Solenodon**.
+`);
+
+    expect(await cli.run("alpine read /document/youtube-moderation")).toEqual(`\
+# YouTube moderation
+
+The <comment id="1">moderation decision</comment> was documented here. Solenodon.
+`);
+
+    expect(await cli.run("alpine read /document/youtube-moderation/comments/1 --limit=1kb"))
+        .toEqual(`\
+Document comment thread on [YouTube moderation](/document/youtube-moderation). [Next page »](/document/youtube-moderation/comments/1?after=3)
+
+- [ ] Unresolved
+
+<blockquote>
+
+moderation decision
+
+</blockquote>
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Alice](/human/alice)">
+
+First comment.
+
+</comment>
+
+<comment id="1" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 1. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 2. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="3" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 3. This comment has enough detail to make the response require pagination.
+
+</comment>
+`);
+
+    expect(await cli.run("alpine read /document/youtube-moderation --limit=1kb")).toEqual(`\
+Document comment thread on [Resolved YouTube moderation](/document/resolved-youtube-moderation). [Next page »](/document/resolved-youtube-moderation/comments/1?after=2)
+
+- [x] Resolved
+
+<blockquote>
+
+moderation decision
+
+</blockquote>
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Alice](/human/alice)">
+
+Solenodon first comment.
+
+</comment>
+
+<comment id="1" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 1. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 2. This comment has enough detail to make the response require pagination.
+
+</comment>
+`);
 });

@@ -176,7 +176,7 @@ async function actuallyCallAgentWebReadTool(
 
         // In non-production environments, parse the response back into the underlying page
         // object just to make sure there are no parse errors. We don't do this in
-        // production for performance.
+        // production as a performance optimization.
         if (process.env.NODE_ENV !== "production") {
             const responseTree = parseMarkdownTree(response);
 
