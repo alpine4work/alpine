@@ -11,7 +11,7 @@ import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_fl
 
 process.title = "alpine-background";
 
-const [baseUrl = "", dataDirectoryPath = ""] = process.argv;
+const [baseUrl = "", dataDirectoryPath = ""] = process.argv.slice(2);
 
 let logStream: WriteStream | null = null;
 
