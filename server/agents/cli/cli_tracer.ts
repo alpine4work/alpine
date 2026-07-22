@@ -59,12 +59,16 @@ export function createCliTracer({
         new URL("./cli_tracer_background_main.js", import.meta.url),
     );
 
-    const subprocess = spawn(backgroundProcessMainPath, [baseUrl.toString(), dataDirectoryPath], {
-        // Allow the current process to exit without exiting the background process which
-        // may need to finish sending some tracer events.
-        detached: true,
-        stdio: ["pipe", "ignore", "ignore"],
-    });
+    const subprocess = spawn(
+        process.execPath,
+        [backgroundProcessMainPath, baseUrl.toString(), dataDirectoryPath],
+        {
+            // Allow the current process to exit without exiting the background process which
+            // may need to finish sending some tracer events.
+            detached: true,
+            stdio: ["pipe", "ignore", "ignore"],
+        },
+    );
 
     // Allow the current process to exit without waiting for the background process to
     // exit.
