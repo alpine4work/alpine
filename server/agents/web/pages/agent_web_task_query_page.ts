@@ -1728,8 +1728,9 @@ export async function updateAgentWebTaskQueryPage(
                         ? assertExists(movedCursorByPageTaskIndex.get(taskIndex))
                         : assertExists(oldTaskCursorById.get(assertExists(pageTask.taskId))),
                     newTaskId:
-                        pageTask.taskId === null
-                            ? assertExists(createdTaskIdByPageTaskIndex.get(taskIndex))
+                        newPage.tasks[taskIndex]!.taskId === null
+                            ? (pageTask.taskId ??
+                              assertExists(createdTaskIdByPageTaskIndex.get(taskIndex)))
                             : null,
                 })),
             };
