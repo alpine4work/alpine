@@ -111,8 +111,18 @@ async function main() {
     const tracer = TracerRoot.new({
         serviceName: "CliClient",
         jsHost: "Node",
+        // Events from our client tracer are untrusted because any bad actor could get
+        // ahold of our client tracer and send whatever event they want to the server.
+        //
+        // We can filter out events with this untrusted flag on the server to get clean
+        // data.
         untrusted: true,
-        // NOCOMMIT: Synchronize with Alpine clock? Like the client?
+        // We use the unsynchronized system clock with our tracer even though it's subject
+        // to user clock adjustments! That way the tracer object can be available
+        // immediately.
+        //
+        // Then when we send events to the server, we adjust times using the client offset
+        // from our synchronized system clock.
         clock: unsynchronizedSystemClock,
         sendEvent: () => {
             // NOCOMMIT: Send events to Alpine!

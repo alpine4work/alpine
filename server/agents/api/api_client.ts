@@ -73,9 +73,8 @@ export function createApiClient({
 }): ApiClient {
     const routeBySchemaPath = new DefaultMap<string, string>(schemaPath => {
         // Convert path params from the OpenAPI format (`/hello/{name}`) to the format
-        // expected by `fetchWithTracer()` (`/hello/:name`). Right now we only support path
-        // params that are an entire path segment. Paths like `/report.{format}` aren't
-        // currently accepted.
+        // expected by `fetchWithTracer()` (`/hello/:name`). Parameters may have a static
+        // suffix, as in `/tasks/{id}-with-notes`, but must begin their path segment.
         const route = schemaPath
             .split("/")
             .map(pathSegment => {
@@ -84,12 +83,11 @@ export function createApiClient({
                     return pathSegment;
                 }
 
-                assert(pathSegment.endsWith("}"));
-
-                const pathParamName = pathSegment.slice(1, -1);
+                const match = assertExists(pathSegment.match(/^\{([^}]+)\}([^{}]*)$/));
+                const [, pathParamName = "", staticSuffix = ""] = match;
                 assert(isIdentifier(pathParamName));
 
-                return `:${pathParamName}`;
+                return `:${pathParamName}${staticSuffix}`;
             })
             .join("/");
 
