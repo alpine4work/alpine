@@ -260,7 +260,7 @@ async function mainWithinTransaction({
                 // TODO(#public-api-blocking): Once Rachel adds a login setup for the API we should
                 // update this message to be "Try running `alpine auth`" again or whatever the
                 // command is.
-                displayMessage: errorDisplayMessage`Couldn\u2019t get the current bot from the API. Make sure you\u2019re online and can reach ${quote(`${baseApiUrl}/auth`)}.`,
+                displayMessage: errorDisplayMessage`Couldn\u2019t get the current bot from the API. Make sure you\u2019re online and can reach ${quote(`${new URL("/auth", baseApiUrl).toString()}`)}.`,
             });
         }
 
