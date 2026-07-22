@@ -271,6 +271,67 @@ End of tasks.
 `);
 });
 
+test("shuffle linked task collection tasks and observe the order with a fresh read", async () => {
+    await cli.run(`\
+alpine create task-collection '# Linked shuffle roadmap
+
+- Linked shuffle alpha (Open)
+- Linked shuffle bravo (Open)
+- Linked shuffle charlie (Open)
+- Linked shuffle delta (Open)'
+`);
+
+    expect(await cli.run("alpine read /task-collection/linked-shuffle-roadmap")).toEqual(`\
+# Linked shuffle roadmap
+
+- [Linked shuffle alpha (Open)](/task/linked-shuffle-alpha)
+
+- [Linked shuffle bravo (Open)](/task/linked-shuffle-bravo)
+
+- [Linked shuffle charlie (Open)](/task/linked-shuffle-charlie)
+
+- [Linked shuffle delta (Open)](/task/linked-shuffle-delta)
+
+End of tasks.
+`);
+
+    expect(
+        await cli.run(`\
+alpine update /task-collection/linked-shuffle-roadmap \\
+  --old '- [Linked shuffle alpha (Open)](/task/linked-shuffle-alpha)
+
+- [Linked shuffle bravo (Open)](/task/linked-shuffle-bravo)
+
+- [Linked shuffle charlie (Open)](/task/linked-shuffle-charlie)
+
+- [Linked shuffle delta (Open)](/task/linked-shuffle-delta)' \\
+  --new '- [Linked shuffle charlie (Open)](/task/linked-shuffle-charlie)
+
+- [Linked shuffle alpha (Open)](/task/linked-shuffle-alpha)
+
+- [Linked shuffle delta (Open)](/task/linked-shuffle-delta)
+
+- [Linked shuffle bravo (Open)](/task/linked-shuffle-bravo)'
+`),
+    ).toEqual(`\
+Update was successful.
+`);
+
+    expect(await cli.run("alpine read /task-collection/linked-shuffle-roadmap")).toEqual(`\
+# Linked shuffle roadmap
+
+- [Linked shuffle charlie (Open)](/task/linked-shuffle-charlie)
+
+- [Linked shuffle alpha (Open)](/task/linked-shuffle-alpha)
+
+- [Linked shuffle delta (Open)](/task/linked-shuffle-delta)
+
+- [Linked shuffle bravo (Open)](/task/linked-shuffle-bravo)
+
+End of tasks.
+`);
+});
+
 test("move and add task collection tasks in the same update", async () => {
     await cli.run(`\
 alpine create task-collection '# Move and add roadmap
