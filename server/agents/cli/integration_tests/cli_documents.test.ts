@@ -589,7 +589,33 @@ test("search for and read a comment at the start of an unresolved document comme
         .toEqual(`\
 Document comment thread on [Resolved YouTube moderation](/document/resolved-youtube-moderation). [Next page »](/document/resolved-youtube-moderation/comments/1?after=2)
 
-TODO
+- [ ] Unresolved
+
+<blockquote>
+
+moderation decision
+
+</blockquote>
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Alice](/human/alice)">
+
+Solenodon first comment.
+
+</comment>
+
+<comment id="1" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 1. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 2. This comment has enough detail to make the response require pagination.
+
+</comment>
 `);
 });
 
@@ -733,25 +759,27 @@ Paginated comment 2. This comment has enough detail to make the response require
     ).toEqual(`\
 Document comment thread on [Resolved YouTube moderation](/document/resolved-youtube-moderation). [Next page »](/document/resolved-youtube-moderation/comments/1?after=6)
 
+<time>May 14th at 11:15am EDT</time>
+
 <comment id="3" from="[Alice](/human/alice)">
 
 Paginated comment 3. This comment has enough detail to make the response require pagination.
 
 </comment>
 
-<comment id="4" from="[Alice](/human/alice)">
+<comment id="4" from="[Alice](/human/alice)" time="5 minutes later">
 
 Paginated comment 4. This comment has enough detail to make the response require pagination.
 
 </comment>
 
-<comment id="5" from="[Alice](/human/alice)">
+<comment id="5" from="[Alice](/human/alice)" time="5 minutes later">
 
 Paginated comment 5. This comment has enough detail to make the response require pagination.
 
 </comment>
 
-<comment id="6" from="[Alice](/human/alice)">
+<comment id="6" from="[Alice](/human/alice)" time="5 minutes later">
 
 Paginated comment 6. This comment has enough detail to make the response require pagination.
 
@@ -970,38 +998,6 @@ Paginated comment 2. This comment has enough detail to make the response require
 <comment id="3" from="[Alice](/human/alice)" time="5 minutes later">
 
 Paginated comment 3. This comment has enough detail to make the response require pagination.
-
-</comment>
-`);
-
-    expect(await cli.run("alpine read /document/youtube-moderation --limit=1kb")).toEqual(`\
-Document comment thread on [Resolved YouTube moderation](/document/resolved-youtube-moderation). [Next page »](/document/resolved-youtube-moderation/comments/1?after=2)
-
-- [x] Resolved
-
-<blockquote>
-
-moderation decision
-
-</blockquote>
-
-<time>May 14th at 11:00am EDT</time>
-
-<comment id="0" from="[Alice](/human/alice)">
-
-Solenodon first comment.
-
-</comment>
-
-<comment id="1" from="[Alice](/human/alice)" time="5 minutes later">
-
-Paginated comment 1. This comment has enough detail to make the response require pagination.
-
-</comment>
-
-<comment id="2" from="[Alice](/human/alice)" time="5 minutes later">
-
-Paginated comment 2. This comment has enough detail to make the response require pagination.
 
 </comment>
 `);

@@ -40,6 +40,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {diff} from "~/shared/helpers/diff/diff.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {
@@ -894,7 +895,7 @@ export async function commitTaskPatchesFromApi(
         }),
     );
 
-    const [, taskSortableAccountById, newReferencesResult, newAssigneeAccounts] =
+    const [{extraActions}, taskSortableAccountById, newReferencesResult, newAssigneeAccounts] =
         await runAllPromises([
             commitTaskActionTransaction(context, spaceId, actions, {
                 consistency: "StrongWithinCache",
@@ -954,7 +955,8 @@ export async function commitTaskPatchesFromApi(
                   )
                 : assertExists(backfillAuthorizedTaskById.get(taskId));
 
-        for (const action of actions) {
+        for (const action of concatIterables(actions, extraActions)) {
+            if (action.type !== "UpdateTask") continue;
             if (action.taskId !== taskId) continue;
             if (action.taskAction.type === "Create") continue;
             task = task.applyAction(action, getTaskSortableAccount);
