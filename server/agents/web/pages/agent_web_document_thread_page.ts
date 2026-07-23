@@ -678,10 +678,16 @@ export async function updateAgentWebDocumentThreadPage(
 
     if (oldPage.preamble.type === "Head" && newPage.preamble.type === "Head") {
         if (oldPage.preamble.isResolved !== newPage.preamble.isResolved) {
-            // TODO(#agents-web): Implement document comment thread resolve/unresolve endpoint.
-            throw new UnimplementedError(
-                "Document comment thread resolve/unresolve API endpoint hasn\u2019t been implemented yet",
-            );
+            await context.api.patch(context.span, "/documents/{id}/threads/{threadId}", {
+                params: {path: {id, threadId}},
+                body: {
+                    patches: [
+                        {
+                            type: newPage.preamble.isResolved ? "Resolve" : "Unresolve",
+                        },
+                    ],
+                },
+            });
         }
     }
 

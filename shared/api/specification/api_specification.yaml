@@ -644,6 +644,35 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     thread:
                                         $ref: "#/components/schemas/DocumentThread"
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [patches]
+                            additionalProperties: false
+                            properties:
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/DocumentThreadPatch"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, thread]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentThread"
 
     /documents/{id}/threads/{threadId}-with-preview:
         parameters:
@@ -4244,6 +4273,32 @@ components:
                             $ref: "#/components/schemas/DateTime"
                         createdTimeZone:
                             $ref: "#/components/schemas/TimeZone"
+
+        DocumentThreadPatch:
+            oneOf:
+                - $ref: "#/components/schemas/DocumentThreadResolvePatch"
+                - $ref: "#/components/schemas/DocumentThreadUnresolvePatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Resolve: "#/components/schemas/DocumentThreadResolvePatch"
+                    Unresolve: "#/components/schemas/DocumentThreadUnresolvePatch"
+
+        DocumentThreadResolvePatch:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Resolve
+
+        DocumentThreadUnresolvePatch:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Unresolve
 
         DocumentThreadWithPreview:
             type: object

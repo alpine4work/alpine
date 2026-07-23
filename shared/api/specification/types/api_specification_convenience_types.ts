@@ -309,6 +309,14 @@ export type ApiDocumentSetContentPatch =
 
 export type ApiDocumentThread = ApiSpecification.components["schemas"]["DocumentThread"];
 
+export type ApiDocumentThreadPatch = ApiSpecification.components["schemas"]["DocumentThreadPatch"];
+
+export type ApiDocumentThreadResolvePatch =
+    ApiSpecification.components["schemas"]["DocumentThreadResolvePatch"];
+
+export type ApiDocumentThreadUnresolvePatch =
+    ApiSpecification.components["schemas"]["DocumentThreadUnresolvePatch"];
+
 export type ApiDocumentThreadWithPreview =
     ApiSpecification.components["schemas"]["DocumentThreadWithPreview"];
 

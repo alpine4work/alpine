@@ -22,6 +22,8 @@ import {
 } from "~/shared/access/access_policy.js";
 import {
     DocumentCollaborationProtocol,
+    DocumentCollaborationSetCommentThreadResolvedRequestBodySchema,
+    DocumentCollaborationSetCommentThreadResolvedResponseBodySchema,
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
@@ -54,8 +56,13 @@ import {
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {
+    AddMarksAfterRemoveAllStep,
+    RemoveAllMarksStep,
+} from "~/shared/prosemirror/remove_all_marks_step.js";
+import {
     authorizeDocumentAccess,
     getDocumentContentForCollaborationServiceInitialization,
+    getResolvedDocumentCommentThreadRanges,
 } from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
@@ -68,6 +75,7 @@ type DocumentCollaborationDurableObjectRoute =
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
+    | {type: "SetCommentThreadResolved"; commentThreadId: DocumentCommentThreadId}
     | {type: "UpdateContentWithDiff"}
     | {type: "UpdateContentWithoutOptimisticBroadcast"}
     | {type: "ResetForTest"};
@@ -279,6 +287,17 @@ class DocumentCollaborationDurableObject {
             }
         }
 
+        const setCommentThreadResolvedPathPrefix = "/set-comment-thread-resolved/";
+        if (url.pathname.startsWith(setCommentThreadResolvedPathPrefix)) {
+            const commentThreadId = url.pathname.slice(setCommentThreadResolvedPathPrefix.length);
+            if (isId<DocumentCommentThreadId>(commentThreadId)) {
+                return [
+                    "/set-comment-thread-resolved/:commentThreadId",
+                    {type: "SetCommentThreadResolved", commentThreadId},
+                ];
+            }
+        }
+
         if (url.pathname === "/update-content-with-diff") {
             return ["/update-content-with-diff", {type: "UpdateContentWithDiff"}];
         }
@@ -413,6 +432,126 @@ class DocumentCollaborationDurableObject {
                 );
 
                 return new Response(null, {status: 200});
+            }
+            case "SetCommentThreadResolved": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                try {
+                    const accountContext = context.actor.authorizeAccount();
+                    const {resolved} =
+                        DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.deserialize(
+                            await request.json(),
+                        );
+
+                    if (resolved) {
+                        // We use a `null` `connectionId` and generate a new `clientId` because the client
+                        // doesn't know about these update steps. It needs to apply the realtime update for
+                        // the `RemoveAllMarksStep` along with all other clients. We also don't update the
+                        // client's presence state along with these updates.
+                        await this._contentManager.updateAndWaitForPersistence(
+                            accountContext,
+                            null,
+                            {
+                                version: this._contentManager.getCurrentVersion(),
+                                steps: [
+                                    new RemoveAllMarksStep(
+                                        DocumentContentProsemirrorSchema.marks.comment.create({
+                                            commentThreadId: route.commentThreadId,
+                                        }),
+                                    ),
+                                ],
+                                clientId: generateId(),
+                                createCommentThreads: [],
+                                intentionallyUpdateAccessPolicy: null,
+                                resolveCommentThreadIds: [route.commentThreadId],
+                                updateOurPresenceState: {state: null},
+                            },
+                        );
+                    } else {
+                        // NOTE(calebmer): Warning! Calling an RPC here creates a network waterfall which
+                        // can be slow. The network flow is:
+                        //
+                        // 1. RPC `getResolvedDocumentCommentThreadRanges`
+                        //     - Cloudflare `DocumentCollaborationService` → AWS `AppService`
+                        //     - AWS `AppService` → Cloudflare `DocumentCollaborationService`
+                        // 2. RPC `updateDocumentContent`
+                        //     - Cloudflare `DocumentCollaborationService` → AWS `AppService`
+                        //     - AWS `AppService` → Cloudflare `DocumentCollaborationService`
+                        //
+                        // Given this Durable Object runs on the edge this doubles the network latency
+                        // penalty from Cloudflare to AWS. Ideally we'd only make one network request to
+                        // app service per procedure.
+                        //
+                        // Since this procedure is relatively uncommon and our document collaboration
+                        // service needs to know which steps to commit before calling back to app service,
+                        // we tolerate this.
+                        const {version, ranges} = await getResolvedDocumentCommentThreadRanges(
+                            accountContext,
+                            {
+                                documentId: this._contentManager.id,
+                                commentThreadId: route.commentThreadId,
+                            },
+                        );
+
+                        // We use a `null` `connectionId` and generate a new `clientId` because the client
+                        // doesn't know about these update steps. It needs to apply the realtime update for
+                        // the `AddMarksAfterRemoveAllStep` along with all other clients. We also don't
+                        // update the client's presence state along with these updates.
+                        await this._contentManager.updateAndWaitForPersistence(
+                            accountContext,
+                            null,
+                            {
+                                // This update runs at an old version. The ranges will need to be rebased with all
+                                // updates that have happened since that old version.
+                                version,
+                                steps: [
+                                    new AddMarksAfterRemoveAllStep(
+                                        DocumentContentProsemirrorSchema.marks.comment.create({
+                                            commentThreadId: route.commentThreadId,
+                                        }),
+                                        ranges,
+                                    ),
+                                ],
+                                clientId: generateId(),
+                                createCommentThreads: [],
+                                intentionallyUpdateAccessPolicy: null,
+                                unresolveCommentThreadIds: [route.commentThreadId],
+                                updateOurPresenceState: {state: null},
+                            },
+                        );
+                    }
+
+                    return new Response(
+                        JSON.stringify(
+                            DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.serialize(
+                                {ok: true},
+                            ),
+                        ),
+                        {
+                            status: 200,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                } catch (error) {
+                    span.addException(error);
+
+                    return new Response(
+                        JSON.stringify(
+                            DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.serialize(
+                                {ok: false, error},
+                            ),
+                        ),
+                        {
+                            status: isSystemError(error) ? 500 : 400,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                }
             }
             case "BroadcastSpellCheckRealtimeEvents": {
                 const {events} = SpellCheckIgnoredLintRealtimeTransactionSchema.deserialize(

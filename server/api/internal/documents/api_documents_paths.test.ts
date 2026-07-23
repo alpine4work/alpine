@@ -8,6 +8,7 @@ import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
     getDocumentContent,
     getDocumentContentSteps,
+    getResolvedDocumentCommentThreadRanges,
     updateDocumentContent,
     updateDocumentSnapshotForTest,
 } from "~/server/documents/data/documents_actions.js";
@@ -20,6 +21,8 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {
+    DocumentCollaborationSetCommentThreadResolvedRequestBodySchema,
+    DocumentCollaborationSetCommentThreadResolvedResponseBodySchema,
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
@@ -31,8 +34,12 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {assertId, generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
+import {
+    AddMarksAfterRemoveAllStep,
+    RemoveAllMarksStep,
+} from "~/shared/prosemirror/remove_all_marks_step.js";
 
 const context = createTestContext({
     chatInjection,
@@ -44,6 +51,66 @@ const context = createTestContext({
     // `DocumentCollaborationDurableObject` isn't that dissimilar from what you see
     // here.
     sendRequestToDurableObject: async (actualContext, request) => {
+        const setCommentThreadResolvedMatch = request.url.match(
+            /^\/api\/durable-objects\/documents\/([^/]+)\/set-comment-thread-resolved\/([^/]+)/,
+        );
+        if (setCommentThreadResolvedMatch) {
+            const context = (
+                actualContext as ApiServiceBotActionContext
+            ).dynamo.unexpectStrongReadConsistency();
+
+            const documentId = assertId<DocumentId>(setCommentThreadResolvedMatch[1]!);
+            const commentThreadId = assertId<DocumentCommentThreadId>(
+                setCommentThreadResolvedMatch[2]!,
+            );
+
+            const {resolved} =
+                DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.deserialize(
+                    request.body ?? null,
+                );
+
+            const document = await getDocumentContent(context, documentId);
+            if (resolved) {
+                await updateDocumentContent(context, {
+                    id: documentId,
+                    version: document.version,
+                    steps: [
+                        new RemoveAllMarksStep(
+                            DocumentContentProsemirrorSchema.marks.comment.create({
+                                commentThreadId,
+                            }),
+                        ),
+                    ],
+                    clientId: generateId(),
+                    resolveCommentThreadIds: [commentThreadId],
+                });
+            } else {
+                const {version, ranges} = await getResolvedDocumentCommentThreadRanges(context, {
+                    documentId,
+                    commentThreadId,
+                });
+
+                await updateDocumentContent(context, {
+                    id: documentId,
+                    version,
+                    steps: [
+                        new AddMarksAfterRemoveAllStep(
+                            DocumentContentProsemirrorSchema.marks.comment.create({
+                                commentThreadId,
+                            }),
+                            ranges,
+                        ),
+                    ],
+                    clientId: generateId(),
+                    unresolveCommentThreadIds: [commentThreadId],
+                });
+            }
+
+            return DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.serialize({
+                ok: true,
+            });
+        }
+
         const match = request.url.match(
             /^\/api\/durable-objects\/documents\/([^/]+)\/update-content-with-diff/,
         );
@@ -749,6 +816,92 @@ describe("comment threads", () => {
             },
             hasDocument: false,
             hasPreview: false,
+        });
+    });
+
+    test("resolves a comment thread", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session, {access: "Public"});
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const response = await server.PATCH(
+            `/documents/${document.id}/threads/${commentThread.id}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {patches: [{type: "Resolve"}]},
+            },
+        );
+
+        expect({response, commentThread: await commentThread.get()}).toMatchObject({
+            response: {
+                status: 200,
+                body: {
+                    spaceId: space.id,
+                    thread: {id: commentThread.id, isResolved: true},
+                },
+            },
+            commentThread: {isResolved: true},
+        });
+    });
+
+    test("unresolves a comment thread", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session, {access: "Public"});
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        await commentThread.resolve(session);
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const response = await server.PATCH(
+            `/documents/${document.id}/threads/${commentThread.id}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {patches: [{type: "Unresolve"}]},
+            },
+        );
+
+        expect({response, commentThread: await commentThread.get()}).toMatchObject({
+            response: {
+                status: 200,
+                body: {
+                    spaceId: space.id,
+                    thread: {id: commentThread.id, isResolved: false},
+                },
+            },
+            commentThread: {isResolved: false},
+        });
+    });
+
+    test("applies resolution patches in request order", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session, {access: "Public"});
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        const oldVersion = (await document.get()).version;
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const response = await server.PATCH(
+            `/documents/${document.id}/threads/${commentThread.id}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {patches: [{type: "Resolve"}, {type: "Unresolve"}]},
+            },
+        );
+
+        expect({response, documentVersion: (await document.get()).version}).toMatchObject({
+            response: {
+                status: 200,
+                body: {thread: {id: commentThread.id, isResolved: false}},
+            },
+            documentVersion: oldVersion,
         });
     });
 

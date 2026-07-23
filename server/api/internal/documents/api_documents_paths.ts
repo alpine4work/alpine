@@ -1,6 +1,7 @@
 import {Node} from "prosemirror-model";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createIntoApiDocumentCommentContentPayloadParent} from "~/server/api/internal/documents/internal/create_into_api_document_comment_content_payload_parent.js";
+import {intoApiDocumentThread} from "~/server/api/internal/documents/internal/into_api_document_thread.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
@@ -49,6 +50,8 @@ import {
 } from "~/shared/content/message_content_schema.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
+    DocumentCollaborationSetCommentThreadResolvedRequestBodySchema,
+    DocumentCollaborationSetCommentThreadResolvedResponseBodySchema,
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
@@ -443,12 +446,14 @@ export const apiDocumentsPaths: Pick<
         },
     },
 
-    // NOCOMMIT: Tests for this endpoint
     "/documents/{id}/threads/{threadId}": {
         get: async (context, {pathParameters}) => {
             const commentThread = await getDocumentCommentThreadContent(
                 context,
-                {documentId: pathParameters.id, commentThreadId: pathParameters.threadId},
+                {
+                    documentId: pathParameters.id,
+                    commentThreadId: pathParameters.threadId,
+                },
                 {consistency: "StrongWithinCache"},
             );
 
@@ -461,16 +466,76 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId: commentThread.spaceId,
-                    thread: {
-                        id: pathParameters.threadId,
-                        isResolved: commentThread.isResolved,
-                        totalMessageCount: commentThread.commentCount,
-                        firstMessage: {
-                            author: firstCommentAuthor,
-                            createdTime: serializeDateString(commentThread.createdTime),
-                            createdTimeZone: commentThread.createdTimeZone,
-                        },
-                    },
+                    thread: intoApiDocumentThread({
+                        ...commentThread,
+                        firstCommentAuthor,
+                    }),
+                },
+            };
+        },
+
+        patch: async (context, {pathParameters, requestBody}) => {
+            let resolved: boolean | undefined;
+
+            for (const patch of requestBody.patches) {
+                switch (patch.type) {
+                    case "Resolve":
+                        resolved = true;
+                        break;
+                    case "Unresolve":
+                        resolved = false;
+                        break;
+                    default:
+                        throw exhaustive(patch);
+                }
+            }
+
+            const newIsResolved = assertExists(resolved);
+            const commentThread = await getDocumentCommentThreadContent(
+                context,
+                {
+                    documentId: pathParameters.id,
+                    commentThreadId: pathParameters.threadId,
+                },
+                {consistency: "StrongWithinCache"},
+            );
+
+            const [firstCommentAuthor, responseBody] = await runAllPromises([
+                getApiAccount(
+                    context.dynamo.unexpectStrongReadConsistency(),
+                    commentThread.spaceId,
+                    commentThread.firstCommentAuthorId,
+                ),
+                commentThread.isResolved === newIsResolved
+                    ? null
+                    : context.edge
+                          .sendRequestToDurableObject(
+                              `/api/durable-objects/documents/${pathParameters.id}/set-comment-thread-resolved/${pathParameters.threadId}`,
+                              {
+                                  serviceName: "DocumentCollaborationService",
+                                  route: "/api/durable-objects/documents/:documentId/set-comment-thread-resolved/:commentThreadId",
+                                  body: DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.serialize(
+                                      {resolved: newIsResolved},
+                                  ),
+                              },
+                          )
+                          .then(responseBody =>
+                              DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.deserialize(
+                                  responseBody,
+                              ),
+                          ),
+            ]);
+
+            if (responseBody && !responseBody.ok) throw responseBody.error;
+
+            return {
+                content: {
+                    spaceId: commentThread.spaceId,
+                    thread: intoApiDocumentThread({
+                        ...commentThread,
+                        isResolved: newIsResolved,
+                        firstCommentAuthor,
+                    }),
                 },
             };
         },

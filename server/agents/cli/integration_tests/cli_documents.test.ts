@@ -924,6 +924,92 @@ End of comments.
 `);
 });
 
+test("resolve a document comment thread", async () => {
+    const title = "YouTube resolution review";
+    const body = "Review the launch decision.";
+    const commentedText = "launch decision";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    const commentThread = await document.createCommentThread(
+        cli.session,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Please resolve this review.",
+    );
+
+    await indexDocumentSearchEntityImmediately(document);
+    await cli.run("alpine search 'YouTube resolution review'");
+    await cli.run("alpine read /document/youtube-resolution-review");
+    await cli.run("alpine read /document/youtube-resolution-review/comments/1");
+
+    const updateOutput = await cli.run(
+        "alpine update /document/youtube-resolution-review/comments/1 --old '- [ ] Unresolved' --new '- [x] Resolved'",
+    );
+
+    expect({
+        updateOutput,
+        commentThread: await commentThread.get(),
+        documentOutput: await cli.run("alpine read /document/youtube-resolution-review"),
+        threadOutput: await cli.run("alpine read /document/youtube-resolution-review/comments/1"),
+    }).toEqual({
+        updateOutput: "Update was successful.\n",
+        commentThread: expect.objectContaining({isResolved: true}),
+        documentOutput: `\
+# YouTube resolution review
+
+Review the launch decision.
+`,
+        threadOutput: expect.stringContaining("- [x] Resolved"),
+    });
+});
+
+test("unresolve a document comment thread", async () => {
+    const title = "YouTube reopened review";
+    const body = "Revisit the launch decision.";
+    const commentedText = "launch decision";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    const commentThread = await document.createCommentThread(
+        cli.session,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Please reopen this review.",
+    );
+
+    await indexDocumentSearchEntityImmediately(document);
+    await cli.run("alpine search 'YouTube reopened review'");
+    await cli.run("alpine read /document/youtube-reopened-review");
+    await cli.run("alpine read /document/youtube-reopened-review/comments/1");
+    await commentThread.resolve(cli.session);
+    await cli.run("alpine read /document/youtube-reopened-review/comments/1");
+
+    const updateOutput = await cli.run(
+        "alpine update /document/youtube-reopened-review/comments/1 --old '- [x] Resolved' --new '- [ ] Unresolved'",
+    );
+
+    expect({
+        updateOutput,
+        commentThread: await commentThread.get(),
+        documentOutput: await cli.run("alpine read /document/youtube-reopened-review"),
+        threadOutput: await cli.run("alpine read /document/youtube-reopened-review/comments/1"),
+    }).toEqual({
+        updateOutput: "Update was successful.\n",
+        commentThread: expect.objectContaining({isResolved: false}),
+        documentOutput: `\
+# YouTube reopened review
+
+Revisit the <comment id="1">launch decision</comment>.
+`,
+        threadOutput: expect.stringContaining("- [ ] Unresolved"),
+    });
+});
+
 test("add a document comment", async () => {
     const aliceSession = await cli.session.space.createSession({name: "Alice"});
 

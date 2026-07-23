@@ -489,3 +489,17 @@ export const DocumentCollaborationUpdateContentWithDiffResponseBodySchema = Sche
         error: ErrorSchema,
     }),
 );
+
+export const DocumentCollaborationSetCommentThreadResolvedRequestBodySchema = Schema.object({
+    resolved: Schema.boolean,
+});
+
+export const DocumentCollaborationSetCommentThreadResolvedResponseBodySchema = Schema.result(
+    Schema.object({
+        ok: Schema.value(true),
+    }),
+    Schema.object({
+        ok: Schema.value(false),
+        error: ErrorSchema,
+    }),
+);

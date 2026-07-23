@@ -240,6 +240,25 @@ function mockGetDocumentThread({
     });
 }
 
+function mockPatchDocumentThread(isResolved: boolean) {
+    api.mockPatch("/documents/{id}/threads/{threadId}", {
+        params: {path: {id: documentId, threadId}},
+        data: {
+            spaceId,
+            thread: {
+                id: threadId,
+                isResolved,
+                totalMessageCount: 0,
+                firstMessage: {
+                    author: aliceAccount,
+                    createdTime: serializeDateString(new Date("2026-05-14T15:00:00.000Z")),
+                    createdTimeZone: defaultTimeZone,
+                },
+            },
+        },
+    });
+}
+
 async function readDocumentThread({
     path = documentThreadPath,
     limit = "100kb",
@@ -297,6 +316,15 @@ function getCreateCommentRequests() {
             request =>
                 request.method === "POST" &&
                 request.path === "/documents/{id}/threads/{threadId}/messages",
+        );
+}
+
+function getPatchDocumentThreadRequests() {
+    return api
+        .getRequestHistory()
+        .filter(
+            request =>
+                request.method === "PATCH" && request.path === "/documents/{id}/threads/{threadId}",
         );
 }
 
@@ -507,9 +535,10 @@ test("rejects changing which document the document thread belongs to", async () 
 });
 
 test.each(["- [x] Resolved", "- [x] Unresolved"])(
-    "throws UnimplementedError when resolving a document thread with %s",
+    "resolves a document thread with %s",
     async newState => {
         await readDocumentThread({totalCommentCount: 0});
+        mockPatchDocumentThread(true);
 
         await expect(
             callAgentWebUpdateTool(context, {
@@ -522,17 +551,19 @@ test.each(["- [x] Resolved", "- [x] Unresolved"])(
                     },
                 ],
             }),
-        ).resolves.toEqual(`\
-Error: Couldn\u2019t update \`/document/launch-spec/comments/1\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+        ).resolves.toEqual("Update was successful.");
 
-> Internal error: Document comment thread resolve/unresolve API endpoint hasn\u2019t been implemented yet`);
+        expect(getPatchDocumentThreadRequests().map(request => request.body)).toEqual([
+            {patches: [{type: "Resolve"}]},
+        ]);
     },
 );
 
 test.each(["- [ ] Resolved", "- [ ] Unresolved"])(
-    "throws UnimplementedError when unresolving a document thread with %s",
+    "unresolves a document thread with %s",
     async newState => {
         await readDocumentThread({totalCommentCount: 0, isResolved: true});
+        mockPatchDocumentThread(false);
 
         await expect(
             callAgentWebUpdateTool(context, {
@@ -545,15 +576,17 @@ test.each(["- [ ] Resolved", "- [ ] Unresolved"])(
                     },
                 ],
             }),
-        ).resolves.toEqual(`\
-Error: Couldn\u2019t update \`/document/launch-spec/comments/1\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+        ).resolves.toEqual("Update was successful.");
 
-> Internal error: Document comment thread resolve/unresolve API endpoint hasn\u2019t been implemented yet`);
+        expect(getPatchDocumentThreadRequests().map(request => request.body)).toEqual([
+            {patches: [{type: "Unresolve"}]},
+        ]);
     },
 );
 
-test("throws UnimplementedError when resolving a legacy document thread without state", async () => {
+test("resolves a legacy document thread without state", async () => {
     await writeDocumentThreadReadResponseWithoutResolvedState();
+    mockPatchDocumentThread(true);
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -566,10 +599,11 @@ test("throws UnimplementedError when resolving a legacy document thread without 
                 },
             ],
         }),
-    ).resolves.toEqual(`\
-Error: Couldn\u2019t update \`/document/launch-spec/comments/1\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+    ).resolves.toEqual("Update was successful.");
 
-> Internal error: Document comment thread resolve/unresolve API endpoint hasn\u2019t been implemented yet`);
+    expect(getPatchDocumentThreadRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "Resolve"}]},
+    ]);
 });
 
 test("rejects creating comments before the end of document thread comments", async () => {

@@ -44,6 +44,8 @@ import {createSimpleMessageContent} from "~/shared/content/message_content_schem
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     DocumentCollaborationProtocol,
+    DocumentCollaborationSetCommentThreadResolvedRequestBodySchema,
+    DocumentCollaborationSetCommentThreadResolvedResponseBodySchema,
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
@@ -137,6 +139,26 @@ function createUpdateContentWithDiffRequest({
             }),
         ),
     });
+}
+
+function createSetCommentThreadResolvedRequest(
+    commentThreadId: DocumentCommentThreadId,
+    resolved: boolean,
+) {
+    return new Request(`https://cyberworlds.local/set-comment-thread-resolved/${commentThreadId}`, {
+        method: "POST",
+        body: JSON.stringify(
+            DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.serialize({
+                resolved,
+            }),
+        ),
+    });
+}
+
+async function readSetCommentThreadResolvedResponse(response: Response) {
+    return DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.deserialize(
+        await response.json(),
+    );
 }
 
 async function readUpdateContentWithDiffResponse(response: Response) {
@@ -6533,6 +6555,99 @@ test("can get presence updates across viewer/editor connections", async () => {
             },
         ],
         rememberInvertedSteps: [],
+    });
+});
+
+describe("set-comment-thread-resolved route", () => {
+    test("rejects non-POST requests", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            new Request(
+                `https://cyberworlds.local/set-comment-thread-resolved/${generateId<DocumentCommentThreadId>()}`,
+                {method: "GET"},
+            ),
+        );
+
+        expect({status: response.status, body: await response.text()}).toEqual({
+            status: 405,
+            body: "405 Method Not Allowed",
+        });
+    });
+
+    test("returns a structured error", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createSetCommentThreadResolvedRequest(generateId(), true),
+        );
+
+        expect({
+            status: response.status,
+            body: await readSetCommentThreadResolvedResponse(response),
+        }).toMatchObject({
+            status: 400,
+            body: {ok: false, error: {message: "Document comment thread not found"}},
+        });
+    });
+
+    test("resolves a comment thread before responding", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        const oldVersion = (await document.get()).version;
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createSetCommentThreadResolvedRequest(commentThread.id, true),
+        );
+
+        expect({
+            response: await readSetCommentThreadResolvedResponse(response),
+            commentThread: await commentThread.get(),
+            documentVersion: (await document.get()).version,
+        }).toMatchObject({
+            response: {ok: true},
+            commentThread: {isResolved: true},
+            documentVersion: oldVersion + 1,
+        });
+    });
+
+    test("unresolves a comment thread before responding", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        await commentThread.resolve(session);
+        const oldVersion = (await document.get()).version;
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createSetCommentThreadResolvedRequest(commentThread.id, false),
+        );
+
+        expect({
+            response: await readSetCommentThreadResolvedResponse(response),
+            commentThread: await commentThread.get(),
+            documentVersion: (await document.get()).version,
+        }).toMatchObject({
+            response: {ok: true},
+            commentThread: {isResolved: false},
+            documentVersion: oldVersion + 1,
+        });
     });
 });
 

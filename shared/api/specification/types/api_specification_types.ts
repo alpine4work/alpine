@@ -996,7 +996,38 @@ export namespace ApiSpecification {
             readonly delete?: never;
             readonly options?: never;
             readonly head?: never;
-            readonly patch?: never;
+            readonly patch: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["DocumentId"];
+                        readonly threadId: components["schemas"]["DocumentThreadId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly patches: readonly components["schemas"]["DocumentThreadPatch"][];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly thread: components["schemas"]["DocumentThread_Response"];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly trace?: never;
         };
         readonly "/documents/{id}/threads/{threadId}-with-preview": {
@@ -4306,6 +4337,23 @@ export namespace ApiSpecification {
                     readonly createdTime: components["schemas"]["DateTime"];
                     readonly createdTimeZone: components["schemas"]["TimeZone"];
                 };
+            };
+            readonly DocumentThreadPatch:
+                | components["schemas"]["DocumentThreadResolvePatch"]
+                | components["schemas"]["DocumentThreadUnresolvePatch"];
+            readonly DocumentThreadResolvePatch: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Resolve";
+            };
+            readonly DocumentThreadUnresolvePatch: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Unresolve";
             };
             readonly DocumentThreadWithPreview: {
                 readonly id: components["schemas"]["DocumentThreadId"];
