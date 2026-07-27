@@ -48,7 +48,7 @@ export function createAgentWebTaskQueryCursorHash(
         let hashNumber: number;
 
         if (
-            process.env.NODE_ENV !== "test" ||
+            process.env.NODE_ENV === "production" ||
             process.env.AGENT_WEB_TASK_QUERY_CURSOR_HASH_FOR_TEST === undefined
         ) {
             hashNumber = murmurhash.v3(cursor) & agentWebTaskQueryCursorHashMask;
