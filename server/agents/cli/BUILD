@@ -27,11 +27,10 @@ ts_project(
         "//shared/api/content",
         "//shared/api/content/closed_source",
         "//shared/api/specification",
-        # NOCOMMIT: Ideally we wouldn't open source this
-        "//shared/content/code",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
+        "//shared/lezer",
         "//shared/tracer",
     ],
 )

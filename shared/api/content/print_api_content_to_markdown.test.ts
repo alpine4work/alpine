@@ -11990,9 +11990,6 @@ Use \`\` \`backticks\` \`\` for inline code
                 parseApiContentFromMarkdown(actualMarkdown),
             ).toEqual(normalizeApiContent(content));
         });
-
-        // NOCOMMIT: We removed `AgentWebMarkdownStreamParser` from here, should it come
-        // back?
     });
 });
 

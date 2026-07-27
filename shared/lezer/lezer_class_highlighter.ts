@@ -1,6 +1,50 @@
 import {Tag, tagHighlighter, tags} from "@lezer/highlight";
-import {LezerClassHighlighterClass} from "~/shared/files/file_code_preview_content.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+
+export type LezerClassHighlighterClass = (typeof lezerClassHighlighterClasses)[number];
+
+/**
+ * All the Lezer highlight classes we use.
+ *
+ * IMPORTANT: Do not change the order of items in this array!
+ * `FileCodePreviewContent`'s binary format depends on the index of each class
+ * staying the same. If you need to add a new class then add it to the end.
+ */
+export const lezerClassHighlighterClasses = [
+    "tok-atom",
+    "tok-bool",
+    "tok-className",
+    "tok-comment",
+    "tok-controlKeyword",
+    "tok-definition",
+    "tok-deleted",
+    "tok-emphasis",
+    "tok-heading",
+    "tok-inserted",
+    "tok-invalid",
+    "tok-keyword",
+    "tok-labelName",
+    "tok-link",
+    "tok-literal",
+    "tok-local",
+    "tok-macroName",
+    "tok-meta",
+    "tok-moduleKeyword",
+    "tok-namespace",
+    "tok-number",
+    "tok-operator",
+    "tok-propertyName",
+    "tok-punctuation",
+    "tok-punctuation2",
+    "tok-string",
+    "tok-string2",
+    "tok-strong",
+    "tok-typeName",
+    "tok-url",
+    "tok-variableName",
+    "tok-variableName2",
+    "tok-monospace",
+] as const;
 
 // A modified version of [Lezer's own `classHighlighter`][1] which adds a couple
 // class names.

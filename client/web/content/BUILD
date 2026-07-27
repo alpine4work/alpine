@@ -72,6 +72,7 @@ ts_project(
         "//shared/helpers",
         "//shared/helpers:helpers_core",
         "//shared/id",
+        "//shared/lezer",
         "//shared/messaging",
         "//shared/prosemirror",
         "//shared/remix",

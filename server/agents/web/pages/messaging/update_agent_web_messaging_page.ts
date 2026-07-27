@@ -335,7 +335,6 @@ export async function updateAgentWebMessagingPage<
     for (let index = commonBlocksLength; index < newPage.blocks.length; index++) {
         const newBlock = newPage.blocks[index]!;
 
-        // NOCOMMIT: Test!
         if (newBlock.type !== "Message") {
             if (newBlock.type === "Time") {
                 throw new InvalidArgumentError("Can only create messages (not `<time>`)", {

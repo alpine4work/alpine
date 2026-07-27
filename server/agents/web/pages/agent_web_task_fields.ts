@@ -300,8 +300,6 @@ export async function parseAgentWebTaskFieldListItems(
 
         // All fields, except collections, should only have a single paragraph and
         // shouldn't have any other markdown in the list item after that.
-        //
-        // NOCOMMIT: Test this error for all field types!
         if (remaining.length > 0 && fieldName !== "collections") {
             throw new InvalidArgumentError("Unexpected markdown nested in task field", {
                 displayMessage: errorDisplayMessage`Unexpected markdown after task field ${curlyQuote(label)} on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. \`- Priority: Medium\`).`,
@@ -489,7 +487,6 @@ async function parseAgentWebTaskParentField(
     let link: Link | null = null;
 
     for (const child of value) {
-        // NOCOMMIT: test that if there's a second link we should throw
         if (child.type === "link" && link === null) {
             link = child;
             continue;
@@ -529,7 +526,6 @@ async function parseAgentWebTaskAssigneeField(
     let link: Link | null = null;
 
     for (const child of value) {
-        // NOCOMMIT: if there's a second link we should throw
         if (child.type === "link" && link === null) {
             link = child;
             continue;

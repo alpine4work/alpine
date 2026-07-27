@@ -27,7 +27,6 @@ import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_w
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
@@ -44,6 +43,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.js";
 
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 

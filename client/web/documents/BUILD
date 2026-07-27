@@ -44,6 +44,7 @@ ts_project(
         "//shared/documents",
         "//shared/helpers",
         "//shared/id",
+        "//shared/lezer",
         "//shared/messaging",
         "//shared/prosemirror",
         "//shared/spaces",

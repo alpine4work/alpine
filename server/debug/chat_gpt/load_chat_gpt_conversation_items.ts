@@ -15,7 +15,6 @@ import {LoaderContext} from "~/server/remix/loader_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
 import {ApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
-import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
     ChatGptConversationItem,
     ChatGptConversationStateResponseSchema,
@@ -25,6 +24,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export async function loadChatGptConversationItems(
