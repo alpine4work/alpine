@@ -155,7 +155,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             printMarkdown: `\
 # Lowercase fields
 
-- Status: Open (Active)
+- Status: Open (active)
 - Parent: [Parent task](/task/parent-task)
 - Assignee: [Alice](/human/alice)
 - Collections: [Engineering](/task-collection/engineering)
@@ -192,7 +192,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             printMarkdown: `\
 # Ship task page
 
-- Status: Open (Active)
+- Status: Open (active)
 - Assignee: [Alice](/human/alice)
 - Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
 - Priority: Urgent
@@ -689,7 +689,7 @@ Bring logs.
             printMarkdown: `\
 # Singular fields
 
-- Status: Open (Active)
+- Status: Open (active)
 - Collections: [Engineering](/task-collection/engineering)
 - Due date: 2027-07-12
 `,

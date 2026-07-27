@@ -88,8 +88,7 @@ export function printAgentWebTaskFieldListItems(
             createAgentWebTaskFieldListItem([
                 {
                     type: "text",
-                    // NOCOMMIT: Lowercase "Active" to "active"
-                    value: `Status: ${status.type === "Open" ? (status.isActive ? "Open (Active)" : "Open") : "Closed"}`,
+                    value: `Status: ${status.type === "Open" ? (status.isActive ? "Open (active)" : "Open") : "Closed"}`,
                 },
             ]),
         );

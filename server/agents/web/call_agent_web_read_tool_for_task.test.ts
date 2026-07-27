@@ -132,7 +132,7 @@ test("reads full task page", async () => {
     ).toEqual(`\
 # Ship task page
 
-- Status: Open (Active)
+- Status: Open (active)
 - Parent: [Parent task](/task/parent-task)
 - Assignee: [Alice](/human/alice)
 - Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
