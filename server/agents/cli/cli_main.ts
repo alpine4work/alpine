@@ -77,7 +77,6 @@ type AgentsCliAuthJson = {
     };
 };
 
-// NOCOMMIT: Make sure we have a nice error message when offline
 async function main() {
     const baseUrlString = process.env.ALPINE_URL ?? "https://alpine.inc";
     let baseUrl: URL;
