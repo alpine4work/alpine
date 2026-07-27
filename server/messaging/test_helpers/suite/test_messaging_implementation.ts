@@ -16650,7 +16650,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can\u2019t add a reaction to the last stream message part if stream isn\u2019t complete", async () => {
+            test("can add a reaction to a frozen part in an incomplete stream message", async () => {
                 const space = await TestSpace.create(context);
                 const session1 = await space.createSession({role: "Admin"});
                 const botAccount = await TestBot.createAndInstantiate(session1);
@@ -16714,20 +16714,107 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await expect(
-                    setMessageReaction(session1.action().clone(createTestPushContextModules()), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 39,
-                        reaction: "GenericLike",
-                    }),
-                ).rejects.toThrow(
-                    "Can\u2019t set reaction with position outside the message\u2019s bounds",
-                );
+                await setMessageReaction(session1.action().clone(createTestPushContextModules()), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
-                    new Map(),
+                    new Map([[26, [[session1.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can add a reaction to the mutable part of an incomplete stream message", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const botAccount = await TestBot.createAndInstantiate(session1);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 2,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await setMessageReaction(session1.action().clone(createTestPushContextModules()), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 27,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[39, [[session1.account.id, "GenericLike"]]]]),
+                );
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 3,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 4")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[39, [[session1.account.id, "GenericLike"]]]]),
                 );
             });
 

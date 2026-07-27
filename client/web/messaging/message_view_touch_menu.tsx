@@ -22,6 +22,26 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cutMessageContentPayloadWithReferences} from "~/shared/messaging/cut_message_content_payload.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 
+/**
+ * Checks whether the message has files or non-empty content that can receive a
+ * reaction from the touch menu.
+ */
+function hasMessageReactionTarget(
+    message: Pick<MessageModel<string> | OptimisticMessageModel, "payload" | "stream">,
+): boolean {
+    if (message.payload.type !== "Content") return false;
+    if (message.payload.files.length > 0) return true;
+    if (!isContentEmpty(message.payload.content.doc)) return true;
+
+    for (const part of message.stream?.parts ?? []) {
+        if (part.payload.type === "Content" && !isContentEmpty(part.payload.content)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 export function MessageViewTouchMenu<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
@@ -62,6 +82,7 @@ export function MessageViewTouchMenu<
 }) {
     const platform = usePlatform();
     const {currentAccount, space} = useSpaceContext();
+    const canReactToMessage = hasMessageReactionTarget(message);
 
     const menuActions: Array<MenuAction> = [];
     const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
@@ -89,18 +110,23 @@ export function MessageViewTouchMenu<
                 onPress: onReplyToMessage,
             },
         ]);
-        menuActions.push(
-            messageViewReactionContextMenuAction({
-                message,
-                messageNoun,
-                onSetMessageReaction,
-                onDeleteMessageReaction,
-                onUpdateMessagesOptimistically,
-                inboxContext,
-            }),
-        );
 
-        contextMenuActions.push(menuActions);
+        if (canReactToMessage) {
+            menuActions.push(
+                messageViewReactionContextMenuAction({
+                    message,
+                    messageNoun,
+                    onSetMessageReaction,
+                    onDeleteMessageReaction,
+                    onUpdateMessagesOptimistically,
+                    inboxContext,
+                }),
+            );
+        }
+
+        if (menuActions.length > 0) {
+            contextMenuActions.push(menuActions);
+        }
     }
 
     const copyMenuActions: Array<MenuAction> = [];
