@@ -239,7 +239,13 @@ export class TaskContextModule extends TaskContextModuleBase {
         this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
-        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+        {
+            consistency = "Eventual",
+            dangerouslyAllowDeleted = false,
+        }: {
+            consistency?: DynamoCacheReadConsistency;
+            dangerouslyAllowDeleted?: boolean;
+        } = emptyObject,
     ): Promise<Result<TaskModel> | null> {
         const tokenAgent =
             typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
@@ -261,10 +267,20 @@ export class TaskContextModule extends TaskContextModuleBase {
             ),
         ]);
 
+        const searchParams = new URLSearchParams();
+
+        if (dangerouslyAllowDeleted) {
+            searchParams.set("dangerouslyAllowDeleted", "true");
+        }
+
+        if (consistency !== "Eventual") {
+            searchParams.set("consistency", consistency);
+        }
+
         const {taskResult} = await fetchWithTracer(
             this._context.tracer.getTracer(),
             `http://${host}/${spaceId}/getTaskWithoutDependencies/${taskId}${
-                consistency !== "Eventual" ? `?consistency=${consistency}` : ""
+                searchParams.size > 0 ? `?${searchParams.toString()}` : ""
             }`,
             {
                 serviceName: "TaskRealtimeService",
@@ -291,7 +307,13 @@ export class TaskContextModule extends TaskContextModuleBase {
         this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+        {
+            consistency = "Eventual",
+            dangerouslyAllowDeleted = false,
+        }: {
+            consistency?: DynamoCacheReadConsistency;
+            dangerouslyAllowDeleted?: boolean;
+        } = emptyObject,
     ): Promise<Result<TaskCollectionModel> | null> {
         const tokenAgent =
             typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
@@ -313,10 +335,20 @@ export class TaskContextModule extends TaskContextModuleBase {
             ),
         ]);
 
+        const searchParams = new URLSearchParams();
+
+        if (dangerouslyAllowDeleted) {
+            searchParams.set("dangerouslyAllowDeleted", "true");
+        }
+
+        if (consistency !== "Eventual") {
+            searchParams.set("consistency", consistency);
+        }
+
         const {collectionResult} = await fetchWithTracer(
             this._context.tracer.getTracer(),
             `http://${host}/${spaceId}/getCollection/${collectionId}${
-                consistency !== "Eventual" ? `?consistency=${consistency}` : ""
+                searchParams.size > 0 ? `?${searchParams.toString()}` : ""
             }`,
             {
                 serviceName: "TaskRealtimeService",

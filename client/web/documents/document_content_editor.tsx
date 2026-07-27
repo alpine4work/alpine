@@ -169,6 +169,7 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
+import {documentDeletedErrorDisplayMessage} from "~/shared/documents/document_error_messages.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -177,7 +178,7 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -190,6 +191,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -381,8 +383,17 @@ export function DocumentContentEditor({
         subscribeToSpellCheckIgnoredLintEvents,
         subscribeToPongs,
         unpersistedResolutionStateByCommentThreadId,
+        isGhostDocument,
         ensureCreateDocument,
+        waitForPersistedVersion,
+        disconnectMutex,
     } = useDocumentContentEditorWebSocket({documentId, initialDocument}, {onCreate});
+
+    if (content.doc.attrs.deletedTime) {
+        throw new PermissionDeniedError("Current account lost access to document (deleted)", {
+            displayMessage: documentDeletedErrorDisplayMessage,
+        });
+    }
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
         editorState,
@@ -1049,11 +1060,15 @@ export function DocumentContentEditor({
     ] = useState<{onDiscard: () => void} | null>(null);
 
     const {
+        getEditorState,
+        getIsGhostDocument,
         onSidebarClose,
         onSidebarMobileFullScreenExpand,
         onSidebarMobileFullScreenContract,
         onCopyLink,
     } = useEvents({
+        getEditorState: () => editorState,
+        getIsGhostDocument: () => isGhostDocument,
         onSidebarClose: () => {
             const run = () => {
                 setSidebarState(sidebarState => {
@@ -2017,7 +2032,44 @@ export function DocumentContentEditor({
                                       }
                                   },
                               }),
-                          ],
+                              hasAccessLevel(accessLevel, "Manage") &&
+                                  cast<MenuAction>({
+                                      label: "Delete",
+                                      onPress: () => {
+                                          reporter.showDialog({
+                                              title: "Delete document?",
+                                              description: "This can\u2019t be undone.",
+                                              primaryButtonLabel: "Delete",
+                                              primaryButtonPressErrorTitle:
+                                                  "Couldn\u2019t delete document",
+                                              onPrimaryButtonPress: async () => {
+                                                  // Use `disconnectMutex` to prevent the document WebSocket from disconnecting until
+                                                  // after the deleted document state is persisted.
+                                                  await disconnectMutex.withLock(async () => {
+                                                      if (withinPeekStackOverlay) {
+                                                          await navigate(-1);
+                                                      } else {
+                                                          await navigate(`/home/${spaceId}`);
+                                                      }
+
+                                                      const editorState = getIsGhostDocument()
+                                                          ? null
+                                                          : getEditorState().setDeletedTime(
+                                                                new Date(),
+                                                            );
+
+                                                      if (editorState) {
+                                                          onEditorStateChange(editorState);
+                                                          await waitForPersistedVersion(
+                                                              editorState.getVersion() + 1,
+                                                          );
+                                                      }
+                                                  });
+                                              },
+                                          });
+                                      },
+                                  }),
+                          ].filter(isNonNullableOrFalse),
                       ]
                     : []),
             ],
@@ -2027,16 +2079,23 @@ export function DocumentContentEditor({
                 content,
                 context,
                 currentAccount,
+                disconnectMutex,
                 doNotShowDuplicationInstructionalModalAgain,
                 documentId,
                 favoriteMenuAction,
+                getEditorState,
+                getIsGhostDocument,
                 isRedoDisabled,
                 isUndoDisabled,
                 navigate,
                 onCopyLink,
+                onEditorStateChange,
                 peekStackContext,
                 platform,
+                reporter,
                 spaceId,
+                waitForPersistedVersion,
+                withinPeekStackOverlay,
             ],
         ),
         menuExtraBottom:

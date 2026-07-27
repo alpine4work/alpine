@@ -491,7 +491,9 @@ function getInboxDocumentCommentThreadEntryDisplay({
             : null;
 
     const documentTitle = entry.document.isPrivate
-        ? "a private document"
+        ? entry.document.isDeleted
+            ? "a deleted document"
+            : "a private document"
         : `\u201C${truncateDocumentTitleForNotification(entry.document.document.getTitle())}\u201D`;
 
     const title: Array<InboxEntryDisplayContentTitleItem> = [];
@@ -572,7 +574,9 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
             : null;
 
     const documentTitle = entry.document.isPrivate
-        ? "a private document"
+        ? entry.document.isDeleted
+            ? "a deleted document"
+            : "a private document"
         : `\u201C${truncateDocumentTitleForNotification(entry.document.document.getTitle())}\u201D`;
 
     const title: Array<InboxEntryDisplayContentTitleItem> = [];
@@ -628,7 +632,11 @@ function getInboxTaskEntryDisplay({
         title.push(" mentioned you in a comment on ");
 
         if (entry.task.isPrivate) {
-            title.push(" a private task");
+            if (entry.task.isDeleted) {
+                title.push(" a deleted task");
+            } else {
+                title.push(" a private task");
+            }
         } else {
             if (currentAccount?.id === entry.task.taskOwner.id) {
                 title.push("your");

@@ -50,6 +50,7 @@ import {
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -154,7 +155,10 @@ export function useDocumentContentEditorWebSocket(
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     subscribeToSpellCheckIgnoredLintEvents: SubscribeToSpellCheckIgnoredLintEventsFunction;
     subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
+    isGhostDocument: boolean;
     ensureCreateDocument: () => Promise<void>;
+    waitForPersistedVersion: (version: number) => Promise<void>;
+    disconnectMutex: Mutex;
 } {
     const {currentAccount, space} = useSpaceContext();
     const {initialDocument, documentId} = input;
@@ -260,6 +264,13 @@ export function useDocumentContentEditorWebSocket(
 
     const [shouldConnect, setShouldConnect] = useState(true);
 
+    const toggleShouldConnect = useCallback(() => {
+        setShouldConnect(shouldConnect => !shouldConnect);
+    }, []);
+
+    const setErrorState = useErrorState();
+    const [disconnectMutex] = useState(() => new Mutex());
+
     useEffect(() => {
         if (!shouldConnect) return;
         if (clientState.type === "NotExists") return;
@@ -268,17 +279,16 @@ export function useDocumentContentEditorWebSocket(
         // object. We'd constantly get authorization errors.
         if (!currentAccount) return;
 
-        clientState.client.connect();
+        disconnectMutex.withLock(async () => clientState.client.connect()).catch(setErrorState);
+
         return () => {
-            clientState.client.disconnect();
+            // `disconnectMutex` allows us to delay document disconnection until some other
+            // async work has finished operating on the connection.
+            disconnectMutex
+                .withLock(async () => clientState.client.disconnect())
+                .catch(setErrorState);
         };
-    }, [clientState, currentAccount, shouldConnect]);
-
-    const toggleShouldConnect = useCallback(() => {
-        setShouldConnect(shouldConnect => !shouldConnect);
-    }, []);
-
-    const setErrorState = useErrorState();
+    }, [clientState, currentAccount, disconnectMutex, setErrorState, shouldConnect]);
 
     const createDocumentPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -703,7 +713,16 @@ export function useDocumentContentEditorWebSocket(
             },
             [clientState],
         ),
+        isGhostDocument: clientState.type === "NotExists",
         ensureCreateDocument,
+        waitForPersistedVersion: useCallback(
+            async version => {
+                assert(clientState.type === "Exists");
+                await clientState.client.waitForPersistedVersion(version);
+            },
+            [clientState],
+        ),
+        disconnectMutex,
     };
 }
 

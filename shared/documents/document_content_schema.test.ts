@@ -71,6 +71,7 @@ test("mention with mark survives schema serialization/deserialization", () => {
             },
             hasPresentShortcut: false,
             cover: null,
+            deletedTime: null,
         },
         content: [
             {type: "title"},

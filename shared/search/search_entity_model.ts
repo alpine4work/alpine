@@ -325,6 +325,31 @@ export class SearchEntityModel {
 }
 
 /**
+ * Returns true if the search entity is a deleted entity. Messages and comments are
+ * never considered deleted even though their titles are always null.
+ */
+export function isDeletedSearchEntity(entityData: SearchEntityModelData): boolean {
+    switch (entityData.type) {
+        case "Document":
+        case "Task":
+        case "TaskCollection":
+            return entityData.title === null;
+        case "Channel":
+        case "Chat":
+        case "DocumentComment":
+        case "ChatMessage":
+        case "TaskComment":
+        case "PostComment":
+        case "Static":
+        case "Post":
+        case "Site":
+            return false;
+        default:
+            throw exhaustive(entityData);
+    }
+}
+
+/**
  * Variant of `SearchEntityModel` that only supports search entities that collect
  * affinity points. So search entities with an `id` of `SearchAffinityEntityId`.
  *

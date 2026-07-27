@@ -4,6 +4,7 @@ import {Step} from "prosemirror-transform";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {evaluateDeletedAccess} from "~/server/access/evaluate_deleted_access.js";
 import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
@@ -120,6 +121,7 @@ import {
     createDocumentCommentNotFoundError,
     createDocumentCommentThreadNotFoundError,
     createDocumentNotFoundError,
+    documentDeletedErrorDisplayMessage,
     documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
 } from "~/shared/documents/document_error_messages.js";
 import {
@@ -249,6 +251,7 @@ export function getDocumentsTableForTest() {
 }
 
 type DocumentAttributesItem = DynamoTableItemType<typeof DocumentsTable, "Document", "Attributes">;
+type DocumentAttributesItemDeleted = NonNullable<DocumentAttributesItem["deleted"]>;
 
 type DocumentStepTransactionAfterSnapshotItem = DynamoTableItemType<
     typeof DocumentsTable,
@@ -523,6 +526,7 @@ export async function createDocument(
             lastIndexSearchEntityJob: newIndexSearchEntityJob,
             stepCountByAccountId: new DocumentStepCountByAccountId(new Map()),
             hasAddedFeedCandidateEntry,
+            deleted: null,
         }),
         DocumentsTable.transactionCreateOrReplaceItem({
             partitionType: "Document",
@@ -757,7 +761,7 @@ export async function duplicateDocument(
 export async function getDocumentPreviewIfPossible(
     context: ServerActionContext,
     id: DocumentId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
 ): Promise<Result<DocumentPreviewModel, ErrorBase> | null> {
     const item = await getDocumentItemForAuthorizationIfExists(context, id, options);
     if (!item) return null;
@@ -774,6 +778,7 @@ export async function getDocumentPreviewIfPossible(
             version: item.version,
             titleWithoutFallback: item.titleWithoutFallback,
             accessPolicy: item.accessPolicy,
+            isDeleted: !!item.deleted,
         }),
     };
 }
@@ -793,7 +798,7 @@ export async function getDocumentPreviewIfPossible(
 export async function getDocumentPreviewIfExists(
     context: ServerActionContext,
     id: DocumentId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
 ): Promise<DocumentPreviewModel | null> {
     const result = await getDocumentPreviewIfPossible(context, id, options);
     if (!result) return null;
@@ -825,7 +830,7 @@ export async function authorizeDocumentAccess(
     context: ServerActionContext,
     documentId: DocumentId,
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
 ): Promise<{spaceId: SpaceId; creatorId: AccountId | null; accessPolicy: AccessPolicy}> {
     const documentItem = await getDocumentItemForAuthorization(context, documentId, options);
 
@@ -847,7 +852,7 @@ export async function authorizeDocumentAccessIfPossible(
     context: ServerActionContext,
     documentId: DocumentId,
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
 ): Promise<
     Result<{spaceId: SpaceId; creatorId: AccountId | null; accessPolicy: AccessPolicy}, ErrorBase>
 > {
@@ -873,9 +878,14 @@ export async function authorizeDocumentAccessIfPossible(
 
 async function authorizeDocumentItemAccess(
     context: ServerActionContext,
-    documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
+    documentItem: {
+        spaceId: SpaceId;
+        accessPolicy: AccessPolicy;
+        documentId: DocumentId;
+        deleted: DocumentAttributesItemDeleted | null;
+    },
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
 ): Promise<void> {
     unwrapResult(
         await authorizeDocumentItemAccessIfPossible(
@@ -889,7 +899,67 @@ async function authorizeDocumentItemAccess(
 
 async function authorizeDocumentItemAccessIfPossible(
     context: ServerActionContext,
-    documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
+    documentItem: {
+        spaceId: SpaceId;
+        accessPolicy: AccessPolicy;
+        documentId: DocumentId;
+        deleted: DocumentAttributesItemDeleted | null;
+    },
+    expectedAccessLevel: AccessLevel,
+    {
+        consistency,
+        dangerouslyAllowDeleted = false,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted?: boolean;
+    } = {},
+): Promise<Result<void, ErrorBase>> {
+    if (documentItem.deleted) {
+        // If the actor couldn't view the document then use a "permission denied" error to
+        // avoid leaking that the document was deleted.
+        const result = await authorizeDocumentItemAccessAllowingDeletedIfPossible(
+            context,
+            documentItem,
+            "View",
+            {consistency},
+        );
+        if (!result.ok) return result;
+
+        const hasDeletedAccess = await evaluateDeletedAccess(context, {
+            spaceId: documentItem.spaceId,
+            expectedAccessLevel,
+            dangerouslyAllowDeleted,
+        });
+
+        if (!hasDeletedAccess) {
+            return {
+                ok: false,
+                // NOTE(calebmer):Using `ErrorCode.NotFound` is important here. Consumers of this
+                // error will render not found errors as "Deleted" and `ErrorCode.PermissionDenied`
+                // as "Private".
+                error: new NotFoundError("Document was deleted", {
+                    aggregateDedupeKey: documentItem.documentId,
+                    displayMessage: documentDeletedErrorDisplayMessage,
+                }),
+            };
+        }
+    }
+
+    return await authorizeDocumentItemAccessAllowingDeletedIfPossible(
+        context,
+        documentItem,
+        expectedAccessLevel,
+        {consistency},
+    );
+}
+
+async function authorizeDocumentItemAccessAllowingDeletedIfPossible(
+    context: ServerActionContext,
+    documentItem: {
+        spaceId: SpaceId;
+        accessPolicy: AccessPolicy;
+        documentId: DocumentId;
+    },
     expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
@@ -996,11 +1066,39 @@ export const getInternalDocumentTestCounter = new TestCounter();
 async function getInternalDocumentIfExists(
     context: ServerActionContext,
     documentId: DocumentId,
+    options?: {
+        // If true then you can read the document content with the "View" access level but
+        // comments will be stripped from the document's content. Similar to
+        // `getDocumentWithOptionalComments()`.
+        withOptionalComments?: boolean;
+
+        // Allow reading a document's comment marks even if the actor only has the "View"
+        // access level but only if the actor is coming from
+        // `DocumentCollaborationService`.
+        forCollaborationServiceInitialization?: boolean;
+
+        // Allow reading the document content with strong consistency.
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<InternalDocument | null> {
+    const result = await getInternalDocumentIfPossible(context, documentId, options);
+    if (result === null) return null;
+    return unwrapResult(result);
+}
+
+async function getInternalDocumentIfPossible(
+    context: ServerActionContext,
+    documentId: DocumentId,
     {
+        dangerouslyAllowDeleted = false,
         withOptionalComments = false,
         forCollaborationServiceInitialization = false,
         consistency = "Eventual",
     }: {
+        // If true then deleted document content can be read after authorizing "View"
+        // access. This returns the persisted content as-is.
+        dangerouslyAllowDeleted?: boolean;
+
         // If true then you can read the document content with the "View" access level but
         // comments will be stripped from the document's content. Similar to
         // `getDocumentWithOptionalComments()`.
@@ -1014,7 +1112,7 @@ async function getInternalDocumentIfExists(
         // Allow reading the document content with strong consistency.
         consistency?: DynamoCacheReadConsistency;
     } = {},
-): Promise<InternalDocument | null> {
+): Promise<Result<InternalDocument, ErrorBase> | null> {
     getInternalDocumentTestCounter.incrementForTest(documentId);
 
     let attributes: DocumentAttributesItem | null = null;
@@ -1051,7 +1149,21 @@ async function getInternalDocumentIfExists(
                 DocumentItemAuthorizationCache.set(context, consistency, documentId, item);
 
                 // Must have view access level to read the document.
-                await authorizeDocumentItemAccess(context, item, "View", {consistency});
+                const viewAuthorizationResult = await authorizeDocumentItemAccessIfPossible(
+                    context,
+                    item,
+                    "View",
+                    {consistency, dangerouslyAllowDeleted},
+                );
+
+                if (!viewAuthorizationResult.ok) {
+                    return viewAuthorizationResult;
+                }
+
+                if (attributes.deleted && dangerouslyAllowDeleted) {
+                    isCommentAccessAuthorized = true;
+                    break;
+                }
 
                 const commentAuthorizationResult = await authorizeDocumentItemAccessIfPossible(
                     context,
@@ -1072,7 +1184,7 @@ async function getInternalDocumentIfExists(
                         // in document content.
                         isCommentAccessAuthorized = true;
                     } else if (!withOptionalComments) {
-                        throw commentAuthorizationResult.error;
+                        return commentAuthorizationResult;
                     }
                 } else {
                     isCommentAccessAuthorized = true;
@@ -1152,15 +1264,18 @@ async function getInternalDocumentIfExists(
     }
 
     return {
-        attributes,
-        stepTransactionsAfterSnapshot,
-        snapshot,
-        version,
-        // If you're not allowed to read comments then strip comment marks from the
-        // document.
-        content: !isCommentAccessAuthorized
-            ? assertDocumentContent(stripDocumentContentCommentMarks(content))
-            : content,
+        ok: true,
+        value: {
+            attributes,
+            stepTransactionsAfterSnapshot,
+            snapshot,
+            version,
+            // If you're not allowed to read comments then strip comment marks from the
+            // document.
+            content: !isCommentAccessAuthorized
+                ? assertDocumentContent(stripDocumentContentCommentMarks(content))
+                : content,
+        },
     };
 }
 
@@ -1594,13 +1709,14 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
 export async function getDocumentTitleIfExists(
     context: ServerActionContext,
     documentId: DocumentId,
-    options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<{title: string; accessPolicy: AccessPolicy} | null> {
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
+): Promise<{title: string; accessPolicy: AccessPolicy; isDeleted: boolean} | null> {
     const documentPreview = await getDocumentPreviewIfExists(context, documentId, options);
     if (!documentPreview) return null;
     return {
         title: documentPreview.getTitle(),
         accessPolicy: documentPreview.accessPolicy,
+        isDeleted: documentPreview.isDeleted,
     };
 }
 
@@ -1611,22 +1727,38 @@ export async function getDocumentTitleIfExists(
 export async function getDocumentContent(
     context: ServerActionContext,
     documentId: DocumentId,
-    {consistency}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    {
+        consistency,
+        dangerouslyAllowDeleted = false,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted?: boolean;
+    } = emptyObject,
 ): Promise<{
     spaceId: SpaceId;
     createdTime: Date;
+    deleted: DocumentAttributesItemDeleted | null;
     version: number;
     content: DocumentContent;
     creator: {id: AccountId | null; from: DocumentCreatorFrom | null};
     stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
     updateContentPreview: (context: ServerActionContext) => Promise<void>;
 }> {
-    const internalDocument = await getInternalDocumentIfExists(context, documentId, {consistency});
-    if (!internalDocument) throw createDocumentNotFoundError(documentId);
+    const internalDocumentResult = await getInternalDocumentIfPossible(context, documentId, {
+        consistency,
+        dangerouslyAllowDeleted,
+    });
+
+    if (!internalDocumentResult) {
+        throw createDocumentNotFoundError(documentId);
+    }
+
+    const internalDocument = unwrapResult(internalDocumentResult);
 
     return {
         spaceId: internalDocument.attributes.spaceId,
         createdTime: internalDocument.attributes.createdTime,
+        deleted: internalDocument.attributes.deleted,
         version: internalDocument.version,
         content: internalDocument.content,
         creator: {
@@ -1648,6 +1780,7 @@ export async function getDocumentContent(
                 documentId,
                 version: internalDocument.version,
                 content: internalDocument.content,
+                dangerouslyAllowDeleted,
             }),
     };
 }
@@ -1671,16 +1804,18 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
         documentId,
         version,
         content,
+        dangerouslyAllowDeleted,
     }: {
         documentId: DocumentId;
         version: number;
         content: DocumentContent;
+        dangerouslyAllowDeleted: boolean;
     },
 ) {
     // Double check the new context has document access. We don't authorize that
     // `version` or `content` match what's in the document because we know `version`
     // and `content` come from `getDocumentContent()`.
-    await authorizeDocumentAccess(context, documentId, "View");
+    await authorizeDocumentAccess(context, documentId, "View", {dangerouslyAllowDeleted});
 
     const contentSnippet = getDocumentContentPreviewSnippet(content);
 
@@ -2290,6 +2425,7 @@ export class DocumentContentCacheForUpdate {
         id: DocumentId,
         {clientVersion}: {clientVersion: number},
     ): Promise<{
+        readonly documentId: DocumentId;
         readonly createdTime: Date;
         readonly spaceId: SpaceId;
         readonly creator: {
@@ -2299,6 +2435,7 @@ export class DocumentContentCacheForUpdate {
         readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
         readonly stepCountByAccountId: DocumentStepCountByAccountId;
         readonly hasAddedFeedCandidateEntry: boolean;
+        readonly deleted: DocumentAttributesItemDeleted | null;
         readonly version: number;
         readonly content: DocumentContent;
         readonly accessPolicy: AccessPolicy;
@@ -2326,6 +2463,7 @@ export class DocumentContentCacheForUpdate {
             newLastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
             newStepCountByAccountId: DocumentStepCountByAccountId;
             newHasAddedFeedCandidateEntry: boolean;
+            newDeleted: DocumentAttributesItemDeleted | null;
             clientId: ContentEditorClientId;
         }): Promise<void>;
     } | null> {
@@ -2346,6 +2484,7 @@ export class DocumentContentCacheForUpdate {
                     stepCountByAccountId: internalDocument.attributes.stepCountByAccountId,
                     hasAddedFeedCandidateEntry:
                         internalDocument.attributes.hasAddedFeedCandidateEntry,
+                    deleted: internalDocument.attributes.deleted,
                     version: internalDocument.version,
                     content: internalDocument.content,
                     accessPolicy: internalDocument.content.attrs.accessPolicy,
@@ -2470,6 +2609,7 @@ export class DocumentContentCacheForUpdate {
                             lastIndexSearchEntityJob: attributes.lastIndexSearchEntityJob,
                             stepCountByAccountId: attributes.stepCountByAccountId,
                             hasAddedFeedCandidateEntry: attributes.hasAddedFeedCandidateEntry,
+                            deleted: attributes.deleted,
                             version: attributes.version,
                             content,
                             stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -2482,12 +2622,14 @@ export class DocumentContentCacheForUpdate {
             }
 
             return {
+                documentId: id,
                 createdTime: entry.createdTime,
                 spaceId: entry.spaceId,
                 creator: entry.creator,
                 lastIndexSearchEntityJob: entry.lastIndexSearchEntityJob,
                 stepCountByAccountId: entry.stepCountByAccountId,
                 hasAddedFeedCandidateEntry: entry.hasAddedFeedCandidateEntry,
+                deleted: entry.deleted,
                 version: entry.version,
                 content: entry.content,
                 accessPolicy: entry.content.attrs.accessPolicy,
@@ -2503,6 +2645,7 @@ export class DocumentContentCacheForUpdate {
                     newLastIndexSearchEntityJob,
                     newStepCountByAccountId,
                     newHasAddedFeedCandidateEntry,
+                    newDeleted,
                     clientId,
                 }) => {
                     const updatedEntry = entry;
@@ -2526,6 +2669,7 @@ export class DocumentContentCacheForUpdate {
                             lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
                             stepCountByAccountId: newStepCountByAccountId,
                             hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
+                            deleted: newDeleted,
                             version: entry.version + newSteps.length,
                             content: newContent,
                             stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -2551,6 +2695,7 @@ type DocumentContentCacheForUpdateEntry = {
     readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
     readonly stepCountByAccountId: DocumentStepCountByAccountId;
     readonly hasAddedFeedCandidateEntry: boolean;
+    readonly deleted: DocumentAttributesItemDeleted | null;
     readonly version: number;
     readonly content: DocumentContent;
 
@@ -2831,6 +2976,7 @@ export async function updateDocumentContent(
         clientId,
         clientRequestToken,
         intentionallyUpdateAccessPolicy,
+        intentionallyUpdateDeletedTime,
         createCommentThreads = [],
         resolveCommentThreadIds = [],
         unresolveCommentThreadIds = [],
@@ -2844,6 +2990,9 @@ export async function updateDocumentContent(
         intentionallyUpdateAccessPolicy?: {
             accessPolicy: CreateOrUpdateAccessPolicy;
             notification: ShareNotification | null;
+        };
+        intentionallyUpdateDeletedTime?: {
+            deletedTime: Date;
         };
         createCommentThreads?: ReadonlyArray<{
             commentThreadId: DocumentCommentThreadId;
@@ -3123,6 +3272,28 @@ export async function updateDocumentContent(
 
         const hasAccessPolicyChanged = !isDeepEqual(oldAccessPolicy, newAccessPolicy);
 
+        const oldDeletedTime: Date | null = internalDocument.content.attrs.deletedTime;
+        const newDeletedTime: Date | null = newContent.attrs.deletedTime;
+        const hasDeletedTimeChanged = oldDeletedTime?.getTime() !== newDeletedTime?.getTime();
+
+        // We don't allow the deleted time to be updated unless
+        // `intentionallyUpdateDeletedTime` is defined. This is a protection which prevents
+        // the deleted time from being updated accidentally by ProseMirror.
+        if (!intentionallyUpdateDeletedTime && hasDeletedTimeChanged) {
+            throw new PermissionDeniedError(
+                "Can\u2019t update the document\u2019s deleted time unless `intentionallyUpdateDeletedTime` is provided",
+            );
+        }
+
+        if (
+            intentionallyUpdateDeletedTime &&
+            intentionallyUpdateDeletedTime.deletedTime.getTime() !== newDeletedTime?.getTime()
+        ) {
+            throw new PermissionDeniedError(
+                "The document\u2019s new deleted time doesn\u2019t match `intentionallyUpdateDeletedTime`",
+            );
+        }
+
         // We don't allow the access policy to be updated unless
         // `intentionallyUpdateAccessPolicy` is defined. This is a protection which
         // prevents the access policy from being updated accidentally by ProseMirror. It
@@ -3154,8 +3325,14 @@ export async function updateDocumentContent(
             );
         }
 
-        // Must have the `Manage` permission level to update the access policy.
-        if (hasAccessPolicyChanged || intentionallyUpdateAccessPolicy) {
+        // Must have the `Manage` permission level to update the access policy or delete a
+        // document.
+        if (
+            hasAccessPolicyChanged ||
+            intentionallyUpdateAccessPolicy ||
+            hasDeletedTimeChanged ||
+            intentionallyUpdateDeletedTime
+        ) {
             await authorizeDocumentItemAccess(context, internalDocument, "Manage");
         }
 
@@ -3200,6 +3377,21 @@ export async function updateDocumentContent(
         const oldHasAddedFeedCandidateEntry = internalDocument.hasAddedFeedCandidateEntry;
         const newHasAddedFeedCandidateEntry =
             oldHasAddedFeedCandidateEntry || !!newEffectiveAccessPolicy.defaultGrant;
+
+        const newDeleted: DocumentAttributesItemDeleted | null = hasDeletedTimeChanged
+            ? newDeletedTime
+                ? {
+                      time: newDeletedTime,
+                      deletor: {
+                          id: context.actor.getPossiblyBotAccountId(),
+                          from:
+                              context.actor.type === "Bot"
+                                  ? {type: "Bot", accountId: context.actor.getBotAccountId()}
+                                  : null,
+                      },
+                  }
+                : null
+            : internalDocument.deleted;
 
         const commentThreadItemPromiseById = new Map<
             DocumentCommentThreadId,
@@ -3366,7 +3558,8 @@ export async function updateDocumentContent(
                 updatedTraits.push("Title");
             }
 
-            if (oldAccessPolicy !== newAccessPolicy) {
+            // Deletion is an authorization change — the document becomes inaccessible.
+            if (oldAccessPolicy !== newAccessPolicy || hasDeletedTimeChanged) {
                 updatedTraits.push("Authorization");
             }
 
@@ -3440,6 +3633,7 @@ export async function updateDocumentContent(
                         lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
                         stepCountByAccountId: newStepCountByAccountId,
                         hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
+                        deleted: newDeleted,
                     },
                     {
                         condition: {
@@ -3837,6 +4031,7 @@ export async function updateDocumentContent(
                     newLastIndexSearchEntityJob,
                     newStepCountByAccountId,
                     newHasAddedFeedCandidateEntry,
+                    newDeleted,
                     clientId,
                 });
             }
@@ -6055,13 +6250,8 @@ export async function getDocumentCommentPayload(
         commentIndex: number;
         consistency?: DynamoCacheReadConsistency;
     },
-): Promise<
-    MessageItem & {
-        spaceId: SpaceId;
-        documentAccessPolicy: AccessPolicy;
-    }
-> {
-    const {spaceId, commentItem, documentAccessPolicy} = await getDocumentCommentItem(context, {
+): Promise<MessageItem & {spaceId: SpaceId}> {
+    const {spaceId, commentItem} = await getDocumentCommentItem(context, {
         documentId,
         commentThreadId,
         commentIndex,
@@ -6070,7 +6260,6 @@ export async function getDocumentCommentPayload(
 
     return {
         spaceId,
-        documentAccessPolicy,
         ...commentItem,
     };
 }
@@ -6284,7 +6473,7 @@ async function getDocumentCommentItem(
         consistency?: DynamoCacheReadConsistency;
     },
 ) {
-    const [{spaceId, accessPolicy}, commentThreadItem, commentItem] = await runAllPromises([
+    const [{spaceId}, commentThreadItem, commentItem] = await runAllPromises([
         authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
 
         // Throws an error if the comment thread item doesn't exist.
@@ -6312,7 +6501,6 @@ async function getDocumentCommentItem(
     return {
         spaceId,
         commentItem,
-        documentAccessPolicy: accessPolicy,
     };
 }
 

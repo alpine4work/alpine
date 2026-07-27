@@ -4033,6 +4033,16 @@ export const dynamoGeneratedSchemaDescription: {
                                                                         "referenceId": "4f75671b"
                                                                     },
                                                                     "optional": true
+                                                                },
+                                                                "deletedTime": {
+                                                                    "valueSchema": {
+                                                                        "type": "Nullable",
+                                                                        "schema": {
+                                                                            "type": "Date"
+                                                                        },
+                                                                        "referenceId": "c3f61095"
+                                                                    },
+                                                                    "optional": true
                                                                 }
                                                             }
                                                         },
@@ -5002,6 +5012,70 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "deleted": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "time": {
+                                                        "valueSchema": {
+                                                            "type": "Date"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "deletor": {
+                                                        "valueSchema": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "id": {
+                                                                    "valueSchema": {
+                                                                        "type": "Nullable",
+                                                                        "schema": {
+                                                                            "type": "Id"
+                                                                        }
+                                                                    },
+                                                                    "optional": true
+                                                                },
+                                                                "from": {
+                                                                    "valueSchema": {
+                                                                        "type": "Nullable",
+                                                                        "schema": {
+                                                                            "type": "Union",
+                                                                            "typeKey": "type",
+                                                                            "variantSchemaByTypeValue": {
+                                                                                "Bot": {
+                                                                                    "type": "Object",
+                                                                                    "propertySchemaByKey": {
+                                                                                        "type": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "Value",
+                                                                                                "value": "Bot"
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        },
+                                                                                        "accountId": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "Id"
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "optional": true
+                                                                }
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -5406,6 +5480,25 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
                                                                                         "reuseReferenceId": "4f75671b"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "deletedTime": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "deletedTime"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "c3f61095"
                                                                                     },
                                                                                     "optional": false
                                                                                 }

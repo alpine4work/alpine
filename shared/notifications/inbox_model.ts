@@ -279,6 +279,7 @@ export class InboxDocumentCommentThreadEntryModel
                 "isPrivate",
                 Schema.object({
                     isPrivate: Schema.value(true),
+                    isDeleted: Schema.boolean.default(false),
                     documentId: Schema.id<DocumentId>(),
                 }),
                 Schema.object({
@@ -327,6 +328,7 @@ export class InboxDocumentNewCommentThreadsEntryModel
                 "isPrivate",
                 Schema.object({
                     isPrivate: Schema.value(true),
+                    isDeleted: Schema.boolean.default(false),
                     documentId: Schema.id<DocumentId>(),
                 }),
                 Schema.object({
@@ -375,6 +377,7 @@ export class InboxTaskEntryModel
                 "isPrivate",
                 Schema.object({
                     isPrivate: Schema.value(true),
+                    isDeleted: Schema.boolean.default(false),
                     taskId: Schema.id<TaskId>(),
                 }),
                 Schema.object({

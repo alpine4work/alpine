@@ -194,6 +194,9 @@ export const updateDocumentContent = defineRpc({
             accessPolicy: CreateOrUpdateAccessPolicySchema,
             notification: ShareNotificationSchema.nullable(),
         }).optional(),
+        intentionallyUpdateDeletedTime: Schema.object({
+            deletedTime: Schema.date,
+        }).optional(),
         resolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
         unresolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
     },

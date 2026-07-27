@@ -1112,6 +1112,7 @@ test("collaborative update scenario", () => {
             accessLevel: "Manage",
             pendingCreateCommentThreads: [],
             pendingIntentionallyUpdateAccessPolicy: null,
+            pendingIntentionallyUpdateDeletedTime: null,
             rememberedSteps: [],
             ourPresenceState: {
                 version: 8,

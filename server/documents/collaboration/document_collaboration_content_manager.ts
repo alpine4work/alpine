@@ -33,6 +33,7 @@ import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
+    PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -136,6 +137,11 @@ export class DocumentCollaborationContentManager {
                 current: {
                     readonly accessPolicy: LocalAccessPolicy;
                     readonly notification: ShareNotification | null;
+                } | null;
+            };
+            readonly intentionallyUpdateDeletedTimeRef: {
+                current: {
+                    readonly deletedTime: Date;
                 } | null;
             };
         } | null;
@@ -311,6 +317,9 @@ export class DocumentCollaborationContentManager {
                 accessPolicy: LocalAccessPolicy;
                 notification: ShareNotification | null;
             } | null;
+            intentionallyUpdateDeletedTime: {
+                deletedTime: Date;
+            } | null;
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
@@ -386,6 +395,26 @@ export class DocumentCollaborationContentManager {
                 });
 
             assert(isDocumentContent(newContent));
+
+            const oldDeletedTime: Date | null = stateRef.current.content.attrs.deletedTime;
+            const newDeletedTime: Date | null = newContent.attrs.deletedTime;
+            const hasDeletedTimeChanged = oldDeletedTime?.getTime() !== newDeletedTime?.getTime();
+
+            if (!update.intentionallyUpdateDeletedTime && hasDeletedTimeChanged) {
+                throw new PermissionDeniedError(
+                    "Can\u2019t update the document\u2019s deleted time unless `intentionallyUpdateDeletedTime` is provided",
+                );
+            }
+
+            if (
+                update.intentionallyUpdateDeletedTime &&
+                update.intentionallyUpdateDeletedTime.deletedTime.getTime() !==
+                    newDeletedTime?.getTime()
+            ) {
+                throw new PermissionDeniedError(
+                    "The document\u2019s new deleted time doesn\u2019t match `intentionallyUpdateDeletedTime`",
+                );
+            }
 
             // Validate the presence state selection based on the document as the client sees
             // it, then map the selection to the correct position.
@@ -480,6 +509,10 @@ export class DocumentCollaborationContentManager {
                     update.intentionallyUpdateAccessPolicy ??
                     this._persistenceState.next.intentionallyUpdateAccessPolicyRef.current;
 
+                this._persistenceState.next.intentionallyUpdateDeletedTimeRef.current =
+                    update.intentionallyUpdateDeletedTime ??
+                    this._persistenceState.next.intentionallyUpdateDeletedTimeRef.current;
+
                 // We should have already thrown an error if `update.resolveCommentThreadIds` or
                 // `update.unresolveCommentThreadIds` are non-empty. Not allowed to batch updates
                 // that resolve comment threads.
@@ -495,6 +528,9 @@ export class DocumentCollaborationContentManager {
                 );
                 const nextIntentionallyUpdateAccessPolicyRef = {
                     current: update.intentionallyUpdateAccessPolicy,
+                };
+                const nextIntentionallyUpdateDeletedTimeRef = {
+                    current: update.intentionallyUpdateDeletedTime,
                 };
                 const nextResolveCommentThreadIds = update.resolveCommentThreadIds ?? [];
                 const nextUnresolveCommentThreadIds = update.unresolveCommentThreadIds ?? [];
@@ -523,6 +559,8 @@ export class DocumentCollaborationContentManager {
 
                                 const intentionallyUpdateAccessPolicy =
                                     nextIntentionallyUpdateAccessPolicyRef.current ?? undefined;
+                                const intentionallyUpdateDeletedTime =
+                                    nextIntentionallyUpdateDeletedTimeRef.current ?? undefined;
 
                                 const {newVersion, updatedCommentThreads} =
                                     await updateDocumentContent(context, {
@@ -532,6 +570,7 @@ export class DocumentCollaborationContentManager {
                                         clientId: update.clientId,
                                         createCommentThreads: nextCreateCommentThreads,
                                         intentionallyUpdateAccessPolicy,
+                                        intentionallyUpdateDeletedTime,
                                         resolveCommentThreadIds: nextResolveCommentThreadIds,
                                         unresolveCommentThreadIds: nextUnresolveCommentThreadIds,
                                     }).catch(error => {
@@ -633,6 +672,7 @@ export class DocumentCollaborationContentManager {
                         steps: nextSteps,
                         createCommentThreads: nextCreateCommentThreads,
                         intentionallyUpdateAccessPolicyRef: nextIntentionallyUpdateAccessPolicyRef,
+                        intentionallyUpdateDeletedTimeRef: nextIntentionallyUpdateDeletedTimeRef,
                     },
                     // NOTE(calebmer): We're careful to spawn the promise which updates content from
                     // this `update()` method so the `AppService` network calls count against the
@@ -774,6 +814,7 @@ export class DocumentCollaborationContentManager {
                     clientId: generateId(),
                     createCommentThreads: [],
                     intentionallyUpdateAccessPolicy: null,
+                    intentionallyUpdateDeletedTime: null,
                     updateOurPresenceState: {state: null},
                 });
             })();
@@ -876,6 +917,9 @@ export class DocumentCollaborationContentManager {
                 accessPolicy: CreateOrUpdateAccessPolicy;
                 notification: ShareNotification | null;
             } | null;
+            intentionallyUpdateDeletedTime: {
+                deletedTime: Date;
+            } | null;
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
@@ -941,6 +985,26 @@ export class DocumentCollaborationContentManager {
 
             assert(isDocumentContent(newContent));
 
+            const oldDeletedTime: Date | null = stateRef.current.content.attrs.deletedTime;
+            const newDeletedTime: Date | null = newContent.attrs.deletedTime;
+            const hasDeletedTimeChanged = oldDeletedTime?.getTime() !== newDeletedTime?.getTime();
+
+            if (!update.intentionallyUpdateDeletedTime && hasDeletedTimeChanged) {
+                throw new PermissionDeniedError(
+                    "Can\u2019t update the document\u2019s deleted time unless `intentionallyUpdateDeletedTime` is provided",
+                );
+            }
+
+            if (
+                update.intentionallyUpdateDeletedTime &&
+                update.intentionallyUpdateDeletedTime.deletedTime.getTime() !==
+                    newDeletedTime?.getTime()
+            ) {
+                throw new PermissionDeniedError(
+                    "The document\u2019s new deleted time doesn\u2019t match `intentionallyUpdateDeletedTime`",
+                );
+            }
+
             const clientPresenceStateSelection =
                 update.updateOurPresenceState.state?.selection.getAndMaybeDeserialize(
                     clientContent,
@@ -964,6 +1028,8 @@ export class DocumentCollaborationContentManager {
 
             const intentionallyUpdateAccessPolicy =
                 update.intentionallyUpdateAccessPolicy ?? undefined;
+            const intentionallyUpdateDeletedTime =
+                update.intentionallyUpdateDeletedTime ?? undefined;
             const commentThreadCreatedTime = new Date();
 
             // Persist before mutating any in-memory state. If this throws we release the lock
@@ -986,6 +1052,7 @@ export class DocumentCollaborationContentManager {
                     }),
                 ),
                 intentionallyUpdateAccessPolicy,
+                intentionallyUpdateDeletedTime,
                 resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
                 unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
             });
@@ -1155,6 +1222,7 @@ export class DocumentCollaborationContentManager {
                     clientId: generateId(),
                     createCommentThreads: [],
                     intentionallyUpdateAccessPolicy: null,
+                    intentionallyUpdateDeletedTime: null,
                     updateOurPresenceState: {state: null},
                 });
             })();

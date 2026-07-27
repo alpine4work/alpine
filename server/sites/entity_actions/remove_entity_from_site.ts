@@ -174,6 +174,7 @@ async function runRemoveEntityFromSiteByEntityType(
                                         accessPolicy: newAccessPolicy,
                                         notification: null,
                                     },
+                                    intentionallyUpdateDeletedTime: null,
                                     updateOurPresenceState: {
                                         state: null,
                                     },

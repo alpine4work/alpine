@@ -11,6 +11,7 @@ import {
     ContentEditorReferencesAction,
     createContentCommentThreadMetaKey,
     intentionallyUpdateContentAccessPolicyMetaKey,
+    intentionallyUpdateContentDeletedTimeMetaKey,
     reduceContentReferencesShared,
 } from "~/client/web/content/state/content_editor_state.js";
 import {AccessLevel, LocalAccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
@@ -93,6 +94,15 @@ type DocumentContentEditorExtraState = {
     readonly pendingIntentionallyUpdateAccessPolicy: {
         readonly accessPolicy: LocalAccessPolicy;
         readonly notification: ShareNotification | null;
+    } | null;
+
+    /**
+     * When we soft-delete a document we need to send an
+     * `intentionallyUpdateDeletedTime` property to the server so the server knows the
+     * deletion isn't ProseMirror accidentally changing a document attribute.
+     */
+    readonly pendingIntentionallyUpdateDeletedTime: {
+        readonly deletedTime: Date;
     } | null;
 
     /**
@@ -181,6 +191,7 @@ export function getInitialDocumentContentEditorState(
             accessLevel: options.accessLevel,
             pendingCreateCommentThreads: null,
             pendingIntentionallyUpdateAccessPolicy: null,
+            pendingIntentionallyUpdateDeletedTime: null,
             rememberedSteps: [],
             ourPresenceState: null,
             otherPresenceStateByConnectionId: ImmutableMap.empty(),
@@ -269,6 +280,7 @@ export function reduceDocumentContentEditorState(
                     ...state.extra,
                     pendingCreateCommentThreads: null,
                     pendingIntentionallyUpdateAccessPolicy: null,
+                    pendingIntentionallyUpdateDeletedTime: null,
                 },
             };
         } else {
@@ -276,6 +288,9 @@ export function reduceDocumentContentEditorState(
             let lastIntentionallyUpdateAccessPolicy: {
                 accessPolicy: AccessPolicyModel;
                 notification: ShareNotification | null;
+            } | null = null;
+            let lastIntentionallyUpdateDeletedTime: {
+                deletedTime: Date;
             } | null = null;
 
             // We can have multiple steps from the same origin transaction. So uniquify our new
@@ -304,6 +319,15 @@ export function reduceDocumentContentEditorState(
                         isLastTransactionIntentionallyUpdatingAccessPolicy = false;
                     }
 
+                    const intentionallyUpdateDeletedTime: {
+                        deletedTime: Date;
+                    } | null =
+                        transaction.getMeta(intentionallyUpdateContentDeletedTimeMetaKey) ?? null;
+
+                    if (intentionallyUpdateDeletedTime !== null) {
+                        lastIntentionallyUpdateDeletedTime = intentionallyUpdateDeletedTime;
+                    }
+
                     if (!createCommentThread) return;
 
                     return {
@@ -321,6 +345,7 @@ export function reduceDocumentContentEditorState(
                     ...state.extra,
                     pendingCreateCommentThreads: createCommentThreads,
                     pendingIntentionallyUpdateAccessPolicy: lastIntentionallyUpdateAccessPolicy,
+                    pendingIntentionallyUpdateDeletedTime: lastIntentionallyUpdateDeletedTime,
                     // Make sure our presence state is up-to-date as well since we will send it to the
                     // server along with our sendable steps.
                     //

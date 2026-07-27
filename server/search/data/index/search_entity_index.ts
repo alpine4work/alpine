@@ -2997,20 +2997,24 @@ async function fallbackGetSearchEntityBaseIfPossible(
             const documentResult = await getDocumentPreviewIfPossible(
                 context,
                 entityIdObject.documentId,
-                {consistency: "StrongWithinCache"},
+                {
+                    consistency: "StrongWithinCache",
+                    // Ok since we return none of a deleted document's content. We only return a
+                    // deleted stub for the document.
+                    dangerouslyAllowDeleted: true,
+                },
             );
             if (!documentResult) return null;
             if (!documentResult.ok) return {isPrivate: true};
-            const document = documentResult.value;
 
             return {
                 isPrivate: false,
                 type: "Document",
-                spaceId: document.spaceId,
-                title: document.getTitle(),
+                spaceId: documentResult.value.spaceId,
+                title: !documentResult.value.isDeleted ? documentResult.value.getTitle() : null,
                 document: {
                     id: entityIdObject.documentId,
-                    version: document.version,
+                    version: documentResult.value.version,
                 },
             };
         }
@@ -3128,7 +3132,12 @@ async function fallbackGetSearchEntityBaseIfPossible(
             const taskResult = await context.tasks.getTaskWithoutDependenciesIfPossible(
                 spaceId,
                 entityIdObject.taskId,
-                {consistency: "StrongWithinCache"},
+                {
+                    consistency: "StrongWithinCache",
+                    // Ok since we return none of a deleted task's content. We only return a deleted
+                    // stub for the task.
+                    dangerouslyAllowDeleted: true,
+                },
             );
             if (!taskResult) return null;
             if (!taskResult.ok) return {isPrivate: true};
@@ -3138,19 +3147,24 @@ async function fallbackGetSearchEntityBaseIfPossible(
             return {
                 isPrivate: false,
                 type: "Task",
+                spaceId: task.getSpaceId(),
                 title: taskSearchEntityBase.title,
                 task: {
                     id: entityIdObject.taskId,
                     ...taskSearchEntityBase,
                 },
-                spaceId: task.getSpaceId(),
             };
         }
         case "TaskCollection": {
             const collectionResult = await context.tasks.getCollectionIfPossible(
                 spaceId,
                 entityIdObject.collectionId,
-                {consistency: "StrongWithinCache"},
+                {
+                    consistency: "StrongWithinCache",
+                    // Ok since we return none of a deleted task collection's content. We only return a
+                    // deleted stub for the task.
+                    dangerouslyAllowDeleted: true,
+                },
             );
             if (!collectionResult) return null;
             if (!collectionResult.ok) return {isPrivate: true};
@@ -3160,13 +3174,13 @@ async function fallbackGetSearchEntityBaseIfPossible(
             return {
                 isPrivate: false,
                 type: "TaskCollection",
+                spaceId: collection.getSpaceId(),
                 title: taskCollectionSearchEntityBase.title,
                 collection: {
                     id: entityIdObject.collectionId,
                     titleVersion: taskCollectionSearchEntityBase.titleVersion,
                     color: taskCollectionSearchEntityBase.color,
                 },
-                spaceId: collection.getSpaceId(),
             };
         }
         case "Post": {

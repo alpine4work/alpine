@@ -133,11 +133,11 @@ export class DocumentModel
     )
     implements DocumentPreviewInterface
 {
-    public getTitle() {
+    public getTitle(): string {
         return getDocumentContentTitle(this.content.doc);
     }
 
-    public getTitleWithoutFallback() {
+    public getTitleWithoutFallback(): string {
         return getDocumentContentTitleWithoutFallback(this.content.doc);
     }
 }
@@ -198,15 +198,16 @@ export class DocumentPreviewModel
             version: Schema.integer,
             titleWithoutFallback: Schema.string,
             accessPolicy: AccessPolicySchema,
+            isDeleted: Schema.boolean,
         }),
     )
     implements DocumentPreviewInterface
 {
-    public getTitle() {
+    public getTitle(): string {
         return addFallbackToDocumentTitle(this.titleWithoutFallback);
     }
 
-    public getTitleWithoutFallback() {
+    public getTitleWithoutFallback(): string {
         return this.titleWithoutFallback;
     }
 }

@@ -496,6 +496,7 @@ class DocumentCollaborationDurableObject {
                                 clientId: generateId(),
                                 createCommentThreads: [],
                                 intentionallyUpdateAccessPolicy: null,
+                                intentionallyUpdateDeletedTime: null,
                                 updateOurPresenceState: {state: null},
                                 validationPromise: authorizationPromise,
                             });
@@ -692,6 +693,7 @@ class DocumentCollaborationDurableObject {
                             },
                         ],
                         intentionallyUpdateAccessPolicy: null,
+                        intentionallyUpdateDeletedTime: null,
                         updateOurPresenceState: {state: null},
                         validationPromise: authorizationPromise,
                     });

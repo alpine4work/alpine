@@ -21,6 +21,8 @@ import {AppContext, useAppContext} from "~/client/web/context/app_context.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
+import {isDeletedSearchEntityResult} from "~/client/web/search/core/is_deleted_search_entity_result.js";
+import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {searchWordTypingDebounceMs} from "~/client/web/search/core/search_word_typing_debounce_ms.js";
 import {
     ExecuteSearchOutput,
@@ -216,6 +218,7 @@ export function useSearchState({
     const context = useAppContext();
     const {space} = useSpaceContext();
     const platform = usePlatform();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     const [searchParams, setSearchParams] = useSearchParams();
     const searchParamsRef = useRef(searchParams);
@@ -295,152 +298,182 @@ export function useSearchState({
         return () => timeout.clear();
     }, [state.wordTypingTimeoutTime]);
 
-    const queryOutput = useStore(state.executionStack);
+    const outputStore = useMemo(
+        () =>
+            computeStore((get): SearchStateExecutionOutput => {
+                const queryOutput = get(state.executionStack);
+                const shouldIncludeResult = (
+                    result: SearchEntityResultModel | SearchAffinityEntityResultModel,
+                ) => !isDeletedSearchEntityResult(get, searchEntityRegistry, result);
 
-    const output = useMemo((): SearchStateExecutionOutput => {
-        // If we have an empty query returning no results from our search execution stack
-        // then show search entities the account has some affinity for.
-        if (
-            queryOutput.queryText.length === 0 &&
-            !queryOutput.isError &&
-            (!queryOutput.results || queryOutput.results.length === 0)
-        ) {
-            if (!affinitySearch.output) {
-                return {
-                    type: "EmptyQuery",
-                    key: "searchByAffinity",
-                    queryText: "",
-                    queryTime: queryOutput.queryTime,
-                    isPending: true,
-                    isError: false,
-                    hasMoreFavoriteResults: false,
-                    favoriteResults: null,
-                    results: null,
-                };
-            } else {
-                return {
-                    type: "EmptyQuery",
-                    key: "searchByAffinity",
-                    queryText: "",
-                    queryTime: queryOutput.queryTime,
-                    isPending:
-                        affinitySearch.isLoading ||
-                        affinitySearch.isValidating ||
-                        queryOutput.isPending,
-                    isError: false,
-                    hasMoreFavoriteResults: affinitySearch.output.hasMoreFavoriteResults,
-                    favoriteResults: affinitySearch.output.favoriteResults,
-                    results: affinitySearch.output.results,
-                };
-            }
-        } else if (
-            queryOutput.type === "Query" &&
-            queryOutput.results &&
-            affinityResultById.size > 0
-        ) {
-            const interpolation = options.affinityToKeywordScoreInterpolation;
+                // If we have an empty query returning no results from our search execution stack
+                // then show search entities the account has some affinity for.
+                if (
+                    queryOutput.queryText.length === 0 &&
+                    !queryOutput.isError &&
+                    (!queryOutput.results || queryOutput.results.length === 0)
+                ) {
+                    if (!affinitySearch.output) {
+                        return {
+                            type: "EmptyQuery",
+                            key: "searchByAffinity",
+                            queryText: "",
+                            queryTime: queryOutput.queryTime,
+                            isPending: true,
+                            isError: false,
+                            hasMoreFavoriteResults: false,
+                            favoriteResults: null,
+                            results: null,
+                        };
+                    } else {
+                        return {
+                            type: "EmptyQuery",
+                            key: "searchByAffinity",
+                            queryText: "",
+                            queryTime: queryOutput.queryTime,
+                            isPending:
+                                affinitySearch.isLoading ||
+                                affinitySearch.isValidating ||
+                                queryOutput.isPending,
+                            isError: false,
+                            hasMoreFavoriteResults: affinitySearch.output.hasMoreFavoriteResults,
+                            favoriteResults:
+                                affinitySearch.output.favoriteResults.filter(shouldIncludeResult),
+                            results: affinitySearch.output.results.filter(shouldIncludeResult),
+                        };
+                    }
+                } else if (
+                    queryOutput.type === "Query" &&
+                    queryOutput.results &&
+                    affinityResultById.size > 0
+                ) {
+                    const interpolation = options.affinityToKeywordScoreInterpolation;
 
-            const slope =
-                (interpolation.point2.keywordScore - interpolation.point1.keywordScore) /
-                (interpolation.point2.affinityScore - interpolation.point1.affinityScore);
+                    const slope =
+                        (interpolation.point2.keywordScore - interpolation.point1.keywordScore) /
+                        (interpolation.point2.affinityScore - interpolation.point1.affinityScore);
 
-            const intercept =
-                interpolation.point2.keywordScore - slope * interpolation.point2.affinityScore;
+                    const intercept =
+                        interpolation.point2.keywordScore -
+                        slope * interpolation.point2.affinityScore;
 
-            let newResults: Array<SearchEntityResultModel> | null = null;
+                    let newResults: Array<SearchEntityResultModel> | null = null;
 
-            // Search for commands matching the query text and add them to the beginning of our
-            // results list if so.
-            const staticEntityIds = new Set<SearchStaticEntityId>();
-            const staticEntityMatches = searchStaticEntityIndex.get().search(queryOutput.queryText);
-            for (const match of staticEntityMatches) {
-                if (staticEntityIds.has(match.item.entityId)) continue;
-                staticEntityIds.add(match.item.entityId);
+                    // Search for commands matching the query text and add them to the beginning of our
+                    // results list if so.
+                    const staticEntityIds = new Set<SearchStaticEntityId>();
+                    const staticEntityMatches = searchStaticEntityIndex
+                        .get()
+                        .search(queryOutput.queryText);
+                    for (const match of staticEntityMatches) {
+                        if (staticEntityIds.has(match.item.entityId)) continue;
+                        staticEntityIds.add(match.item.entityId);
 
-                newResults ??= [];
+                        newResults ??= [];
 
-                // Only count close matches. Exclude search results with too high a score. This
-                // cutoff was picked so typing "Create t" doesn't match "Create chat" and "Create
-                // a" doesn't match "Create task". But "Create tsk" matches "Create task".
-                if (match.score! < 0.2) {
-                    newResults.push(
-                        new SearchEntityResultModel({
-                            model: new SearchEntityModel({
-                                type: "Static",
-                                id: match.item.entityId,
-                                title: match.item.entity.title,
-                            }),
-                            score: Infinity,
-                            bodyTextSnippet: [],
-                            parsedFilter: null,
-                        }),
-                    );
+                        // Only count close matches. Exclude search results with too high a score. This
+                        // cutoff was picked so typing "Create t" doesn't match "Create chat" and "Create
+                        // a" doesn't match "Create task". But "Create tsk" matches "Create task".
+                        if (match.score! < 0.2) {
+                            newResults.push(
+                                new SearchEntityResultModel({
+                                    model: new SearchEntityModel({
+                                        type: "Static",
+                                        id: match.item.entityId,
+                                        title: match.item.entity.title,
+                                    }),
+                                    score: Infinity,
+                                    bodyTextSnippet: [],
+                                    parsedFilter: null,
+                                }),
+                            );
+                        }
+                    }
+
+                    // If some search results match affinitive search entities we loaded then we want
+                    // to boost the search entities the user has an affinity for since it's more likely
+                    // the user cares about those entities.
+                    for (let index = 0; index < queryOutput.results.length; index++) {
+                        const result = queryOutput.results[index]!;
+
+                        const affinityResult = affinityResultById.get(result.id);
+                        if (!affinityResult) {
+                            newResults?.push(result);
+                            continue;
+                        }
+
+                        // Initialize the `newResults` array since we'll need to reorder search results.
+                        newResults ??= queryOutput.results.slice(0, index);
+
+                        const additionalScore = slope * affinityResult.score + intercept;
+
+                        newResults.push({
+                            ...result,
+                            score: result.score + additionalScore,
+                            explanation: result.explanation
+                                ? addSumOperandToOpensearchSearchHitExplanation(
+                                      result.explanation,
+                                      {
+                                          value: additionalScore,
+                                          // `\u2764\uFE0F` is the red heart emoji. It needs two Unicode code points to
+                                          // render correctly.
+                                          description: `\u2764\uFE0F interpolated affinity score, computed as (m * x) + b from:`,
+                                          details: [
+                                              {
+                                                  value: affinityResult.score,
+                                                  description: "x, affinity score",
+                                                  details: [],
+                                              },
+                                              {
+                                                  value: slope,
+                                                  description: "m, slope",
+                                                  details: [],
+                                              },
+                                              {
+                                                  value: intercept,
+                                                  description: "b, intercept",
+                                                  details: [],
+                                              },
+                                          ],
+                                      },
+                                  )
+                                : undefined,
+                        });
+                    }
+
+                    if (!newResults) {
+                        const filtered = queryOutput.results.filter(shouldIncludeResult);
+                        if (filtered.length !== queryOutput.results.length) {
+                            return {...queryOutput, results: filtered};
+                        }
+                        return queryOutput;
+                    }
+
+                    newResults = newResults.filter(shouldIncludeResult);
+                    newResults.sort((result1, result2) => result2.score - result1.score);
+                    return {...queryOutput, results: newResults};
+                } else {
+                    if (queryOutput.type === "Query" && queryOutput.results) {
+                        const filtered = queryOutput.results.filter(shouldIncludeResult);
+                        if (filtered.length !== queryOutput.results.length) {
+                            return {...queryOutput, results: filtered};
+                        }
+                    }
+                    return queryOutput;
                 }
-            }
+            }),
+        [
+            affinityResultById,
+            affinitySearch.output,
+            affinitySearch.isLoading,
+            affinitySearch.isValidating,
+            options.affinityToKeywordScoreInterpolation,
+            searchEntityRegistry,
+            state.executionStack,
+        ],
+    );
 
-            // If some search results match affinitive search entities we loaded then we want
-            // to boost the search entities the user has an affinity for since it's more likely
-            // the user cares about those entities.
-            for (let i = 0; i < queryOutput.results.length; i++) {
-                const result = queryOutput.results[i]!;
-
-                const affinityResult = affinityResultById.get(result.id);
-                if (!affinityResult) {
-                    newResults?.push(result);
-                    continue;
-                }
-
-                // Initialize the `newResults` array since we'll need to reorder search results.
-                newResults ??= queryOutput.results.slice(0, i);
-
-                const additionalScore = slope * affinityResult.score + intercept;
-
-                newResults.push({
-                    ...result,
-                    score: result.score + additionalScore,
-                    explanation: result.explanation
-                        ? addSumOperandToOpensearchSearchHitExplanation(result.explanation, {
-                              value: additionalScore,
-                              // `\u2764\uFE0F` is the red heart emoji. It needs two Unicode code points to
-                              // render correctly.
-                              description: `\u2764\uFE0F interpolated affinity score, computed as (m * x) + b from:`,
-                              details: [
-                                  {
-                                      value: affinityResult.score,
-                                      description: "x, affinity score",
-                                      details: [],
-                                  },
-                                  {
-                                      value: slope,
-                                      description: "m, slope",
-                                      details: [],
-                                  },
-                                  {
-                                      value: intercept,
-                                      description: "b, intercept",
-                                      details: [],
-                                  },
-                              ],
-                          })
-                        : undefined,
-                });
-            }
-
-            if (!newResults) return queryOutput;
-
-            newResults.sort((result1, result2) => result2.score - result1.score);
-            return {...queryOutput, results: newResults};
-        } else {
-            return queryOutput;
-        }
-    }, [
-        queryOutput,
-        affinityResultById,
-        affinitySearch.output,
-        affinitySearch.isLoading,
-        affinitySearch.isValidating,
-        options.affinityToKeywordScoreInterpolation,
-    ]);
+    const output = useStore(outputStore);
 
     return {
         output,

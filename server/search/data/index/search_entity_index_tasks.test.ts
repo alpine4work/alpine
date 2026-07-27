@@ -6,6 +6,7 @@ import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/co
 import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
     getSearchEntityIndexesForTest,
+    getSearchEntityWithStrongConsistency,
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityDependentsJobTestCounter,
     processIndexSearchEntityEmbeddingChunksJob,
@@ -24,9 +25,10 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
+import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -44,35 +46,37 @@ beforeEach(() => {
     indexSearchEntityJobCount = 0;
 });
 
-const context = createTestContext({
-    shouldStartOpensearch: true,
-    searchInjection,
-    tasksInjection,
-    processJob: async (actionContext, job, jobStartTime, span) => {
-        switch (job.type) {
-            case "IndexSearchEntity": {
-                if (job.update.type !== "Account") {
-                    indexSearchEntityJobCount++;
-                }
+const context = TestTaskRealtimeServer.with(
+    createTestContext({
+        shouldStartOpensearch: true,
+        searchInjection,
+        tasksInjection,
+        processJob: async (actionContext, job, jobStartTime, span) => {
+            switch (job.type) {
+                case "IndexSearchEntity": {
+                    if (job.update.type !== "Account") {
+                        indexSearchEntityJobCount++;
+                    }
 
-                await processIndexSearchEntityJob(actionContext, job, jobStartTime, span);
-                break;
+                    await processIndexSearchEntityJob(actionContext, job, jobStartTime, span);
+                    break;
+                }
+                case "IndexSearchEntityDependents": {
+                    await processIndexSearchEntityDependentsJob(actionContext, job);
+                    break;
+                }
+                case "IndexSearchEntityEmbeddingChunks": {
+                    await processIndexSearchEntityEmbeddingChunksJob(actionContext, job, span);
+                    break;
+                }
+                default: {
+                    // Ignore all other jobs...
+                    break;
+                }
             }
-            case "IndexSearchEntityDependents": {
-                await processIndexSearchEntityDependentsJob(actionContext, job);
-                break;
-            }
-            case "IndexSearchEntityEmbeddingChunks": {
-                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job, span);
-                break;
-            }
-            default: {
-                // Ignore all other jobs...
-                break;
-            }
-        }
-    },
-});
+        },
+    }),
+);
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
@@ -116,6 +120,48 @@ async function actuallyGetIndexedSearchEntity(
         body: docForKeywordIndex?.fields.body?.[0] ?? null,
     };
 }
+
+test("fallback search entity loads deleted tasks and collections without titles", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session, {title: "Deleted fallback task"});
+    const collection = await TestTaskCollection.create(session, {
+        name: "Deleted fallback collection",
+    });
+
+    await runAllPromises([task.delete(session), collection.delete(session)]);
+    await context.getTaskRealtimeServer().wait();
+
+    const actionContext = context.getTaskRealtimeServer().action(session);
+
+    expect(
+        await runAllObjectPromises({
+            task: getSearchEntityWithStrongConsistency(actionContext, space.id, `Task:${task.id}`),
+            collection: getSearchEntityWithStrongConsistency(
+                actionContext,
+                space.id,
+                `TaskCollection:${collection.id}`,
+            ),
+        }),
+    ).toMatchObject({
+        task: {
+            isPrivate: false,
+            type: "Task",
+            title: null,
+            task: {id: task.id, title: null},
+        },
+        collection: {
+            isPrivate: false,
+            type: "TaskCollection",
+            title: null,
+            collection: {id: collection.id, titleVersion: expect.any(Object)},
+        },
+    });
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+});
 
 test("will index a task after a timeout", async () => {
     const space = await TestSpace.create(context);
@@ -1525,6 +1571,159 @@ test("will not allow users to view task comments they do not have access to when
         `TaskComment:${privateTask.id}-0`,
         `TaskComment:${publicTask.id}-0`,
     ]);
+});
+
+test("task comment search access policies exclude task view grants", async () => {
+    const space = await TestSpace.create(context);
+    const [
+        creatorSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        managerSession,
+        otherSession,
+    ] = await space.createSessions(6);
+
+    const getCommentAccountGrantById = () =>
+        new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [managerSession.account.id, {level: "Manage", generation: 1}],
+        ]);
+
+    const defaultGrantTask = await TestTask.create(creatorSession, {
+        title: "Default Grant Task",
+    });
+    await defaultGrantTask.access.set(creatorSession, {
+        type: "Local",
+        accountGrantById: getCommentAccountGrantById(),
+        defaultGrant: {level: "View"},
+        urlGrant: null,
+    });
+    const defaultGrantComment = await defaultGrantTask.createComment(
+        creatorSession,
+        "taskdefaultonlyalpha",
+    );
+    const defaultGrantCommentEntityId: SearchEntityId = `TaskComment:${defaultGrantTask.id}-${defaultGrantComment.index}`;
+
+    const accountGrantTask = await TestTask.create(creatorSession, {
+        title: "Account Grant Task",
+    });
+    await accountGrantTask.access.set(creatorSession, {
+        type: "Local",
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            ...getCommentAccountGrantById(),
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    });
+    const accountGrantComment = await accountGrantTask.createComment(
+        creatorSession,
+        "taskaccountonlybeta",
+    );
+    const accountGrantCommentEntityId: SearchEntityId = `TaskComment:${accountGrantTask.id}-${accountGrantComment.index}`;
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    const getCommentSearchEntityIds = async (
+        session: TestSpaceSession,
+        queryText: string,
+    ): Promise<ReadonlyArray<SearchEntityId>> => {
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+        const results = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText,
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results
+            .map(result => result.id)
+            .filter(resultId => resultId.startsWith("TaskComment:"))
+            .sort();
+    };
+
+    const getCommentVisibilityBySession = async (queryText: string) =>
+        await runAllObjectPromises({
+            creator: getCommentSearchEntityIds(creatorSession, queryText),
+            viewer: getCommentSearchEntityIds(viewerSession, queryText),
+            commenter: getCommentSearchEntityIds(commenterSession, queryText),
+            editor: getCommentSearchEntityIds(editorSession, queryText),
+            manager: getCommentSearchEntityIds(managerSession, queryText),
+            other: getCommentSearchEntityIds(otherSession, queryText),
+        });
+
+    expect(await getCommentVisibilityBySession("taskdefaultonlyalpha")).toEqual({
+        creator: [defaultGrantCommentEntityId],
+        viewer: [],
+        commenter: [defaultGrantCommentEntityId],
+        editor: [defaultGrantCommentEntityId],
+        manager: [defaultGrantCommentEntityId],
+        other: [],
+    });
+    expect(await getCommentVisibilityBySession("taskaccountonlybeta")).toEqual({
+        creator: [accountGrantCommentEntityId],
+        viewer: [],
+        commenter: [accountGrantCommentEntityId],
+        editor: [accountGrantCommentEntityId],
+        manager: [accountGrantCommentEntityId],
+        other: [],
+    });
+
+    const expectedCommentAccessPolicy = {
+        accountGrantAccountIds: new Set([
+            creatorSession.account.id,
+            commenterSession.account.id,
+            editorSession.account.id,
+            managerSession.account.id,
+        ]),
+        defaultGrantType: null,
+        urlGrantLevel: null,
+    };
+
+    expect(
+        await getIndexedSearchEntityAccessPolicy(context, space.id, defaultGrantCommentEntityId),
+    ).toEqual(expectedCommentAccessPolicy);
+    expect(
+        await getIndexedSearchEntityAccessPolicy(context, space.id, accountGrantCommentEntityId),
+    ).toEqual(expectedCommentAccessPolicy);
+
+    import.meta.jest.clearAllTimers();
+
+    async function getIndexedSearchEntityAccessPolicy(
+        context: TestContext,
+        spaceId: SpaceId,
+        entityId: Exclude<SearchDynamicEntityId, `Account:${AccountId}`>,
+    ) {
+        const docForKeywordIndex = await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            spaceId,
+            entityId,
+            {
+                storedFields: [
+                    "accessPolicy.accountGrantAccountIds",
+                    "accessPolicy.defaultGrantType",
+                    "accessPolicy.urlGrantLevel",
+                ],
+            },
+        );
+
+        if (!docForKeywordIndex) return null;
+
+        return {
+            accountGrantAccountIds: new Set(
+                docForKeywordIndex.fields["accessPolicy.accountGrantAccountIds"] ?? [],
+            ),
+            defaultGrantType:
+                docForKeywordIndex.fields["accessPolicy.defaultGrantType"]?.[0] ?? null,
+            urlGrantLevel: docForKeywordIndex.fields["accessPolicy.urlGrantLevel"]?.[0] ?? null,
+        };
+    }
 });
 
 test("will not index a task twice if notes update happened within the timeout", async () => {

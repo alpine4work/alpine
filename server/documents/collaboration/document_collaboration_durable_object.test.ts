@@ -70,6 +70,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -115,6 +116,25 @@ function massageDocument(document: DocumentModel) {
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
     return new Slice(Fragment.from(schema.text(text)), 0, 0);
+}
+
+async function createDocumentManagerAndEditorConnectionsForTest() {
+    const space = await TestSpace.create(context);
+    const [managerSession, editorSession] = await space.createSessions(2);
+    const document = await TestDocument.create(managerSession);
+    await document.access.grant(managerSession, editorSession, "Edit");
+
+    const managerConnection = await connectForTest(
+        context.action(managerSession, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+    );
+    const editorConnection = await connectForTest(
+        context.action(editorSession, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {accessLevel: "Edit"},
+    );
+
+    return {document, managerConnection, editorConnection};
 }
 
 function createUpdateContentWithDiffRequest({version, text}: {version: number; text: string}) {
@@ -278,6 +298,7 @@ test("can update document content", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -299,6 +320,7 @@ test("can update document content", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -320,6 +342,7 @@ test("can update document content", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -369,6 +392,7 @@ test("will optimistically update the document and then persist later", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -378,6 +402,7 @@ test("will optimistically update the document and then persist later", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -387,6 +412,7 @@ test("will optimistically update the document and then persist later", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -493,6 +519,7 @@ test("updateContentWithoutOptimisticBroadcast persists before broadcasting", asy
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -581,6 +608,7 @@ test("updateContentWithoutOptimisticBroadcast failure leaves state untouched and
         clientId,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
     await waitForPersistence(connection, 1);
@@ -609,6 +637,7 @@ test("updateContentWithoutOptimisticBroadcast failure leaves state untouched and
                 },
                 notification: null,
             },
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         }),
     ).rejects.toThrow();
@@ -634,6 +663,7 @@ test("updateContentWithoutOptimisticBroadcast failure leaves state untouched and
         clientId,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
     await waitForPersistence(connection, 2);
@@ -705,6 +735,7 @@ test("updateContentWithoutOptimisticBroadcast waits for in-flight optimistic per
         clientId,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -720,6 +751,7 @@ test("updateContentWithoutOptimisticBroadcast waits for in-flight optimistic per
         clientId,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -784,6 +816,7 @@ test("will not batch updates from different accounts when persisting", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -793,6 +826,7 @@ test("will not batch updates from different accounts when persisting", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -802,6 +836,7 @@ test("will not batch updates from different accounts when persisting", async () 
         clientId: client3Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -932,6 +967,7 @@ test("will respond optimistically with a comment thread even if it has not been 
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1214,6 +1250,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1385,6 +1422,7 @@ test("will respond optimistically with a comment thread with files even if it ha
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1817,6 +1855,7 @@ test("when comment threads are added back to the document they will be loaded", 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1942,6 +1981,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1962,6 +2002,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1973,6 +2014,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -2194,6 +2236,7 @@ test("can create comments in comment threads", async () => {
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -2631,6 +2674,7 @@ test("if comment thread is persisting we will wait to create messages but respon
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -2927,6 +2971,7 @@ test("if comment thread update message hasn\u2019t been processed we will wait t
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -3240,6 +3285,7 @@ test("while comment thread is persisting we will respond to comment load request
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4151,6 +4197,7 @@ test("will cleanup comment thread marks if from a different document", async () 
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4245,6 +4292,7 @@ test("will cleanup comment thread marks if from a different document", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4368,6 +4416,7 @@ test("will cleanup comment thread marks if from a different document", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4533,6 +4582,7 @@ test("can add comment thread marks back to document after they\u2019ve been remo
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4614,6 +4664,7 @@ test("can add comment thread marks back to document after they\u2019ve been remo
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4683,6 +4734,7 @@ test("can add comment thread marks back to document after they\u2019ve been remo
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -5307,6 +5359,7 @@ test("can\u2019t update content as a viewer", async () => {
             clientId: generateId(),
             createCommentThreads: [],
             intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         }),
     ).rejects.toThrow("Can\u2019t update document");
@@ -5318,6 +5371,7 @@ test("can\u2019t update content as a viewer", async () => {
             clientId: generateId(),
             createCommentThreads: [],
             intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         }),
     ).rejects.toThrow("Can\u2019t update document");
@@ -5326,6 +5380,130 @@ test("can\u2019t update content as a viewer", async () => {
 
     expect(connection1.takeEvents()).toEqual([]);
     expect(connection2.takeEvents()).toEqual([]);
+});
+
+test("editor cannot optimistically delete a document", async () => {
+    const {document, managerConnection, editorConnection} =
+        await createDocumentManagerAndEditorConnectionsForTest();
+    const version = await document.getVersion();
+    const deletedTime = new Date();
+
+    const result = await captureResultPromise(
+        editorConnection.procedures.updateContent({
+            version,
+            steps: [new DocAttrStep("deletedTime", deletedTime)],
+            clientId: generateId(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: {deletedTime},
+            updateOurPresenceState: {state: null},
+        }),
+    );
+
+    expect({
+        result,
+        deletedTime: (await document.get()).content.doc.attrs.deletedTime,
+        managerEvents: managerConnection.takeEvents(),
+        backfill: await editorConnection.procedures.backfill({version}),
+    }).toMatchObject({
+        result: {ok: false, error: expect.any(PermissionDeniedError)},
+        deletedTime: null,
+        managerEvents: [],
+        backfill: {newVersion: version, persistedVersion: version, steps: []},
+    });
+});
+
+test("editor cannot synchronously delete a document", async () => {
+    const {document, managerConnection, editorConnection} =
+        await createDocumentManagerAndEditorConnectionsForTest();
+    const version = await document.getVersion();
+    const deletedTime = new Date();
+
+    const result = await captureResultPromise(
+        editorConnection.procedures.updateContentWithoutOptimisticBroadcast({
+            version,
+            steps: [new DocAttrStep("deletedTime", deletedTime)],
+            clientId: generateId(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: {deletedTime},
+            updateOurPresenceState: {state: null},
+        }),
+    );
+
+    expect({
+        result,
+        deletedTime: (await document.get()).content.doc.attrs.deletedTime,
+        managerEvents: managerConnection.takeEvents(),
+        backfill: await editorConnection.procedures.backfill({version}),
+    }).toMatchObject({
+        result: {ok: false, error: expect.any(PermissionDeniedError)},
+        deletedTime: null,
+        managerEvents: [],
+        backfill: {newVersion: version, persistedVersion: version, steps: []},
+    });
+});
+
+test("deleted time is not optimistically applied without deletion intent", async () => {
+    const {document, managerConnection, editorConnection} =
+        await createDocumentManagerAndEditorConnectionsForTest();
+    const version = await document.getVersion();
+    const deletedTime = new Date();
+
+    const result = await captureResultPromise(
+        editorConnection.procedures.updateContent({
+            version,
+            steps: [new DocAttrStep("deletedTime", deletedTime)],
+            clientId: generateId(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: null,
+            updateOurPresenceState: {state: null},
+        }),
+    );
+
+    expect({
+        result,
+        deletedTime: (await document.get()).content.doc.attrs.deletedTime,
+        managerEvents: managerConnection.takeEvents(),
+        backfill: await editorConnection.procedures.backfill({version}),
+    }).toMatchObject({
+        result: {ok: false, error: expect.any(PermissionDeniedError)},
+        deletedTime: null,
+        managerEvents: [],
+        backfill: {newVersion: version, persistedVersion: version, steps: []},
+    });
+});
+
+test("deleted time is not optimistically applied when it does not match deletion intent", async () => {
+    const {document, managerConnection, editorConnection} =
+        await createDocumentManagerAndEditorConnectionsForTest();
+    const version = await document.getVersion();
+    const deletedTime = new Date();
+
+    const result = await captureResultPromise(
+        managerConnection.procedures.updateContent({
+            version,
+            steps: [new DocAttrStep("deletedTime", deletedTime)],
+            clientId: generateId(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: {deletedTime: new Date(deletedTime.getTime() + 1)},
+            updateOurPresenceState: {state: null},
+        }),
+    );
+
+    expect({
+        result,
+        deletedTime: (await document.get()).content.doc.attrs.deletedTime,
+        editorEvents: editorConnection.takeEvents(),
+        backfill: await managerConnection.procedures.backfill({version}),
+    }).toMatchObject({
+        result: {ok: false, error: expect.any(PermissionDeniedError)},
+        deletedTime: null,
+        editorEvents: [],
+        backfill: {newVersion: version, persistedVersion: version, steps: []},
+    });
 });
 
 test("commenter can only update comment marks", async () => {
@@ -5362,6 +5540,7 @@ test("commenter can only update comment marks", async () => {
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -5372,6 +5551,7 @@ test("commenter can only update comment marks", async () => {
             clientId: generateId<ContentEditorClientId>(),
             createCommentThreads: [],
             intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         }),
     ).rejects.toThrow("Can\u2019t update document");
@@ -5642,6 +5822,7 @@ test("viewer receives update events without comment data", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -5719,6 +5900,7 @@ test("viewer receives update events without comment data", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -5805,6 +5987,7 @@ test("viewer receives update events without comment data", async () => {
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6178,6 +6361,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6193,6 +6377,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy1, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6213,6 +6398,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6228,6 +6414,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy1, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6247,6 +6434,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6262,6 +6450,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6304,6 +6493,7 @@ test("can\u2019t update access policy unintentionally", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6379,6 +6569,7 @@ test("can\u2019t update access policy with the wrong intentional policy", async 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2b, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -7526,6 +7717,7 @@ describe("adding and removing documents from sites", () => {
                 accessPolicy: siteAccessPolicy,
                 notification: null,
             },
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         });
 
@@ -7602,6 +7794,7 @@ describe("adding and removing documents from sites", () => {
                 accessPolicy: siteAccessPolicy,
                 notification: null,
             },
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         });
 
@@ -7627,6 +7820,7 @@ describe("adding and removing documents from sites", () => {
                 accessPolicy: localAccessPolicy,
                 notification: null,
             },
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         });
 
@@ -7702,6 +7896,7 @@ describe("adding and removing documents from sites", () => {
                     accessPolicy: siteAccessPolicy,
                     notification: null,
                 },
+                intentionallyUpdateDeletedTime: null,
                 updateOurPresenceState: {state: null},
             }),
         ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
@@ -7758,6 +7953,7 @@ describe("adding and removing documents from sites", () => {
                     accessPolicy: siteAccessPolicy,
                     notification: null,
                 },
+                intentionallyUpdateDeletedTime: null,
                 updateOurPresenceState: {state: null},
             }),
         ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");

@@ -861,6 +861,33 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
+        test("sets isTaskDeleted when task is deleted after creating an inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session1);
+            await task.updateAssignee(session1, session2);
+            const comment = await task.createComment(session1, "foo");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await task.delete(session1);
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {isPrivate: true, taskId: task.id},
+                    isTaskDeleted: true,
+                    loudNotificationCount: 0,
+                    latestComment: {
+                        comment,
+                        contentTextSnippet: "",
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
         test("hides task when account loses access to task they have inbox entry for (and the entry contains a mention)", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);

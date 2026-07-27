@@ -9,6 +9,7 @@ export function expectInboxDocumentCommentThreadEntryModel({
     session,
     commentThread,
     isDocumentPrivate = false,
+    isDocumentDeleted = false,
     isArchived = false,
     loudNotificationCount = 0,
     latestComment,
@@ -18,6 +19,7 @@ export function expectInboxDocumentCommentThreadEntryModel({
     session: TestSpaceSession;
     commentThread: TestDocumentCommentThread;
     isDocumentPrivate?: boolean;
+    isDocumentDeleted?: boolean;
     isArchived?: boolean;
     loudNotificationCount?: number;
     latestComment: {
@@ -33,7 +35,7 @@ export function expectInboxDocumentCommentThreadEntryModel({
         spaceId: session.space.id,
         accountId: session.account.id,
         document: isDocumentPrivate
-            ? {isPrivate: true, documentId: commentThread.document.id}
+            ? {isPrivate: true, isDeleted: isDocumentDeleted, documentId: commentThread.document.id}
             : {
                   isPrivate: false,
                   document: expect.objectContaining({id: commentThread.document.id}),

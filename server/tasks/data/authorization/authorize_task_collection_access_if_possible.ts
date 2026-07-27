@@ -19,7 +19,11 @@ export async function authorizeTaskCollectionAccessIfPossible(
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null = null,
-    options?: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void},
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted?: boolean;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<Result<{spaceId: SpaceId}, ErrorBase> | null> {
     const collectionItem = await getTaskCollectionItemForAuthorizationIfExists(
         context,

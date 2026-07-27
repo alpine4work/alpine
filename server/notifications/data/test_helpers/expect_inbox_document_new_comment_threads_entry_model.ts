@@ -7,6 +7,7 @@ import {InboxDocumentNewCommentThreadsEntryModel} from "~/shared/notifications/i
 export function expectInboxDocumentNewCommentThreadsEntryModel({
     session,
     isDocumentPrivate = false,
+    isDocumentDeleted = false,
     bucketGeneration,
     isArchived = false,
     loudNotificationCount = 0,
@@ -16,6 +17,7 @@ export function expectInboxDocumentNewCommentThreadsEntryModel({
 }: {
     session: TestSpaceSession;
     isDocumentPrivate?: boolean;
+    isDocumentDeleted?: boolean;
     bucketGeneration: number;
     isArchived?: boolean;
     loudNotificationCount?: number;
@@ -31,7 +33,11 @@ export function expectInboxDocumentNewCommentThreadsEntryModel({
         spaceId: session.space.id,
         accountId: session.account.id,
         document: isDocumentPrivate
-            ? {isPrivate: true, documentId: firstCommentThread.commentThread.document.id}
+            ? {
+                  isPrivate: true,
+                  isDeleted: isDocumentDeleted,
+                  documentId: firstCommentThread.commentThread.document.id,
+              }
             : {
                   isPrivate: false,
                   document: expect.objectContaining({

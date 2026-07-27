@@ -100,6 +100,11 @@ const UpdateContentInputSchema = {
     })
         .nullable()
         .default(null),
+    intentionallyUpdateDeletedTime: Schema.object({
+        deletedTime: Schema.date,
+    })
+        .nullable()
+        .default(null),
     /**
      * Atomically update our presence state in the same action as we update our
      * content.
@@ -243,6 +248,11 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 intentionallyUpdateAccessPolicy: Schema.object({
                     accessPolicy: CreateOrUpdateAccessPolicySchema,
                     notification: ShareNotificationSchema.nullable(),
+                })
+                    .nullable()
+                    .default(null),
+                intentionallyUpdateDeletedTime: Schema.object({
+                    deletedTime: Schema.date,
                 })
                     .nullable()
                     .default(null),

@@ -63,6 +63,7 @@ import {hasSpellCheckFeature} from "~/shared/spaces/has_spell_check_feature.js";
 
 export const createContentCommentThreadMetaKey = "createCommentThread";
 export const intentionallyUpdateContentAccessPolicyMetaKey = "intentionallyUpdateAccessPolicy";
+export const intentionallyUpdateContentDeletedTimeMetaKey = "intentionallyUpdateDeletedTime";
 
 function buildPlugins<Content extends ContentWithReferences>({
     spaceId,
@@ -637,6 +638,28 @@ export class ContentEditorState<Content extends ContentWithReferences> {
                     // Don't allow undoing access policy changes with cmd-z. Trying to undo an access
                     // policy change will cause an error since it doesn't have the
                     // `intentionallyUpdateAccessPolicy` property set.
+                    .setMeta("addToHistory", false),
+            ),
+        );
+    }
+
+    /**
+     * Soft-delete the document by setting `deletedTime` on the doc attrs.
+     *
+     * Throws an error if the content doesn't have a `deletedTime` attr. The change is
+     * not added to the undo history to prevent accidentally un-deleting a document
+     * with cmd-z.
+     */
+    public setDeletedTime(deletedTime: Date): ContentEditorState<Content> {
+        assert(this._state.schema.topNodeType.spec.attrs?.deletedTime);
+
+        return new ContentEditorState(
+            this._state.apply(
+                this._state.tr
+                    .setDocAttribute("deletedTime", deletedTime)
+                    .setMeta(intentionallyUpdateContentDeletedTimeMetaKey, {
+                        deletedTime,
+                    })
                     .setMeta("addToHistory", false),
             ),
         );

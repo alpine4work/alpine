@@ -16,7 +16,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 
 const context = createTestContext({
@@ -131,6 +131,66 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     dueDate: null,
                 },
             });
+        });
+
+        test("can get deleted document search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const document = await TestDocument.create(session, {
+                title: "Hollywoo Stars and Celebrities",
+                body: "What Do They Know?",
+            });
+            await document.access.grantDefault(session);
+            await document.delete(session);
+            const documentVersion = await document.getVersion();
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Document", documentId: document.id},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).toEqual({
+                dependencyIds: new Set(),
+                entity: {
+                    id: `Document:${document.id}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
+                    createdTime: null,
+                    title: null,
+                    titleVersion: {type: "Integer", version: documentVersion},
+                    body: null,
+                    tags: [],
+                    embeddingChunks: [],
+                    media: null,
+                    creatorId: null,
+                    contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
+                },
+            });
+        });
+
+        test("throws for missing document search entity", async () => {
+            const space = await TestSpace.create(context);
+            const documentId = generateId<DocumentId>();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            await expect(
+                getSearchEntity(
+                    space.systemAction(),
+                    {type: "Document", documentId},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).rejects.toThrow("Document not found");
         });
 
         test("bot-created document includes bot as contributor", async () => {
