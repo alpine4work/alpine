@@ -23,12 +23,10 @@ import {
     printApiPreviewReferenceToPreviewUrl,
 } from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
+    ApiContentBlockElement,
     ApiContentFileBlockElementResponseWithoutKeys,
     ApiContentPreviewBlockElementResponseWithoutKeys,
     ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {
-    ApiContentBlockElement,
     ApiMessageStreamContentPartPayloadResponse,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";

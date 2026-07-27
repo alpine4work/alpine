@@ -7,12 +7,10 @@ import {
 } from "~/server/agents/web/pages/agent_web_post_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
+    ApiContentParagraphBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
     ApiContentTextInlineElement,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -242,9 +240,12 @@ Second comment.
                     },
                 ],
             },
-            createParseError:
-                "Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. Try again " +
-                "without the \u201cNext page »\u201d link.",
+            createParseError: `\
+Error: (2 errors)
+
+- Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again without the \u201CNext page »\u201D link.
+
+- Expected a link to a human or bot on line 3. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
         },
         {
             name: "post page with custom pagination links",
@@ -296,9 +297,12 @@ Post body.
                     },
                 ],
             },
-            createParseError:
-                "Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. Try again " +
-                "without the \u201cNext page »\u201d link.",
+            createParseError: `\
+Error: (2 errors)
+
+- Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again without the \u201CNext page »\u201D link.
+
+- Expected a link to a human or bot on line 5. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
         },
         {
             name: "post page with custom next page pagination link",
@@ -350,9 +354,12 @@ Post body.
                     },
                 ],
             },
-            createParseError:
-                "Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. Try again " +
-                "without the \u201cNext page »\u201d link.",
+            createParseError: `\
+Error: (2 errors)
+
+- Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again without the \u201CNext page »\u201D link.
+
+- Expected a link to a human or bot on line 5. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
         },
         {
             name: "post page with custom previous page pagination link",
@@ -404,9 +411,12 @@ Post body.
                     },
                 ],
             },
-            createParseError:
-                "Can\u2019t add \u201cPrevious page »\u201d link when creating comments markdown. Try again " +
-                "without the \u201cPrevious page »\u201d link.",
+            createParseError: `\
+Error: (2 errors)
+
+- Can\u2019t add \u201CPrevious page »\u201D link when creating comments markdown. Try again without the \u201CPrevious page »\u201D link.
+
+- Expected a link to a human or bot on line 5. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
         },
         {
             name: "post without channel",
@@ -499,7 +509,7 @@ Post body.
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
             parseError:
-                "A `<post>` must be the first thing in post markdown and it must be placed after the first line which " +
+                "Error: A `<post>` must be the first thing in post markdown and it must be placed after the first line which " +
                 "states what channel the post is in (e.g. `Post in [My Channel](/channel/my-channel).`) " +
                 "and there must only be one `<post>`. Try again with one `<post>` at the start " +
                 "of the markdown.",
@@ -523,7 +533,7 @@ Post body.
                 await createAgentWebPageStoredLinkPathname(storage, aliceReference);
             },
             parseError:
-                "Can\u2019t add a `<post>` to a post\u2019s comments section. Remove the `<post>` " +
+                "Error: Can\u2019t add a `<post>` to a post\u2019s comments section. Remove the `<post>` " +
                 "and try again.",
         },
         {
@@ -567,7 +577,7 @@ Post that\u2019s not in any channel.
 Post body.
 `,
             parseError:
-                "`<post>` on line 3 is missing a closing tag. Add a `</post>` closing tag " +
+                "Error: `<post>` on line 3 is missing a closing tag. Add a `</post>` closing tag " +
                 "and try again.",
         },
         {

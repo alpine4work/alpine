@@ -38,9 +38,9 @@ import {
     fromApiContentToDocumentChildNodes,
 } from "~/shared/api/content/closed_source/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContent,
+    ApiContentResponseWithoutKeys,
     ApiDocumentSetContentPatch,
     ApiDocumentSetTitlePatch,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";

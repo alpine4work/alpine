@@ -8,7 +8,7 @@ import {
 import {
     ApiContentBlockElementWithOptionalKeys,
     ApiContentWithOptionalKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+} from "~/shared/api/specification/types/api_content_response_with_optional_keys.js";
 import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {
     ApiContent,

@@ -3,7 +3,7 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {collectLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/deprecated/internal/cursor/collect_links_from_markdown_tree_for_cursor_agent.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, DocumentId, TaskId} from "~/shared/id/types/id_types.js";
 

@@ -9,12 +9,10 @@ import {
 } from "~/server/agents/web/pages/agent_web_document_thread_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
+    ApiContentParagraphBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
     ApiContentTextInlineElement,
     ApiDocumentReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -146,8 +144,12 @@ End of comments.
                     firstCommentBlock,
                 ],
             },
-            createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+            createParseError: `\
+Error: (2 errors)
+
+- Document comment thread markdown must start with \`Document comment thread on [My Document](/document/my-document).\`. Optionally followed by \`- [ ] Unresolved\` or \`- [x] Resolved\`. Try again with a proper start to document comment thread markdown on line 1.
+
+- Expected a link to a human or bot on line 13. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Bob]\\(/human/bob)\u201D. Try again with a valid link to a human or bot.`,
         },
         {
             name: "legacy document thread preamble",
@@ -185,7 +187,7 @@ Preview body.
                 blocks: [previewBlock],
             },
             createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+                "Error: Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "document thread quote match attribute",
@@ -219,7 +221,7 @@ Preview body.
                 ],
             },
             createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+                "Error: Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "document thread quote deleted match attribute",
@@ -253,7 +255,7 @@ Preview body.
                 ],
             },
             createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+                "Error: Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "document thread quote with invalid match attribute",
@@ -281,9 +283,9 @@ Preview body.
                 );
             },
             parseError:
-                'Invalid `<blockquote>` `match` attribute on line 5. Try again with a 1-indexed integer like `match="2"`.',
+                'Error: Invalid `<blockquote>` `match` attribute on line 5. Try again with a 1-indexed integer like `match="2"`.',
             createParseError:
-                'Invalid `<blockquote>` `match` attribute on line 5. Try again with a 1-indexed integer like `match="2"`.',
+                'Error: Invalid `<blockquote>` `match` attribute on line 5. Try again with a 1-indexed integer like `match="2"`.',
         },
         {
             name: "resolved document thread state uses checkbox",
@@ -323,7 +325,7 @@ Preview body.
                 blocks: [previewBlock],
             },
             createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+                "Error: Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "unresolved document thread state uses checkbox",
@@ -363,7 +365,7 @@ Preview body.
                 blocks: [previewBlock],
             },
             createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+                "Error: Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "comments-only document thread page with pagination",
@@ -407,8 +409,12 @@ Second comment.
                     },
                 ],
             },
-            createParseError:
-                "Can\u2019t add \u201cNext page \u00bb\u201d link when creating comments markdown. Try again without the \u201cNext page \u00bb\u201d link.",
+            createParseError: `\
+Error: (2 errors)
+
+- Can\u2019t add \u201CNext page \u00BB\u201D link when creating comments markdown. Try again without the \u201CNext page \u00BB\u201D link.
+
+- Expected a link to a human or bot on line 3. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
         },
         {
             name: "comments-only document thread page without pagination",
@@ -433,8 +439,12 @@ First comment.
                 isEndOfMessages: false,
                 blocks: [firstCommentBlock],
             },
-            createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+            createParseError: `\
+Error: (2 errors)
+
+- Document comment thread markdown must start with \`Document comment thread on [My Document](/document/my-document).\`. Optionally followed by \`- [ ] Unresolved\` or \`- [x] Resolved\`. Try again with a proper start to document comment thread markdown on line 1.
+
+- Expected a link to a human or bot on line 3. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Bob]\\(/human/bob)\u201D. Try again with a valid link to a human or bot.`,
         },
         {
             name: "unresolved state on comments-only document thread page",
@@ -463,9 +473,9 @@ First comment.
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
             parseError:
-                "`- [ ] Unresolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [ ] Unresolved`.",
+                "Error: `- [ ] Unresolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [ ] Unresolved`.",
             createParseError:
-                "`- [ ] Unresolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [ ] Unresolved`.",
+                "Error: `- [ ] Unresolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [ ] Unresolved`.",
         },
         {
             name: "resolved state on comments-only document thread page",
@@ -494,9 +504,9 @@ First comment.
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
             parseError:
-                "`- [x] Resolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [x] Resolved`.",
+                "Error: `- [x] Resolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [x] Resolved`.",
             createParseError:
-                "`- [x] Resolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [x] Resolved`.",
+                "Error: `- [x] Resolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [x] Resolved`.",
         },
         {
             name: "document thread page with custom pagination links",
@@ -560,8 +570,12 @@ First comment.
                     firstCommentBlock,
                 ],
             },
-            createParseError:
-                "Can\u2019t add \u201cNext page \u00bb\u201d link when creating comments markdown. Try again without the \u201cNext page \u00bb\u201d link.",
+            createParseError: `\
+Error: (2 errors)
+
+- Can\u2019t add \u201CNext page \u00BB\u201D link when creating comments markdown. Try again without the \u201CNext page \u00BB\u201D link.
+
+- Expected a link to a human or bot on line 11. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Bob]\\(/human/bob)\u201D. Try again with a valid link to a human or bot.`,
         },
         {
             name: "document thread quote formatting",
@@ -606,7 +620,7 @@ Please **review this section** *today*.
                 ],
             },
             createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+                "Error: Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "document preview after comments",
@@ -639,12 +653,12 @@ Preview body.
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
             parseError:
-                "There must be only one `<blockquote>` and it must be placed immediately after the first line " +
+                "Error: There must be only one `<blockquote>` and it must be placed immediately after the first line " +
                 "which states what document the thread is on (e.g. `Document thread on " +
                 "[My Document](/document/my-document).`). Try again with one `<blockquote>` " +
                 "at the start of the markdown.",
             createParseError:
-                "There must be only one `<blockquote>` and it must be placed immediately after the first line " +
+                "Error: There must be only one `<blockquote>` and it must be placed immediately after the first line " +
                 "which states what document the thread is on (e.g. `Document thread on " +
                 "[My Document](/document/my-document).`). Try again with one `<blockquote>` " +
                 "at the start of the markdown.",

@@ -3,9 +3,11 @@ import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js
 import {
     ApiContentBlockElementResponseWithOptionalKeys,
     ApiContentResponseWithOptionalKeys,
+} from "~/shared/api/specification/types/api_content_response_with_optional_keys.js";
+import {
+    ApiContentResponse,
     ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

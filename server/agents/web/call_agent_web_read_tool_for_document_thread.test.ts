@@ -13,11 +13,9 @@ import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_
 import {
     ApiContentBlockElementResponseWithoutKeys,
     ApiContentFileBlockElementResponseWithoutKeys,
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
+    ApiContentParagraphBlockElementResponseWithoutKeys,
     ApiContentResponse,
     ApiDocumentReferenceResponse,
     ApiMessageResponse,

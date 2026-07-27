@@ -5,7 +5,7 @@ import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
 } from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 

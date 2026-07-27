@@ -8,8 +8,10 @@ import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiContent,
+    ApiContentResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {generateId} from "~/shared/id/id.js";

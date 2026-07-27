@@ -30,9 +30,9 @@ test("prints every display message in an AggregateError", async () => {
     await expect(printAgentWebError("Update failed", error)).resolves.toBe(`\
 Error: Update failed. (2 errors)
 
-Fix the first task.
+- Fix the first task.
 
-Restore Launch plan and try again.`);
+- Restore Launch plan and try again.`);
 });
 
 test("prints every display message in an AggregateError with an empty title", async () => {
@@ -48,9 +48,9 @@ test("prints every display message in an AggregateError with an empty title", as
     await expect(printAgentWebError("", error)).resolves.toBe(`\
 Error: (2 errors)
 
-Fix the first task.
+- Fix the first task.
 
-Restore the launch plan and try again.`);
+- Restore the launch plan and try again.`);
 });
 
 test("prints one AggregateError display message as a single error", async () => {

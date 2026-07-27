@@ -54,7 +54,7 @@ How are you doing today?
 How are you doing today?
 `,
             parseError:
-                "A title is required for documents. Try again but make sure the document starts with a markdown h1 (e.g. `# My Document`).",
+                "Error: A title is required for documents. Try again but make sure the document starts with a markdown h1 (e.g. `# My Document`).",
         },
         {
             name: "document page with additional h1",
@@ -69,7 +69,7 @@ This is a cool doc.
 Isn\u2019t that neat?
 `,
             parseError:
-                "A document can only have one markdown h1 (e.g. `# My Document`) and the h1 must be placed at the start of the document. You added an additional markdown h1 \u201CLa la land\u201D. Try again but remove the additional markdown h1 or make it an h2 (e.g. `## My Sub-heading`).",
+                "Error: A document can only have one markdown h1 (e.g. `# My Document`) and the h1 must be placed at the start of the document. You added an additional markdown h1 \u201CLa la land\u201D. Try again but remove the additional markdown h1 or make it an h2 (e.g. `## My Sub-heading`).",
         },
         {
             name: "document page with one comment",
@@ -100,7 +100,7 @@ Please <comment id="1">review this section</comment> today.
                 },
             },
             createParseError:
-                "Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
+                "Error: Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
         },
         {
             name: "document page with two comments",
@@ -135,7 +135,7 @@ Please <comment id="1">review this section</comment> today.
                 },
             },
             createParseError:
-                "Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
+                "Error: Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
         },
         {
             name: "document page with three comments",
@@ -176,7 +176,7 @@ Please <comment id="1">review this section</comment> today.
                 },
             },
             createParseError:
-                "Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
+                "Error: Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
         },
         {
             name: "document page with seven comments",
@@ -241,7 +241,7 @@ Please <comment id="1">review this section</comment> today.
                 },
             },
             createParseError:
-                "Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
+                "Error: Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
         },
     ],
 });

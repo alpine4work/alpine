@@ -10,8 +10,10 @@ import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
 } from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiContentMentionInlineElementResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiContentMentionInlineElementResponse,
+    ApiContentResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 

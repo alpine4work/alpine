@@ -26,8 +26,10 @@ import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdo
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiAccountReferenceResponse,
+    ApiContentResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";

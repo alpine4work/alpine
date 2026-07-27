@@ -25,10 +25,8 @@ import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js
 import {
     ApiContentBlockElementResponseWithoutKeys,
     ApiContentFileGalleryBlockElementRowItemResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {
     ApiContentInlineElementResponse,
+    ApiContentResponseWithoutKeys,
     ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,

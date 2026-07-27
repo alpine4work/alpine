@@ -29,8 +29,8 @@ import {
 } from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentRange} from "~/shared/api/specification/types/api_content_position.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
+    ApiContentResponseWithoutKeys,
     ApiMessageContentPayloadFileResponse,
     ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";

@@ -59,7 +59,9 @@ export async function printAgentWebError(title: string, error: unknown): Promise
         }
     } else if (displayMessages.length > 0) {
         markdown = `Error: ${title.length > 0 ? `${title}. ` : ""}(${displayMessages.length} errors)\n\n`;
-        markdown += displayMessages.map(printErrorDisplayMessage).join("\n\n");
+        markdown += displayMessages
+            .map(displayMessage => `- ${printErrorDisplayMessage(displayMessage)}`)
+            .join("\n\n");
     } else {
         markdown = `Error: ${title.length > 0 ? `${title}. ` : ""}${printErrorDisplayMessage(defaultErrorDisplayMessage)}`;
 

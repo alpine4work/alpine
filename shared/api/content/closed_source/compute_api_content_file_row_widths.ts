@@ -1,7 +1,7 @@
 import {
     ApiContentFileBlockElementResponseWithoutKeys,
     ApiContentPreviewBlockElementResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     computeFileRowLayout,
     fileRowBlockWidthPxForClipboardAndApi,

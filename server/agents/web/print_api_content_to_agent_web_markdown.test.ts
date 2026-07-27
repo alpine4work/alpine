@@ -10,7 +10,7 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {
     ApiContentBlockElementResponseWithoutKeys,
     ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";

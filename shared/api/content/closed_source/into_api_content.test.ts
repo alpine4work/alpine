@@ -10,7 +10,7 @@ import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {createContentBuilder} from "~/shared/content/create_content_builder.js";
 import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";

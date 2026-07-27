@@ -4,7 +4,7 @@ import {
     ApiReferenceKey,
     printApiReferenceKey,
 } from "~/shared/api/specification/api_reference_key.js";
-import {ApiContentFileBlockElementResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiContentFileBlockElementResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_with_optional_keys.js";
 import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {

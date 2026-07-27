@@ -1,7 +1,9 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiAccountReferenceResponse,
+    ApiContentResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
 // NOCOMMIT: Files in messages
 export type AgentWebMessagingPage<

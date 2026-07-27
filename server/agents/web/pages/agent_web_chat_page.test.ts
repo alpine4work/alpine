@@ -6,12 +6,10 @@ import {
 } from "~/server/agents/web/pages/agent_web_chat_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
+    ApiContentParagraphBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
     ApiContentTextInlineElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
@@ -62,16 +60,16 @@ function text(text: string): ApiContentTextInlineElement {
 }
 
 const invalidPreambleError =
-    "Chat markdown must start with \u201CChat with\u201D followed by a list of chat members " +
+    "Error: Chat markdown must start with \u201CChat with\u201D followed by a list of chat members " +
     "(e.g. `Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).` or for " +
     "chats with 2+ members `Chat with A, B, and C.`). Chat markdown for named chat " +
     "rooms must start with a markdown h1 (e.g. `# My Chat Room`). Try again with a " +
     "proper start to chat markdown on line 1.";
 const previousPageCreateParseError =
-    "Can\u2019t add \u201cPrevious page »\u201d link when creating messages markdown. " +
+    "Error: Can\u2019t add \u201cPrevious page »\u201d link when creating messages markdown. " +
     "Try again without the \u201cPrevious page »\u201d link.";
 const nextPageCreateParseError =
-    "Can\u2019t add \u201cNext page »\u201d link when creating messages markdown. " +
+    "Error: Can\u2019t add \u201cNext page »\u201d link when creating messages markdown. " +
     "Try again without the \u201cNext page »\u201d link.";
 
 runAgentWebPageTests<ChatId, AgentWebChatPage>({

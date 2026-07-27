@@ -10,9 +10,9 @@ import {createAgentLink} from "~/server/agents/bots/deprecated/internal/link_ref
 import {loadAgentMessagesListLinkContent as actuallyLoadAgentMessagesListLinkContent} from "~/server/agents/bots/deprecated/internal/link_references/load_agent_messages_list_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentResponse,
+    ApiContentResponseWithoutKeys,
     ApiDocumentThreadResponse,
     ApiMessageResponse,
     ApiTaskWithNotesResponse,

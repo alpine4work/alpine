@@ -719,14 +719,14 @@ Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=a1b2c3)
                 ],
             },
             createParseError:
-                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "Error: Task collection markdown must start with a name (e.g. `# My Collection`) " +
                 "when creating a collection. Try again with a name.",
         },
         {
             name: "task collection tail page at the end of tasks",
             pageLink: collectionId,
             createParseError:
-                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "Error: Task collection markdown must start with a name (e.g. `# My Collection`) " +
                 "when creating a collection. Try again with a name.",
             markdown: `\
 Tasks in Roadmap.
@@ -748,7 +748,7 @@ End of tasks.
             name: "task collection tail page without tasks",
             pageLink: collectionId,
             createParseError:
-                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "Error: Task collection markdown must start with a name (e.g. `# My Collection`) " +
                 "when creating a collection. Try again with a name.",
             markdown: `\
 Tasks in Roadmap.
@@ -777,7 +777,7 @@ End of tasks.
 Color: Red
 `,
             parseError:
-                "Nothing may appear after \u201CEnd of tasks\u201D in task collection markdown. Try " +
+                "Error: Nothing may appear after \u201CEnd of tasks\u201D in task collection markdown. Try " +
                 "again after removing the extra content after \u201CEnd of tasks\u201D on line 7.",
         },
         {
@@ -791,10 +791,10 @@ End of tasks.
 - [Write spec (Open)](/task/write-spec)
 `,
             parseError:
-                "Nothing may appear after \u201CEnd of tasks\u201D in task collection markdown. Try " +
+                "Error: Nothing may appear after \u201CEnd of tasks\u201D in task collection markdown. Try " +
                 "again after removing the extra content after \u201CEnd of tasks\u201D on line 5.",
             createParseError:
-                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "Error: Task collection markdown must start with a name (e.g. `# My Collection`) " +
                 "when creating a collection. Try again with a name.",
         },
         {
@@ -806,11 +806,11 @@ Tasks in Roadmap.
 Color: Red
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with only a task list (an unordered " +
+                "Error: Unexpected markdown on line 3. Try again with only a task list (an unordered " +
                 "list where every item is a task link) after the line 1 of the task collection " +
                 "markdown.",
             createParseError:
-                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "Error: Task collection markdown must start with a name (e.g. `# My Collection`) " +
                 "when creating a collection. Try again with a name.",
         },
         {
@@ -820,12 +820,12 @@ Color: Red
 Tasks near Roadmap.
 `,
             parseError:
-                "Task collection markdown must start with \u201CTasks in My Collection\u201D (where " +
+                "Error: Task collection markdown must start with \u201CTasks in My Collection\u201D (where " +
                 "\u201CMy Collection\u201D is the actual name of the task collection) when reading a " +
                 "later task collection page. Try again with a proper task collection preamble " +
                 "on line 1.",
             createParseError:
-                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "Error: Task collection markdown must start with a name (e.g. `# My Collection`) " +
                 "when creating a collection. Try again with a name.",
         },
         {
@@ -842,10 +842,10 @@ Tasks near Roadmap.
 Tasks in Roadmap. [Next page »](/task-collection/roadmap)
 `,
             parseError:
-                "Expected \u201CNext page »\u201D to link to a task collection page with an " +
+                "Error: Expected \u201CNext page »\u201D to link to a task collection page with an " +
                 "`?after` cursor. Try again with a valid task collection pagination link.",
             createParseError:
-                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "Error: Task collection markdown must start with a name (e.g. `# My Collection`) " +
                 "when creating a collection. Try again with a name.",
         },
         {
@@ -864,7 +864,7 @@ Tasks in Roadmap. [Next page »](/task-collection/roadmap)
 [Next page »](/task-collection/roadmap)
 `,
             parseError:
-                "Expected \u201CNext page »\u201D to link to a task collection page with an " +
+                "Error: Expected \u201CNext page »\u201D to link to a task collection page with an " +
                 "`?after` cursor. Try again with a valid task collection pagination link.",
         },
         {
@@ -879,7 +879,7 @@ Tasks in Roadmap. [Next page »](/task-collection/roadmap)
 [Next page »](/human/alice?after=a1b2c3)
 `,
             parseError:
-                "Expected \u201CNext page »\u201D to link to a task collection page with an " +
+                "Error: Expected \u201CNext page »\u201D to link to a task collection page with an " +
                 "`?after` cursor. Try again with a valid task collection pagination link.",
         },
         {
@@ -891,7 +891,7 @@ Tasks in Roadmap. [Next page »](/task-collection/roadmap)
 [Next page »](/task-collection/missing?after=a1b2c3)
 `,
             parseError:
-                "Expected \u201CNext page »\u201D to link to a task collection page with an " +
+                "Error: Expected \u201CNext page »\u201D to link to a task collection page with an " +
                 "`?after` cursor. Try again with a valid task collection pagination link.",
         },
         {
@@ -912,7 +912,7 @@ Tasks in Roadmap. [Next page »](/task-collection/roadmap)
 Color: Red
 `,
             parseError:
-                "Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
+                "Error: Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
                 "followed by a task list (an unordered list where every item is a task link) " +
                 "after the task collection name.",
         },
@@ -934,7 +934,7 @@ Color: Red
 [Next page »](/task-collection/roadmap?after=d4e5f6)
 `,
             parseError:
-                "Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
+                "Error: Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
                 "followed by a task list (an unordered list where every item is a task link) " +
                 "after the task collection name.",
         },
@@ -957,7 +957,7 @@ Color: Red
 [Next page »](/task-collection/roadmap?after=a1b2c3)
 `,
             parseError:
-                "Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
+                "Error: Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
                 "followed by a task list (an unordered list where every item is a task link) " +
                 "after the task collection name.",
         },
@@ -1271,11 +1271,11 @@ Color: Red
 Color: Red
 `,
             parseError:
-                "Task collection markdown must start with the task collection name in a " +
+                "Error: Task collection markdown must start with the task collection name in a " +
                 "markdown h1 (e.g. `# My Collection`) or \u201CTasks in My Collection\u201D. Try again " +
                 "with a proper start to task collection markdown on line 1.",
             createParseError:
-                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "Error: Task collection markdown must start with a name (e.g. `# My Collection`) " +
                 "when creating a collection. Try again with a name.",
         },
         {
@@ -1287,7 +1287,7 @@ Color: Red
 Color: Magenta
 `,
             parseError:
-                "Unexpected task collection color \u201CMagenta\u201D on line 3. Try again with " +
+                "Error: Unexpected task collection color \u201CMagenta\u201D on line 3. Try again with " +
                 "\u201CRed\u201D, \u201COrange\u201D, \u201CYellow\u201D, \u201CGreen\u201D, " +
                 "\u201CCyan\u201D, \u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, " +
                 "\u201CPink\u201D, or remove the color entirely.",
@@ -1301,7 +1301,7 @@ Color: Magenta
 Priority: High
 `,
             parseError:
-                "Unknown task collection field \u201CPriority\u201D on line 3. Try again with " +
+                "Error: Unknown task collection field \u201CPriority\u201D on line 3. Try again with " +
                 "the \u201CColor\u201D field (e.g. `Color: Red`).",
         },
         {
@@ -1313,7 +1313,7 @@ Priority: High
 Tasks for the launch.
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with only a color (e.g. `Color: Red`) " +
+                "Error: Unexpected markdown on line 3. Try again with only a color (e.g. `Color: Red`) " +
                 "followed by a task list (an unordered list where every item is a task link) " +
                 "after the task collection name.",
         },
@@ -1328,7 +1328,7 @@ Color: Red
 Color: Blue
 `,
             parseError:
-                "Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
+                "Error: Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
                 "followed by a task list (an unordered list where every item is a task link) " +
                 "after the task collection name.",
         },
@@ -1343,7 +1343,7 @@ Color: Blue
 Color: Red
 `,
             parseError:
-                "Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
+                "Error: Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
                 "followed by a task list (an unordered list where every item is a task link) " +
                 "after the task collection name.",
         },
@@ -1356,7 +1356,7 @@ Color: Red
 Default filters and sorts:
 `,
             parseError:
-                "Expected a code block with filters and sorts after \u201CDefault filters and " +
+                "Error: Expected a code block with filters and sorts after \u201CDefault filters and " +
                 "sorts\u201D on line 3. Try again with and add filters and sorts (e.g. " +
                 "`status=open&sort=-priority,due`) in a code block after \u201CDefault filters " +
                 "and sorts\u201D.",
@@ -1375,7 +1375,7 @@ sort=-created
 \`\`\`
 `,
             parseError:
-                "Expected a single line of URL search params in the default filters and sorts " +
+                "Error: Expected a single line of URL search params in the default filters and sorts " +
                 "code block on line 5. Try again with all the default filters and sorts on one " +
                 "line (e.g. `status=open&sort=-priority,due`).",
         },
@@ -1392,7 +1392,7 @@ Default filters:
 \`\`\`
 `,
             parseError:
-                "Unexpected task status filter `status=done`. Try again with `open`, " +
+                "Error: Unexpected task status filter `status=done`. Try again with `open`, " +
                 "`open-inactive`, `open-active`, or `closed` (e.g. `status=open` or " +
                 "`status[not]=closed`).",
         },
@@ -1409,11 +1409,11 @@ Default filters and sorts:
 \`\`\`
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with only a task list (an unordered " +
+                "Error: Unexpected markdown on line 3. Try again with only a task list (an unordered " +
                 "list where every item is a task link) after the line 1 of the task collection " +
                 "markdown.",
             createParseError:
-                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "Error: Task collection markdown must start with a name (e.g. `# My Collection`) " +
                 "when creating a collection. Try again with a name.",
         },
         {
@@ -1438,7 +1438,7 @@ Default filters:
 \`\`\`
 `,
             parseError:
-                "Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
+                "Error: Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
                 "followed by a task list (an unordered list where every item is a task link) " +
                 "after the task collection name.",
         },
@@ -1453,7 +1453,7 @@ Default filters:
 \`\`\`
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with only a color (e.g. `Color: Red`) " +
+                "Error: Unexpected markdown on line 3. Try again with only a color (e.g. `Color: Red`) " +
                 "followed by a task list (an unordered list where every item is a task link) " +
                 "after the task collection name.",
         },
@@ -1466,7 +1466,7 @@ Default filters:
 1. [Write spec (Open)](/task/write-spec)
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with only a color (e.g. `Color: Red`) " +
+                "Error: Unexpected markdown on line 3. Try again with only a color (e.g. `Color: Red`) " +
                 "followed by a task list (an unordered list where every item is a task link) " +
                 "after the task collection name.",
         },
@@ -1479,7 +1479,7 @@ Default filters:
 - Write spec
 `,
             parseError:
-                "Missing status at the end of task label on line 3. Task labels must end with " +
+                "Error: Missing status at the end of task label on line 3. Task labels must end with " +
                 "\u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task " +
                 "label like \u201CMy Task (Open)\u201D.",
         },
@@ -1492,7 +1492,7 @@ Default filters:
 - [Write spec (Open)](/task/write-spec) is important
 `,
             parseError:
-                "Unexpected markdown in the task list item on line 3. Try again with a single " +
+                "Error: Unexpected markdown in the task list item on line 3. Try again with a single " +
                 "task link (e.g. `- [My Task (Open)](/task/my-task)`) in each task list item, " +
                 "optionally followed by a nested list of task fields (e.g. `- Priority: Medium`).",
         },
@@ -1505,7 +1505,7 @@ Default filters:
 - [Write spec (Open)](/task/write-spec) [Ship launch (Closed)](/task/ship-launch)
 `,
             parseError:
-                "Unexpected markdown in the task list item on line 3. Try again with a single " +
+                "Error: Unexpected markdown in the task list item on line 3. Try again with a single " +
                 "task link (e.g. `- [My Task (Open)](/task/my-task)`) in each task list item, " +
                 "optionally followed by a nested list of task fields (e.g. `- Priority: Medium`).",
         },
@@ -1519,7 +1519,7 @@ Default filters:
   1. Priority: High
 `,
             parseError:
-                "Unexpected markdown in the task list item on line 3. Try again with a single " +
+                "Error: Unexpected markdown in the task list item on line 3. Try again with a single " +
                 "task link (e.g. `- [My Task (Open)](/task/my-task)`) in each task list item, " +
                 "optionally followed by a nested list of task fields (e.g. `- Priority: Medium`).",
         },
@@ -1535,7 +1535,7 @@ Default filters:
   More about this task.
 `,
             parseError:
-                "Unexpected markdown in the task list item on line 3. Try again with a single " +
+                "Error: Unexpected markdown in the task list item on line 3. Try again with a single " +
                 "task link (e.g. `- [My Task (Open)](/task/my-task)`) in each task list item, " +
                 "optionally followed by a nested list of task fields (e.g. `- Priority: Medium`).",
         },
@@ -1551,7 +1551,7 @@ Default filters:
 - [Write spec](/task/write-spec)
 `,
             parseError:
-                "Missing status at the end of task label on line 3. Task labels must end with " +
+                "Error: Missing status at the end of task label on line 3. Task labels must end with " +
                 "\u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task " +
                 "label like \u201CMy Task (Open)\u201D.",
         },
@@ -1567,7 +1567,7 @@ Default filters:
 - [Write spec (Pending)](/task/write-spec)
 `,
             parseError:
-                "Missing status at the end of task label on line 3. Task labels must end with " +
+                "Error: Missing status at the end of task label on line 3. Task labels must end with " +
                 "\u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task " +
                 "label like \u201CMy Task (Open)\u201D.",
         },
@@ -1580,7 +1580,7 @@ Default filters:
 - [Missing task](/task/missing-task)
 `,
             parseError:
-                "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 3. You may " +
+                "Error: Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 3. You may " +
                 "only add a task you\u2019ve previously seen to a collection. Try calling the " +
                 "`create` tool to create a new task and then add that new task to the " +
                 "collection, or try calling the `search` tool to find an existing task you " +
@@ -1598,7 +1598,7 @@ Default filters:
 - [Alice](/human/alice)
 `,
             parseError:
-                "Couldn\u2019t find a task for the link \u201CAlice\u201D on line 3. You may only add a " +
+                "Error: Couldn\u2019t find a task for the link \u201CAlice\u201D on line 3. You may only add a " +
                 "task you\u2019ve previously seen to a collection. Try calling the `create` " +
                 "tool to create a new task and then add that new task to the collection, " +
                 "or try calling the `search` tool to find an existing task you want to add " +
@@ -1617,7 +1617,7 @@ Default filters:
   - Status: Open
 `,
             parseError:
-                "Unknown task field \u201CStatus\u201D on line 4. Try again with one of " +
+                "Error: Unknown task field \u201CStatus\u201D on line 4. Try again with one of " +
                 "\u201CParent\u201D, \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, " +
                 "\u201CPriority\u201D, or \u201CDue date\u201D.",
         },
@@ -1635,7 +1635,7 @@ Default filters:
   - Collections: [Alice](/human/alice)
 `,
             parseError:
-                "Unexpected task collection link \u201CAlice\u201D on line 4. Try again with a " +
+                "Error: Unexpected task collection link \u201CAlice\u201D on line 4. Try again with a " +
                 "link to a task collection you\u2019ve seen before " +
                 "(e.g. `[My Collection](/task-collection/my-collection)`).",
         },
@@ -1652,7 +1652,7 @@ Default filters:
   - Collections: and 3 more
 `,
             parseError:
-                "Unexpected \u201Cand 3 more\u201D without any collection links on line 4. Try " +
+                "Error: Unexpected \u201Cand 3 more\u201D without any collection links on line 4. Try " +
                 "again with a comma separated list of collection links before the \u201Cand 3 " +
                 "more\u201D count (e.g. `- Collections: " +
                 "[My Collection](/task-collection/my-collection), and 2 more`).",
@@ -1671,7 +1671,7 @@ Default filters:
   - Collections: [Engineering](/task-collection/engineering), and two more
 `,
             parseError:
-                "Unexpected markdown for task collections field on line 4. Try again with a " +
+                "Error: Unexpected markdown for task collections field on line 4. Try again with a " +
                 "comma separated list of collection links (e.g. `- Collections: " +
                 "[My Collection 1](/task-collection/my-collection-1), " +
                 "[My Collection 2](/task-collection/my-collection-2)`).",
@@ -1690,7 +1690,7 @@ Default filters:
   - Collections: and 2 more, [Engineering](/task-collection/engineering)
 `,
             parseError:
-                "Unexpected markdown for task collections field on line 4. Try again with a " +
+                "Error: Unexpected markdown for task collections field on line 4. Try again with a " +
                 "comma separated list of collection links (e.g. `- Collections: " +
                 "[My Collection 1](/task-collection/my-collection-1), " +
                 "[My Collection 2](/task-collection/my-collection-2)`).",
@@ -1708,7 +1708,7 @@ Default filters:
   - Checklist: 5 open
 `,
             parseError:
-                "Unknown task field \u201CChecklist\u201D on line 4. Try again with one of " +
+                "Error: Unknown task field \u201CChecklist\u201D on line 4. Try again with one of " +
                 "\u201CParent\u201D, \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, " +
                 "\u201CPriority\u201D, or \u201CDue date\u201D.",
         },
@@ -1726,7 +1726,7 @@ Default filters:
   - Priority: Low
 `,
             parseError:
-                "Duplicate task field \u201CPriority\u201D on line 5. Try again with each task " +
+                "Error: Duplicate task field \u201CPriority\u201D on line 5. Try again with each task " +
                 "field only present once in the field list.",
         },
         {
@@ -1743,7 +1743,7 @@ Default filters:
   - Due date: July 13th, 2027
 `,
             parseError:
-                "Duplicate task field \u201CDue date\u201D on line 5. Try again with each task " +
+                "Error: Duplicate task field \u201CDue date\u201D on line 5. Try again with each task " +
                 "field only present once in the field list.",
         },
         {
@@ -1759,7 +1759,7 @@ Default filters:
   - Priority High
 `,
             parseError:
-                "Unexpected markdown on line 4. Try again with an unordered list item for each " +
+                "Error: Unexpected markdown on line 4. Try again with an unordered list item for each " +
                 "task field where the field name is followed by the field value with a colon in " +
                 "between (e.g. `- Priority: Medium`).",
         },
@@ -1777,7 +1777,7 @@ Default filters:
     - Nested markdown
 `,
             parseError:
-                "Unexpected markdown after task field \u201CPriority\u201D on line 5. Try again " +
+                "Error: Unexpected markdown after task field \u201CPriority\u201D on line 5. Try again " +
                 "with an unordered list item for each task field where the field name is " +
                 "followed by the field value with a colon in between (e.g. `- Priority: Medium`).",
         },
@@ -1794,7 +1794,7 @@ Default filters:
   - Priority: Immediate
 `,
             parseError:
-                "Unexpected task priority \u201CImmediate\u201D on line 4. Try again with " +
+                "Error: Unexpected task priority \u201CImmediate\u201D on line 4. Try again with " +
                 "\u201CLow\u201D, \u201CMedium\u201D, or \u201CHigh\u201D.",
         },
         {
@@ -1811,7 +1811,7 @@ Default filters:
   - Parent: [Alice](/human/alice)
 `,
             parseError:
-                "Unexpected task parent link \u201CAlice\u201D on line 4. Try again with a link " +
+                "Error: Unexpected task parent link \u201CAlice\u201D on line 4. Try again with a link " +
                 "to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
         },
         {
@@ -1828,7 +1828,7 @@ Default filters:
   - Assignee: [Engineering](/task-collection/engineering)
 `,
             parseError:
-                "Unexpected task assignee link \u201CEngineering\u201D on line 4. Try again with " +
+                "Error: Unexpected task assignee link \u201CEngineering\u201D on line 4. Try again with " +
                 "a link to a human or bot you\u2019ve seen before (e.g. `[John](/human/john-doe)`).",
         },
         {

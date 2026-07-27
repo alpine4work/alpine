@@ -13,12 +13,12 @@ import {
     printApiPreviewReferenceToPreviewUrl,
     printMarkdownTree,
 } from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentFileBlockElementResponse,
     ApiContentFileGalleryBlockElementRowResponse,
     ApiContentMentionInlineElementResponse,
     ApiContentPreviewBlockElementResponse,
+    ApiContentResponseWithoutKeys,
     ApiMentionReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";

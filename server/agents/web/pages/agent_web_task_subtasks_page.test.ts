@@ -289,7 +289,7 @@ Subtasks for [Plan launch (Open, active)](/task/plan-launch).
 # Plan launch
 `,
             parseError:
-                "Subtasks markdown must start with \u201cSubtasks for [My Task (Open)]" +
+                "Error: Subtasks markdown must start with \u201cSubtasks for [My Task (Open)]" +
                 "(/task/my-task).\u201d on line 1 (substitute \u201cMy Task\u201d for the task " +
                 "you\u2019re looking at the subtasks for). Try again with a valid task " +
                 "subtasks preamble on line 1.",
@@ -304,7 +304,7 @@ Subtasks for [Plan launch (Open, active)](/task/plan-launch).
 Subtasks for [Plan launch (Open)](/task/plan-launch). [Next page »](/task/plan-launch/subtasks)
 `,
             parseError:
-                "Subtasks markdown must start with \u201cSubtasks for [My Task (Open)]" +
+                "Error: Subtasks markdown must start with \u201cSubtasks for [My Task (Open)]" +
                 "(/task/my-task).\u201d on line 1 (substitute \u201cMy Task\u201d for the task " +
                 "you\u2019re looking at the subtasks for). Try again with a valid task " +
                 "subtasks preamble on line 1.",
@@ -321,7 +321,7 @@ Subtasks for [Plan launch (Open)](/task/plan-launch).
 Unexpected paragraph.
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with \u201cSubtasks for " +
+                "Error: Unexpected markdown on line 3. Try again with \u201cSubtasks for " +
                 "[My Task (Open)](/task/my-task).\u201d on line 1 followed by a task list " +
                 "(an unordered list where every item is a task link).",
         },
@@ -337,7 +337,7 @@ Subtasks for [Plan launch (Open)](/task/plan-launch).
 1. [Write spec (Open)](/task/write-spec)
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with \u201cSubtasks for " +
+                "Error: Unexpected markdown on line 3. Try again with \u201cSubtasks for " +
                 "[My Task (Open)](/task/my-task).\u201d on line 1 followed by a task list " +
                 "(an unordered list where every item is a task link).",
         },
@@ -355,7 +355,7 @@ End of tasks.
 Unexpected paragraph.
 `,
             parseError:
-                "Nothing may appear after \u201CEnd of tasks\u201D in subtasks markdown. Try again " +
+                "Error: Nothing may appear after \u201CEnd of tasks\u201D in subtasks markdown. Try again " +
                 "after removing the extra content after \u201CEnd of tasks\u201D on line 5.",
         },
     ],

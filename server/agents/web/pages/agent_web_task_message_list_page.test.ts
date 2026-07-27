@@ -6,12 +6,10 @@ import {
 } from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
+    ApiContentParagraphBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
     ApiContentTextInlineElement,
     ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -170,7 +168,7 @@ Comments on [Write Spec (Open, active)](/task/write-spec). [Previous page »](/t
                 blocks: [],
             },
             createParseError:
-                "Can\u2019t add \u201cPrevious page »\u201d link when creating comments markdown. " +
+                "Error: Can\u2019t add \u201cPrevious page »\u201d link when creating comments markdown. " +
                 "Try again without the \u201cPrevious page »\u201d link.",
         },
         {
@@ -191,7 +189,7 @@ Comments on [Write Spec (Open, active)](/task/write-spec). [Next page »](/task/
                 blocks: [],
             },
             createParseError:
-                "Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. " +
+                "Error: Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. " +
                 "Try again without the \u201cNext page »\u201d link.",
         },
         {
@@ -212,7 +210,7 @@ Comments on [Write Spec (Open, active)](/task/write-spec). [« Previous page](/t
                 blocks: [],
             },
             createParseError:
-                "Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. " +
+                "Error: Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. " +
                 "Try again without the \u201cNext page »\u201d link.",
         },
         {
@@ -222,7 +220,7 @@ Comments on [Write Spec (Open, active)](/task/write-spec). [« Previous page](/t
 # Write Spec
 `,
             parseError:
-                "Task comments markdown must start with \u201CComments on\u201D followed by a " +
+                "Error: Task comments markdown must start with \u201CComments on\u201D followed by a " +
                 "link to the task (e.g. `Comments on [Do thing (Open)](/task/do-thing).`). " +
                 "Try again with a proper start to task comments markdown on line 1.",
         },

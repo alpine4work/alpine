@@ -25,8 +25,10 @@ import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/deprecate
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiContentResponseWithoutKeys,
+    ApiMessageRoomReference,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";

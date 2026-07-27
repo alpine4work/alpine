@@ -6,12 +6,10 @@ import {
 } from "~/server/agents/web/pages/agent_web_channel_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
+    ApiContentParagraphBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
     ApiContentTextInlineElement,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -200,7 +198,7 @@ Before divider
 After divider
 `,
             parseError:
-                "Expected `<post>` blocks in the channel posts section after the divider (`---`). Try again with valid channel posts markdown on line 7 (or if you want to add a divider to your channel description you can do so with the HTML divider syntax `<hr />`).",
+                "Error: Expected `<post>` blocks in the channel posts section after the divider (`---`). Try again with valid channel posts markdown on line 7 (or if you want to add a divider to your channel description you can do so with the HTML divider syntax `<hr />`).",
         },
         {
             name: "head channel page without posts section",
@@ -568,7 +566,7 @@ Launch notes
 </post>
 `,
             parseError:
-                "Channel posts must be separated from the channel description with a divider " +
+                "Error: Channel posts must be separated from the channel description with a divider " +
                 "(e.g. `---`). Try again but add a divider before the posts section.",
         },
         {
@@ -580,7 +578,7 @@ Launch notes
 Updates from the team.
 `,
             parseError:
-                "Channel posts markdown must start with the channel name in a heading " +
+                "Error: Channel posts markdown must start with the channel name in a heading " +
                 "(e.g. `# General`) or \u201CPosts in General\u201D. Try again with a proper start " +
                 "to channel markdown on line 1.",
         },
@@ -593,7 +591,7 @@ Posts for Announcements
 End of posts.
 `,
             parseError:
-                "Channel posts markdown must start with \u201CPosts in My Channel\u201D " +
+                "Error: Channel posts markdown must start with \u201CPosts in My Channel\u201D " +
                 "(where \u201CMy Channel\u201D is the actual name of the channel) when reading an " +
                 "earlier channel posts page. Try again with a proper channel posts preamble on line 1.",
         },
@@ -608,7 +606,7 @@ End of posts.
 More posts.
 `,
             parseError:
-                "Nothing may appear after \u201CEnd of posts\u201D in channel markdown. Try again " +
+                "Error: Nothing may appear after \u201CEnd of posts\u201D in channel markdown. Try again " +
                 "after removing the extra content after \u201CEnd of posts\u201D on line 5.",
         },
         {
@@ -624,7 +622,7 @@ Updates from the team.
 Not a post.
 `,
             parseError:
-                "Expected `<post>` blocks in the channel posts section after the divider (`---`). Try again with valid channel posts markdown on line 7 (or if you want to add a divider to your channel description you can do so with the HTML divider syntax `<hr />`).",
+                "Error: Expected `<post>` blocks in the channel posts section after the divider (`---`). Try again with valid channel posts markdown on line 7 (or if you want to add a divider to your channel description you can do so with the HTML divider syntax `<hr />`).",
         },
         {
             name: "unclosed channel post block",
@@ -637,7 +635,7 @@ Posts in Announcements.
 Launch notes
 `,
             parseError:
-                "`<post>` on line 3 is missing a closing tag. Add a `</post>` closing tag " +
+                "Error: `<post>` on line 3 is missing a closing tag. Add a `</post>` closing tag " +
                 "and try again.",
         },
         {
@@ -653,7 +651,7 @@ Updates from the team.
 [Next page »](/post/launch-notes?after=2026-05-14T15:05:00.000Z)
 `,
             parseError:
-                "Expected \u201CNext page »\u201D to link to a channel page with an `?after` cursor. " +
+                "Error: Expected \u201CNext page »\u201D to link to a channel page with an `?after` cursor. " +
                 "Try again with a valid channel pagination link.",
         },
         {
@@ -747,7 +745,7 @@ Launch notes
 </post>
 `,
             parseError:
-                "Expected a link to a human or bot on line 3. For example: \u201C" +
+                "Error: Expected a link to a human or bot on line 3. For example: \u201C" +
                 "[John](/human/john-doe)\u201D. Instead we found \u201CAlice\u201D. Try again with a " +
                 "valid link to a human or bot.",
         },

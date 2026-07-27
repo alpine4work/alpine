@@ -9,7 +9,7 @@ import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_a
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";

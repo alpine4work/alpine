@@ -8,12 +8,12 @@ import {
     ApiContentPosition,
     ApiContentRange,
 } from "~/shared/api/specification/types/api_content_position.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
     ApiContentResponse,
+    ApiContentResponseWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
