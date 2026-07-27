@@ -5,6 +5,7 @@ import {
     printAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 
@@ -53,8 +54,10 @@ How are you doing today?
             markdown: `\
 How are you doing today?
 `,
-            parseError:
-                "Error: A title is required for documents. Try again but make sure the document starts with a markdown h1 (e.g. `# My Document`).",
+            parseError: markdown`
+Error: A title is required for documents. Try again but make sure the document starts with a
+markdown h1 (e.g. \`# My Document\`).
+            `,
         },
         {
             name: "document page with additional h1",
@@ -68,8 +71,11 @@ This is a cool doc.
 
 Isn\u2019t that neat?
 `,
-            parseError:
-                "Error: A document can only have one markdown h1 (e.g. `# My Document`) and the h1 must be placed at the start of the document. You added an additional markdown h1 \u201CLa la land\u201D. Try again but remove the additional markdown h1 or make it an h2 (e.g. `## My Sub-heading`).",
+            parseError: markdown`
+Error: A document can only have one markdown h1 (e.g. \`# My Document\`) and the h1 must be placed
+at the start of the document. You added an additional markdown h1 \u201CLa la land\u201D. Try again
+but remove the additional markdown h1 or make it an h2 (e.g. \`## My Sub-heading\`).
+            `,
         },
         {
             name: "document page with one comment",
@@ -99,8 +105,10 @@ Please <comment id="1">review this section</comment> today.
                     ],
                 },
             },
-            createParseError:
-                "Error: Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
+            createParseError: markdown`
+Error: Can\u2019t create \`<comment>\`s while creating a document. First create the document without
+comments and then add the \`<comment>\`s in after.
+            `,
         },
         {
             name: "document page with two comments",
@@ -134,8 +142,10 @@ Please <comment id="1">review this section</comment> today.
                     ],
                 },
             },
-            createParseError:
-                "Error: Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
+            createParseError: markdown`
+Error: Can\u2019t create \`<comment>\`s while creating a document. First create the document without
+comments and then add the \`<comment>\`s in after.
+            `,
         },
         {
             name: "document page with three comments",
@@ -175,8 +185,10 @@ Please <comment id="1">review this section</comment> today.
                     ],
                 },
             },
-            createParseError:
-                "Error: Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
+            createParseError: markdown`
+Error: Can\u2019t create \`<comment>\`s while creating a document. First create the document without
+comments and then add the \`<comment>\`s in after.
+            `,
         },
         {
             name: "document page with seven comments",
@@ -240,8 +252,10 @@ Please <comment id="1">review this section</comment> today.
                     ],
                 },
             },
-            createParseError:
-                "Error: Can\u2019t create `<comment>`s while creating a document. First create the document without comments and then add the `<comment>`s in after.",
+            createParseError: markdown`
+Error: Can\u2019t create \`<comment>\`s while creating a document. First create the document without
+comments and then add the \`<comment>\`s in after.
+            `,
         },
     ],
 });

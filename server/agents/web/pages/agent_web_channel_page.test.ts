@@ -13,6 +13,7 @@ import {
     ApiContentTextInlineElement,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChannelId, PostId} from "~/shared/id/types/id_types.js";
 
@@ -197,8 +198,11 @@ Before divider
 
 After divider
 `,
-            parseError:
-                "Error: Expected `<post>` blocks in the channel posts section after the divider (`---`). Try again with valid channel posts markdown on line 7 (or if you want to add a divider to your channel description you can do so with the HTML divider syntax `<hr />`).",
+            parseError: markdown`
+Error: Expected \`<post>\` blocks in the channel posts section after the divider (\`---\`). Try
+again with valid channel posts markdown on line 7 (or if you want to add a divider to your channel
+description you can do so with the HTML divider syntax \`<hr />\`).
+            `,
         },
         {
             name: "head channel page without posts section",
@@ -565,9 +569,10 @@ Launch notes
 
 </post>
 `,
-            parseError:
-                "Error: Channel posts must be separated from the channel description with a divider " +
-                "(e.g. `---`). Try again but add a divider before the posts section.",
+            parseError: markdown`
+Error: Channel posts must be separated from the channel description with a divider (e.g. \`---\`).
+Try again but add a divider before the posts section.
+            `,
         },
         {
             name: "missing channel heading",
@@ -577,10 +582,10 @@ Launch notes
 
 Updates from the team.
 `,
-            parseError:
-                "Error: Channel posts markdown must start with the channel name in a heading " +
-                "(e.g. `# General`) or \u201CPosts in General\u201D. Try again with a proper start " +
-                "to channel markdown on line 1.",
+            parseError: markdown`
+Error: Channel posts markdown must start with the channel name in a heading (e.g. \`# General\`) or
+\u201CPosts in General\u201D. Try again with a proper start to channel markdown on line 1.
+            `,
         },
         {
             name: "invalid tail channel posts preamble",
@@ -590,10 +595,11 @@ Posts for Announcements
 
 End of posts.
 `,
-            parseError:
-                "Error: Channel posts markdown must start with \u201CPosts in My Channel\u201D " +
-                "(where \u201CMy Channel\u201D is the actual name of the channel) when reading an " +
-                "earlier channel posts page. Try again with a proper channel posts preamble on line 1.",
+            parseError: markdown`
+Error: Channel posts markdown must start with \u201CPosts in My Channel\u201D (where \u201CMy
+Channel\u201D is the actual name of the channel) when reading an earlier channel posts page. Try
+again with a proper channel posts preamble on line 1.
+            `,
         },
         {
             name: "channel content after end of posts",
@@ -605,9 +611,10 @@ End of posts.
 
 More posts.
 `,
-            parseError:
-                "Error: Nothing may appear after \u201CEnd of posts\u201D in channel markdown. Try again " +
-                "after removing the extra content after \u201CEnd of posts\u201D on line 5.",
+            parseError: markdown`
+Error: Nothing may appear after \u201CEnd of posts\u201D in channel markdown. Try again after
+removing the extra content after \u201CEnd of posts\u201D on line 5.
+            `,
         },
         {
             name: "expected channel post block",
@@ -621,8 +628,11 @@ Updates from the team.
 
 Not a post.
 `,
-            parseError:
-                "Error: Expected `<post>` blocks in the channel posts section after the divider (`---`). Try again with valid channel posts markdown on line 7 (or if you want to add a divider to your channel description you can do so with the HTML divider syntax `<hr />`).",
+            parseError: markdown`
+Error: Expected \`<post>\` blocks in the channel posts section after the divider (\`---\`). Try
+again with valid channel posts markdown on line 7 (or if you want to add a divider to your channel
+description you can do so with the HTML divider syntax \`<hr />\`).
+            `,
         },
         {
             name: "unclosed channel post block",
@@ -634,9 +644,9 @@ Posts in Announcements.
 
 Launch notes
 `,
-            parseError:
-                "Error: `<post>` on line 3 is missing a closing tag. Add a `</post>` closing tag " +
-                "and try again.",
+            parseError: markdown`
+Error: \`<post>\` on line 3 is missing a closing tag. Add a \`</post>\` closing tag and try again.
+            `,
         },
         {
             name: "invalid channel pagination link",
@@ -650,9 +660,10 @@ Updates from the team.
 
 [Next page »](/post/launch-notes?after=2026-05-14T15:05:00.000Z)
 `,
-            parseError:
-                "Error: Expected \u201CNext page »\u201D to link to a channel page with an `?after` cursor. " +
-                "Try again with a valid channel pagination link.",
+            parseError: markdown`
+Error: Expected \u201CNext page »\u201D to link to a channel page with an \`?after\` cursor. Try
+again with a valid channel pagination link.
+            `,
         },
         {
             name: "tail channel page with post without see more link",
@@ -744,10 +755,11 @@ Launch notes
 
 </post>
 `,
-            parseError:
-                "Error: Expected a link to a human or bot on line 3. For example: \u201C" +
-                "[John](/human/john-doe)\u201D. Instead we found \u201CAlice\u201D. Try again with a " +
-                "valid link to a human or bot.",
+            parseError: markdown`
+Error: Expected a link to a human or bot on line 3. For example:
+\u201C[John](/human/john-doe)\u201D. Instead we found \u201CAlice\u201D. Try again with a valid link
+to a human or bot.
+            `,
         },
         {
             name: "empty",

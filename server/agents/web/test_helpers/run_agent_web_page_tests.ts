@@ -1,10 +1,12 @@
 import {Root} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {PrettyMarkdown} from "~/shared/helpers/string/markdown.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -34,7 +36,7 @@ export function runAgentWebPageTests<PageLink, Page>({
             pageLink: PageLink;
             markdown: string;
             printMarkdown?: string;
-            createParseError?: string;
+            createParseError?: PrettyMarkdown;
             setupStorage?: (storage: AgentWebSessionStorage) => Promise<void>;
         } & (
             | {
@@ -43,7 +45,7 @@ export function runAgentWebPageTests<PageLink, Page>({
               }
             | {
                   page?: undefined;
-                  parseError: string;
+                  parseError: PrettyMarkdown;
               }
         )
     >;
@@ -101,7 +103,9 @@ export function runAgentWebPageTests<PageLink, Page>({
                         error = actualError;
                     }
 
-                    expect(await printAgentWebError("", error)).toEqual(testCase.parseError ?? "");
+                    expect(await printAgentWebError("", error)).toEqual(
+                        await formatAgentWebMarkdown(testCase.parseError ?? ""),
+                    );
                 }
             });
 
@@ -127,7 +131,9 @@ export function runAgentWebPageTests<PageLink, Page>({
                     }
 
                     expect(await printAgentWebError("", error)).toEqual(
-                        testCase.createParseError ?? testCase.parseError ?? "",
+                        await formatAgentWebMarkdown(
+                            testCase.createParseError ?? testCase.parseError ?? "",
+                        ),
                     );
                 }
             });

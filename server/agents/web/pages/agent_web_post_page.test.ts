@@ -14,6 +14,7 @@ import {
     ApiContentTextInlineElement,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChannelId, PostId} from "~/shared/id/types/id_types.js";
 
@@ -240,12 +241,16 @@ Second comment.
                     },
                 ],
             },
-            createParseError: `\
+            createParseError: markdown`
 Error: (2 errors)
 
-- Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again without the \u201CNext page »\u201D link.
+- Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again without the
+  \u201CNext page »\u201D link.
 
-- Expected a link to a human or bot on line 3. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
+- Expected a link to a human or bot on line 3. For example: \u201C[John](/human/john-doe)\u201D.
+  Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or
+  bot.
+            `,
         },
         {
             name: "post page with custom pagination links",
@@ -297,12 +302,16 @@ Post body.
                     },
                 ],
             },
-            createParseError: `\
+            createParseError: markdown`
 Error: (2 errors)
 
-- Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again without the \u201CNext page »\u201D link.
+- Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again without the
+  \u201CNext page »\u201D link.
 
-- Expected a link to a human or bot on line 5. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
+- Expected a link to a human or bot on line 5. For example: \u201C[John](/human/john-doe)\u201D.
+  Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or
+  bot.
+            `,
         },
         {
             name: "post page with custom next page pagination link",
@@ -354,12 +363,16 @@ Post body.
                     },
                 ],
             },
-            createParseError: `\
+            createParseError: markdown`
 Error: (2 errors)
 
-- Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again without the \u201CNext page »\u201D link.
+- Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again without the
+  \u201CNext page »\u201D link.
 
-- Expected a link to a human or bot on line 5. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
+- Expected a link to a human or bot on line 5. For example: \u201C[John](/human/john-doe)\u201D.
+  Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or
+  bot.
+            `,
         },
         {
             name: "post page with custom previous page pagination link",
@@ -411,12 +424,16 @@ Post body.
                     },
                 ],
             },
-            createParseError: `\
+            createParseError: markdown`
 Error: (2 errors)
 
-- Can\u2019t add \u201CPrevious page »\u201D link when creating comments markdown. Try again without the \u201CPrevious page »\u201D link.
+- Can\u2019t add \u201CPrevious page »\u201D link when creating comments markdown. Try again without
+  the \u201CPrevious page »\u201D link.
 
-- Expected a link to a human or bot on line 5. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
+- Expected a link to a human or bot on line 5. For example: \u201C[John](/human/john-doe)\u201D.
+  Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or
+  bot.
+            `,
         },
         {
             name: "post without channel",
@@ -508,11 +525,11 @@ Post body.
                 await createAgentWebPageStoredLinkPathname(storage, aliceReference);
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
-            parseError:
-                "Error: A `<post>` must be the first thing in post markdown and it must be placed after the first line which " +
-                "states what channel the post is in (e.g. `Post in [My Channel](/channel/my-channel).`) " +
-                "and there must only be one `<post>`. Try again with one `<post>` at the start " +
-                "of the markdown.",
+            parseError: markdown`
+Error: A \`<post>\` must be the first thing in post markdown and it must be placed after the first
+line which states what channel the post is in (e.g. \`Post in [My Channel](/channel/my-channel).\`)
+and there must only be one \`<post>\`. Try again with one \`<post>\` at the start of the markdown.
+            `,
         },
         {
             name: "post block on tail page",
@@ -532,9 +549,10 @@ Post body.
                 await createAgentWebPageStoredLinkPathname(storage, launchPostReference);
                 await createAgentWebPageStoredLinkPathname(storage, aliceReference);
             },
-            parseError:
-                "Error: Can\u2019t add a `<post>` to a post\u2019s comments section. Remove the `<post>` " +
-                "and try again.",
+            parseError: markdown`
+Error: Can\u2019t add a \`<post>\` to a post\u2019s comments section. Remove the \`<post>\` and try
+again.
+            `,
         },
         {
             name: "post missing from attribute",
@@ -576,9 +594,9 @@ Post that\u2019s not in any channel.
 
 Post body.
 `,
-            parseError:
-                "Error: `<post>` on line 3 is missing a closing tag. Add a `</post>` closing tag " +
-                "and try again.",
+            parseError: markdown`
+Error: \`<post>\` on line 3 is missing a closing tag. Add a \`</post>\` closing tag and try again.
+            `,
         },
         {
             name: "post page with no comments",

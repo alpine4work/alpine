@@ -12,6 +12,7 @@ import {
     ApiContentResponseWithoutKeys,
     ApiContentTextInlineElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChatId} from "~/shared/id/types/id_types.js";
 
@@ -58,19 +59,6 @@ function paragraph(
 function text(text: string): ApiContentTextInlineElement {
     return {type: "Text", text};
 }
-
-const invalidPreambleError =
-    "Error: Chat markdown must start with \u201CChat with\u201D followed by a list of chat members " +
-    "(e.g. `Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).` or for " +
-    "chats with 2+ members `Chat with A, B, and C.`). Chat markdown for named chat " +
-    "rooms must start with a markdown h1 (e.g. `# My Chat Room`). Try again with a " +
-    "proper start to chat markdown on line 1.";
-const previousPageCreateParseError =
-    "Error: Can\u2019t add \u201cPrevious page »\u201d link when creating messages markdown. " +
-    "Try again without the \u201cPrevious page »\u201d link.";
-const nextPageCreateParseError =
-    "Error: Can\u2019t add \u201cNext page »\u201d link when creating messages markdown. " +
-    "Try again without the \u201cNext page »\u201d link.";
 
 runAgentWebPageTests<ChatId, AgentWebChatPage>({
     print: printAgentWebChatPage,
@@ -283,7 +271,10 @@ Chat with [Alice](/human/alice). [Previous page »](/chat/alice?before=3)
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError: previousPageCreateParseError,
+            createParseError: markdown`
+Error: Can\u2019t add \u201CPrevious page »\u201D link when creating messages markdown. Try again
+without the \u201CPrevious page »\u201D link.
+            `,
         },
         {
             name: "direct chat with next page pagination link",
@@ -306,7 +297,10 @@ Chat with [Alice](/human/alice). [Next page »](/chat/alice?after=9)
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError: nextPageCreateParseError,
+            createParseError: markdown`
+Error: Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again
+without the \u201CNext page »\u201D link.
+            `,
         },
         {
             name: "room chat",
@@ -398,7 +392,10 @@ Room update.
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError: previousPageCreateParseError,
+            createParseError: markdown`
+Error: Can\u2019t add \u201CPrevious page »\u201D link when creating messages markdown. Try again
+without the \u201CPrevious page »\u201D link.
+            `,
         },
         {
             name: "room chat with next page pagination link",
@@ -423,7 +420,10 @@ Room update.
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError: nextPageCreateParseError,
+            createParseError: markdown`
+Error: Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again
+without the \u201CNext page »\u201D link.
+            `,
         },
         {
             name: "direct chat with no members",
@@ -431,7 +431,12 @@ Room update.
             markdown: `\
 Chat with .
 `,
-            parseError: invalidPreambleError,
+            parseError: markdown`
+Error: Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g.
+\`Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).\` or for chats with 2+ members
+\`Chat with A, B, and C.\`). Chat markdown for named chat rooms must start with a markdown h1 (e.g.
+\`# My Chat Room\`). Try again with a proper start to chat markdown on line 1.
+            `,
         },
         {
             name: "direct chat with wrong separator",
@@ -439,7 +444,12 @@ Chat with .
             markdown: `\
 Chat with Alice and Bob.
 `,
-            parseError: invalidPreambleError,
+            parseError: markdown`
+Error: Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g.
+\`Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).\` or for chats with 2+ members
+\`Chat with A, B, and C.\`). Chat markdown for named chat rooms must start with a markdown h1 (e.g.
+\`# My Chat Room\`). Try again with a proper start to chat markdown on line 1.
+            `,
         },
         {
             name: "direct chat with multiple paragraphs",
@@ -449,7 +459,12 @@ Chat with Alice.
 
 Extra paragraph.
 `,
-            parseError: invalidPreambleError,
+            parseError: markdown`
+Error: Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g.
+\`Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).\` or for chats with 2+ members
+\`Chat with A, B, and C.\`). Chat markdown for named chat rooms must start with a markdown h1 (e.g.
+\`# My Chat Room\`). Try again with a proper start to chat markdown on line 1.
+            `,
         },
         {
             name: "room chat with h2 preamble",
@@ -457,7 +472,12 @@ Extra paragraph.
             markdown: `\
 ## Engineering Room
 `,
-            parseError: invalidPreambleError,
+            parseError: markdown`
+Error: Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g.
+\`Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).\` or for chats with 2+ members
+\`Chat with A, B, and C.\`). Chat markdown for named chat rooms must start with a markdown h1 (e.g.
+\`# My Chat Room\`). Try again with a proper start to chat markdown on line 1.
+            `,
         },
     ],
 });

@@ -22,6 +22,7 @@ import {
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {assertId, generateId} from "~/shared/id/id.js";
@@ -442,8 +443,10 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError:
-                "Error: Can\u2019t add \u201CPrevious page »\u201D link when creating messages markdown. Try again without the \u201CPrevious page »\u201D link.",
+            createParseError: markdown`
+Error: Can\u2019t add \u201CPrevious page »\u201D link when creating messages markdown. Try again
+without the \u201CPrevious page »\u201D link.
+            `,
         },
         {
             name: "preamble with next page pagination link",
@@ -467,8 +470,10 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=9
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError:
-                "Error: Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again without the \u201CNext page »\u201D link.",
+            createParseError: markdown`
+Error: Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again
+without the \u201CNext page »\u201D link.
+            `,
         },
         {
             name: "preamble with previous and next page pagination links",
@@ -492,8 +497,10 @@ Some messages in Engineering Room. [« Previous page](/chat/engineering-room?bef
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError:
-                "Error: Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again without the \u201CNext page »\u201D link.",
+            createParseError: markdown`
+Error: Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again
+without the \u201CNext page »\u201D link.
+            `,
         },
         {
             name: "previous page pagination link with invalid url",
@@ -501,10 +508,14 @@ Some messages in Engineering Room. [« Previous page](/chat/engineering-room?bef
             markdown: `\
 Some messages in Engineering Room. [Previous page »](/chat/engineering-room?after=3)
 `,
-            parseError:
-                "Error: Invalid link for \u201CPrevious page »\u201D. Expected a link to more messages with a `before` URL search param. Example: `/chat/my-chat?before=8`. Try again with a different link.",
-            createParseError:
-                "Error: Can\u2019t add \u201CPrevious page »\u201D link when creating messages markdown. Try again without the \u201CPrevious page »\u201D link.",
+            parseError: markdown`
+Error: Invalid link for \u201CPrevious page »\u201D. Expected a link to more messages with a
+\`before\` URL search param. Example: \`/chat/my-chat?before=8\`. Try again with a different link.
+            `,
+            createParseError: markdown`
+Error: Can\u2019t add \u201CPrevious page »\u201D link when creating messages markdown. Try again
+without the \u201CPrevious page »\u201D link.
+            `,
         },
         {
             name: "next page pagination link with invalid url",
@@ -512,10 +523,14 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?aft
             markdown: `\
 Some messages in Engineering Room. [Next page »](/chat/engineering-room?before=9)
 `,
-            parseError:
-                "Error: Invalid link for \u201CNext page »\u201D. Expected a link to more messages with a `after` URL search param. Example: `/chat/my-chat?after=8`. Try again with a different link.",
-            createParseError:
-                "Error: Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again without the \u201CNext page »\u201D link.",
+            parseError: markdown`
+Error: Invalid link for \u201CNext page »\u201D. Expected a link to more messages with a \`after\`
+URL search param. Example: \`/chat/my-chat?after=8\`. Try again with a different link.
+            `,
+            createParseError: markdown`
+Error: Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again
+without the \u201CNext page »\u201D link.
+            `,
         },
         {
             name: "bot message with reply preview and rich content",
@@ -770,8 +785,9 @@ After the empty paragraph.
 
 Hello outside.
 `,
-            parseError:
-                "Error: Unexpected markdown on line 3. Messages markdown must be a list of `<message>`s.",
+            parseError: markdown`
+Error: Unexpected markdown on line 3. Messages markdown must be a list of \`<message>\`s.
+            `,
         },
         {
             name: "preamble with multiple paragraphs",
@@ -781,8 +797,10 @@ First paragraph.
 
 Second paragraph.
 `,
-            parseError:
-                "Error: Unexpected markdown on line 1. Messages markdown must be a list of `<message>`s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
+            parseError: markdown`
+Error: Unexpected markdown on line 1. Messages markdown must be a list of \`<message>\`s. Though it
+may start with a single paragraph with a short description of what we\u2019re looking at.
+            `,
         },
         {
             name: "preamble with non paragraph block",
@@ -790,8 +808,10 @@ Second paragraph.
             markdown: `\
 ## Thread context
 `,
-            parseError:
-                "Error: Unexpected markdown on line 1. Messages markdown must be a list of `<message>`s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
+            parseError: markdown`
+Error: Unexpected markdown on line 1. Messages markdown must be a list of \`<message>\`s. Though it
+may start with a single paragraph with a short description of what we\u2019re looking at.
+            `,
         },
         {
             name: "message with invalid id attribute syntax",
@@ -803,8 +823,10 @@ Hello.
 
 </message>
 `,
-            parseError:
-                "Error: Invalid `<message>` `id` attribute on line 1. Expected `id` to be an integer like `42` or an integer range like `4-7`. Try again with a valid `id` attribute.",
+            parseError: markdown`
+Error: Invalid \`<message>\` \`id\` attribute on line 1. Expected \`id\` to be an integer like
+\`42\` or an integer range like \`4-7\`. Try again with a valid \`id\` attribute.
+            `,
         },
         {
             name: "message with invalid id attribute range",
@@ -816,8 +838,10 @@ Hello.
 
 </message>
 `,
-            parseError:
-                "Error: Invalid `<message>` `id` attribute on line 1. Expected `id` to be an integer like `42` or an integer range like `4-7`. Try again with a valid `id` attribute.",
+            parseError: markdown`
+Error: Invalid \`<message>\` \`id\` attribute on line 1. Expected \`id\` to be an integer like
+\`42\` or an integer range like \`4-7\`. Try again with a valid \`id\` attribute.
+            `,
         },
         {
             name: "wrong end of messages text",
@@ -831,12 +855,15 @@ Hello.
 
 End of comments.
 `,
-            parseError: `\
+            parseError: markdown`
 Error: (2 errors)
 
-Unexpected markdown on line 7. Messages markdown must be a list of \`<message>\`s.
+- Unexpected markdown on line 7. Messages markdown must be a list of \`<message>\`s.
 
-Expected a link to a human or bot on line 1. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
+- Expected a link to a human or bot on line 1. For example: \u201C[John](/human/john-doe)\u201D.
+  Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or
+  bot.
+            `,
         },
         {
             name: "message without from attribute",
@@ -873,8 +900,10 @@ Hello.
 
 Hello.
 `,
-            parseError:
-                "Error: `<message>` on line 1 is missing a closing tag. Add a `</message>` closing tag and try again.",
+            parseError: markdown`
+Error: \`<message>\` on line 1 is missing a closing tag. Add a \`</message>\` closing tag and try
+again.
+            `,
         },
         {
             name: "nested message",
@@ -890,9 +919,10 @@ Nested.
 
 </message>
 `,
-            parseError:
-                "Error: Can\u2019t open a new `<message>` on line 3. " +
-                "There\u2019s already an open `<message>` and you can\u2019t nest messages.",
+            parseError: markdown`
+Error: Can\u2019t open a new \`<message>\` on line 3. There\u2019s already an open \`<message>\` and
+you can\u2019t nest messages.
+            `,
         },
         {
             name: "close message without open tag",
@@ -900,9 +930,10 @@ Nested.
             markdown: `\
 </message>
 `,
-            parseError:
-                "Error: Can\u2019t close `</message>` on line 1. " +
-                "There isn\u2019t a matching `<message>` open tag.",
+            parseError: markdown`
+Error: Can\u2019t close \`</message>\` on line 1. There isn\u2019t a matching \`<message>\` open
+tag.
+            `,
         },
         {
             name: "wrong close tag does not close message",
@@ -912,8 +943,10 @@ Nested.
 
 </comment>
 `,
-            parseError:
-                "Error: `<message>` on line 1 is missing a closing tag. Add a `</message>` closing tag and try again.",
+            parseError: markdown`
+Error: \`<message>\` on line 1 is missing a closing tag. Add a \`</message>\` closing tag and try
+again.
+            `,
         },
         {
             name: "blockquote outside message",
@@ -925,8 +958,10 @@ Hello.
 
 </blockquote>
 `,
-            parseError:
-                "Error: Can\u2019t add `<blockquote>` on line 1. `<blockquote>`s can only be used at the beginning of a `<message>` to indicate that the message is a reply to some other message.",
+            parseError: markdown`
+Error: Can\u2019t add \`<blockquote>\` on line 1. \`<blockquote>\`s can only be used at the
+beginning of a \`<message>\` to indicate that the message is a reply to some other message.
+            `,
         },
         {
             name: "blockquote after message content",
@@ -944,8 +979,10 @@ Late reply.
 
 </message>
 `,
-            parseError:
-                "Error: Can\u2019t add `<blockquote>` on line 5. `<blockquote>`s can only be used at the beginning of a `<message>` to indicate that the message is a reply to some other message.",
+            parseError: markdown`
+Error: Can\u2019t add \`<blockquote>\` on line 5. \`<blockquote>\`s can only be used at the
+beginning of a \`<message>\` to indicate that the message is a reply to some other message.
+            `,
         },
         {
             name: "second blockquote after reply preview",
@@ -967,8 +1004,10 @@ Second reply.
 
 </message>
 `,
-            parseError:
-                "Error: Can\u2019t add `<blockquote>` on line 9. `<blockquote>`s can only be used at the beginning of a `<message>` to indicate that the message is a reply to some other message.",
+            parseError: markdown`
+Error: Can\u2019t add \`<blockquote>\` on line 9. \`<blockquote>\`s can only be used at the
+beginning of a \`<message>\` to indicate that the message is a reply to some other message.
+            `,
         },
         {
             name: "nested blockquote",
@@ -988,10 +1027,12 @@ Nested reply.
 
 </message>
 `,
-            parseError:
-                "Error: Can\u2019t open a new `<blockquote>` on line 5. " +
-                "There\u2019s already an open `<blockquote>` and you can\u2019t nest `<blockquote>`s. " +
-                "If you\u2019re trying to reply to a message that itself is replying to another message then just include the content of the message you\u2019re replying to and omit the extra `<blockquote>`.",
+            parseError: markdown`
+Error: Can\u2019t open a new \`<blockquote>\` on line 5. There\u2019s already an open
+\`<blockquote>\` and you can\u2019t nest \`<blockquote>\`s. If you\u2019re trying to reply to a
+message that itself is replying to another message then just include the content of the message
+you\u2019re replying to and omit the extra \`<blockquote>\`.
+            `,
         },
         {
             name: "unclosed blockquote",
@@ -1005,8 +1046,10 @@ Quoted.
 
 </message>
 `,
-            parseError:
-                "Error: `<blockquote>` on line 3 is missing a closing tag. Add a `</blockquote>` closing tag and try again.",
+            parseError: markdown`
+Error: \`<blockquote>\` on line 3 is missing a closing tag. Add a \`</blockquote>\` closing tag and
+try again.
+            `,
         },
         {
             name: "blockquote without cite attribute",
@@ -1022,8 +1065,10 @@ Quoted.
 
 </message>
 `,
-            parseError:
-                "Error: `<blockquote>` on line 1 is missing the `cite` attribute. Must include a relative link to the message you\u2019re replying to.",
+            parseError: markdown`
+Error: \`<blockquote>\` on line 1 is missing the \`cite\` attribute. Must include a relative link to
+the message you\u2019re replying to.
+            `,
         },
         {
             name: "blockquote with author cite link",
@@ -1039,8 +1084,10 @@ Quoted.
 
 </message>
 `,
-            parseError:
-                "Error: Invalid `<blockquote>` `cite` attribute on line 3. Expected `cite` to be a relative link like `?message=42` or `?message=4-7`. Try again with a valid `cite` attribute.",
+            parseError: markdown`
+Error: Invalid \`<blockquote>\` \`cite\` attribute on line 3. Expected \`cite\` to be a relative
+link like \`?message=42\` or \`?message=4-7\`. Try again with a valid \`cite\` attribute.
+            `,
         },
         {
             name: "blockquote with non-integer match attribute",
@@ -1056,8 +1103,10 @@ Quoted.
 
 </message>
 `,
-            parseError:
-                'Error: Invalid `<blockquote>` `match` attribute on line 3. Try again with a 1-indexed integer like `match="2"`.',
+            parseError: markdown`
+Error: Invalid \`<blockquote>\` \`match\` attribute on line 3. Try again with a 1-indexed integer
+like \`match="2"\`.
+            `,
         },
         {
             name: "blockquote without author prefix",
@@ -1073,8 +1122,11 @@ Quoted.
 
 </message>
 `,
-            parseError:
-                "Error: `<blockquote>` content on line 3 must start with a link to the message author followed by a colon. For example: `[John](/human/john-doe): quoted text`. Try again with a link to the message author.",
+            parseError: markdown`
+Error: \`<blockquote>\` content on line 3 must start with a link to the message author followed by a
+colon. For example: \`[John](/human/john-doe): quoted text\`. Try again with a link to the message
+author.
+            `,
         },
         {
             name: "close blockquote without open tag",
@@ -1082,9 +1134,10 @@ Quoted.
             markdown: `\
 </blockquote>
 `,
-            parseError:
-                "Error: Can\u2019t close `</blockquote>` on line 1. " +
-                "There isn\u2019t a matching `<blockquote>` open tag.",
+            parseError: markdown`
+Error: Can\u2019t close \`</blockquote>\` on line 1. There isn\u2019t a matching \`<blockquote>\`
+open tag.
+            `,
         },
         {
             name: "close blockquote without reply preview",
@@ -1096,9 +1149,10 @@ Quoted.
 
 </message>
 `,
-            parseError:
-                "Error: Can\u2019t close `</blockquote>` on line 3. " +
-                "There isn\u2019t a matching `<blockquote>` open tag.",
+            parseError: markdown`
+Error: Can\u2019t close \`</blockquote>\` on line 3. There isn\u2019t a matching \`<blockquote>\`
+open tag.
+            `,
         },
         {
             name: "close blockquote twice",
@@ -1116,9 +1170,10 @@ Quoted.
 
 </message>
 `,
-            parseError:
-                "Error: Can\u2019t close `</blockquote>` on line 9. " +
-                "There isn\u2019t a matching `<blockquote>` open tag.",
+            parseError: markdown`
+Error: Can\u2019t close \`</blockquote>\` on line 9. There isn\u2019t a matching \`<blockquote>\`
+open tag.
+            `,
         },
         {
             name: "message with inline html content",
@@ -1158,12 +1213,17 @@ Hello.
 Hello there.
 </message>
 `,
-            parseError: `\
+            parseError: markdown`
 Error: (2 errors)
 
-Must add an empty new line between the \`<message>\` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The \`<message>\` must be formatted like this: \`<message>\\n\\n...\\n\\n</message>\`.
+- Must add an empty new line between the \`<message>\` open tag and markdown text. Otherwise, due to
+  a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The
+  \`<message>\` must be formatted like this: \`<message>\\n\\n...\\n\\n</message>\`.
 
-Expected a link to a human or bot on line 1. For example: \u201C[John](/human/john-doe)\u201D. Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or bot.`,
+- Expected a link to a human or bot on line 1. For example: \u201C[John](/human/john-doe)\u201D.
+  Instead we found \u201C\\[Alice]\\(/human/alice)\u201D. Try again with a valid link to a human or
+  bot.
+            `,
         },
         {
             name: "message without newline between tags (attached to open tag)",
@@ -1176,8 +1236,11 @@ bar
 
 </message>
 `,
-            parseError:
-                "Error: Must add an empty new line between the `<message>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<message>` must be formatted like this: `<message>\\n\\n...\\n\\n</message>`.",
+            parseError: markdown`
+Error: Must add an empty new line between the \`<message>\` open tag and markdown text. Otherwise,
+due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The
+\`<message>\` must be formatted like this: \`<message>\\n\\n...\\n\\n</message>\`.
+            `,
         },
         {
             name: "message without newline between tags (attached to closed tag)",
@@ -1228,8 +1291,12 @@ Hello there.
 
 </message>
 `,
-            parseError:
-                "Error: Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 3 will be parsed as HTML instead of markdown. The `<blockquote>` must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+            parseError: markdown`
+Error: Must add an empty new line between the \`<blockquote>\` open tag and markdown text.
+Otherwise, due to a quirk in markdown, the text on line 3 will be parsed as HTML instead of
+markdown. The \`<blockquote>\` must be formatted like this:
+\`<blockquote>\\n\\n...\\n\\n</blockquote>\`.
+            `,
         },
         {
             name: "parent without newline between tags",
@@ -1245,8 +1312,12 @@ Hello there.
 
 </message>
 `,
-            parseError:
-                "Error: Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of markdown. The `<blockquote>` must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+            parseError: markdown`
+Error: Must add an empty new line between the \`<blockquote>\` open tag and markdown text.
+Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of
+markdown. The \`<blockquote>\` must be formatted like this:
+\`<blockquote>\\n\\n...\\n\\n</blockquote>\`.
+            `,
         },
         {
             name: "parent without newline between tags (attached to open tag)",
@@ -1265,8 +1336,12 @@ Hello there.
 
 </message>
 `,
-            parseError:
-                "Error: Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of markdown. The `<blockquote>` must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+            parseError: markdown`
+Error: Must add an empty new line between the \`<blockquote>\` open tag and markdown text.
+Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of
+markdown. The \`<blockquote>\` must be formatted like this:
+\`<blockquote>\\n\\n...\\n\\n</blockquote>\`.
+            `,
         },
         {
             name: "parent without newline between tags (attached to closed tag)",

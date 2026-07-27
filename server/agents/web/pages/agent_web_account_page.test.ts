@@ -5,6 +5,7 @@ import {
     printAgentWebAccountPage,
 } from "~/server/agents/web/pages/agent_web_account_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
@@ -105,8 +106,10 @@ Alice Smith
 
 - Role: Member
 `,
-            parseError:
-                "Error: Expected a name at the start of the page. Try again with a markdown h1 first (e.g. `# John Doe`).",
+            parseError: markdown`
+Error: Expected a name at the start of the page. Try again with a markdown h1 first (e.g.
+\`# John Doe\`).
+            `,
         },
         {
             name: "unexpected markdown display message",
@@ -116,8 +119,10 @@ Alice Smith
 
 Unexpected paragraph.
 `,
-            parseError:
-                "Error: Unexpected markdown on line 3. Try again with only fields in an unordered list (e.g. `- Role: Member`).",
+            parseError: markdown`
+Error: Unexpected markdown on line 3. Try again with only fields in an unordered list (e.g.
+\`- Role: Member\`).
+            `,
         },
         {
             name: "unknown field display message",
@@ -127,8 +132,10 @@ Unexpected paragraph.
 
 - Team: Engineering
 `,
-            parseError:
-                "Error: Unexpected field \u201CTeam\u201D on line 3. Try again with \u201CState\u201D, \u201CRole\u201D, or \u201CShort name\u201D.",
+            parseError: markdown`
+Error: Unexpected field \u201CTeam\u201D on line 3. Try again with \u201CState\u201D,
+\u201CRole\u201D, or \u201CShort name\u201D.
+            `,
         },
         {
             name: "duplicate field display message",
@@ -139,8 +146,10 @@ Unexpected paragraph.
 - Role: Member
 - Role: Admin
 `,
-            parseError:
-                "Error: Field \u201CRole\u201D appears more than once on line 4. Try again with each field only present once in the field list.",
+            parseError: markdown`
+Error: Field \u201CRole\u201D appears more than once on line 4. Try again with each field only
+present once in the field list.
+            `,
         },
         {
             name: "nested field markdown display message",
@@ -151,8 +160,11 @@ Unexpected paragraph.
 - Role: Member
   - Nested
 `,
-            parseError:
-                "Error: Unexpected markdown after field \u201CRole\u201D on line 4. Try again with one unordered list item per field where the field name is followed by the field value with a colon in between (e.g. `- Role: Member`).",
+            parseError: markdown`
+Error: Unexpected markdown after field \u201CRole\u201D on line 4. Try again with one unordered list
+item per field where the field name is followed by the field value with a colon in between (e.g.
+\`- Role: Member\`).
+            `,
         },
         {
             name: "missing role display message",
@@ -162,8 +174,9 @@ Unexpected paragraph.
 
 - State: Removed
 `,
-            parseError:
-                "Error: Expected a \u201CRole\u201D field. Try again with a role like `- Role: Member`.",
+            parseError: markdown`
+Error: Expected a \u201CRole\u201D field. Try again with a role like \`- Role: Member\`.
+            `,
         },
         {
             name: "malformed field display message",
@@ -173,8 +186,10 @@ Unexpected paragraph.
 
 - **Role:** Member
 `,
-            parseError:
-                "Error: Unexpected markdown on line 3. Try again with one unordered list item per field where the field name is followed by the field value with a colon in between (e.g. `- Role: Member`).",
+            parseError: markdown`
+Error: Unexpected markdown on line 3. Try again with one unordered list item per field where the
+field name is followed by the field value with a colon in between (e.g. \`- Role: Member\`).
+            `,
         },
         {
             name: "unexpected state display message",
@@ -185,8 +200,10 @@ Unexpected paragraph.
 - State: Active
 - Role: Member
 `,
-            parseError:
-                "Error: Unexpected state \u201CActive\u201D on line 3. Try again with \u201CRemoved from space\u201D or \u201CInvited, but hasn\u2019t accepted their invite\u201D.",
+            parseError: markdown`
+Error: Unexpected state \u201CActive\u201D on line 3. Try again with \u201CRemoved from space\u201D
+or \u201CInvited, but hasn\u2019t accepted their invite\u201D.
+            `,
         },
         {
             name: "unexpected role display message",
@@ -196,8 +213,10 @@ Unexpected paragraph.
 
 - Role: Boss
 `,
-            parseError:
-                "Error: Unexpected role \u201CBoss\u201D on line 3. Try again with \u201COwner\u201D, \u201CAdmin\u201D, or \u201CMember\u201D.",
+            parseError: markdown`
+Error: Unexpected role \u201CBoss\u201D on line 3. Try again with \u201COwner\u201D,
+\u201CAdmin\u201D, or \u201CMember\u201D.
+            `,
         },
     ],
 });

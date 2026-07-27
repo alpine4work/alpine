@@ -13,6 +13,7 @@ import {
     ApiContentTextInlineElement,
     ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 
@@ -167,9 +168,10 @@ Comments on [Write Spec (Open, active)](/task/write-spec). [Previous page »](/t
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError:
-                "Error: Can\u2019t add \u201cPrevious page »\u201d link when creating comments markdown. " +
-                "Try again without the \u201cPrevious page »\u201d link.",
+            createParseError: markdown`
+Error: Can\u2019t add \u201CPrevious page »\u201D link when creating comments markdown. Try again
+without the \u201CPrevious page »\u201D link.
+            `,
         },
         {
             name: "task comments with next page pagination link",
@@ -188,9 +190,10 @@ Comments on [Write Spec (Open, active)](/task/write-spec). [Next page »](/task/
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError:
-                "Error: Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. " +
-                "Try again without the \u201cNext page »\u201d link.",
+            createParseError: markdown`
+Error: Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again
+without the \u201CNext page »\u201D link.
+            `,
         },
         {
             name: "task comments with previous and next page pagination links",
@@ -209,9 +212,10 @@ Comments on [Write Spec (Open, active)](/task/write-spec). [« Previous page](/t
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError:
-                "Error: Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. " +
-                "Try again without the \u201cNext page »\u201d link.",
+            createParseError: markdown`
+Error: Can\u2019t add \u201CNext page »\u201D link when creating comments markdown. Try again
+without the \u201CNext page »\u201D link.
+            `,
         },
         {
             name: "task comments with wrong preamble",
@@ -219,10 +223,11 @@ Comments on [Write Spec (Open, active)](/task/write-spec). [« Previous page](/t
             markdown: `\
 # Write Spec
 `,
-            parseError:
-                "Error: Task comments markdown must start with \u201CComments on\u201D followed by a " +
-                "link to the task (e.g. `Comments on [Do thing (Open)](/task/do-thing).`). " +
-                "Try again with a proper start to task comments markdown on line 1.",
+            parseError: markdown`
+Error: Task comments markdown must start with \u201CComments on\u201D followed by a link to the task
+(e.g. \`Comments on [Do thing (Open)](/task/do-thing).\`). Try again with a proper start to task
+comments markdown on line 1.
+            `,
         },
     ],
 });
