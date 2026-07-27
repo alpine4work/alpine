@@ -284,6 +284,7 @@ export async function truncateAgentWebMessagingPage<
             };
         }
         case "End": {
+            let firstBlockStartOffset: number | null = null;
             let firstTimeBlockStartOffset: number | null = null;
             let firstMessageBlockOrCustomBlockStartOffset: number | null = null;
             let truncateMessageBlockOrCustomBlockStartOffset: number | null = null;
@@ -350,9 +351,10 @@ export async function truncateAgentWebMessagingPage<
                             firstTimeBlockStartOffset === null &&
                             hasHtmlOpenTag(childNode.value, tagName => tagName === "time")
                         ) {
-                            firstTimeBlockStartOffset = assertExists(
-                                childNode.position?.start.offset,
-                            );
+                            const startOffset = assertExists(childNode.position?.start.offset);
+
+                            firstBlockStartOffset ??= startOffset;
+                            firstTimeBlockStartOffset = startOffset;
                         }
 
                         if (
@@ -365,14 +367,14 @@ export async function truncateAgentWebMessagingPage<
                         ) {
                             const startOffset = assertExists(childNode.position?.start.offset);
 
+                            firstBlockStartOffset ??= startOffset;
                             firstMessageBlockOrCustomBlockStartOffset ??= startOffset;
                             truncateMessageBlockOrCustomBlockStartOffset = startOffset;
                             truncateMessageBlockOrCustomBlockCount++;
 
                             if (
                                 truncateMessageBlockOrCustomBlockStartOffset -
-                                    (firstTimeBlockStartOffset ??
-                                        firstMessageBlockOrCustomBlockStartOffset) >=
+                                    firstBlockStartOffset >=
                                 truncateLength
                             ) {
                                 return true;
@@ -399,6 +401,7 @@ export async function truncateAgentWebMessagingPage<
             if (truncateMessageBlockOrCustomBlockStartOffset === null) return null;
 
             // Always set when `truncateMessageBlockStartOffset` is set.
+            assert(firstBlockStartOffset !== null);
             assert(firstMessageBlockOrCustomBlockStartOffset !== null);
 
             // No truncation occurred!
@@ -440,10 +443,8 @@ export async function truncateAgentWebMessagingPage<
             assert(truncatedMessages.length > 0);
 
             let truncatedResponse =
-                response.slice(
-                    0,
-                    firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
-                ) + response.slice(truncateMessageBlockOrCustomBlockStartOffset);
+                response.slice(0, firstBlockStartOffset) +
+                response.slice(truncateMessageBlockOrCustomBlockStartOffset);
 
             // `truncatedResponse` currently doesn't include an initial `<time>` element. So
             // add one back. Either by using `timeContent` from `truncatedBlocks` or adding a
@@ -451,22 +452,15 @@ export async function truncateAgentWebMessagingPage<
             const firstTruncatedBlock = truncatedBlocks[0]!;
             if (firstTruncatedBlock.type === "Time") {
                 truncatedResponse =
-                    truncatedResponse.slice(
-                        0,
-                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
-                    ) +
+                    truncatedResponse.slice(0, firstBlockStartOffset) +
                     `<time>${escapeHtml(firstTruncatedBlock.timeContent)}</time>\n\n` +
-                    truncatedResponse.slice(
-                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
-                    );
-            } else if (
-                firstTruncatedBlock.type === "Custom" &&
-                truncatedBlocks[1]?.type === "Time"
-            ) {
-                // The custom block precedes the initial `<time>` block.
-                //
-                // Is this the right condition? I'm really not sure. NOCOMMIT
+                    truncatedResponse.slice(firstBlockStartOffset);
             } else {
+                // Custom blocks only occur at the start of a messaging page. Since we truncated at
+                // least one message or custom block from the start, a custom block can't be the
+                // first retained block.
+                assert(firstTruncatedBlock.type === "Message");
+
                 const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
                     defaultLocale,
                     contextTimeZone,
@@ -497,14 +491,9 @@ export async function truncateAgentWebMessagingPage<
                 });
 
                 truncatedResponse =
-                    truncatedResponse.slice(
-                        0,
-                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
-                    ) +
+                    truncatedResponse.slice(0, firstBlockStartOffset) +
                     `<time>${timeContentHtml}</time>\n\n` +
-                    truncatedResponse.slice(
-                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
-                    );
+                    truncatedResponse.slice(firstBlockStartOffset);
             }
 
             // Remove the `time` attribute from the first message block. We add a `<time>`
@@ -513,15 +502,8 @@ export async function truncateAgentWebMessagingPage<
                 truncatedBlocks[1] = {...truncatedBlocks[1]!, timeAttribute: null};
 
                 truncatedResponse =
-                    truncatedResponse.slice(
-                        0,
-                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
-                    ) +
-                    truncatedResponse
-                        .slice(
-                            firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
-                        )
-                        .replace(/ time="[^"]*"/, "");
+                    truncatedResponse.slice(0, firstBlockStartOffset) +
+                    truncatedResponse.slice(firstBlockStartOffset).replace(/ time="[^"]*"/, "");
             }
 
             // Update the "Previous page" link to reflect the new last message index after
@@ -645,6 +627,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     let truncateMessageBlockCountOrCustomBlockFromEnd = 0;
     let blockIndexFromEnd: number | null = null;
 
+    let firstBlockStartOffset: number | null = null;
     let firstTimeBlockStartOffset: number | null = null;
     let firstMessageBlockStartOrCustomBlockOffset: number | null = null;
     let truncateMessageBlockOrCustomBlockStartOffset: number | null = null;
@@ -739,8 +722,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
               truncateMessageBlockOrCustomBlockEndOffset
             : 0) +
         (truncateMessageBlockOrCustomBlockStartOffset !== null
-            ? truncateMessageBlockOrCustomBlockStartOffset -
-              (firstTimeBlockStartOffset ?? assertExists(firstMessageBlockStartOrCustomBlockOffset))
+            ? truncateMessageBlockOrCustomBlockStartOffset - assertExists(firstBlockStartOffset)
             : 0);
 
     function* traverseFromEnd(node: Parent): IterableIterator<void, boolean> {
@@ -831,7 +813,10 @@ export async function truncateAgentWebMessagingPageAroundMessage<
                     firstTimeBlockStartOffset === null &&
                     hasHtmlOpenTag(childNode.value, tagName => tagName === "time")
                 ) {
-                    firstTimeBlockStartOffset = assertExists(childNode.position?.start.offset);
+                    const startOffset = assertExists(childNode.position?.start.offset);
+
+                    firstBlockStartOffset ??= startOffset;
+                    firstTimeBlockStartOffset = startOffset;
                 }
 
                 if (
@@ -843,6 +828,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
                 ) {
                     const startOffset = assertExists(childNode.position?.start.offset);
 
+                    firstBlockStartOffset ??= startOffset;
                     firstMessageBlockStartOrCustomBlockOffset ??= startOffset;
                     truncateMessageBlockOrCustomBlockStartOffset = startOffset;
                     truncateMessageBlockOrCustomBlockCountFromStart++;
@@ -962,6 +948,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     // Always set when `truncateMessageEndOffset`/`truncateMessageBlockStartOffset` is
     // set.
     assert(lastMessageBlockOrCustomBlockEndOffset !== null);
+    assert(firstBlockStartOffset !== null);
     assert(firstMessageBlockStartOrCustomBlockOffset !== null);
 
     const didTruncateFromEnd =
@@ -1037,88 +1024,80 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     // NOCOMMIT: Might not be the case anymore!
     assert(truncatedMessages.length > 0);
 
-    let truncatedResponse =
-        response.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset) +
-        response.slice(
-            truncateMessageBlockOrCustomBlockStartOffset,
-            // We're intentionally dropping everything after `lastMessageBlockEndOffset`. Which
-            // will include the `isEndOfMessages` paragraph. If we're truncating in the `Start`
-            // `direction` then we're implicitly not at the end of messages anymore.
-            didTruncateFromEnd ? truncateMessageBlockOrCustomBlockEndOffset : undefined,
-        );
+    let truncatedResponse = didTruncateFromStart
+        ? response.slice(0, firstBlockStartOffset) +
+          response.slice(
+              truncateMessageBlockOrCustomBlockStartOffset,
+              // We're intentionally dropping everything after `lastMessageBlockEndOffset`. This
+              // will include the `isEndOfMessages` paragraph. If we're truncating from the end
+              // then we're implicitly not at the end of messages anymore.
+              didTruncateFromEnd ? truncateMessageBlockOrCustomBlockEndOffset : undefined,
+          )
+        : response.slice(
+              0,
+              didTruncateFromEnd ? truncateMessageBlockOrCustomBlockEndOffset : undefined,
+          );
 
-    // `truncatedResponse` currently doesn't include an initial `<time>` element. So
-    // add one back. Either by using `timeContent` from `truncatedBlocks` or adding a
-    // new `Time` block to `truncatedBlocks` and using that.
-    const firstTruncatedBlock = truncatedBlocks[0]!;
-    if (firstTruncatedBlock.type === "Time") {
-        truncatedResponse =
-            truncatedResponse.slice(
-                0,
-                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
-            ) +
-            `<time>${escapeHtml(firstTruncatedBlock.timeContent)}</time>\n\n` +
-            truncatedResponse.slice(
-                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
+    if (didTruncateFromStart) {
+        // `truncatedResponse` currently doesn't include an initial `<time>` element. Add
+        // one back, either by using `timeContent` from `truncatedBlocks` or by adding a
+        // new `Time` block to `truncatedBlocks` and using that.
+        const firstTruncatedBlock = truncatedBlocks[0]!;
+        if (firstTruncatedBlock.type === "Time") {
+            truncatedResponse =
+                truncatedResponse.slice(0, firstBlockStartOffset) +
+                `<time>${escapeHtml(firstTruncatedBlock.timeContent)}</time>\n\n` +
+                truncatedResponse.slice(firstBlockStartOffset);
+        } else {
+            // Custom blocks only occur at the start of a messaging page. Since we truncated at
+            // least one message or custom block from the start, a custom block can't be the
+            // first retained block.
+            assert(firstTruncatedBlock.type === "Message");
+
+            const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                defaultLocale,
+                contextTimeZone,
+                contextDate,
+                deserializeDateString(messages[truncateMessageCountFromStart]!.createdTime),
+                {withLongMonth: true},
             );
-    } else if (firstTruncatedBlock.type === "Custom" && truncatedBlocks[1]?.type === "Time") {
-        // The custom block precedes the initial `<time>` block.
-        //
-        // Is this the right condition? I'm really not sure. NOCOMMIT
-    } else {
-        const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
-            defaultLocale,
-            contextTimeZone,
-            contextDate,
-            deserializeDateString(messages[truncateMessageCountFromStart]!.createdTime),
-            {withLongMonth: true},
-        );
 
-        const timeContent = `${formattedTime} ${contextFormattedTimeZone}`;
-        const timeContentHtml = escapeHtml(timeContent);
+            const timeContent = `${formattedTime} ${contextFormattedTimeZone}`;
+            const timeContentHtml = escapeHtml(timeContent);
 
-        // Normally we have a rule: no user data in error messages since it leaks user data
-        // into our logs. However, we don't expect this error to _ever_ be thrown so given
-        // we don't expect this to ever throw and having the data which caused us to throw
-        // would be _very_ useful we include the time content string.
-        //
-        // Also, a message created time isn't sensitive data to begin with. You can
-        // trivially find the time at which users send messages by scanning our logs.
-        if (timeContentHtml.length > maxTimeContentLength) {
-            throw new InternalError(
-                quote`Time content was greater than our max length of ${maxTimeContentLength} (time content: ${timeContentHtml})`,
-            );
+            // Normally we have a rule: no user data in error messages since it leaks user data
+            // into our logs. However, we don't expect this error to _ever_ be thrown so given
+            // we don't expect this to ever throw and having the data which caused us to throw
+            // would be _very_ useful we include the time content string.
+            //
+            // Also, a message created time isn't sensitive data to begin with. You can
+            // trivially find the time at which users send messages by scanning our logs.
+            if (timeContentHtml.length > maxTimeContentLength) {
+                throw new InternalError(
+                    quote`Time content was greater than our max length of ${maxTimeContentLength} (time content: ${timeContentHtml})`,
+                );
+            }
+
+            truncatedBlocks.unshift({
+                type: "Time",
+                timeContent,
+            });
+
+            truncatedResponse =
+                truncatedResponse.slice(0, firstBlockStartOffset) +
+                `<time>${timeContentHtml}</time>\n\n` +
+                truncatedResponse.slice(firstBlockStartOffset);
         }
 
-        truncatedBlocks.unshift({
-            type: "Time",
-            timeContent,
-        });
+        // Remove the `time` attribute from the first message block. We add a `<time>`
+        // block above to communicate the time.
+        if (truncatedBlocks[1]!.type !== "Time" && truncatedBlocks[1]!.timeAttribute !== null) {
+            truncatedBlocks[1] = {...truncatedBlocks[1]!, timeAttribute: null};
 
-        truncatedResponse =
-            truncatedResponse.slice(
-                0,
-                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
-            ) +
-            `<time>${timeContentHtml}</time>\n\n` +
-            truncatedResponse.slice(
-                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
-            );
-    }
-
-    // Remove the `time` attribute from the first message block. We add a `<time>`
-    // block above to communicate the time.
-    if (truncatedBlocks[1]!.type !== "Time" && truncatedBlocks[1]!.timeAttribute !== null) {
-        truncatedBlocks[1] = {...truncatedBlocks[1]!, timeAttribute: null};
-
-        truncatedResponse =
-            truncatedResponse.slice(
-                0,
-                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
-            ) +
-            truncatedResponse
-                .slice(firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset)
-                .replace(/ time="[^"]*"/, "");
+            truncatedResponse =
+                truncatedResponse.slice(0, firstBlockStartOffset) +
+                truncatedResponse.slice(firstBlockStartOffset).replace(/ time="[^"]*"/, "");
+        }
     }
 
     if (
