@@ -728,33 +728,33 @@ http_archive(
 http_archive(
     name = "zig_macos_x86_64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-A4dVftGHe8ai4YAsg5GVO63bp2CBh2MBxSL1KXe1K6c=",
-    strip_prefix = "zig-x86_64-macos-0.16.0",
-    url = "https://ziglang.org/download/0.16.0/zig-x86_64-macos-0.16.0.tar.xz",
+    integrity = "sha256-aFgWFm8h8LjW/Hqmo26ROW3NgsplVt++PjKd7/wB/sM=",
+    strip_prefix = "zig-macos-x86_64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-macos-x86_64-0.14.0.tar.xz",
 )
 
 http_archive(
     name = "zig_macos_aarch64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-sj1w3qqHm1wtSG7TMW9+qlPoSs9vycx0feFSRQ1AFIk=",
-    strip_prefix = "zig-aarch64-macos-0.16.0",
-    url = "https://ziglang.org/download/0.16.0/zig-aarch64-macos-0.16.0.tar.xz",
+    integrity = "sha256-tx5LfEtL6ZU2V4d/f55vfuiRFMcW2nwHD0ojgiDpXX4=",
+    strip_prefix = "zig-macos-aarch64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-macos-aarch64-0.14.0.tar.xz",
 )
 
 http_archive(
     name = "zig_linux_x86_64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-cOSWZKdDdLSLUebz/fv0N/Y5XUJQkFBYi9SavlK6PQA=",
-    strip_prefix = "zig-x86_64-linux-0.16.0",
-    url = "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz",
+    integrity = "sha256-Rz7CaAYTPPTRkYyvGkEPhAOhPZeXJqkEW0IbaFAxqYI=",
+    strip_prefix = "zig-linux-x86_64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz",
 )
 
 http_archive(
     name = "zig_linux_aarch64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-6ksJv7IuxvbGzqxXq2PvtrRuF6sI0h9p86SLOOFTTxc=",
-    strip_prefix = "zig-aarch64-linux-0.16.0",
-    url = "https://ziglang.org/download/0.16.0/zig-aarch64-linux-0.16.0.tar.xz",
+    integrity = "sha256-q2Tj6id/b8Xz1yPc2V2c4asoLI7Q9DG03ogNMN+JHk8=",
+    strip_prefix = "zig-linux-aarch64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-linux-aarch64-0.14.0.tar.xz",
 )
 
 # =========================================================================== #
