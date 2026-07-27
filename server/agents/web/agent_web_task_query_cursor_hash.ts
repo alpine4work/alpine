@@ -45,7 +45,19 @@ export function createAgentWebTaskQueryCursorHash(
     cursor: ApiTaskQueryCursor,
 ): Promise<string> {
     return storage.mutex.withLock(async () => {
-        let hashNumber = murmurhash.v3(cursor) & agentWebTaskQueryCursorHashMask;
+        let hashNumber: number;
+
+        if (
+            process.env.NODE_ENV !== "test" ||
+            process.env.AGENT_WEB_TASK_QUERY_CURSOR_HASH_FOR_TEST === undefined
+        ) {
+            hashNumber = murmurhash.v3(cursor) & agentWebTaskQueryCursorHashMask;
+        } else {
+            const hash = process.env.AGENT_WEB_TASK_QUERY_CURSOR_HASH_FOR_TEST;
+
+            assert(new RegExp(`^[0-9a-f]{${agentWebTaskQueryCursorHashLength}}$`).test(hash));
+            hashNumber = Number.parseInt(hash, 16);
+        }
 
         while (true) {
             const hash = hashNumber.toString(16).padStart(agentWebTaskQueryCursorHashLength, "0");
