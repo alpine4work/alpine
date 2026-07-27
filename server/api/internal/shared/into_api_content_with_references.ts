@@ -88,7 +88,8 @@ type IntoApiContentWithReferencesResultForOptions<Options> = IntoApiContentWithR
 
 /**
  * Converts content and loads its references while guaranteeing content keys on
- * paragraphs and headings unless `WithoutKeys` options are used.
+ * paragraphs, headings, and code block lines unless `WithoutKeys` options are
+ * used.
  *
  * TODO: make these args an object per our style guide
  */

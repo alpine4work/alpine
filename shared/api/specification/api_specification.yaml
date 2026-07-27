@@ -585,6 +585,80 @@ paths:
                                             title:
                                                 type: string
 
+    /documents/{id}/threads:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [thread]
+                            additionalProperties: false
+                            properties:
+                                thread:
+                                    type: object
+                                    required: [range, firstMessage]
+                                    additionalProperties: false
+                                    properties:
+                                        # TODO(#agent-web): Reuse the create-message
+                                        # input type here after `CreateMessage` is updated to match
+                                        # message output, including nesting content and files in
+                                        # `payload`.
+                                        firstMessage:
+                                            type: object
+                                            required: [content]
+                                            additionalProperties: false
+                                            properties:
+                                                createdTimeZone:
+                                                    $ref: "#/components/schemas/TimeZone"
+                                                content:
+                                                    $ref: "#/components/schemas/Content"
+                                                files:
+                                                    type: array
+                                                    items:
+                                                        $ref: "#/components/schemas/MessageContentPayloadFile"
+                                        # TODO(#agent-web): Revisit representing thread
+                                        # targets as `range: ContentRange | null` and
+                                        # `additionalRanges: Array<ContentRange>` once document
+                                        # thread responses can represent ranges.
+                                        range:
+                                            $ref: "#/components/schemas/ContentRange"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            # TODO(#agent-web): Revisit this response after the
+                            # `agent_web_2` branch merges because it substantially changes the
+                            # document thread response.
+                            schema:
+                                type: object
+                                required: [spaceId, document, thread, message]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    document:
+                                        type: object
+                                        required: [id, version]
+                                        additionalProperties: false
+                                        properties:
+                                            id:
+                                                $ref: "#/components/schemas/DocumentId"
+                                            version:
+                                                type: integer
+                                                minimum: 0
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentCommentThread"
+                                    message:
+                                        $ref: "#/components/schemas/Message"
+
     /documents/{id}/threads/{threadId}:
         parameters:
             - name: id
@@ -1708,10 +1782,9 @@ webhooks:
                   in: header
                   required: false
                   description: >
-                      Signature of the raw request body formatted as `sha256=<hex>` where
-                      `<hex>` is the hex-encoded HMAC SHA-256 of the raw request body keyed
-                      with the bot's webhook secret. Only sent when the bot has a webhook
-                      secret configured.
+                      Signature of the raw request body formatted as `sha256=<hex>` where `<hex>` is
+                      the hex-encoded HMAC SHA-256 of the raw request body keyed with the bot's
+                      webhook secret. Only sent when the bot has a webhook secret configured.
                   schema:
                       type: string
             requestBody:
@@ -1721,15 +1794,7 @@ webhooks:
                         schema:
                             type: object
                             required:
-                                [
-                                    spaceId,
-                                    botId,
-                                    botAccountId,
-                                    attempt,
-                                    accessToken,
-                                    eventId,
-                                    event,
-                                ]
+                                [spaceId, botId, botAccountId, attempt, accessToken, eventId, event]
                             additionalProperties: false
                             properties:
                                 spaceId:
@@ -2115,6 +2180,61 @@ components:
         ContentKey:
             type: string
             minLength: 1
+
+        ContentPosition:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlinePosition"
+                - $ref: "#/components/schemas/ContentBeforePosition"
+                - $ref: "#/components/schemas/ContentAfterPosition"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Inline: "#/components/schemas/ContentInlinePosition"
+                    Before: "#/components/schemas/ContentBeforePosition"
+                    After: "#/components/schemas/ContentAfterPosition"
+
+        ContentInlinePosition:
+            type: object
+            required: [type, key, index]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Inline
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                index:
+                    type: integer
+                    minimum: 0
+
+        ContentBeforePosition:
+            type: object
+            required: [type, key]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Before
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+
+        ContentAfterPosition:
+            type: object
+            required: [type, key]
+            additionalProperties: false
+            properties:
+                type:
+                    const: After
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+
+        ContentRange:
+            type: object
+            required: [start, end]
+            additionalProperties: false
+            properties:
+                start:
+                    $ref: "#/components/schemas/ContentPosition"
+                end:
+                    $ref: "#/components/schemas/ContentPosition"
 
         TaskCollectionColor:
             type: string
@@ -2611,6 +2731,18 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
 
+        ContentCodeBlockElementLine_Response:
+            type: object
+            required: [key, elements]
+            additionalProperties: false
+            properties:
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
+
         ContentFileBlockElement:
             type: object
             required: [type, id]
@@ -2631,11 +2763,13 @@ components:
 
         ContentFileBlockElement_Response:
             type: object
-            required: [type, id, contentType, contentLength]
+            required: [type, key, id, contentType, contentLength]
             additionalProperties: false
             properties:
                 type:
                     const: File
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 id:
                     $ref: "#/components/schemas/FileId"
                 contentType:
@@ -2663,11 +2797,13 @@ components:
         # of duplicating fields manually.
         ContentPreviewBlockElement_Response:
             type: object
-            required: [type, target, title]
+            required: [type, key, target, title]
             additionalProperties: false
             properties:
                 type:
                     const: Preview
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 target:
                     $ref: "#/components/schemas/PreviewTarget"
                 title:
@@ -4041,6 +4177,45 @@ components:
                             File: "#/components/schemas/ContentFileBlockElement"
                             Preview: "#/components/schemas/ContentPreviewBlockElement"
 
+        MessageContentPayloadFileFileElement_Response:
+            type: object
+            required: [type, id, contentType, contentLength]
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    type: string
+                    enum: {{fileContentTypes}}
+                contentLength:
+                    type: integer
+                    minimum: 0
+
+        MessageContentPayloadFilePreviewElement_Response:
+            type: object
+            required: [type, target, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                target:
+                    $ref: "#/components/schemas/PreviewTarget_Response"
+                title:
+                    type: string
+                    minLength: 1
+
+        MessageContentPayloadFileElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayloadFileFileElement_Response"
+                - $ref: "#/components/schemas/MessageContentPayloadFilePreviewElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    File: "#/components/schemas/MessageContentPayloadFileFileElement_Response"
+                    Preview: "#/components/schemas/MessageContentPayloadFilePreviewElement_Response"
+
         MessageContentPayloadFile_Response:
             type: object
             required: [rowIndex, width, element]
@@ -4054,14 +4229,7 @@ components:
                     minimum: 0
                     maximum: 1
                 element:
-                    oneOf:
-                        - $ref: "#/components/schemas/ContentFileBlockElement_Response"
-                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
-                    discriminator:
-                        propertyName: type
-                        mapping:
-                            File: "#/components/schemas/ContentFileBlockElement_Response"
-                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+                    $ref: "#/components/schemas/MessageContentPayloadFileElement_Response"
 
         MessageContentPayloadParent:
             oneOf:

@@ -1,5 +1,7 @@
 import {
+    ApiContentFileBlockElement,
     ApiContentFileBlockElementResponse,
+    ApiContentPreviewBlockElement,
     ApiContentPreviewBlockElementResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
@@ -15,7 +17,10 @@ import {FileId} from "~/shared/id/types/id_types.js";
 
 export function computeApiContentFileRowWidths(
     elements: ReadonlyArray<
-        ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse
+        | ApiContentFileBlockElement
+        | ApiContentFileBlockElementResponse
+        | ApiContentPreviewBlockElement
+        | ApiContentPreviewBlockElementResponse
     >,
     options: {
         readonly getFileIfExists: (fileId: FileId) =>

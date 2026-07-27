@@ -1,3 +1,4 @@
+import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {
     attachFileAsUploader,
     attachFileFromAttachment,
@@ -104,7 +105,7 @@ export default implementRpcs(definitions, {
     },
 
     getFileWithoutSignedUrlFromAttachment: {
-        visibility: ["AppClient"],
+        visibility: ["AppClient", "DocumentCollaborationService"],
         execute: async (context, input) => {
             const file = await getFileFromAttachment(
                 context,
@@ -196,6 +197,19 @@ export default implementRpcs(definitions, {
                 signedUrlSearch: signedUrl.search,
                 file,
             };
+        },
+    },
+
+    attachFileToTargetAsBot: {
+        visibility: ["DocumentCollaborationService"],
+        execute: async (context, input) => {
+            const file = await attachFileToTargetAsBot(
+                context,
+                input.fileId,
+                getFileAttachmentTargetAuthorizer(context, input.target),
+            );
+
+            return {file};
         },
     },
 

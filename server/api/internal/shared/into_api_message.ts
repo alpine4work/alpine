@@ -11,11 +11,12 @@ import {
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentPayload,
     MessageContentPayloadParent,
@@ -32,6 +33,7 @@ export async function intoApiMessage(
         entityId,
         message,
         intoContentPayloadParent,
+        fileById,
     }: {
         spaceId: SpaceId;
         entityId: SearchDynamicEntityId;
@@ -39,6 +41,7 @@ export async function intoApiMessage(
         intoContentPayloadParent: (
             parent: MessageContentPayloadParent,
         ) => Promise<ApiMessageContentPayloadParentResponse | null>;
+        fileById?: ReadonlyMap<FileId, FileModel>;
     },
 ): Promise<ApiMessageResponse> {
     const stream = message.stream;
@@ -77,6 +80,7 @@ export async function intoApiMessage(
             payload: message.payload,
             intoContentPayloadParent,
             entityId,
+            fileById,
         }),
         streamPartsPromise,
     ]);
@@ -160,6 +164,7 @@ async function intoApiMessagePayload(
         payload,
         intoContentPayloadParent,
         entityId,
+        fileById,
     }: {
         spaceId: SpaceId;
         payload: MessagePayload;
@@ -167,6 +172,7 @@ async function intoApiMessagePayload(
             parent: MessageContentPayloadParent,
         ) => Promise<ApiMessageContentPayloadParentResponse | null>;
         entityId: SearchDynamicEntityId;
+        fileById?: ReadonlyMap<FileId, FileModel>;
     },
 ): Promise<ApiMessagePayloadResponse> {
     switch (payload.type) {
@@ -185,7 +191,7 @@ async function intoApiMessagePayload(
                     encoder: contentKeyEncoder,
                 }),
                 payload.parent ? intoContentPayloadParent(payload.parent) : undefined,
-                resolveFilesForApiResponse(context, spaceId, payload.fileIds),
+                resolveFilesForApiResponse(context, spaceId, payload.fileIds, {fileById}),
             ]);
 
             return {

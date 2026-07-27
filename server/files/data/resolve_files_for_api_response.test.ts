@@ -1,8 +1,10 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {startUploadingFile} from "~/server/files/data/files_actions.js";
 import {resolveFilesForApiResponse} from "~/server/files/data/resolve_files_for_api_response.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -33,6 +35,60 @@ test("resolves a file ID to file metadata", async () => {
                 id: file.id,
                 contentType: "image/png",
                 contentLength: expect.any(Number),
+            },
+        },
+    ]);
+});
+
+test("reuses provided file metadata", async () => {
+    const space = await TestSpace.create(context);
+    const fileId = generateChronologicalId<FileId>();
+    const file = new FileModel({
+        id: fileId,
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 123,
+        isUploading: false,
+        alternative: null,
+        preview: null,
+        analysis: null,
+        transcript: null,
+    });
+
+    const results = await resolveFilesForApiResponse(space.systemAction(), space.id, [fileId], {
+        fileById: new Map([[fileId, file]]),
+    });
+
+    expect(results).toMatchObject([
+        {
+            element: {
+                type: "File",
+                id: fileId,
+                contentType: "image/png",
+                contentLength: 123,
+            },
+        },
+    ]);
+});
+
+test("resolves metadata for a file without an image preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const {fileId} = await startUploadingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/pdf",
+        contentLength: 123,
+    });
+
+    const results = await resolveFilesForApiResponse(space.systemAction(), space.id, [fileId]);
+
+    expect(results).toMatchObject([
+        {
+            element: {
+                type: "File",
+                id: fileId,
+                contentType: "application/pdf",
+                contentLength: 123,
             },
         },
     ]);

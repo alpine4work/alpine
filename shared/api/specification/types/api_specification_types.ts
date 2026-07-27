@@ -905,6 +905,66 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/documents/{id}/threads": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["DocumentId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["DocumentId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly thread: {
+                                readonly firstMessage: {
+                                    readonly createdTimeZone?: components["schemas"]["TimeZone"];
+                                    readonly content: components["schemas"]["Content"];
+                                    readonly files?: readonly components["schemas"]["MessageContentPayloadFile"][];
+                                };
+                                readonly range: components["schemas"]["ContentRange"];
+                            };
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly document: {
+                                    readonly id: components["schemas"]["DocumentId"];
+                                    readonly version: number;
+                                };
+                                readonly thread: components["schemas"]["DocumentCommentThread_Response"];
+                                readonly message: components["schemas"]["Message_Response"];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/documents/{id}/threads/{threadId}": {
             readonly parameters: {
                 readonly query?: never;
@@ -2698,6 +2758,39 @@ export namespace ApiSpecification {
             readonly TaskId: IdTypes.TaskId;
             readonly TaskCollectionId: IdTypes.TaskCollectionId;
             readonly ContentKey: ApiContentKey;
+            readonly ContentPosition:
+                | components["schemas"]["ContentInlinePosition"]
+                | components["schemas"]["ContentBeforePosition"]
+                | components["schemas"]["ContentAfterPosition"];
+            readonly ContentInlinePosition: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Inline";
+                readonly key: components["schemas"]["ContentKey"];
+                readonly index: number;
+            };
+            readonly ContentBeforePosition: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Before";
+                readonly key: components["schemas"]["ContentKey"];
+            };
+            readonly ContentAfterPosition: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "After";
+                readonly key: components["schemas"]["ContentKey"];
+            };
+            readonly ContentRange: {
+                readonly start: components["schemas"]["ContentPosition"];
+                readonly end: components["schemas"]["ContentPosition"];
+            };
             /** @enum {string} */
             readonly TaskCollectionColor:
                 | "Red"
@@ -2992,6 +3085,10 @@ export namespace ApiSpecification {
                 readonly key?: components["schemas"]["ContentKey"];
                 readonly elements: readonly components["schemas"]["ContentCodeBlockElementTextInlineElement"][];
             };
+            readonly ContentCodeBlockElementLine_Response: {
+                readonly key: components["schemas"]["ContentKey"];
+                readonly elements: readonly components["schemas"]["ContentCodeBlockElementTextInlineElement"][];
+            };
             readonly ContentFileBlockElement: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -3075,6 +3172,7 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "File";
+                readonly key: components["schemas"]["ContentKey"];
                 readonly id: components["schemas"]["FileId"];
                 /** @enum {string} */
                 readonly contentType:
@@ -3161,6 +3259,7 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "Preview";
+                readonly key: components["schemas"]["ContentKey"];
                 readonly target: components["schemas"]["PreviewTarget_Response"];
                 readonly title: string;
             };
@@ -3876,12 +3975,99 @@ export namespace ApiSpecification {
                     | components["schemas"]["ContentFileBlockElement"]
                     | components["schemas"]["ContentPreviewBlockElement"];
             };
+            readonly MessageContentPayloadFileFileElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "File";
+                readonly id: components["schemas"]["FileId"];
+                /** @enum {string} */
+                readonly contentType:
+                    | "application/json"
+                    | "application/msword"
+                    | "application/octet-stream"
+                    | "application/pdf"
+                    | "application/sql"
+                    | "application/vnd.dart"
+                    | "application/vnd.ms-excel"
+                    | "application/vnd.ms-powerpoint"
+                    | "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    | "application/wasm"
+                    | "application/x-httpd-php"
+                    | "application/x-powershell"
+                    | "application/x-ruby"
+                    | "application/x-sh"
+                    | "application/xml"
+                    | "application/yaml"
+                    | "audio/mp4"
+                    | "audio/mpeg"
+                    | "audio/ogg"
+                    | "audio/wav"
+                    | "audio/webm"
+                    | "image/apng"
+                    | "image/avif"
+                    | "image/bmp"
+                    | "image/gif"
+                    | "image/heif"
+                    | "image/ico"
+                    | "image/jpeg"
+                    | "image/png"
+                    | "image/svg+xml"
+                    | "image/tiff"
+                    | "image/webp"
+                    | "text/css"
+                    | "text/html"
+                    | "text/javascript"
+                    | "text/markdown"
+                    | "text/plain"
+                    | "text/rust"
+                    | "text/x-asm"
+                    | "text/x-c++src"
+                    | "text/x-clojure"
+                    | "text/x-csharp"
+                    | "text/x-csrc"
+                    | "text/x-elixir"
+                    | "text/x-erlang"
+                    | "text/x-go"
+                    | "text/x-haskell"
+                    | "text/x-java"
+                    | "text/x-kotlin"
+                    | "text/x-lua"
+                    | "text/x-objcsrc"
+                    | "text/x-ocaml"
+                    | "text/x-perl"
+                    | "text/x-python"
+                    | "text/x-r"
+                    | "text/x-scala"
+                    | "text/x-solidity"
+                    | "text/x-swift"
+                    | "text/x-typescript"
+                    | "video/mp4"
+                    | "video/mpeg"
+                    | "video/quicktime"
+                    | "video/webm"
+                    | "video/x-matroska";
+                readonly contentLength: number;
+            };
+            readonly MessageContentPayloadFilePreviewElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Preview";
+                readonly target: components["schemas"]["PreviewTarget_Response"];
+                readonly title: string;
+            };
+            readonly MessageContentPayloadFileElement_Response:
+                | components["schemas"]["MessageContentPayloadFileFileElement_Response"]
+                | components["schemas"]["MessageContentPayloadFilePreviewElement_Response"];
             readonly MessageContentPayloadFile_Response: {
                 readonly rowIndex: number;
                 readonly width: number;
-                readonly element:
-                    | components["schemas"]["ContentFileBlockElement_Response"]
-                    | components["schemas"]["ContentPreviewBlockElement_Response"];
+                readonly element: components["schemas"]["MessageContentPayloadFileElement_Response"];
             };
             readonly MessageContentPayloadParent:
                 | components["schemas"]["MessageContentPayloadMessageParent"]
@@ -4446,7 +4632,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentHeadingBlockElement_Response"]
                 | components["schemas"]["ContentDividerBlockElement"]
                 | components["schemas"]["ContentTableBlockElement_Response"]
-                | components["schemas"]["ContentCodeBlockElement"]
+                | components["schemas"]["ContentCodeBlockElement_Response"]
                 | components["schemas"]["ContentFileBlockElement_Response"]
                 | components["schemas"]["ContentFileGalleryBlockElement_Response"]
                 | components["schemas"]["ContentFileFloatBlockElement_Response"]
@@ -4471,9 +4657,56 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentOrderedListBlockElement_Response"]
                 | components["schemas"]["ContentCheckListBlockElement_Response"]
                 | components["schemas"]["ContentQuoteBlockElement_Response"]
-                | components["schemas"]["ContentCodeBlockElement"]
+                | components["schemas"]["ContentCodeBlockElement_Response"]
                 | components["schemas"]["ContentFileBlockElement_Response"]
                 | components["schemas"]["ContentPreviewBlockElement_Response"];
+            readonly ContentCodeBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Code";
+                /** @enum {string} */
+                readonly language:
+                    | "text"
+                    | "javascript"
+                    | "html"
+                    | "css"
+                    | "sql"
+                    | "python"
+                    | "typescript"
+                    | "shell"
+                    | "java"
+                    | "json"
+                    | "markdown"
+                    | "csharp"
+                    | "cpp"
+                    | "c"
+                    | "php"
+                    | "go"
+                    | "yaml"
+                    | "powershell"
+                    | "rust"
+                    | "kotlin"
+                    | "ruby"
+                    | "lua"
+                    | "xml"
+                    | "dart"
+                    | "swift"
+                    | "assembly"
+                    | "webassembly"
+                    | "scala"
+                    | "r"
+                    | "elixir"
+                    | "objectivec"
+                    | "perl"
+                    | "haskell"
+                    | "solidity"
+                    | "clojure"
+                    | "erlang"
+                    | "ocaml";
+                readonly lines: readonly components["schemas"]["ContentCodeBlockElementLine_Response"][];
+            };
             readonly ContentFileGalleryBlockElementRow_Response: {
                 readonly items: readonly components["schemas"]["ContentFileGalleryBlockElementRowItem_Response"][];
             };

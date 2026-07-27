@@ -633,6 +633,80 @@ paths:
                                                 type: string
                 default:
                     $ref: "#/components/responses/Error"
+    /documents/{id}/threads:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - thread
+                            additionalProperties: false
+                            properties:
+                                thread:
+                                    type: object
+                                    required:
+                                        - range
+                                        - firstMessage
+                                    additionalProperties: false
+                                    properties:
+                                        firstMessage:
+                                            type: object
+                                            required:
+                                                - content
+                                            additionalProperties: false
+                                            properties:
+                                                createdTimeZone:
+                                                    $ref: "#/components/schemas/TimeZone"
+                                                content:
+                                                    $ref: "#/components/schemas/Content"
+                                                files:
+                                                    type: array
+                                                    items:
+                                                        $ref: "#/components/schemas/MessageContentPayloadFile"
+                                        range:
+                                            $ref: "#/components/schemas/ContentRange"
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - document
+                                    - thread
+                                    - message
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    document:
+                                        type: object
+                                        required:
+                                            - id
+                                            - version
+                                        additionalProperties: false
+                                        properties:
+                                            id:
+                                                $ref: "#/components/schemas/DocumentId"
+                                            version:
+                                                type: integer
+                                                minimum: 0
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentCommentThread_Response"
+                                    message:
+                                        $ref: "#/components/schemas/Message_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}:
         parameters:
             - name: id
@@ -2272,6 +2346,65 @@ components:
         ContentKey:
             type: string
             minLength: 1
+        ContentPosition:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlinePosition"
+                - $ref: "#/components/schemas/ContentBeforePosition"
+                - $ref: "#/components/schemas/ContentAfterPosition"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Inline: "#/components/schemas/ContentInlinePosition"
+                    Before: "#/components/schemas/ContentBeforePosition"
+                    After: "#/components/schemas/ContentAfterPosition"
+        ContentInlinePosition:
+            type: object
+            required:
+                - type
+                - key
+                - index
+            additionalProperties: false
+            properties:
+                type:
+                    const: Inline
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                index:
+                    type: integer
+                    minimum: 0
+        ContentBeforePosition:
+            type: object
+            required:
+                - type
+                - key
+            additionalProperties: false
+            properties:
+                type:
+                    const: Before
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+        ContentAfterPosition:
+            type: object
+            required:
+                - type
+                - key
+            additionalProperties: false
+            properties:
+                type:
+                    const: After
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+        ContentRange:
+            type: object
+            required:
+                - start
+                - end
+            additionalProperties: false
+            properties:
+                start:
+                    $ref: "#/components/schemas/ContentPosition"
+                end:
+                    $ref: "#/components/schemas/ContentPosition"
         TaskCollectionColor:
             type: string
             enum:
@@ -2803,6 +2936,19 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
+        ContentCodeBlockElementLine_Response:
+            type: object
+            required:
+                - key
+                - elements
+            additionalProperties: false
+            properties:
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
         ContentFileBlockElement:
             type: object
             required:
@@ -2890,6 +3036,7 @@ components:
             type: object
             required:
                 - type
+                - key
                 - id
                 - contentType
                 - contentLength
@@ -2897,6 +3044,8 @@ components:
             properties:
                 type:
                     const: File
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 id:
                     $ref: "#/components/schemas/FileId"
                 contentType:
@@ -2988,12 +3137,15 @@ components:
             type: object
             required:
                 - type
+                - key
                 - target
                 - title
             additionalProperties: false
             properties:
                 type:
                     const: Preview
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 target:
                     $ref: "#/components/schemas/PreviewTarget_Response"
                 title:
@@ -4620,6 +4772,115 @@ components:
                         mapping:
                             File: "#/components/schemas/ContentFileBlockElement"
                             Preview: "#/components/schemas/ContentPreviewBlockElement"
+        MessageContentPayloadFileFileElement_Response:
+            type: object
+            required:
+                - type
+                - id
+                - contentType
+                - contentLength
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    type: string
+                    enum:
+                        - application/json
+                        - application/msword
+                        - application/octet-stream
+                        - application/pdf
+                        - application/sql
+                        - application/vnd.dart
+                        - application/vnd.ms-excel
+                        - application/vnd.ms-powerpoint
+                        - application/vnd.openxmlformats-officedocument.presentationml.presentation
+                        - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+                        - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+                        - application/wasm
+                        - application/x-httpd-php
+                        - application/x-powershell
+                        - application/x-ruby
+                        - application/x-sh
+                        - application/xml
+                        - application/yaml
+                        - audio/mp4
+                        - audio/mpeg
+                        - audio/ogg
+                        - audio/wav
+                        - audio/webm
+                        - image/apng
+                        - image/avif
+                        - image/bmp
+                        - image/gif
+                        - image/heif
+                        - image/ico
+                        - image/jpeg
+                        - image/png
+                        - image/svg+xml
+                        - image/tiff
+                        - image/webp
+                        - text/css
+                        - text/html
+                        - text/javascript
+                        - text/markdown
+                        - text/plain
+                        - text/rust
+                        - text/x-asm
+                        - text/x-c++src
+                        - text/x-clojure
+                        - text/x-csharp
+                        - text/x-csrc
+                        - text/x-elixir
+                        - text/x-erlang
+                        - text/x-go
+                        - text/x-haskell
+                        - text/x-java
+                        - text/x-kotlin
+                        - text/x-lua
+                        - text/x-objcsrc
+                        - text/x-ocaml
+                        - text/x-perl
+                        - text/x-python
+                        - text/x-r
+                        - text/x-scala
+                        - text/x-solidity
+                        - text/x-swift
+                        - text/x-typescript
+                        - video/mp4
+                        - video/mpeg
+                        - video/quicktime
+                        - video/webm
+                        - video/x-matroska
+                contentLength:
+                    type: integer
+                    minimum: 0
+        MessageContentPayloadFilePreviewElement_Response:
+            type: object
+            required:
+                - type
+                - target
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                target:
+                    $ref: "#/components/schemas/PreviewTarget_Response"
+                title:
+                    type: string
+                    minLength: 1
+        MessageContentPayloadFileElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayloadFileFileElement_Response"
+                - $ref: "#/components/schemas/MessageContentPayloadFilePreviewElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    File: "#/components/schemas/MessageContentPayloadFileFileElement_Response"
+                    Preview: "#/components/schemas/MessageContentPayloadFilePreviewElement_Response"
         MessageContentPayloadFile_Response:
             type: object
             required:
@@ -4636,14 +4897,7 @@ components:
                     minimum: 0
                     maximum: 1
                 element:
-                    oneOf:
-                        - $ref: "#/components/schemas/ContentFileBlockElement_Response"
-                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
-                    discriminator:
-                        propertyName: type
-                        mapping:
-                            File: "#/components/schemas/ContentFileBlockElement_Response"
-                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+                    $ref: "#/components/schemas/MessageContentPayloadFileElement_Response"
         MessageContentPayloadParent:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
@@ -5712,7 +5966,7 @@ components:
                 - $ref: "#/components/schemas/ContentHeadingBlockElement_Response"
                 - $ref: "#/components/schemas/ContentDividerBlockElement"
                 - $ref: "#/components/schemas/ContentTableBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - $ref: "#/components/schemas/ContentCodeBlockElement_Response"
                 - $ref: "#/components/schemas/ContentFileBlockElement_Response"
                 - $ref: "#/components/schemas/ContentFileGalleryBlockElement_Response"
                 - $ref: "#/components/schemas/ContentFileFloatBlockElement_Response"
@@ -5728,7 +5982,7 @@ components:
                     Heading: "#/components/schemas/ContentHeadingBlockElement_Response"
                     Divider: "#/components/schemas/ContentDividerBlockElement"
                     Table: "#/components/schemas/ContentTableBlockElement_Response"
-                    Code: "#/components/schemas/ContentCodeBlockElement"
+                    Code: "#/components/schemas/ContentCodeBlockElement_Response"
                     File: "#/components/schemas/ContentFileBlockElement_Response"
                     FileGallery: "#/components/schemas/ContentFileGalleryBlockElement_Response"
                     FileFloat: "#/components/schemas/ContentFileFloatBlockElement_Response"
@@ -5784,7 +6038,7 @@ components:
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - $ref: "#/components/schemas/ContentCodeBlockElement_Response"
                 - $ref: "#/components/schemas/ContentFileBlockElement_Response"
                 - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
             discriminator:
@@ -5795,9 +6049,64 @@ components:
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
                     CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
                     Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
-                    Code: "#/components/schemas/ContentCodeBlockElement"
+                    Code: "#/components/schemas/ContentCodeBlockElement_Response"
                     File: "#/components/schemas/ContentFileBlockElement_Response"
                     Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        ContentCodeBlockElement_Response:
+            type: object
+            required:
+                - type
+                - language
+                - lines
+            additionalProperties: false
+            properties:
+                type:
+                    const: Code
+                language:
+                    type: string
+                    enum:
+                        - text
+                        - javascript
+                        - html
+                        - css
+                        - sql
+                        - python
+                        - typescript
+                        - shell
+                        - java
+                        - json
+                        - markdown
+                        - csharp
+                        - cpp
+                        - c
+                        - php
+                        - go
+                        - yaml
+                        - powershell
+                        - rust
+                        - kotlin
+                        - ruby
+                        - lua
+                        - xml
+                        - dart
+                        - swift
+                        - assembly
+                        - webassembly
+                        - scala
+                        - r
+                        - elixir
+                        - objectivec
+                        - perl
+                        - haskell
+                        - solidity
+                        - clojure
+                        - erlang
+                        - ocaml
+                lines:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementLine_Response"
         ContentFileGalleryBlockElementRow_Response:
             type: object
             required:

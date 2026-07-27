@@ -1,10 +1,10 @@
 import {Node} from "prosemirror-model";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createIntoApiDocumentCommentContentPayloadParent} from "~/server/api/internal/documents/internal/create_into_api_document_comment_content_payload_parent.js";
+import {intoApiDocumentCommentThreadResponse} from "~/server/api/internal/documents/internal/into_api_document_comment_thread_response.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
-import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {
     getApiMentionTitleWithStrongConsistency,
     intoApiContentWithReferences,
@@ -37,16 +37,14 @@ import {
     fromApiContentToDocumentChildNodes,
 } from "~/shared/api/content/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
-import {
-    ApiContent,
-    ApiContentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
+    DocumentCollaborationCreateCommentThreadForApiRequestBodySchema,
+    DocumentCollaborationCreateCommentThreadForApiResponseBodySchema,
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
@@ -59,6 +57,7 @@ import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/documen
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -261,6 +260,63 @@ export const apiDocumentsPaths: Pick<
         },
     },
 
+    "/documents/{id}/threads": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const {firstMessage, range} = requestBody.thread;
+            const content = assertMessageContent(
+                fromApiContent(MessageContentProsemirrorSchema, firstMessage.content),
+            );
+
+            const createdTimeZone = firstMessage.createdTimeZone ?? defaultTimeZone;
+            const fileIds = (firstMessage.files ?? []).map(parseFileIdFromApiFileElement);
+
+            const responseBody =
+                DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.deserialize(
+                    await context.edge.sendRequestToDurableObject(
+                        `/api/durable-objects/documents/${pathParameters.id}/create-comment-thread-for-api`,
+                        {
+                            serviceName: "DocumentCollaborationService",
+                            route: "/api/durable-objects/documents/:documentId/create-comment-thread-for-api",
+                            body: DocumentCollaborationCreateCommentThreadForApiRequestBodySchema.serialize(
+                                {range, content, fileIds, createdTimeZone},
+                            ),
+                        },
+                    ),
+                );
+
+            if (!responseBody.ok) throw responseBody.error;
+
+            const {newVersion, commentThread, documentContentSnippet, files, message} =
+                responseBody;
+
+            const spaceId = commentThread.spaceId;
+            const {thread, message: apiMessage} = await intoApiDocumentCommentThreadResponse(
+                context,
+                {
+                    documentId: pathParameters.id,
+                    commentThread,
+                    documentContent: {type: "Snippet", snippet: documentContentSnippet},
+                    documentVersion: newVersion,
+                    message,
+                    fileById: new Map(files.map(file => [file.id, file])),
+                },
+            );
+            assert(apiMessage !== undefined);
+
+            return {
+                content: {
+                    spaceId,
+                    document: {
+                        id: pathParameters.id,
+                        version: newVersion,
+                    },
+                    thread,
+                    message: apiMessage,
+                },
+            };
+        },
+    },
+
     "/documents/{id}/mention": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
@@ -302,75 +358,17 @@ export const apiDocumentsPaths: Pick<
                 getDocumentContent(context, pathParameters.id, options),
             ]);
 
-            const firstCommentAuthor = commentThread.firstCommentAuthorId
-                ? await getApiAccount(
-                      context.dynamo.unexpectStrongReadConsistency(),
-                      commentThread.spaceId,
-                      commentThread.firstCommentAuthorId,
-                  )
-                : null;
-
-            const contentSnippetByCommentThreadId = createDocumentCommentThreadSnippetCollector(
-                [pathParameters.threadId],
-                // Whole text blocks so every block in the snippet gets a content key that matches
-                // the key for the same block in the full document content.
-                {wholeTextBlocks: true},
-            )(documentContent.content);
-
-            const commentThreadSnippet = contentSnippetByCommentThreadId.get(
-                pathParameters.threadId,
-            );
-
-            let contentSnippet: ApiContentResponse | null = null;
-            if (commentThreadSnippet) {
-                contentSnippet = await intoApiContentWithReferences(
-                    context,
-                    commentThread.spaceId,
-                    FileDocumentAuthorizer.bind({
-                        type: "Document",
-                        documentId: pathParameters.id,
-                    }),
-                    commentThreadSnippet.node,
-                    {
-                        encoder: new ApiContentKeyEncoder({
-                            entityId: `Document:${pathParameters.id}`,
-                            version: documentContent.version,
-                        }),
-                        posOffset: commentThreadSnippet.posOffset,
-                    },
-                );
-            } else if (commentThread.fallbackContentSnippet) {
-                contentSnippet = await intoApiContentWithReferences(
-                    context,
-                    commentThread.spaceId,
-                    FileDocumentAuthorizer.bind({
-                        type: "Document",
-                        documentId: pathParameters.id,
-                    }),
-                    commentThread.fallbackContentSnippet.node,
-                    {
-                        // The fallback snippet was saved from an older version of the document, so encode
-                        // its keys with that version. The keys identify blocks within the snippet but
-                        // can't be resolved against the current document content.
-                        encoder: new ApiContentKeyEncoder({
-                            entityId: `Document:${pathParameters.id}`,
-                            version: commentThread.fallbackContentSnippet.version,
-                        }),
-                    },
-                );
-            }
+            const {thread} = await intoApiDocumentCommentThreadResponse(context, {
+                documentId: pathParameters.id,
+                commentThread,
+                documentContent: {type: "Document", content: documentContent.content},
+                documentVersion: documentContent.version,
+            });
 
             return {
                 content: {
                     spaceId: commentThread.spaceId,
-                    commentThread: {
-                        id: commentThread.id,
-                        createdTime: serializeDateString(commentThread.createdTime),
-                        isResolved: commentThread.isResolved,
-                        commentCount: commentThread.commentCount,
-                        firstCommentAuthor,
-                        documentContentSnippet: contentSnippet ?? {elements: []},
-                    },
+                    commentThread: thread,
                 },
             };
         },

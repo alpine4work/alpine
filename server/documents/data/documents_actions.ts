@@ -38,6 +38,7 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {dangerouslyGetFileAttachmentTargetTransactionEntryWithoutTargetAuthorizationAsBot} from "~/server/files/data/dangerously_get_file_attachment_target_transaction_entry_without_target_authorization_as_bot.js";
 import {
     attachFileFromAttachment,
     getFileFromAttachment,
@@ -2849,6 +2850,7 @@ export async function updateDocumentContent(
             initialCommentContent: MessageContent;
             initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone: TimeZone;
+            attachInitialCommentFilesAsBot?: boolean;
 
             /**
              * Optionally allow the caller to specify the time at which we report the thread
@@ -3027,7 +3029,35 @@ export async function updateDocumentContent(
         // here.
         await authorizeDocumentItemAccess(context, internalDocument, expectedAccessLevel);
 
-        const [{newContent, steps, invertedSteps, conflictingSteps}] = await runAllPromises([
+        const initialCommentFileIdsToAttachAsBot = new Set<FileId>();
+        const existingInitialCommentFileValidationPromises: Array<Promise<unknown>> = [];
+
+        for (const createCommentThread of createCommentThreads) {
+            for (const fileId of createCommentThread.initialCommentFileIds) {
+                if (!isId<FileId>(fileId)) continue;
+
+                if (createCommentThread.attachInitialCommentFilesAsBot) {
+                    initialCommentFileIdsToAttachAsBot.add(fileId);
+                } else {
+                    existingInitialCommentFileValidationPromises.push(
+                        getFileFromAttachment(
+                            context,
+                            fileId,
+                            FileDocumentAuthorizer.bind({
+                                type: "DocumentComments",
+                                documentId,
+                            }),
+                        ),
+                    );
+                }
+            }
+        }
+
+        const [
+            {newContent, steps, invertedSteps, conflictingSteps},
+            ,
+            initialCommentFileAttachmentTransactionEntries,
+        ] = await runAllPromises([
             getCollaborativelyUpdateContentResult(context, {
                 currentVersion: internalDocument.version,
                 currentContent: internalDocument.content,
@@ -3071,19 +3101,16 @@ export async function updateDocumentContent(
                     }
                 },
             }),
+            runAllPromises(existingInitialCommentFileValidationPromises),
             runAllPromises(
-                flatMapIterable(createCommentThreads, createCommentThread =>
-                    mapIterable(createCommentThread.initialCommentFileIds, fileId =>
-                        isId<FileId>(fileId)
-                            ? getFileFromAttachment(
-                                  context,
-                                  fileId,
-                                  FileDocumentAuthorizer.bind({
-                                      type: "DocumentComments",
-                                      documentId: documentId,
-                                  }),
-                              )
-                            : null,
+                Array.from(initialCommentFileIdsToAttachAsBot, fileId =>
+                    dangerouslyGetFileAttachmentTargetTransactionEntryWithoutTargetAuthorizationAsBot(
+                        context,
+                        fileId,
+                        FileDocumentAuthorizer.bind({
+                            type: "DocumentComments",
+                            documentId,
+                        }),
                     ),
                 ),
             ),
@@ -3319,6 +3346,7 @@ export async function updateDocumentContent(
         });
 
         const transaction: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
+        transaction.push(...initialCommentFileAttachmentTransactionEntries);
 
         let newLastIndexSearchEntityJob = internalDocument.lastIndexSearchEntityJob;
         let newStepCountByAccountId = internalDocument.stepCountByAccountId;

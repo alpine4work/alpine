@@ -175,6 +175,9 @@ type ApiContentTableBlockElementCellResponseWithOptionalKeys =
     ApiContentWithOptionalKeys<ApiContentTableBlockElementCellResponse>;
 type ApiContentTableBlockElementRowResponseWithOptionalKeys =
     ApiContentWithOptionalKeys<ApiContentTableBlockElementRowResponse>;
+type ApiContentFileOrPreviewBlockElementResponseWithOptionalKeys = ApiContentWithOptionalKeys<
+    ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse
+>;
 
 /**
  * Converts content with required entity context and guarantees content keys on
@@ -325,9 +328,7 @@ function* intoApiContentBlockElements(
                 const rows: Array<{
                     items: Array<{
                         width: number;
-                        element:
-                            | ApiContentFileBlockElementResponse
-                            | ApiContentPreviewBlockElementResponse;
+                        element: ApiContentFileOrPreviewBlockElementResponseWithOptionalKeys;
                     }>;
                 }> = [];
 
@@ -337,13 +338,22 @@ function* intoApiContentBlockElements(
 
                 while (nodeIndex < nodes.length) {
                     const fileRowNode = nodes[nodeIndex]!;
+                    const fileRowNodePos = nodePos;
                     if (fileRowNode.type.name !== "fileRow") break;
                     nodeIndex++;
                     nodePos += fileRowNode.nodeSize;
 
-                    const rowElements = fileRowNode.content.content.map(child =>
-                        intoApiContentFileOrPreviewElement(child, options),
-                    );
+                    let childPos = fileRowNodePos + 1;
+                    const rowElements = fileRowNode.content.content.map(child => {
+                        const currentChildPos = childPos;
+                        childPos += child.nodeSize;
+                        return intoApiContentFileOrPreviewElement(
+                            child,
+                            currentChildPos,
+                            options,
+                            context,
+                        );
+                    });
 
                     if (rowElements.length > 0) {
                         const widths = computeApiContentFileRowWidths(rowElements, options);
@@ -711,7 +721,12 @@ function intoApiContentBlockElement(
         }
         case "fileFloat": {
             const fileChild = assertExists(node.content.content[0]);
-            const element = intoApiContentFileOrPreviewElement(fileChild, options);
+            const element = intoApiContentFileOrPreviewElement(
+                fileChild,
+                nodePos + 1,
+                options,
+                context,
+            );
             const direction = node.attrs.direction;
             assert(typeof direction === "string");
             return {
@@ -722,7 +737,7 @@ function intoApiContentBlockElement(
         }
         case "fileRowTable": {
             const fileChild = assertExists(node.content.content[0]);
-            return intoApiContentFileOrPreviewElement(fileChild, options);
+            return intoApiContentFileOrPreviewElement(fileChild, nodePos + 1, options, context);
         }
         default:
             throw exhaustive(typeName);
@@ -809,11 +824,24 @@ function assertApiContentBlockElementHasKeys(
             }
             break;
         }
-        case "Divider":
+        case "Divider": {
+            break;
+        }
         case "File":
-        case "FileGallery":
-        case "FileFloat":
         case "Preview": {
+            assert(element.key !== undefined);
+            break;
+        }
+        case "FileGallery": {
+            for (const row of element.rows) {
+                for (const item of row.items) {
+                    assertApiContentBlockElementHasKeys(item.element);
+                }
+            }
+            break;
+        }
+        case "FileFloat": {
+            assertApiContentBlockElementHasKeys(element.element);
             break;
         }
         default:
@@ -845,12 +873,17 @@ function assertApiContentCheckListBlockElementItemHasKeys(
 
 function intoApiContentFileOrPreviewElement(
     fileNode: Node,
+    fileNodePos: number,
     options: ApiContentMarkdownIntoOptionsForConversion,
-): ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse {
+    context: ApiContentMarkdownIntoContext,
+): ApiContentFileOrPreviewBlockElementResponseWithOptionalKeys {
+    const key = maybeEncodeApiContentKey(context, fileNodePos, fileNode);
+
     const fileId: string | null = fileNode.attrs.fileId;
     if (fileId === null) {
         return {
             type: "File",
+            ...(key !== undefined ? {key} : {}),
             id: unknownFileId,
             contentType: "application/octet-stream",
             contentLength: 0,
@@ -866,13 +899,14 @@ function intoApiContentFileOrPreviewElement(
             options.getSearchEntityMentionTitleIfExists(fileId) ??
             `Unknown ${getApiMentionTargetNoun(entityIdObject.type)}`;
 
-        return {type: "Preview", target, title};
+        return {type: "Preview", ...(key !== undefined ? {key} : {}), target, title};
     }
 
     assert(isId<FileId>(fileId));
     const file = options.getFileIfExists(fileId);
     return {
         type: "File",
+        ...(key !== undefined ? {key} : {}),
         id: fileId,
         contentType: file?.contentType ?? "application/octet-stream",
         contentLength: file?.contentLength ?? 0,

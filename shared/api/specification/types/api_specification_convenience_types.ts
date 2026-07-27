@@ -15,6 +15,8 @@ export type ApiContent = ApiSpecification.components["schemas"]["Content"];
 
 export type ApiContentResponse = ApiSpecification.components["schemas"]["Content_Response"];
 
+export type ApiContentPosition = ApiSpecification.components["schemas"]["ContentPosition"];
+
 export type ApiContentBlockElement = ApiSpecification.components["schemas"]["ContentBlockElement"];
 
 export type ApiContentBlockElementResponse =
@@ -103,6 +105,15 @@ export type ApiContentTableBlockElementCellBlockElementResponse =
 
 export type ApiContentCodeBlockElement =
     ApiSpecification.components["schemas"]["ContentCodeBlockElement"];
+
+export type ApiContentCodeBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElement_Response"];
+
+export type ApiContentCodeBlockElementLine =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElementLine"];
+
+export type ApiContentCodeBlockElementLineResponse =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElementLine_Response"];
 
 export type ApiContentCodeBlockElementTextInlineElement =
     ApiSpecification.components["schemas"]["ContentCodeBlockElementTextInlineElement"];

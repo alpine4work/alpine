@@ -8,10 +8,7 @@ import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {
-    ApiContent,
-    ApiContentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
@@ -371,7 +368,7 @@ function previewUrl(entityPath: string) {
 
 function testFileIntoApiContentAndPrintToMarkdown(
     prosemirrorNode: Node,
-    expectedApiContent: ApiContentResponse,
+    expectedApiContent: ApiContent,
     expectedMarkdown: string,
 ) {
     prosemirrorNode.check();

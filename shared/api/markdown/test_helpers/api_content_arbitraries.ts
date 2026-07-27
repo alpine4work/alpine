@@ -15,6 +15,7 @@ import {
     ApiContentCheckListBlockElementItem,
     ApiContentCheckListBlockElementItemResponse,
     ApiContentCodeBlockElement,
+    ApiContentCodeBlockElementResponse,
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
     ApiContentDividerBlockElement,
@@ -537,9 +538,24 @@ const ApiPreviewTargetResponseArbitrary = createUnionArbitrary<ApiPreviewTargetR
     ApiPreviewAndMentionTargetResponses,
 );
 
+const ApiContentKeyArbitrary = fc
+    .record({
+        documentId: createIdArbitrary<DocumentId>(),
+        version: fc.integer({min: 0, max: 10}),
+        pos: fc.integer({min: 0, max: 10}),
+        nodeSize: fc.integer({min: 0, max: 10}),
+    })
+    .map(({documentId, version, pos, nodeSize}) =>
+        new ApiContentKeyEncoder({entityId: `Document:${documentId}`, version}).encode({
+            pos,
+            nodeSize,
+        }),
+    );
+
 const ApiContentFileBlockElementResponseArbitrary: Arbitrary<ApiContentFileBlockElementResponse> =
     fc.record({
         type: fc.constant("File"),
+        key: ApiContentKeyArbitrary,
         id: fc.oneof(createIdArbitrary<FileId>(), fc.constant(unknownFileId)),
         contentType: fc.oneof(
             fc.constant("image/png"),
@@ -554,6 +570,7 @@ const ApiContentFileBlockElementResponseArbitrary: Arbitrary<ApiContentFileBlock
 const ApiContentPreviewBlockElementResponseArbitrary: Arbitrary<ApiContentPreviewBlockElementResponse> =
     fc.record({
         type: fc.constant("Preview"),
+        key: ApiContentKeyArbitrary,
         target: ApiPreviewTargetResponseArbitrary,
         title: fc.string({minLength: 1, maxLength: 20}),
     });
@@ -627,19 +644,22 @@ const ApiContentInlineElementResponseArbitrary =
         Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
     });
 
-const ApiContentKeyArbitrary = fc
-    .record({
-        documentId: createIdArbitrary<DocumentId>(),
-        version: fc.integer({min: 0, max: 10}),
-        pos: fc.integer({min: 0, max: 10}),
-        nodeSize: fc.integer({min: 0, max: 10}),
-    })
-    .map(({documentId, version, pos, nodeSize}) =>
-        new ApiContentKeyEncoder({entityId: `Document:${documentId}`, version}).encode({
-            pos,
-            nodeSize,
-        }),
-    );
+const ApiContentCodeBlockElementResponseArbitrary: Arbitrary<ApiContentCodeBlockElementResponse> =
+    fc.record({
+        type: fc.constant("Code"),
+        language: fc.oneof(
+            ...mapIterable(
+                getObjectKeysWithKeyofType(apiContentCodeBlockLanguageDefinition),
+                language => fc.constant(language),
+            ),
+        ),
+        lines: fc.array(
+            fc.record({
+                key: ApiContentKeyArbitrary,
+                elements: fc.array(ApiContentCodeBlockElementTextInlineElementArbitrary),
+            }),
+        ),
+    });
 
 const ApiContentParagraphBlockElementResponseArbitrary: Arbitrary<ApiContentParagraphBlockElementResponse> =
     fc.record({
@@ -837,7 +857,7 @@ const ApiContentTableBlockElementResponseArbitrary: Arbitrary<ApiContentTableBlo
                                         OrderedList:
                                             ApiContentOrderedListBlockElementResponseArbitrary,
                                         Quote: ApiContentQuoteBlockElementResponseArbitrary,
-                                        Code: ApiContentCodeBlockElementArbitrary,
+                                        Code: ApiContentCodeBlockElementResponseArbitrary,
                                         CheckList: ApiContentCheckListBlockElementResponseArbitrary,
                                         File: ApiContentFileBlockElementResponseArbitrary,
                                         Preview: ApiContentPreviewBlockElementResponseArbitrary,
@@ -862,7 +882,7 @@ export const ApiContentResponseArbitrary: Arbitrary<ApiContentResponse> = fc.rec
             Quote: ApiContentQuoteBlockElementResponseArbitrary,
             Heading: ApiContentHeadingBlockElementResponseArbitrary,
             Divider: ApiContentDividerBlockElementArbitrary,
-            Code: ApiContentCodeBlockElementArbitrary,
+            Code: ApiContentCodeBlockElementResponseArbitrary,
             Table: ApiContentTableBlockElementResponseArbitrary,
             File: ApiContentFileBlockElementResponseArbitrary,
             FileGallery: ApiContentFileGalleryBlockElementResponseArbitrary,

@@ -1,6 +1,7 @@
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ContentSelectionSchema} from "~/shared/content/content_selection_schema.js";
 import {
     MessageContentSchema,
@@ -11,6 +12,7 @@ import {
     DocumentContentNodeSchema,
     DocumentContentSchema,
     DocumentContentStepSchema,
+    DocumentWithOptionalTitleContentSchema,
 } from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
@@ -19,6 +21,7 @@ import {
 import {createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {
     AccountId,
     ContentEditorClientId,
@@ -27,7 +30,11 @@ import {
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
-import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadParentSchema,
+    MessagePayloadSchema,
+    MessageStreamSchema,
+} from "~/shared/messaging/message_schema.js";
 import {
     MessagingTypingStateSchema,
     createMessageUpdatesBackfillResultSchema,
@@ -52,6 +59,27 @@ export type DocumentCollaborationPresenceState = SchemaType<
 const DocumentCollaborationPresenceStateSchema = Schema.object({
     version: Schema.integer,
     selection: ContentSelectionSchema,
+});
+
+const ApiContentKeySchema = Schema.string.transform<ApiContentKey>({
+    serialize: key => key,
+    deserialize: key => key as ApiContentKey,
+});
+
+const ApiContentPositionSchema = Schema.union({
+    Inline: Schema.object({
+        type: Schema.value("Inline"),
+        key: ApiContentKeySchema,
+        index: Schema.integer.min(0),
+    }),
+    Before: Schema.object({
+        type: Schema.value("Before"),
+        key: ApiContentKeySchema,
+    }),
+    After: Schema.object({
+        type: Schema.value("After"),
+        key: ApiContentKeySchema,
+    }),
 });
 
 const UpdateContentInputSchema = {
@@ -88,6 +116,60 @@ const UpdateContentInputSchema = {
         state: DocumentCollaborationPresenceStateSchema.nullable(),
     }),
 } as const;
+
+export const DocumentCollaborationCreateCommentThreadForApiRequestBodySchema = Schema.object({
+    range: Schema.object({
+        start: ApiContentPositionSchema,
+        end: ApiContentPositionSchema,
+    }),
+    content: MessageContentSchema,
+    fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
+    createdTimeZone: TimeZoneSchema,
+});
+
+const DocumentCollaborationCreateCommentThreadForApiCommentThreadSchema = Schema.object({
+    spaceId: Schema.id<SpaceId>(),
+    id: Schema.id<DocumentCommentThreadId>(),
+    createdTime: Schema.date,
+    isResolved: Schema.boolean,
+    commentCount: Schema.integer,
+    firstCommentAuthorId: Schema.id<AccountId>().nullable(),
+    fallbackContentSnippet: Schema.object({
+        version: Schema.integer,
+        node: DocumentWithOptionalTitleContentSchema,
+    }).nullable(),
+});
+
+const DocumentCollaborationCreateCommentThreadForApiMessageSchema = Schema.object({
+    index: Schema.integer,
+    version: Schema.integer,
+    createdTime: Schema.date,
+    createdTimeZone: TimeZoneSchema,
+    authorId: Schema.id<AccountId>(),
+    payload: MessagePayloadSchema,
+    stream: MessageStreamSchema.merge(
+        Schema.object({lastPingTime: Schema.date.nullable()}),
+    ).nullable(),
+});
+
+export const DocumentCollaborationCreateCommentThreadForApiResponseBodySchema = Schema.result(
+    Schema.object({
+        ok: Schema.value(true),
+        newVersion: Schema.integer,
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        commentThread: DocumentCollaborationCreateCommentThreadForApiCommentThreadSchema,
+        documentContentSnippet: Schema.object({
+            node: DocumentWithOptionalTitleContentSchema,
+            posOffset: Schema.integer,
+        }).nullable(),
+        files: Schema.array(FileModel.schema),
+        message: DocumentCollaborationCreateCommentThreadForApiMessageSchema,
+    }),
+    Schema.object({
+        ok: Schema.value(false),
+        error: ErrorSchema,
+    }),
+);
 
 export type DocumentCollaborationEvent = WebSocketProtocolEventType<
     typeof DocumentCollaborationProtocol

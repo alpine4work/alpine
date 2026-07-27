@@ -1,14 +1,12 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FilesTable} from "~/server/files/data/internal/files_table.js";
 import {computeApiContentFileRowWidths} from "~/shared/api/content/compute_api_content_file_row_widths.js";
-import {
-    ApiContentFileBlockElementResponse,
-    ApiContentPreviewBlockElementResponse,
-    ApiMessageContentPayloadFileResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMessageContentPayloadFileResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileEntityId, isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -22,12 +20,13 @@ export async function resolveFilesForApiResponse(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileIds: ReadonlyArray<FileId | string>,
+    {fileById}: {fileById?: ReadonlyMap<FileId, FileModel>} = {},
 ): Promise<Array<ApiMessageContentPayloadFileResponse>> {
     const results: Array<{
-        element: ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse;
+        element: ApiMessageContentPayloadFileResponse["element"];
         file?: {
             contentType: FileContentType;
-            size?: {width: number | null; height: number; scale?: number} | null;
+            size?: FileImagePreviewSize | null;
         };
     }> = [];
 
@@ -40,27 +39,43 @@ export async function resolveFilesForApiResponse(
 
         if (!isId<FileId>(fileId)) continue;
 
-        const fileItem = await FilesTable.getItemIfExists(
-            context,
-            {partitionType: "File2", sortRangeType: "Attributes", fileId},
-            {consistency: "StrongWithinCache"},
-        );
-        if (!fileItem || fileItem.spaceId !== spaceId) continue;
+        const file = fileById?.get(fileId);
+        let contentType: FileContentType;
+        let contentLength: number;
+        let size: FileImagePreviewSize | null;
+
+        if (file) {
+            if (file.spaceId !== spaceId) continue;
+
+            const preview = file.initialData.preview;
+            contentType = file.contentType;
+            contentLength = file.contentLength;
+            size =
+                preview?.type === "Image" && typeof preview.size === "object" ? preview.size : null;
+        } else {
+            const fileItem = await FilesTable.getItemIfExists(
+                context,
+                {partitionType: "File2", sortRangeType: "Attributes", fileId},
+                {consistency: "StrongWithinCache"},
+            );
+            if (!fileItem || fileItem.spaceId !== spaceId) continue;
+
+            contentType = fileItem.contentType;
+            contentLength = fileItem.contentLength;
+            size =
+                fileItem.preview?.type === "Image" && typeof fileItem.preview.size === "object"
+                    ? fileItem.preview.size
+                    : null;
+        }
 
         results.push({
             element: {
                 type: "File",
                 id: fileId,
-                contentType: fileItem.contentType,
-                contentLength: fileItem.contentLength,
+                contentType,
+                contentLength,
             },
-            file: {
-                contentType: fileItem.contentType,
-                size:
-                    fileItem.preview?.type === "Image" && typeof fileItem.preview.size === "object"
-                        ? fileItem.preview.size
-                        : null,
-            },
+            file: {contentType, size},
         });
     }
 
@@ -101,7 +116,7 @@ export async function resolveFilesForApiResponse(
 
 function resolveFileEntityIdToPreview(
     fileEntityId: FileEntityId,
-): ApiContentPreviewBlockElementResponse | null {
+): ApiMessageContentPayloadFileResponse["element"] | null {
     const entityIdObject = parseFileEntityId(fileEntityId);
 
     switch (entityIdObject.type) {
