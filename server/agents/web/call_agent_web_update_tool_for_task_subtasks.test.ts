@@ -202,6 +202,70 @@ test("adds a task to manually ordered subtasks", async () => {
     });
 });
 
+test("rejects a Parent field on an existing task without writing", async () => {
+    mockReadSubtasks(subtasks.slice(0, 1));
+
+    await callAgentWebReadTool(context, {path: "/task/my-task/subtasks", limit: "10kb"});
+
+    const result = await callAgentWebUpdateTool(context, {
+        path: "/task/my-task/subtasks",
+        updates: [
+            {
+                old: "- [First subtask (Open)](/task/first-subtask)",
+                new: `\
+- [First subtask (Open)](/task/first-subtask)
+  - Parent: [My Task](/task/my-task)`,
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        result,
+        writeRequests: api
+            .getRequestHistory()
+            .filter(request => request.method === "POST" || request.method === "PATCH"),
+    }).toEqual({
+        result:
+            "Error: Couldn\u2019t update `/task/my-task/subtasks`. " +
+            "Unexpected \u201CParent\u201D field for a task in subtasks on line 4. A task\u2019s parent is already set by the subtasks page it appears on. Try again after removing the \u201CParent\u201D field.",
+        writeRequests: [],
+    });
+});
+
+test("rejects a Parent field on a new task without writing", async () => {
+    mockReadSubtasks([]);
+
+    await callAgentWebReadTool(context, {path: "/task/my-task/subtasks", limit: "10kb"});
+
+    const result = await callAgentWebUpdateTool(context, {
+        path: "/task/my-task/subtasks",
+        updates: [
+            {
+                old: "End of tasks.",
+                new: `\
+- New subtask (Open)
+  - Parent:
+
+End of tasks.`,
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        result,
+        writeRequests: api
+            .getRequestHistory()
+            .filter(request => request.method === "POST" || request.method === "PATCH"),
+    }).toEqual({
+        result:
+            "Error: Couldn\u2019t update `/task/my-task/subtasks`. " +
+            "Unexpected \u201CParent\u201D field for a task in subtasks on line 4. A task\u2019s parent is already set by the subtasks page it appears on. Try again after removing the \u201CParent\u201D field.",
+        writeRequests: [],
+    });
+});
+
 test("creates a task in the middle of manually ordered subtasks", async () => {
     mockReadSubtasks(subtasks.slice(0, 2));
     const createdTask = createApiTaskMock({
@@ -281,6 +345,216 @@ test("creates a task in the middle of manually ordered subtasks", async () => {
             ],
         },
     ]);
+});
+
+test("moves a subtask and creates a subtask immediately after it at the same position", async () => {
+    mockReadSubtasks(subtasks);
+    const movedTask = subtasks[0]!;
+    const createdTask = createApiTaskMock({
+        index: 4,
+        title: "New subtask",
+        parent: parentTask,
+    });
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [withoutNotes(movedTask), withoutNotes(createdTask)],
+            results: [
+                {
+                    type: "Update",
+                    result: {
+                        type: "MoveInParent",
+                        cursor: printApiTaskQueryCursorMock(10),
+                    },
+                },
+                {
+                    type: "Create",
+                    task: {id: createdTask.id},
+                    results: [{type: "MoveInParent", cursor: printApiTaskQueryCursorMock(11)}],
+                },
+            ],
+        },
+    });
+
+    await callAgentWebReadTool(context, {path: "/task/my-task/subtasks", limit: "10kb"});
+
+    const result = await callAgentWebUpdateTool(context, {
+        path: "/task/my-task/subtasks",
+        updates: [
+            {
+                old: `\
+- [First subtask (Open)](/task/first-subtask)
+
+- [Second subtask (Open)](/task/second-subtask)
+
+- [Third subtask (Open)](/task/third-subtask)`,
+                new: `\
+- [Second subtask (Open)](/task/second-subtask)
+
+- [First subtask (Open)](/task/first-subtask)
+
+- New subtask (Open)
+
+- [Third subtask (Open)](/task/third-subtask)`,
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        result,
+        requests: api
+            .getRequestHistory()
+            .filter(request => request.method === "PATCH" && request.path === "/tasks")
+            .map(request => request.body),
+    }).toEqual({
+        result: "Update was successful.",
+        requests: [
+            {
+                spaceId,
+                patches: [
+                    {
+                        type: "Update",
+                        id: movedTask.id,
+                        patch: {
+                            type: "MoveInParent",
+                            position: {
+                                type: "Between",
+                                afterCursor: printApiTaskQueryCursorMock(1),
+                                beforeCursor: printApiTaskQueryCursorMock(2),
+                            },
+                        },
+                    },
+                    {
+                        type: "Create",
+                        task: {
+                            title: "New subtask",
+                            status: {type: "Open", isActive: false},
+                            parent: {task: {id: parentTask.id}},
+                            collections: [],
+                        },
+                        patches: [
+                            {
+                                type: "MoveInParent",
+                                position: {
+                                    type: "Between",
+                                    afterCursor: printApiTaskQueryCursorMock(1),
+                                    beforeCursor: printApiTaskQueryCursorMock(2),
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("creates a subtask immediately before a moved subtask at the same position", async () => {
+    mockReadSubtasks(subtasks);
+    const movedTask = subtasks[0]!;
+    const createdTask = createApiTaskMock({
+        index: 4,
+        title: "New subtask",
+        parent: parentTask,
+    });
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [withoutNotes(createdTask), withoutNotes(movedTask)],
+            results: [
+                {
+                    type: "Create",
+                    task: {id: createdTask.id},
+                    results: [{type: "MoveInParent", cursor: printApiTaskQueryCursorMock(10)}],
+                },
+                {
+                    type: "Update",
+                    result: {
+                        type: "MoveInParent",
+                        cursor: printApiTaskQueryCursorMock(11),
+                    },
+                },
+            ],
+        },
+    });
+
+    await callAgentWebReadTool(context, {path: "/task/my-task/subtasks", limit: "10kb"});
+
+    const result = await callAgentWebUpdateTool(context, {
+        path: "/task/my-task/subtasks",
+        updates: [
+            {
+                old: `\
+- [First subtask (Open)](/task/first-subtask)
+
+- [Second subtask (Open)](/task/second-subtask)
+
+- [Third subtask (Open)](/task/third-subtask)`,
+                new: `\
+- [Second subtask (Open)](/task/second-subtask)
+
+- New subtask (Open)
+
+- [First subtask (Open)](/task/first-subtask)
+
+- [Third subtask (Open)](/task/third-subtask)`,
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        result,
+        requests: api
+            .getRequestHistory()
+            .filter(request => request.method === "PATCH" && request.path === "/tasks")
+            .map(request => request.body),
+    }).toEqual({
+        result: "Update was successful.",
+        requests: [
+            {
+                spaceId,
+                patches: [
+                    {
+                        type: "Create",
+                        task: {
+                            title: "New subtask",
+                            status: {type: "Open", isActive: false},
+                            parent: {task: {id: parentTask.id}},
+                            collections: [],
+                        },
+                        patches: [
+                            {
+                                type: "MoveInParent",
+                                position: {
+                                    type: "Between",
+                                    afterCursor: printApiTaskQueryCursorMock(1),
+                                    beforeCursor: printApiTaskQueryCursorMock(2),
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        type: "Update",
+                        id: movedTask.id,
+                        patch: {
+                            type: "MoveInParent",
+                            position: {
+                                type: "Between",
+                                afterCursor: printApiTaskQueryCursorMock(1),
+                                beforeCursor: printApiTaskQueryCursorMock(2),
+                            },
+                        },
+                    },
+                ],
+            },
+        ],
+    });
 });
 
 test("creates multiple tasks in their written order", async () => {

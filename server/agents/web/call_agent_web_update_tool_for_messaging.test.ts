@@ -25,10 +25,10 @@ import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/u
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccountResponse,
     ApiContentResponse,
+    ApiContentResponseWithoutKeys,
     ApiMessageContentPayloadFileResponse,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -1076,7 +1076,18 @@ test("rejects creating non-message custom blocks", async () => {
             newPage,
             prepareCustomBlockUpdate: () => ({update: async () => {}}),
         }),
-    ).rejects.toThrow("Can only create messages");
+    ).rejects.toMatchObject({
+        message: "Can only create messages",
+        displayMessage: [
+            {type: "Text", text: "Unexpected "},
+            {type: "SensitiveText", text: "`<status>`"},
+            {type: "Text", text: ", you can only add "},
+            {type: "SensitiveText", text: "`<message>`"},
+            {type: "Text", text: "s. Try again and remove the new "},
+            {type: "SensitiveText", text: "`<status>`"},
+            {type: "Text", text: "."},
+        ],
+    });
 });
 
 test("allows removing the end marker while creating messages", async () => {

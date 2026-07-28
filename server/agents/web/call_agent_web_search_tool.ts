@@ -6,7 +6,6 @@ import {
 } from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {
     ApiSearchMessageResultResponse,
     splitApiSearchMessageResultBodyMatch,
@@ -47,7 +46,7 @@ export async function callAgentWebSearchTool(
         } catch (error) {
             span.addException(error);
 
-            return await printAgentWebError(`Couldn\u2019t search`, error);
+            return printAgentWebError(`Couldn\u2019t search`, error);
         }
     });
 }
@@ -148,7 +147,7 @@ async function actuallyCallAgentWebSearchTool(
 
     const markdown = printMarkdownTree({type: "root", children: await runAllPromises(content)});
 
-    return await formatAgentWebMarkdown(markdown);
+    return markdown.trimEnd();
 }
 
 async function createAgentWebSearchResultListItem(

@@ -1,7 +1,6 @@
 import {Root} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
-import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
@@ -83,7 +82,7 @@ export async function callAgentWebUpdateTool(
         } catch (error) {
             span.addException(error);
 
-            return await printAgentWebError(`Couldn\u2019t update ${quote(options.path)}`, error);
+            return printAgentWebError(`Couldn\u2019t update ${quote(options.path)}`, error);
         }
     });
 }
@@ -169,16 +168,11 @@ async function actuallyCallAgentWebUpdateTool(
                 const quotedString = curlyQuote(oldString);
 
                 throw new FailedPreconditionError("Found multiple matches for the old string", {
-                    // We intentionally don't mention the `replaceAll` option in this error message.
-                    // Most of the time the agent's intent is to update exactly one thing. We don't
-                    // want the agent to take the lazy path of setting `replaceAll: true` and
-                    // potentially ovewrite content it didn't intend to overwrite.
-                    //
                     // This error message was [derived from OpenCode][1].
                     //
                     // [1]:
                     //     https://github.com/anomalyco/opencode/blob/4961d72c0fa23ee23bca9ea59b86a2b13bcf4427/packages/opencode/src/tool/edit.ts#L665
-                    displayMessage: errorDisplayMessage`Multiple matches were found for the \`old\` string ${quotedString}. Provide more surrounding context to make the match unique.`,
+                    displayMessage: errorDisplayMessage`Multiple matches were found for the \`old\` string ${quotedString}. Provide more surrounding context to make the match unique. If you want to update every match of the \`old\` string you may use the \`replaceAll\` arg, however we recommend only making one update at a time to avoid unintentional updates.`,
                 });
             }
 
@@ -296,9 +290,7 @@ async function actuallyCallAgentWebUpdateTool(
         });
     });
 
-    const markdown = "Update was successful.";
-
-    return await formatAgentWebMarkdown(markdown);
+    return "Update was successful.";
 }
 
 async function updateAgentWebPageLink(
@@ -310,6 +302,11 @@ async function updateAgentWebPageLink(
     newResponse: Root,
 ): Promise<AgentWebPageMetadata> {
     switch (oldPageMetadata.type) {
+        case "Skill": {
+            throw new InvalidArgumentError("Can\u2019t update skills", {
+                displayMessage: errorDisplayMessage`Can\u2019t update a \`/skill/...\` page. Skills are read-only documentation written by the Alpine team to help you, the agent, navigate and update context in Alpine. If you think there\u2019s a mistake in a skill, please reach out to ${errorDisplayMessage.supportLink}.`,
+            });
+        }
         case "Account": {
             const oldResponse = oldResponseLazy.get();
 

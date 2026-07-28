@@ -23,7 +23,7 @@ export async function callAgentWebScrollTool(
         } catch (error) {
             span.addException(error);
 
-            return await printAgentWebError(`Couldn\u2019t scroll ${quote(options.path)}`, error);
+            return printAgentWebError(`Couldn\u2019t scroll ${quote(options.path)}`, error);
         }
     });
 }

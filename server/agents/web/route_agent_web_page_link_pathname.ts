@@ -5,6 +5,7 @@ import {
     AgentWebSessionStorage,
     normalizeAgentWebPageStoredLinkPathname,
 } from "~/server/agents/web/agent_web_session_storage.js";
+import {agentWebSkillContentByPath} from "~/server/agents/web/agent_web_skill_content_by_path.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -23,6 +24,31 @@ export async function routeAgentWebPageLinkPathname(
     const pathnameParts = pathname.slice(1).split("/");
 
     switch (pathnameParts[0]) {
+        case "skill": {
+            // When reading simply `/skill` we give you the main skill file.
+            if (pathnameParts.length === 1) {
+                const content = assertExists(agentWebSkillContentByPath.get("SKILL"));
+
+                return {
+                    pageLink: {type: "Skill", path: "SKILL", content},
+                    latestPathname: "/skill",
+                };
+            }
+
+            if (pathnameParts.length !== 2) break;
+
+            // Don't allow reading `SKILL` in `/skill/:name` syntax. You must use `/skill`
+            // syntax for this.
+            if (pathnameParts[1]! === "SKILL") break;
+
+            const content = agentWebSkillContentByPath.get(pathnameParts[1]!);
+            if (content === undefined) break;
+
+            return {
+                pageLink: {type: "Skill", path: pathnameParts[1]!, content},
+                latestPathname: `/skill/${pathnameParts[1]!}`,
+            };
+        }
         case "document": {
             if (pathnameParts.length !== 4) break;
             if (pathnameParts[2] !== "comments") break;

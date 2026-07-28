@@ -389,6 +389,31 @@ test("creates a task with a new subtask and all its fields", async () => {
     });
 });
 
+test("validates new subtasks before creating their parent task", async () => {
+    const result = await callAgentWebCreateTool(context, {
+        type: "task",
+        content: `\
+# Create with an invalid subtask
+
+## Subtasks
+
+- Invalid subtask (Open)
+  - Subtasks: 1 open, 2 closed`,
+    });
+
+    expect({
+        result,
+        writeRequests: api
+            .getRequestHistory()
+            .filter(request => request.method === "POST" || request.method === "PATCH"),
+    }).toEqual({
+        result:
+            "Error: Couldn\u2019t create task. " +
+            "Can\u2019t create the task \u201CInvalid subtask\u201D with a \u201CSubtasks\u201D field since we don\u2019t know what the underlying subtasks are. Try again after removing the \u201CSubtasks\u201D field, then call the `read` tool on the newly created task and use the `update` tool to add subtasks to the newly created task.",
+        writeRequests: [],
+    });
+});
+
 test("rejects a subtasks See more link on create without calling the API", async () => {
     await expect(
         callAgentWebCreateTool(context, {

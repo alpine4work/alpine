@@ -138,8 +138,6 @@ export function normalizeAgentWebTaskSubtasksPage<Page extends AgentWebTaskSubta
     });
 }
 
-// NOCOMMIT: Test that you can't add a `- Parent` field in an update in subtasks
-// page (or task page subtasks)
 export async function updateAgentWebTaskSubtasksPage(
     context: AgentWebContext,
     oldPageMetadata: AgentWebTaskSubtasksPageMetadata,

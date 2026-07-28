@@ -189,6 +189,25 @@ test("throws NotFoundError when no cached read response exists", async () => {
     );
 });
 
+test("throws InvalidArgumentError when updating a skill", async () => {
+    await callAgentWebReadTool(context, {path: "/skill/create", limit: "10kb"});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/skill/create",
+            updates: [
+                {
+                    old: "# What can you create in Alpine?",
+                    new: "# What can agents create in Alpine?",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/skill/create`. Can\u2019t update a `/skill/...` page. Skills are read-only documentation written by the Alpine team to help you, the agent, navigate and update context in Alpine. If you think there\u2019s a mistake in a skill, please reach out to support@alpine.inc.",
+    );
+});
+
 test("throws NotFoundError when cached read response is expired", async () => {
     import.meta.jest.useFakeTimers();
 

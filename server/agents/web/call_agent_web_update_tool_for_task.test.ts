@@ -9,8 +9,8 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
+    ApiContentResponseWithoutKeys,
     ApiTaskPatchResult,
     ApiTaskResponse,
     ApiTaskWithNotesResponse,
@@ -414,6 +414,119 @@ test("adds a new task in a subtask section", async () => {
             ],
         },
     ]);
+});
+
+test("validates new subtasks before updating task fields or notes", async () => {
+    const {path} = await readTask({title: "Validate subtasks first"});
+
+    const result = await callAgentWebUpdateTool(context, {
+        path,
+        updates: [
+            {
+                old: "# Validate subtasks first",
+                new: "# Updated before validation",
+                replaceAll: false,
+            },
+            {
+                old: "- Status: Open",
+                new: `\
+- Status: Open
+
+## Notes
+
+These notes must not be written.
+
+## Subtasks
+
+- Invalid subtask (Open)
+  - Subtasks: 2 closed`,
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        result,
+        taskWrites: getTaskPatchRequests(),
+        notesWrites: getTaskNotesPatchRequests(),
+        subtaskWrites: getTaskListPatchRequests(),
+    }).toEqual({
+        result:
+            `Error: Couldn\u2019t update \`${path}\`. ` +
+            "Can\u2019t create the task \u201CInvalid subtask\u201D with a \u201CSubtasks\u201D field since we don\u2019t know what the underlying subtasks are. Try again after removing the \u201CSubtasks\u201D field, then call the `read` tool on the newly created task and use the `update` tool to add subtasks to the newly created task.",
+        taskWrites: [],
+        notesWrites: [],
+        subtaskWrites: [],
+    });
+});
+
+test("rejects a Parent field on an existing embedded subtask without writing", async () => {
+    const taskId = generateId<TaskId>();
+    const parent = createApiTaskMock({id: taskId, title: "Embedded subtasks"});
+    const subtask = createApiTaskMock({index: 803, title: "Existing subtask", parent});
+    const {path} = await readTask({
+        taskId,
+        title: parent.title,
+        subtasks: [{cursor: printApiTaskQueryCursorMock(0), task: subtask}],
+    });
+
+    const result = await callAgentWebUpdateTool(context, {
+        path,
+        updates: [
+            {
+                old: "- [Existing subtask (Open)](/task/existing-subtask)",
+                new: `\
+- [Existing subtask (Open)](/task/existing-subtask)
+  - Parent: [Embedded subtasks](${path})`,
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        result,
+        writeRequests: api
+            .getRequestHistory()
+            .filter(request => request.method === "POST" || request.method === "PATCH"),
+    }).toEqual({
+        result:
+            `Error: Couldn\u2019t update \`${path}\`. ` +
+            "Unexpected \u201CParent\u201D field for a task in subtasks on line 8. A task\u2019s parent is already set by the subtasks page it appears on. Try again after removing the \u201CParent\u201D field.",
+        writeRequests: [],
+    });
+});
+
+test("rejects a Parent field on a new embedded subtask without writing", async () => {
+    const {path} = await readTask({title: "Embedded new subtask"});
+
+    const result = await callAgentWebUpdateTool(context, {
+        path,
+        updates: [
+            {
+                old: "- Status: Open",
+                new: `\
+- Status: Open
+
+## Subtasks
+
+- New subtask (Open)
+  - Parent:`,
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        result,
+        writeRequests: api
+            .getRequestHistory()
+            .filter(request => request.method === "POST" || request.method === "PATCH"),
+    }).toEqual({
+        result:
+            `Error: Couldn\u2019t update \`${path}\`. ` +
+            "Unexpected \u201CParent\u201D field for a task in subtasks on line 8. A task\u2019s parent is already set by the subtasks page it appears on. Try again after removing the \u201CParent\u201D field.",
+        writeRequests: [],
+    });
 });
 
 test("removes a task from the subtask section", async () => {

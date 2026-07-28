@@ -1,4 +1,4 @@
-import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase} from "~/shared/error/error.js";
@@ -15,7 +15,7 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
  * `server/agents/web`. Functions like `quote()` and `curlyQuote()` make sure to
  * properly escape their inputs so the resulting string is valid Markdown.
  */
-export async function printAgentWebError(title: string, error: unknown): Promise<string> {
+export function printAgentWebError(title: string, error: unknown): string {
     let displayMessages: Array<ErrorDisplayMessage> = [];
 
     if (!(error instanceof AggregateError)) {
@@ -85,7 +85,7 @@ export async function printAgentWebError(title: string, error: unknown): Promise
         markdown += `\n\n> Internal error: ${internalErrorMessage}`;
     }
 
-    return await formatAgentWebMarkdown(markdown);
+    return printMarkdownTree(parseMarkdownTree(markdown)).trimEnd();
 }
 
 function printErrorDisplayMessage(displayMessage: ErrorDisplayMessage): string {

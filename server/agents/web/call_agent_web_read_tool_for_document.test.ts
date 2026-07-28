@@ -77,3 +77,45 @@ This is a _really cool_ document!
 
 - Item 3`);
 });
+
+test("reads document with emphasis + strong formatting", async () => {
+    const documentId = generateId<DocumentId>();
+
+    await createAgentWebPageStoredLinkPathname(context.storage, {
+        type: "Document",
+        id: documentId,
+        title: "Hello, world!",
+    });
+
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId,
+        version: 1,
+        title: "Hello, world!",
+        content: parseApiContentFromMarkdown(markdown`
+This is a **_really cool_** document!
+
+- Item 1
+
+- Item 2
+
+- Item 3
+        `) as ApiContentResponse,
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/document/hello-world",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+# Hello, world!
+
+This is a **_really cool_** document!
+
+- Item 1
+
+- Item 2
+
+- Item 3`);
+});

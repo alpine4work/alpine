@@ -3,6 +3,7 @@ import {toMarkdown} from "mdast-util-to-markdown";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 test.each([
+    {unquoted: "", quoted: "``"},
     {unquoted: "hello", quoted: "`hello`"},
     {unquoted: "hello world", quoted: "`hello world`"},
     {unquoted: "`", quoted: "`` ` ``"},

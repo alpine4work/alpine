@@ -250,8 +250,6 @@ export async function createAgentWebTaskPage(
         | null = null;
 
     if (newPage.subtasks !== null && newPage.subtasks.tasks.length > 0) {
-        // NOCOMMIT: Test that errors are thrown if subtask updates aren't valid without a
-        // task being created
         ({execute: executeSubtasksUpdate} = await updateAgentWebTaskQueryPage(
             context,
             {type: "TaskSubtasks", task: {id: null}},
@@ -410,8 +408,6 @@ export async function updateAgentWebTaskPage(
         }
     }
 
-    // NOCOMMIT: Test that we throw errors if the subtask updates aren't valid before
-    // making other updates.
     const {execute: executeSubtasksUpdate} = await updateAgentWebTaskQueryPage(
         context,
         {type: "TaskSubtasks", task: {id: oldPageMetadata.id}},

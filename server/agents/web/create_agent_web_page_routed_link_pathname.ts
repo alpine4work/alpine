@@ -10,6 +10,9 @@ export async function createAgentWebPageRoutedLinkPathname(
     pageLink: AgentWebPageRoutedLink,
 ): Promise<string> {
     switch (pageLink.type) {
+        case "Skill": {
+            return `/skill/${pageLink.path}`;
+        }
         case "DocumentThread": {
             const pathname = await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
             assert(pathname.startsWith("/document/"));
