@@ -978,6 +978,90 @@ describe("comment threads", () => {
         });
     });
 
+    test("returns other overlapping comment marks in the current document snippet", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session);
+        const {range} = await document.type(session, "Shared text");
+
+        const commentThread = await document.createCommentThread(
+            session,
+            {from: range.from, to: range.from + 6},
+            "First comment",
+        );
+        const overlappingCommentThread = await document.createCommentThread(
+            session,
+            {from: range.from + 3, to: range.to},
+            "Overlapping comment",
+        );
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
+
+        const response = await server.GET(
+            `/documents/${document.id}/threads/${commentThread.id}-with-preview`,
+            {headers: {authorization: `bearer ${apiKey}`}},
+        );
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                thread: {
+                    id: commentThread.id,
+                    preview: {
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Sha",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: "red",
+                                            marks: expect.arrayContaining([
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                                {
+                                                    type: "Comment",
+                                                    thread: {
+                                                        id: overlappingCommentThread.id,
+                                                    },
+                                                },
+                                            ]),
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: " text",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {
+                                                        id: overlappingCommentThread.id,
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        });
+    });
+
     test("returns snippet cut to the lines around the commented block", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -1201,6 +1285,94 @@ describe("comment threads", () => {
                     },
                 }),
                 document: expect.objectContaining({id: document.id}),
+            },
+        });
+    });
+
+    test("returns other overlapping comment marks in a fallback snippet", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session);
+        const {range} = await document.type(session, "Shared text");
+
+        const overlappingCommentThread = await document.createCommentThread(
+            session,
+            {from: range.from + 3, to: range.to},
+            "Overlapping comment",
+        );
+        const commentThread = await document.createCommentThread(
+            session,
+            {from: range.from, to: range.from + 6},
+            "First comment",
+        );
+
+        await document.update(session, [
+            new ReplaceStep(range.from, range.from + 6, textSlice("")),
+        ]);
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
+
+        const response = await server.GET(
+            `/documents/${document.id}/threads/${commentThread.id}-with-preview`,
+            {headers: {authorization: `bearer ${apiKey}`}},
+        );
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                thread: {
+                    id: commentThread.id,
+                    preview: {
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Sha",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: "red",
+                                            marks: expect.arrayContaining([
+                                                {
+                                                    type: "Comment",
+                                                    thread: {
+                                                        id: overlappingCommentThread.id,
+                                                    },
+                                                },
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ]),
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: " text",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {
+                                                        id: overlappingCommentThread.id,
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
             },
         });
     });

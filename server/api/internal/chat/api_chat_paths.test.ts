@@ -432,8 +432,8 @@ describe("POST /chats", () => {
 
 test("can read chat information", async () => {
     const space = await TestSpace.create(context);
-    const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
-    const session2 = await space.createSession({name: "Bob Johnson"});
+    const session1 = await space.createSession({name: "Alex Smith", role: "Admin"});
+    const session2 = await space.createSession({name: "Alex Johnson"});
 
     const bot = await TestBot.createAndInstantiate(session1);
     const apiKey = await bot.createApiKey(session1);
@@ -456,16 +456,17 @@ test("can read chat information", async () => {
                     expect.objectContaining({
                         account: expect.objectContaining({
                             id: session1.account.id,
-                            name: "Alice Smith",
+                            name: "Alex Smith",
                         }),
                     }),
                     expect.objectContaining({
                         account: expect.objectContaining({
                             id: session2.account.id,
-                            name: "Bob Johnson",
+                            name: "Alex Johnson",
                         }),
                     }),
                 ]),
+                reference: {title: "Alex and Alex"},
             }),
         }),
     });
@@ -648,6 +649,64 @@ test("can read chat information with chat scope", async () => {
                 ]),
             }),
         }),
+    });
+});
+
+test("chat message account mention includes long title, short name, and bot id", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session, {name: "Mention Helper"});
+    const chat = await TestChat.get(session, bot);
+    const apiKey = await bot.createApiKey({type: "Chat", chatId: chat.id});
+
+    const response = await server.POST(`/chats/${chat.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            content: {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [
+                            {
+                                type: "Mention",
+                                reference: {type: "Account", id: bot.id},
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            message: {
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Mention",
+                                        reference: {
+                                            type: "Account",
+                                            id: bot.id,
+                                            title: "Mention Helper",
+                                            shortName: "Mention",
+                                            bot: {id: bot.bot.id},
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        },
     });
 });
 

@@ -152,7 +152,6 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                                 ),
                             })),
                         ),
-                        // NOCOMMIT: Test!!
                         reference: {title},
                     };
 

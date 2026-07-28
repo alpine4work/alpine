@@ -373,7 +373,6 @@ export const apiDocumentsPaths: Pick<
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
-                            // NOCOMMIT: Test that we see other comment marks in the content in this case.
                             content: commentThreadSnippet,
                             // Because this is a content snippet, we won't be able to encode keys that match
                             // the source content. So don't include any keys in the content type.
@@ -391,7 +390,6 @@ export const apiDocumentsPaths: Pick<
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
-                            // NOCOMMIT: Test that we see other comment marks in the content in this case.
                             content: commentThread.fallbackContentSnippet.node,
                             // Because this is a content snippet, we won't be able to encode keys that match
                             // the source content. So don't include any keys in the content type.
