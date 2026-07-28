@@ -371,6 +371,116 @@ End of tasks.
 `);
 });
 
+test("create a task immediately before a moved task collection task", async () => {
+    await cli.run(`\
+alpine create task-collection '# Adjacent move roadmap
+
+- Adjacent alpha (Open)
+- Adjacent bravo (Open)
+- Adjacent charlie (Open)
+- Adjacent delta (Open)'
+`);
+
+    expect(
+        await cli.run(`\
+alpine update /task-collection/adjacent-move-roadmap \\
+  --old '- Adjacent alpha (Open)
+- Adjacent bravo (Open)
+- Adjacent charlie (Open)
+- Adjacent delta (Open)' \\
+  --new '- Adjacent bravo (Open)
+- Adjacent charlie (Open)
+- Adjacent new task (Open)
+- Adjacent alpha (Open)
+- Adjacent delta (Open)'
+`),
+    ).toEqual(`\
+Update was successful.
+`);
+
+    expect(await cli.run("alpine read /task-collection/adjacent-move-roadmap")).toEqual(`\
+# Adjacent move roadmap
+
+- [Adjacent bravo (Open)](/task/adjacent-bravo)
+
+- [Adjacent charlie (Open)](/task/adjacent-charlie)
+
+- [Adjacent new task (Open)](/task/adjacent-new-task)
+
+- [Adjacent alpha (Open)](/task/adjacent-alpha)
+
+- [Adjacent delta (Open)](/task/adjacent-delta)
+
+End of tasks.
+`);
+});
+
+test("create a subtask immediately after a moved subtask", async () => {
+    expect(
+        await cli.run(`\
+alpine create task '# Adjacent subtask parent
+
+## Subtasks
+
+- Adjacent first subtask (Open)
+- Adjacent second subtask (Open)
+- Adjacent third subtask (Open)'
+`),
+    ).toEqual(`\
+Create was successful. New task: [Adjacent subtask parent](/task/adjacent-subtask-parent).
+`);
+
+    expect(await cli.run("alpine read /task/adjacent-subtask-parent/subtasks")).toEqual(`\
+Subtasks for [Adjacent subtask parent (Open)](/task/adjacent-subtask-parent).
+
+- [Adjacent first subtask (Open)](/task/adjacent-first-subtask)
+
+- [Adjacent second subtask (Open)](/task/adjacent-second-subtask)
+
+- [Adjacent third subtask (Open)](/task/adjacent-third-subtask)
+
+End of tasks.
+`);
+
+    expect(
+        await cli.run(`\
+alpine update /task/adjacent-subtask-parent/subtasks \\
+  --old '- [Adjacent first subtask (Open)](/task/adjacent-first-subtask)
+
+- [Adjacent second subtask (Open)](/task/adjacent-second-subtask)
+
+- [Adjacent third subtask (Open)](/task/adjacent-third-subtask)' \\
+  --new '- [Adjacent second subtask (Open)](/task/adjacent-second-subtask)
+
+- Adjacent new subtask 1 (Open)
+
+- [Adjacent first subtask (Open)](/task/adjacent-first-subtask)
+
+- Adjacent new subtask 2 (Open)
+
+- [Adjacent third subtask (Open)](/task/adjacent-third-subtask)'
+`),
+    ).toEqual(`\
+Update was successful.
+`);
+
+    expect(await cli.run("alpine read /task/adjacent-subtask-parent/subtasks")).toEqual(`\
+Subtasks for [Adjacent subtask parent (Open)](/task/adjacent-subtask-parent).
+
+- [Adjacent second subtask (Open)](/task/adjacent-second-subtask)
+
+- [Adjacent new subtask 1 (Open)](/task/adjacent-new-subtask-1)
+
+- [Adjacent first subtask (Open)](/task/adjacent-first-subtask)
+
+- [Adjacent new subtask 2 (Open)](/task/adjacent-new-subtask-2)
+
+- [Adjacent third subtask (Open)](/task/adjacent-third-subtask)
+
+End of tasks.
+`);
+});
+
 test("move task collection tasks in successive updates", async () => {
     await cli.run(`\
 alpine create task-collection '# Successive moves roadmap

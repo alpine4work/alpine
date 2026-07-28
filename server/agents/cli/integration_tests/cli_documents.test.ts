@@ -70,6 +70,26 @@ YouTube is an American online video sharing and social media platform headquarte
 `);
 });
 
+test("create and read document with a GFM table", async () => {
+    await cli.run(`\
+printf '%s' '# YouTube milestones
+
+| Year | Event |
+| - | - |
+| 2005 | Founded |
+| 2006 | Acquired |' | alpine create document -
+`);
+
+    expect(await cli.run("alpine read /document/youtube-milestones")).toEqual(`\
+# YouTube milestones
+
+| Year | Event |
+| - | - |
+| 2005 | Founded |
+| 2006 | Acquired |
+`);
+});
+
 test("search for and read document created by a test helper", async () => {
     const document = await TestDocument.create(cli.session, {
         title: "Me at the zoo",
@@ -216,7 +236,25 @@ YouTube repeats ONE ONE and TWO TWO.
 `);
 });
 
-test("update document from stdin", async () => {
+test("update document with camelCase nominal arg name in unusual orders", async () => {
+    await cli.run(`\
+alpine create document '# Unusually ordered YouTube updates
+
+YouTube repeats one one and two two.'
+`);
+
+    await cli.run(
+        "alpine update --replaceAll --new=ONE --old one --old=two --new TWO /document/unusually-ordered-youtube-updates",
+    );
+
+    expect(await cli.run("alpine read /document/unusually-ordered-youtube-updates")).toEqual(`\
+# Unusually ordered YouTube updates
+
+YouTube repeats ONE ONE and TWO TWO.
+`);
+});
+
+test("update document from stdin array", async () => {
     await cli.run(`\
 alpine create document '# YouTube stdin update
 
@@ -231,6 +269,64 @@ YouTube repeats one one and then two.'
 # YouTube stdin update
 
 YouTube repeats ONE ONE and then TWO.
+`);
+});
+
+test("update document from stdin object", async () => {
+    await cli.run(`\
+alpine create document '# YouTube stdin update
+
+YouTube repeats one one and then two.'
+`);
+
+    await cli.run(
+        `printf '%s' '{"old":"two","new":"TWO"}' | alpine update /document/youtube-stdin-update --old - --new -`,
+    );
+
+    expect(await cli.run("alpine read /document/youtube-stdin-update")).toEqual(`\
+# YouTube stdin update
+
+YouTube repeats one one and then TWO.
+`);
+});
+
+test("update document from stdin object with camelCase arg", async () => {
+    await cli.run(`\
+alpine create document '# YouTube stdin update
+
+YouTube repeats one one and then two.'
+`);
+
+    await cli.run(
+        `printf '%s' '{"old":"one","new":"ONE","replaceAll":true}' | alpine update /document/youtube-stdin-update --old - --new -`,
+    );
+
+    expect(await cli.run("alpine read /document/youtube-stdin-update")).toEqual(`\
+# YouTube stdin update
+
+YouTube repeats ONE ONE and then two.
+`);
+});
+
+test("update document from stdin object with CLI arg", async () => {
+    await cli.run(`\
+alpine create document '# YouTube stdin update
+
+YouTube repeats one one and then two.'
+`);
+
+    expect(
+        await cli.run(
+            `printf '%s' '{"old":"one","new":"ONE"}' | alpine update /document/youtube-stdin-update --old - --new - --replace-all`,
+        ),
+    ).toEqual(`\
+Error:
+`);
+
+    expect(await cli.run("alpine read /document/youtube-stdin-update")).toEqual(`\
+# YouTube stdin update
+
+YouTube repeats one one and then two.
 `);
 });
 

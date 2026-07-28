@@ -26,7 +26,11 @@ export type CliIntegrationTests = {
 /**
  * Sets up the Alpine CLI and its integration test environment for a Jest file.
  */
-export function setupCliForTest(): CliIntegrationTests {
+export function setupCliForTest({
+    agentWebTaskQueryCursorHash,
+}: {
+    agentWebTaskQueryCursorHash?: string;
+} = {}): CliIntegrationTests {
     import.meta.jest.setTimeout(60 * 1000);
 
     const testTmpdirPath = assertExists(process.env.TEST_TMPDIR);
@@ -109,6 +113,7 @@ export function setupCliForTest(): CliIntegrationTests {
                 ALPINE_URL: baseUrl,
                 ALPINE_API_URL: services.getApiServiceBaseUrl(),
                 ALPINE_DATA_PATH: assertExists(dataDirectoryPath),
+                AGENT_WEB_TASK_QUERY_CURSOR_HASH_FOR_TEST: agentWebTaskQueryCursorHash,
             },
         });
     }
