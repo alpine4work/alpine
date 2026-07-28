@@ -50,6 +50,7 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
+import {convertCamelCaseToKebabCase} from "~/shared/helpers/string/convert_camel_case_to_kebab_case.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.js";
@@ -308,7 +309,8 @@ class ArgParser<
         readonly [],
     const RequiredNominalListArgs extends ReadonlyArray<{name: string; preview: string}> =
         readonly [],
-    const OptionalNominalFlagArgs extends ReadonlyArray<{name: string}> = readonly [],
+    const OptionalNominalFlagArgs extends ReadonlyArray<{name: string; hidden?: boolean}> =
+        readonly [],
 > {
     readonly #requiredPositionalArgs: RequiredPositionalArgs;
     readonly #optionalPositionalArgs: OptionalPositionalArgs;
@@ -358,46 +360,33 @@ class ArgParser<
 
         let syntax = `alpine ${command}`;
 
-        if (requiredPositionalArgs) {
-            for (const requiredPositionalArg of requiredPositionalArgs) {
-                syntax += ` <${requiredPositionalArg.name}>`;
-            }
+        for (const requiredPositionalArg of requiredPositionalArgs) {
+            syntax += ` <${requiredPositionalArg.name}>`;
         }
 
-        if (optionalPositionalArgs) {
-            for (const optionalPositionalArg of optionalPositionalArgs) {
-                syntax += ` [${optionalPositionalArg.name}]`;
-            }
+        for (const optionalPositionalArg of optionalPositionalArgs) {
+            syntax += ` [${optionalPositionalArg.name}]`;
         }
 
-        if (requiredNominalArgs) {
-            for (const requiredNominalArg of requiredNominalArgs) {
-                syntax += ` --${requiredNominalArg.name} ${requiredNominalArg.preview}`;
-            }
+        for (const requiredNominalArg of requiredNominalArgs) {
+            syntax += ` --${requiredNominalArg.name} ${requiredNominalArg.preview}`;
         }
 
-        if (requiredNominalListArgs) {
-            for (const requiredNominalListArg of requiredNominalListArgs) {
-                syntax += ` --${requiredNominalListArg.name} ${requiredNominalListArg.preview}`;
-            }
+        for (const requiredNominalListArg of requiredNominalListArgs) {
+            syntax += ` --${requiredNominalListArg.name} ${requiredNominalListArg.preview}`;
         }
 
-        if (optionalNominalListArgs) {
-            for (const optionalNominalListArg of optionalNominalListArgs) {
-                syntax += ` [--${optionalNominalListArg.name} ${optionalNominalListArg.preview}]`;
-            }
+        for (const optionalNominalListArg of optionalNominalListArgs) {
+            syntax += ` [--${optionalNominalListArg.name} ${optionalNominalListArg.preview}]`;
         }
 
-        if (optionalNominalArgs) {
-            for (const optionalNominalArg of optionalNominalArgs) {
-                syntax += ` [--${optionalNominalArg.name} ${optionalNominalArg.preview}]`;
-            }
+        for (const optionalNominalArg of optionalNominalArgs) {
+            syntax += ` [--${optionalNominalArg.name} ${optionalNominalArg.preview}]`;
         }
 
-        if (optionalNominalFlagArgs) {
-            for (const optionalNominalFlagArg of optionalNominalFlagArgs) {
-                syntax += ` [--${optionalNominalFlagArg.name}]`;
-            }
+        for (const optionalNominalFlagArg of optionalNominalFlagArgs) {
+            if (optionalNominalFlagArg.hidden) continue;
+            syntax += ` [--${optionalNominalFlagArg.name}]`;
         }
 
         this.syntax = syntax;
@@ -433,7 +422,15 @@ class ArgParser<
                 positionalArgs.push(arg);
             } else if (nominalArgMatch[0].endsWith("=")) {
                 const nominalArgValueLength = nominalArgMatch[0].length;
-                const nominalArgName = arg.slice(2, nominalArgValueLength - 1);
+
+                // Allow args to be passed in camelCase syntax (they're then converted to
+                // kebab-case). Error messages may refer to args by their camelCase name (which is
+                // idiomatic for MCP tool call args). So allow agents to repeat the exact camelCase
+                // syntax they've seen in error messages.
+                const nominalArgName = convertCamelCaseToKebabCase(
+                    arg.slice(2, nominalArgValueLength - 1),
+                );
+
                 const nominalArgValue = arg.slice(nominalArgValueLength);
 
                 if (
@@ -453,7 +450,12 @@ class ArgParser<
                     nominalArgs.set(nominalArgName, nominalArgValue);
                 }
             } else {
-                const nominalArgName = arg.slice(2);
+                // Allow args to be passed in camelCase syntax (they're then converted to
+                // kebab-case). Error messages may refer to args by their camelCase name (which is
+                // idiomatic for MCP tool call args). So allow agents to repeat the exact camelCase
+                // syntax they've seen in error messages.
+                const nominalArgName = convertCamelCaseToKebabCase(arg.slice(2));
+
                 let nominalArgValue: string;
 
                 if (this.#optionalNominalFlagArgNameSet.has(nominalArgName)) {
@@ -484,7 +486,7 @@ class ArgParser<
 
         const nominalValidArgNameSet = new Set(
             mapIterable(
-                concatIterables(
+                concatIterables<{name: string}>(
                     this.#requiredNominalArgs ?? emptyArray,
                     this.#optionalNominalArgs ?? emptyArray,
                     this.#optionalNominalFlagArgs ?? emptyArray,
@@ -579,7 +581,16 @@ const updateArgParser = new ArgParser("update", {
         // eslint-disable-next-line cyberworlds/string-quotes
         {name: "new", preview: '"..."'},
     ],
-    optionalNominalFlagArgs: [{name: "replace-all"}],
+    optionalNominalFlagArgs: [
+        {
+            name: "replace-all",
+            // We don't advertise the `update` tool's `--replace-all` arg in the command
+            // syntax. If the agent tries to make an update where `--old` is repeated then we
+            // share the existence of `--replace-all` along with a recommendation to prefer a
+            // more specific update. We believe this is the better approach.
+            hidden: true,
+        },
+    ],
 });
 
 const deleteArgParser = new ArgParser("delete", {
