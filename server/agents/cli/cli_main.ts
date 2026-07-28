@@ -852,7 +852,7 @@ Similarly, when adding a lot of content in an update, you can pass \`-\` to \`al
             throw new InvalidArgumentError(`Unknown subcommand: ${command}`, {
                 // This error message doesn't include our full list of commands. Just the most
                 // popular ones.
-                displayMessage: errorDisplayMessage`Unknown subcommand: ${quote(command)}. Try again with one of \`create\`, \`read\`, \`update\`, or \`search\`.`,
+                displayMessage: errorDisplayMessage`Unknown subcommand: ${quote(command)}. Try again with one of \`read\`, \`update\`, \`create\`, or \`search\`.`,
             });
         }
     }

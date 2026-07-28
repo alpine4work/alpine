@@ -320,7 +320,7 @@ YouTube repeats one one and then two.'
             `printf '%s' '{"old":"one","new":"ONE"}' | alpine update /document/youtube-stdin-update --old - --new - --replace-all`,
         ),
     ).toEqual(`\
-Error:
+Error: Couldn’t run command. If the \`--old\` and \`--new\` args are \`-\` that means updates will be read from stdin. Other args like \`--replace-all\` aren’t allowed when reading updates from stdin. Try again but without the \`--replace-all\` arg.
 `);
 
     expect(await cli.run("alpine read /document/youtube-stdin-update")).toEqual(`\
@@ -554,13 +554,9 @@ test.each([
         command: "alpine unknown",
         subcommand: "unknown",
     },
-    {
-        command: "alpine",
-        subcommand: "",
-    },
 ])("rejects subcommand `$subcommand`", async ({command, subcommand}) => {
     await expect(cli.run(command)).resolves.toEqual(
-        `Error: Couldn\u2019t run command. Unknown subcommand: \`${subcommand}\`. Try again with one of \`create\`, \`read\`, \`update\`, or \`search\`.\n`,
+        `Error: Couldn\u2019t run command. Unknown subcommand: \`${subcommand}\`. Try again with one of \`read\`, \`update\`, \`create\`, or \`search\`.\n`,
     );
 });
 

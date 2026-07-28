@@ -13,6 +13,7 @@ import {
     ApiTaskCollectionReferenceResponse,
     ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 
@@ -468,8 +469,10 @@ Bring logs.
             markdown: `\
 - Status: Open
 `,
-            parseError:
-                "Error: A title is required for tasks. Try again but make sure the task starts with a markdown h1 (e.g. `# My Task`).",
+            parseError: markdown`
+Error: A title is required for tasks. Try again but make sure the task starts with a markdown h1
+(e.g. \`# My Task\`).
+            `,
         },
         {
             name: "task page with additional h1",
@@ -481,8 +484,12 @@ Bring logs.
 
 # Extra task
 `,
-            parseError:
-                "Error: Unexpected markdown on line 5. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list) in that exact order (fields, notes, subtasks).",
+            parseError: markdown`
+Error: Unexpected markdown on line 5. Try again with only allowed sections like fields (an unordered
+list with items like \`- Priority: Medium\`), notes (the h2 \`## Notes\` and the content after), or
+subtasks (the h2 \`## Subtasks\` and an unordered task list) in that exact order (fields, notes,
+subtasks).
+            `,
         },
         {
             name: "task page with ordered field list",
@@ -492,8 +499,12 @@ Bring logs.
 
 1. Status: Open
 `,
-            parseError:
-                "Error: Unexpected markdown on line 3. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list) in that exact order (fields, notes, subtasks).",
+            parseError: markdown`
+Error: Unexpected markdown on line 3. Try again with only allowed sections like fields (an unordered
+list with items like \`- Priority: Medium\`), notes (the h2 \`## Notes\` and the content after), or
+subtasks (the h2 \`## Subtasks\` and an unordered task list) in that exact order (fields, notes,
+subtasks).
+            `,
         },
         {
             name: "task page with field missing colon",
@@ -503,8 +514,11 @@ Bring logs.
 
 - Status Open
 `,
-            parseError:
-                "Error: Unexpected markdown on line 3. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. `- Priority: Medium`).",
+            parseError: markdown`
+Error: Unexpected markdown on line 3. Try again with an unordered list item for each task field
+where the field name is followed by the field value with a colon in between (e.g.
+\`- Priority: Medium\`).
+            `,
         },
         {
             name: "task page with linked field name",
@@ -514,8 +528,11 @@ Bring logs.
 
 - [Status](/status): Open
 `,
-            parseError:
-                "Error: Unexpected markdown on line 3. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. `- Priority: Medium`).",
+            parseError: markdown`
+Error: Unexpected markdown on line 3. Try again with an unordered list item for each task field
+where the field name is followed by the field value with a colon in between (e.g.
+\`- Priority: Medium\`).
+            `,
         },
         {
             name: "task page with unknown field",
@@ -525,8 +542,11 @@ Bring logs.
 
 - Owner: [Alice](/human/alice)
 `,
-            parseError:
-                "Error: Unknown task field \u201COwner\u201D on line 3. Try again with one of \u201CStatus\u201D, \u201CParent\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
+            parseError: markdown`
+Error: Unknown task field \u201COwner\u201D on line 3. Try again with one of \u201CStatus\u201D,
+\u201CParent\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or
+\u201CDue date\u201D.
+            `,
         },
         {
             name: "task page with duplicate field",
@@ -537,8 +557,89 @@ Bring logs.
 - Status: Open
 - Status: Open (Active)
 `,
-            parseError:
-                "Error: Duplicate task field \u201CStatus\u201D on line 4. Try again with each task field only present once in the field list.",
+            parseError: markdown`
+Error: Duplicate task field \u201CStatus\u201D on line 4. Try again with each task field only
+present once in the field list.
+            `,
+        },
+        {
+            name: "task page with markdown nested in Status",
+            pageLink: taskId,
+            markdown: `\
+# Nested status
+
+- Status: Open
+  - Nested markdown
+`,
+            parseError: markdown`
+Error: Unexpected markdown after task field \u201CStatus\u201D on line 4. Try again with an
+unordered list item for each task field where the field name is followed by the field value with a
+colon in between (e.g. \`- Priority: Medium\`).
+            `,
+        },
+        {
+            name: "task page with markdown nested in Parent",
+            pageLink: taskId,
+            markdown: `\
+# Nested parent
+
+- Status: Open
+- Parent: [Parent task](/task/parent-task)
+  - Nested markdown
+`,
+            parseError: markdown`
+Error: Unexpected markdown after task field \u201CParent\u201D on line 5. Try again with an
+unordered list item for each task field where the field name is followed by the field value with a
+colon in between (e.g. \`- Priority: Medium\`).
+            `,
+        },
+        {
+            name: "task page with markdown nested in Assignee",
+            pageLink: taskId,
+            markdown: `\
+# Nested assignee
+
+- Status: Open
+- Assignee: [Alice](/human/alice)
+  - Nested markdown
+`,
+            parseError: markdown`
+Error: Unexpected markdown after task field \u201CAssignee\u201D on line 5. Try again with an
+unordered list item for each task field where the field name is followed by the field value with a
+colon in between (e.g. \`- Priority: Medium\`).
+            `,
+        },
+        {
+            name: "task page with markdown nested in Priority",
+            pageLink: taskId,
+            markdown: `\
+# Nested priority
+
+- Status: Open
+- Priority: High
+  - Nested markdown
+`,
+            parseError: markdown`
+Error: Unexpected markdown after task field \u201CPriority\u201D on line 5. Try again with an
+unordered list item for each task field where the field name is followed by the field value with a
+colon in between (e.g. \`- Priority: Medium\`).
+            `,
+        },
+        {
+            name: "task page with markdown nested in Due date",
+            pageLink: taskId,
+            markdown: `\
+# Nested due date
+
+- Status: Open
+- Due date: July 12th, 2027
+  - Nested markdown
+`,
+            parseError: markdown`
+Error: Unexpected markdown after task field \u201CDue date\u201D on line 5. Try again with an
+unordered list item for each task field where the field name is followed by the field value with a
+colon in between (e.g. \`- Priority: Medium\`).
+            `,
         },
         {
             name: "task page with fields out of printed order",
@@ -580,8 +681,10 @@ Bring logs.
 
 - Status: Pending
 `,
-            parseError:
-                "Error: Unexpected task status \u201CPending\u201D on line 3. Try again with \u201COpen\u201D, \u201COpen (Active)\u201D, or \u201CClosed\u201D.",
+            parseError: markdown`
+Error: Unexpected task status \u201CPending\u201D on line 3. Try again with \u201COpen\u201D,
+\u201COpen (Active)\u201D, or \u201CClosed\u201D.
+            `,
         },
         {
             name: "task page with invalid priority",
@@ -592,8 +695,10 @@ Bring logs.
 - Status: Open
 - Priority: Immediate
 `,
-            parseError:
-                "Error: Unexpected task priority \u201CImmediate\u201D on line 4. Try again with \u201CLow\u201D, \u201CMedium\u201D, or \u201CHigh\u201D.",
+            parseError: markdown`
+Error: Unexpected task priority \u201CImmediate\u201D on line 4. Try again with \u201CLow\u201D,
+\u201CMedium\u201D, or \u201CHigh\u201D.
+            `,
         },
         {
             name: "task page with unvalidated due date string",
@@ -629,8 +734,29 @@ Bring logs.
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
             },
-            parseError:
-                "Error: Unexpected task parent link \u201CEngineering\u201D on line 4. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+            parseError: markdown`
+Error: Unexpected task parent link \u201CEngineering\u201D on line 4. Try again with a link to a
+task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
+            `,
+        },
+        {
+            name: "task page with two parent links",
+            pageLink: taskId,
+            markdown: `\
+# Two parent links
+
+- Status: Open
+- Parent: [Parent task](/task/parent-task) [Other task](/task/other-task)
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, parentReference);
+                await createAgentWebPageStoredLinkPathname(storage, otherTaskReference);
+            },
+            // NOCOMMIT: Well this is weird!
+            parseError: markdown`
+Error: Unexpected task parent link \u201CParent task Other task\u201D on line 4. Try again with a
+link to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
+            `,
         },
         {
             name: "task page with assignee link to collection",
@@ -644,8 +770,29 @@ Bring logs.
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
             },
-            parseError:
-                "Error: Unexpected task assignee link \u201CEngineering\u201D on line 4. Try again with a link to a human or bot you\u2019ve seen before (e.g. `[John](/human/john-doe)`).",
+            parseError: markdown`
+Error: Unexpected task assignee link \u201CEngineering\u201D on line 4. Try again with a link to a
+human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).
+            `,
+        },
+        {
+            name: "task page with two assignee links",
+            pageLink: taskId,
+            markdown: `\
+# Two assignee links
+
+- Status: Open
+- Assignee: [Alice](/human/alice) [Bob](/human/bob)
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+                await createAgentWebPageStoredLinkPathname(storage, bobReference);
+            },
+            // NOCOMMIT: Well this is weird!
+            parseError: markdown`
+Error: Unexpected task assignee link \u201CAlice Bob\u201D on line 4. Try again with a link to a
+human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).
+            `,
         },
         {
             name: "task page with inline comma-separated collections",
@@ -717,8 +864,11 @@ Bring logs.
   - [Engineering](/task-collection/engineering)
   - [Roadmap](/task-collection/roadmap)
 `,
-            parseError:
-                "Error: Unexpected markdown for task collections field on line 4. Try again with a comma separated list of collection links (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+            parseError: markdown`
+Error: Unexpected markdown for task collections field on line 4. Try again with a comma separated
+list of collection links (e.g.
+\`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).
+            `,
         },
         {
             name: "task page with inline collection link and nested collection list",
@@ -733,8 +883,11 @@ Bring logs.
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
             },
-            parseError:
-                "Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated list of collection links and nothing else after that (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+            parseError: markdown`
+Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated
+list of collection links and nothing else after that (e.g.
+\`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).
+            `,
         },
         {
             name: "task page with inline collection links and nested collection list",
@@ -750,8 +903,11 @@ Bring logs.
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
                 await createAgentWebPageStoredLinkPathname(storage, roadmapReference);
             },
-            parseError:
-                "Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated list of collection links and nothing else after that (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+            parseError: markdown`
+Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated
+list of collection links and nothing else after that (e.g.
+\`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).
+            `,
         },
         {
             name: "task page with collection separator and nested collection list",
@@ -766,8 +922,11 @@ Bring logs.
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
             },
-            parseError:
-                "Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated list of collection links and nothing else after that (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+            parseError: markdown`
+Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated
+list of collection links and nothing else after that (e.g.
+\`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).
+            `,
         },
         {
             name: "task page with collection conjunction and nested collection list",
@@ -782,8 +941,11 @@ Bring logs.
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
             },
-            parseError:
-                "Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated list of collection links and nothing else after that (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+            parseError: markdown`
+Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated
+list of collection links and nothing else after that (e.g.
+\`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).
+            `,
         },
         {
             name: "task page with inline collections and no comma",
@@ -896,8 +1058,10 @@ Bring logs.
                 await createAgentWebPageStoredLinkPathname(storage, aliceReference);
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
-            parseError:
-                "Error: Unexpected task collection link \u201CAlice\u201D on line 6. Try again with a link to a task collection you\u2019ve seen before (e.g. `[My Collection](/task-collection/my-collection)`).",
+            parseError: markdown`
+Error: Unexpected task collection link \u201CAlice\u201D on line 6. Try again with a link to a task
+collection you\u2019ve seen before (e.g. \`[My Collection](/task-collection/my-collection)\`).
+            `,
         },
         {
             name: "task page with a collections more count",
@@ -911,8 +1075,12 @@ Bring logs.
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
             },
-            parseError:
-                "Error: Can\u2019t use \u201Cand 2 more\u201D in the \u201CCollections\u201D task field on line 4 since we wouldn\u2019t know which collections those are. Try again with a link to every collection (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+            parseError: markdown`
+Error: Can\u2019t use \u201Cand 2 more\u201D in the \u201CCollections\u201D task field on line 4
+since we wouldn\u2019t know which collections those are. Try again with a link to every collection
+(e.g.
+\`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).
+            `,
         },
         {
             name: "task page with notes and subtasks",
@@ -984,8 +1152,12 @@ Remember to check the API shape.
 Remember to check the API shape.
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
-            parseError:
-                "Error: Unexpected markdown on line 9. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list) in that exact order (fields, notes, subtasks).",
+            parseError: markdown`
+Error: Unexpected markdown on line 9. Try again with only allowed sections like fields (an unordered
+list with items like \`- Priority: Medium\`), notes (the h2 \`## Notes\` and the content after), or
+subtasks (the h2 \`## Subtasks\` and an unordered task list) in that exact order (fields, notes,
+subtasks).
+            `,
         },
         {
             name: "task page with a new link-less subtask",
@@ -1047,8 +1219,11 @@ Remember to check the API shape.
 See more tasks.
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
         {
             name: "task page subtasks with a task collection See more link",
@@ -1066,8 +1241,11 @@ See more tasks.
 `,
             setupStorage: storage =>
                 setupTaskPageSubtasksStorage({storage, storedLinks: [engineeringReference]}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
         {
             name: "task page subtasks with a task page See more link",
@@ -1084,8 +1262,11 @@ See more tasks.
 [See more (2 remaining) »](/task/task-with-subtasks?after=abc)
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
         {
             name: "task page subtasks with an account See more link",
@@ -1103,8 +1284,11 @@ See more tasks.
 `,
             setupStorage: storage =>
                 setupTaskPageSubtasksStorage({storage, storedLinks: [aliceReference]}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
         {
             name: "task page subtasks with a See more link to the wrong task",
@@ -1122,10 +1306,15 @@ See more tasks.
 `,
             setupStorage: storage =>
                 setupTaskPageSubtasksStorage({storage, storedLinks: [otherTaskReference]}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
-            createParseError:
-                "Error: You can\u2019t create a task with a \u201cSee more\u201d subtasks link. Try again after removing the link.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
+            createParseError: markdown`
+Error: You can\u2019t create a task with a \u201CSee more\u201D subtasks link. Try again after
+removing the link.
+            `,
         },
         {
             name: "task page subtasks with sorts in the See more link",
@@ -1142,8 +1331,11 @@ See more tasks.
 [See more (2 remaining) »](/task/task-with-subtasks/subtasks?after=abc&sort=-priority)
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
         {
             name: "task page subtasks with filters in the See more link",
@@ -1160,8 +1352,11 @@ See more tasks.
 [See more (2 remaining) »](/task/task-with-subtasks/subtasks?after=abc&status=open)
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
         {
             name: "task page subtasks with a See more link without an after cursor",
@@ -1178,8 +1373,11 @@ See more tasks.
 [See more (2 remaining) »](/task/task-with-subtasks/subtasks)
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
         {
             name: "task page subtasks with an unexpected See more link label",
@@ -1196,8 +1394,11 @@ See more tasks.
 [Show more (2 remaining) »](/task/task-with-subtasks/subtasks?after=abc)
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
         {
             name: "task page subtasks with zero remaining tasks in the See more link",
@@ -1214,8 +1415,11 @@ See more tasks.
 [See more (0 remaining) »](/task/task-with-subtasks/subtasks?after=abc)
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
         {
             name: "task page subtasks with trailing content in the See more link paragraph",
@@ -1232,8 +1436,11 @@ See more tasks.
 [See more (2 remaining) »](/task/task-with-subtasks/subtasks?after=abc) trailing content
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
         {
             name: "task page subtasks with an unknown task See more link",
@@ -1250,8 +1457,11 @@ See more tasks.
 [See more (2 remaining) »](/task/missing/subtasks?after=abc)
 `,
             setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
-            parseError:
-                "Error: Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            parseError: markdown`
+Error: Expected a task\u2019s subtasks section to end with a valid \u201CSee more »\u201D link with
+an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201CSee
+more\u201D link from the task page you read.
+            `,
         },
     ],
 });

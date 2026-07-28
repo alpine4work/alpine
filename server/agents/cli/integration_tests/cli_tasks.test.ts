@@ -22,7 +22,7 @@ test("create an active task assigned to another account", async () => {
         await cli.run(`\
 alpine create task '# Prepare active launch
 
-- Status: Open (Active)
+- Status: Open (active)
 - Assignee: [Alice](/human/alice)'
 `),
     ).toEqual(`\
@@ -32,7 +32,7 @@ Create was successful. New task: [Prepare active launch](/task/prepare-active-la
     expect(await cli.run("alpine read /task/prepare-active-launch")).toEqual(`\
 # Prepare active launch
 
-- Status: Open (Active)
+- Status: Open (active)
 - Assignee: [Alice](/human/alice)
 `);
 });
@@ -57,7 +57,7 @@ Create was successful. New task: [Activate existing assignment](/task/activate-e
 
     expect(
         await cli.run(
-            "alpine update /task/activate-existing-assignment --old '- Status: Open' --new '- Status: Open (Active)'",
+            "alpine update /task/activate-existing-assignment --old '- Status: Open' --new '- Status: Open (active)'",
         ),
     ).toEqual(`\
 Update was successful.
@@ -66,7 +66,7 @@ Update was successful.
     expect(await cli.run("alpine read /task/activate-existing-assignment")).toEqual(`\
 # Activate existing assignment
 
-- Status: Open (Active)
+- Status: Open (active)
 - Assignee: [Alice](/human/alice)
 `);
 });
@@ -86,7 +86,7 @@ alpine update /task/activate-and-assign \\
   --old '# Activate and assign' \\
   --new '# Activate and assign
 
-- Status: Open (Active)
+- Status: Open (active)
 - Assignee: [Alice](/human/alice)'
 `),
     ).toEqual(`\
@@ -96,7 +96,7 @@ Update was successful.
     expect(await cli.run("alpine read /task/activate-and-assign")).toEqual(`\
 # Activate and assign
 
-- Status: Open (Active)
+- Status: Open (active)
 - Assignee: [Alice](/human/alice)
 `);
 });
@@ -125,7 +125,7 @@ alpine create task '# Activate and assign
         await cli.run(`\
 alpine update /task/activate-and-assign \\
   --old '- Assignee: [Bob](/human/bob)' \\
-  --new '- Status: Open (Active)
+  --new '- Status: Open (active)
 - Assignee: [Alice](/human/alice)'
 `),
     ).toEqual(`\
@@ -135,7 +135,7 @@ Update was successful.
     expect(await cli.run("alpine read /task/activate-and-assign")).toEqual(`\
 # Activate and assign
 
-- Status: Open (Active)
+- Status: Open (active)
 - Assignee: [Alice](/human/alice)
 `);
 });

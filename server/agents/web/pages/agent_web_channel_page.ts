@@ -25,7 +25,7 @@ import {
     ApiAccountReferenceResponse,
     ApiChannelPatch,
     ApiContentResponseWithoutKeys,
-    ApiPostPreviewResponse,
+    ApiPostPreviewResponseWithoutKeys,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
@@ -135,10 +135,10 @@ export async function readAgentWebChannelPage(
     const {channel} = initialPostsResult.data;
     let currentPostBatch = initialPostsResult.data.posts;
     let nextCursor = initialPostsResult.data.nextCursor;
-    let lookaheadPost: ApiPostPreviewResponse | null = null;
+    let lookaheadPost: ApiPostPreviewResponseWithoutKeys | null = null;
 
     while (true) {
-        const postBatch: ReadonlyArray<ApiPostPreviewResponse> =
+        const postBatch: ReadonlyArray<ApiPostPreviewResponseWithoutKeys> =
             lookaheadPost !== null ? [lookaheadPost, ...currentPostBatch] : currentPostBatch;
         lookaheadPost = null;
 
