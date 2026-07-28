@@ -110,6 +110,11 @@ export function printMarkdownTree(root: Root | RootContent): string {
     return toMarkdown(root, {
         bullet: "-",
         rule: "-",
+        strong: "*",
+        // Prettier formats emphasis with `_` and so we print emphasis in Markdown with `_`
+        // as well. Makes sense as it helps visually distinguish emphasis text from strong
+        // text.
+        emphasis: "_",
         extensions: [
             gfmStrikethroughToMarkdown(),
             // Disable `tablePipeAlign` since we can have arbitrarily long content in tables.

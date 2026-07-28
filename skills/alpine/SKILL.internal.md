@@ -20,7 +20,7 @@ You can access Alpine using an MCP or CLI. The CLI provides the same tools as th
 
 Think of browsing Alpine like browsing the web. You use the `search` tool to find what you're
 looking for, you call the `read` tool to load a page, and you use the `scroll` tool when the page is
-too big to fit in the browser window.
+too big to fit in the "browser" window.
 
 Everything in Alpine is accessible to you via simple CRUD tools:
 

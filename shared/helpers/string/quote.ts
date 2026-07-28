@@ -66,6 +66,11 @@ export function quote(
  * codebase.
  */
 function quoteValue(value: string) {
+    // Fun fact: an empty code span is unrepresentable in CommonMark since two epeated
+    // backticks are interpreted as a single run of length 2. So we use the special
+    // string "empty" instead.
+    if (value.length === 0) return "empty";
+
     // Escapes a bunch of characters like `\n`. Except we don't want to escape string
     // double quotes! Those are totally ok in Markdown inline code.
     //

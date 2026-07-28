@@ -15,6 +15,7 @@ import {
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 const context = createTestContext({});
 const schema = DocumentContentProsemirrorSchema;
@@ -158,5 +159,173 @@ describe("intoApiContentWithReferences", () => {
         expect(result.references.accountById.get(session.account.id)?.id).toBe(session.account.id);
         expect(result.references.searchEntityById.size).toBe(0);
         expect(result.references.fileById.size).toBe(0);
+    });
+
+    test("loads, deduplicates, and returns FileEntityId references", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const existingDocumentId = generateId<DocumentId>();
+        const privateDocumentId = generateId<DocumentId>();
+        const missingDocumentId = generateId<DocumentId>();
+        const existingDocumentEntityId = `Document:${existingDocumentId}` as const;
+        const privateDocumentEntityId = `Document:${privateDocumentId}` as const;
+        const missingDocumentEntityId = `Document:${missingDocumentId}` as const;
+        const loadedRequests: Array<{spaceId: string; entityId: string}> = [];
+
+        const sessionContext = session.action();
+        const contextWithSearchInjection = sessionContext.clone({
+            searchInjection: sessionContext.searchInjection.cloneForTest({
+                getSearchMentionEntityIfPossible: async (_context, spaceId, entityId) => {
+                    loadedRequests.push({spaceId, entityId});
+
+                    if (entityId === existingDocumentEntityId) {
+                        return {
+                            isPrivate: false,
+                            entity: new SearchEntityModel({
+                                type: "Document",
+                                title: "Quarterly Roadmap",
+                                document: {id: existingDocumentId, version: 7},
+                            }),
+                        };
+                    }
+
+                    if (entityId === privateDocumentEntityId) {
+                        return {isPrivate: true};
+                    }
+
+                    return null;
+                },
+            }),
+        });
+
+        const content = assertDocumentContent(
+            schema.node(
+                "doc",
+                {
+                    accessPolicy: {
+                        type: "Local",
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: null,
+                        urlGrant: null,
+                    },
+                },
+                [
+                    schema.node("title"),
+                    schema.node("paragraph", {}, [
+                        schema.node("mention", {
+                            mention: {
+                                type: "SearchEntity",
+                                entityId: existingDocumentEntityId,
+                            },
+                        }),
+                    ]),
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: existingDocumentEntityId}),
+                    ]),
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: privateDocumentEntityId}),
+                    ]),
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: missingDocumentEntityId}),
+                    ]),
+                ],
+            ),
+        );
+
+        const result = await intoApiContentWithReferencesAndReturnReferences(
+            contextWithSearchInjection,
+            {
+                spaceId: space.id,
+                fileAuthorizer: "AssertHasNoFiles",
+                content,
+                contentKeyEncoder: null,
+            },
+        );
+
+        expect({
+            content: result.content,
+            loadedRequests,
+            accountReferenceCount: result.references.accountById.size,
+            searchReferenceIds: Array.from(result.references.searchEntityById.keys()),
+            fileReferenceCount: result.references.fileById.size,
+        }).toEqual({
+            content: {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [
+                            {
+                                type: "Mention",
+                                reference: {
+                                    type: "Document",
+                                    id: existingDocumentId,
+                                    title: "Quarterly Roadmap",
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        type: "FileGallery",
+                        rows: [
+                            {
+                                items: [
+                                    {
+                                        width: 1,
+                                        element: {
+                                            type: "Preview",
+                                            reference: {
+                                                type: "Document",
+                                                id: existingDocumentId,
+                                                title: "Quarterly Roadmap",
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                            {
+                                items: [
+                                    {
+                                        width: 1,
+                                        element: {
+                                            type: "Preview",
+                                            reference: {
+                                                type: "Document",
+                                                id: privateDocumentId,
+                                                title: "Private document",
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                            {
+                                items: [
+                                    {
+                                        width: 1,
+                                        element: {
+                                            type: "Preview",
+                                            reference: {
+                                                type: "Document",
+                                                id: missingDocumentId,
+                                                title: "Unknown document",
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            loadedRequests: [
+                {spaceId: space.id, entityId: existingDocumentEntityId},
+                {spaceId: space.id, entityId: privateDocumentEntityId},
+                {spaceId: space.id, entityId: missingDocumentEntityId},
+            ],
+            accountReferenceCount: 0,
+            searchReferenceIds: [existingDocumentEntityId, privateDocumentEntityId],
+            fileReferenceCount: 0,
+        });
     });
 });
