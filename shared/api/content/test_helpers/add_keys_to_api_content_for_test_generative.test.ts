@@ -22,7 +22,7 @@ test("can add keys to API content", () => {
             });
 
             const contentWithoutKeys = intoApiContent(content, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,
@@ -30,7 +30,7 @@ test("can add keys to API content", () => {
 
             const expectedContent = intoApiContent(content, {
                 encoder,
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,

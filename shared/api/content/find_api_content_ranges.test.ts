@@ -1344,7 +1344,7 @@ for (const testCase of testCases) {
 
         const haystack = intoApiContent(haystackNode, {
             encoder,
-            getAccountMentionTitleIfExists: () => undefined,
+            getAccountIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,
             getFileIfExists: () => undefined,

@@ -21,7 +21,7 @@ test("can convert ProseMirror content to API content and back", () => {
     fc.assert(
         fc.property(DocumentContentArbitrary, expectedContent => {
             const apiContent = intoApiContent(expectedContent, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,

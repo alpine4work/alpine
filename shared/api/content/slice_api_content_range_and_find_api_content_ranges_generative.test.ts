@@ -238,7 +238,7 @@ test("can find sliced content", async () => {
 
                 const apiContent = intoApiContent(content, {
                     encoder,
-                    getAccountMentionTitleIfExists: () => undefined,
+                    getAccountIfExists: () => undefined,
                     getSearchEntityMentionTitleIfExists: () => undefined,
                     getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                     getFileIfExists: () => undefined,

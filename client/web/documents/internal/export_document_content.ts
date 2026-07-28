@@ -33,7 +33,6 @@ import {
     privateSearchEntityTitle,
 } from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {parseSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
-import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 
 export async function exportDocumentContent({
     spaceId,
@@ -48,13 +47,10 @@ export async function exportDocumentContent({
     html: string;
 }> {
     let apiContent = intoApiContent(content.doc, {
-        getAccountMentionTitleIfExists: (accountId, {isShort}) => {
+        getAccountIfExists: accountId => {
             const account = content.references.accountById.get(accountId);
             if (!account) return;
-            const apiAccount = intoApiAccount(
-                getAccountRegistry(spaceId).getAccountStore(account).getSnapshot(),
-            );
-            return isShort ? apiAccount.shortName : apiAccount.name;
+            return getAccountRegistry(spaceId).getAccountStore(account).getSnapshot();
         },
         getSearchEntityMentionTitleIfExists: entityId => {
             const entityResult = content.references.searchEntityById.get(entityId);

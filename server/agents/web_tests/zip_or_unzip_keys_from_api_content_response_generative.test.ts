@@ -33,7 +33,7 @@ test("can zip/unzip keys from parsed/printed API content", async () => {
 
             const expectedContent = addKeysToApiContentForTest(
                 intoApiContent(expectedInternalContent, {
-                    getAccountMentionTitleIfExists: () => undefined,
+                    getAccountIfExists: () => undefined,
                     getSearchEntityMentionTitleIfExists: () => undefined,
                     getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                     getFileIfExists: () => undefined,

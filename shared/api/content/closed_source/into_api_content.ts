@@ -1,4 +1,5 @@
 import {Mark, Node} from "prosemirror-model";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {computeApiContentFileRowWidths} from "~/shared/api/content/closed_source/compute_api_content_file_row_widths.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
@@ -18,7 +19,7 @@ import {
     ApiContentResponseWithoutKeys,
     ApiContentTableBlockElementCellResponseWithOptionalKeys,
     ApiContentTableBlockElementRowResponseWithOptionalKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+} from "~/shared/api/specification/types/api_content_response_with_optional_keys.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
@@ -28,6 +29,7 @@ import {
     ApiContentInlineElementResponse,
     ApiContentListBlockElementItemResponse,
     ApiContentResponse,
+    ApiContentResponseWithoutKeys,
     ApiMentionReferenceResponse,
     ApiPreviewReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -55,13 +57,13 @@ import {
     SearchMentionEntityId,
     parseSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 export type ApiContentMarkdownIntoOptions = {
-    readonly getAccountMentionTitleIfExists: (
+    readonly getAccountIfExists: (
         accountId: AccountId,
-        options: {isShort: boolean},
-    ) => string | undefined;
+    ) => Omit<AccountModelData, "avatar"> | undefined;
     readonly getSearchEntityMentionTitleIfExists: (
         entityId: SearchMentionEntityId,
     ) => string | undefined;
@@ -945,12 +947,8 @@ function intoApiContentInlineElement(
             const mention: ContentMention = node.attrs.mention;
 
             if (mention.type === "Account") {
-                const title =
-                    context.getAccountMentionTitleIfExists(mention.accountId, {isShort: false}) ??
-                    "Unknown";
-                const shortName =
-                    context.getAccountMentionTitleIfExists(mention.accountId, {isShort: true}) ??
-                    title;
+                const account =
+                    context.getAccountIfExists(mention.accountId) ?? AccountModel.getUnknownData();
 
                 const marks =
                     node.marks.length > 0
@@ -962,8 +960,9 @@ function intoApiContentInlineElement(
                     reference: {
                         type: "Account",
                         id: mention.accountId,
-                        title,
-                        shortName,
+                        title: account.name,
+                        shortName: getAccountShortNameWithoutFullNameTooltip(account),
+                        ...(account.botId !== undefined ? {bot: {id: account.botId}} : {}),
                     },
                     ...(mention.isShort ? {isAccountShortName: true} : {}),
                     ...(marks !== undefined ? {marks} : {}),

@@ -29,7 +29,7 @@ function testIntoApiContentAndPrintToMarkdown(
     expectedApiContent = normalizeApiContent(expectedApiContent);
 
     const actualApiContent = intoApiContent(expectedProsemirrorNode, {
-        getAccountMentionTitleIfExists: () => undefined,
+        getAccountIfExists: () => undefined,
         getSearchEntityMentionTitleIfExists: () => undefined,
         getSearchTaskEntityDisplayStatusIfExists: () => undefined,
         getFileIfExists: () => undefined,
@@ -369,7 +369,7 @@ function createFileModelData(fileId: FileId): FileModelData {
 }
 
 const fileOptions: ApiContentMarkdownIntoOptionsWithoutKeys = {
-    getAccountMentionTitleIfExists: () => undefined,
+    getAccountIfExists: () => undefined,
     getSearchEntityMentionTitleIfExists: entityId => {
         if (entityId === documentEntityId) return "My Document";
         if (entityId === channelEntityId) return "General";

@@ -23,7 +23,7 @@ test("can convert ProseMirror content to API content and back", () => {
             content.check();
 
             const actualApiContent = intoApiContent(content, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,

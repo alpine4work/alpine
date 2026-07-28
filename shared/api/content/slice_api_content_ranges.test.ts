@@ -1210,7 +1210,7 @@ for (const testCase of testCases) {
 
         const content = intoApiContent(contentNode, {
             encoder,
-            getAccountMentionTitleIfExists: () => undefined,
+            getAccountIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,
             getFileIfExists: () => undefined,

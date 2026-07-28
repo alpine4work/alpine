@@ -83,7 +83,7 @@ function testIntoApiContent(node: Node, content: ApiContentResponseWithoutKeys) 
         fromApiContent(
             node.type.schema,
             intoApiContent(node, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,
@@ -93,7 +93,7 @@ function testIntoApiContent(node: Node, content: ApiContentResponseWithoutKeys) 
 
     expect(
         intoApiContent(node, {
-            getAccountMentionTitleIfExists: () => undefined,
+            getAccountIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,
             getFileIfExists: () => undefined,
@@ -106,7 +106,7 @@ function testIntoApiContentOnly(node: Node, content: ApiContentResponseWithoutKe
     // the schema doesn't support certain marks
     expect(
         intoApiContent(node, {
-            getAccountMentionTitleIfExists: () => undefined,
+            getAccountIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,
             getFileIfExists: () => undefined,
@@ -1930,7 +1930,7 @@ test("code mark is not allowed in code blocks", () => {
 
     expect(() =>
         intoApiContent(node, {
-            getAccountMentionTitleIfExists: () => undefined,
+            getAccountIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,
             getFileIfExists: () => undefined,
@@ -4121,7 +4121,7 @@ describe("file block elements", () => {
     }
 
     const fileOptions: ApiContentMarkdownIntoOptionsWithoutKeys = {
-        getAccountMentionTitleIfExists: () => undefined,
+        getAccountIfExists: () => undefined,
         getSearchEntityMentionTitleIfExists: entityId => {
             if (entityId === documentEntityId) return "My Document";
             if (entityId === channelEntityId) return "General";

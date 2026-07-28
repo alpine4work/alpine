@@ -167,11 +167,8 @@ export async function intoApiContentWithReferencesAndReturnReferences<
     const apiContent = intoApiContent(content, {
         encoder: contentKeyEncoder ?? undefined,
         posOffset,
-        getAccountMentionTitleIfExists: (accountId, {isShort}) => {
-            const account = accountById.get(accountId);
-            if (!account) return missingAccountName;
-            if (!isShort) return account.name;
-            return getAccountShortNameWithoutFullNameTooltip(account);
+        getAccountIfExists: accountId => {
+            return accountById.get(accountId);
         },
         getSearchEntityMentionTitleIfExists: entityId => {
             const entityResult = searchEntityById.get(entityId);

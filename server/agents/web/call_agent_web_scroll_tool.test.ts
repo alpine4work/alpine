@@ -266,7 +266,7 @@ test("iterates through realistic wikipedia content one page at a time", async ()
         title: "YouTube",
         content: addKeysToApiContentForTest(
             intoApiContent(wikipediaYoutubeDocumentContent.get(), {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,

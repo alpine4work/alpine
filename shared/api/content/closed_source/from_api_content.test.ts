@@ -647,7 +647,7 @@ test("three cells with no elements", () => {
     expect(
         normalizeApiContent(
             intoApiContent(content, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,
@@ -727,7 +727,7 @@ test("empty cell and the file cell in row", () => {
     expect(
         normalizeApiContent(
             intoApiContent(content, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,
@@ -761,7 +761,7 @@ test("unordered list with no items nested in unordered list with no items", () =
     expect(
         normalizeApiContent(
             intoApiContent(content, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,
@@ -822,7 +822,7 @@ test("ordered list item phantom wrapper", () => {
     expect(
         normalizeApiContent(
             intoApiContent(content, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,
@@ -871,7 +871,7 @@ test("marks in code block", () => {
     expect(
         normalizeApiContent(
             intoApiContent(content, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,
@@ -927,7 +927,7 @@ test("unordered list item followed by phantom indented ordered list item", () =>
     expect(
         normalizeApiContent(
             intoApiContent(content, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,
@@ -979,7 +979,7 @@ test("unordered list item followed by phantom indented ordered list item (with u
     expect(
         normalizeApiContent(
             intoApiContent(content, {
-                getAccountMentionTitleIfExists: () => undefined,
+                getAccountIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,
