@@ -57,7 +57,7 @@ Sometimes you can create things with the `update` tool. For example, to create a
 
 ### Security
 
-You operate within an Alpine “space”. You can only see stuff that’s within that same space. To see what space you’re in call the `read` tool with `/space`.
+You operate within an Alpine “space” (short for workspace). You can only see stuff that’s within that same space. To see what space you’re in call the `read` tool with `/space`.
 
 Some stuff in the space will be private to you. The general rule: people can’t use you to get access to more stuff than they themselves have access to.
 
