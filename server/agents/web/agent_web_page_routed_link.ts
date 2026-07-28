@@ -12,9 +12,16 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
  * The actual routing logic lives in `routeAgentWebPageLinkPathname()`.
  */
 export type AgentWebPageRoutedLink =
+    | AgentWebPageSkillRoutedLink
     | AgentWebPageDocumentThreadRoutedLink
     | AgentWebPageTaskMessageListRoutedLink
     | AgentWebPageTaskSubtasksRoutedLink;
+
+export type AgentWebPageSkillRoutedLink = {
+    readonly type: "Skill";
+    readonly path: string;
+    readonly content: string;
+};
 
 export type AgentWebPageDocumentThreadRoutedLink = {
     readonly type: "DocumentThread";

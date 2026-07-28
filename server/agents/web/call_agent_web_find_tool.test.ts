@@ -190,7 +190,9 @@ Found 1 match.
 
 <match>
 
-before needle after
+before
+needle
+after
 
 (Showing lines 2-4.)
 
@@ -234,7 +236,8 @@ Found 1 match.
 
 <match>
 
-needle after
+needle
+after
 
 (Showing lines 3-4.)
 
@@ -308,7 +311,9 @@ Found 1 match.
 
 <match>
 
-start middle finish
+start
+middle
+finish
 
 (Showing lines 2-4.)
 

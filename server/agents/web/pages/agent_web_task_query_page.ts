@@ -773,7 +773,7 @@ async function parseAgentWebTaskQueryPageTask(
             : parseAgentWebTaskQueryPageTaskReference(storage, link, pageType),
         fieldList !== null
             ? parseAgentWebTaskFieldListItems(storage, fieldList.children, [
-                  "parent",
+                  ...(pageType !== "TaskSubtasks" ? (["parent"] as const) : []),
                   // NOCOMMIT: Can we not require subtasks when adding a task to a collection? Maybe
                   // `additionalCollectionsCount` too?
                   "subtasks",
@@ -1130,10 +1130,6 @@ export async function updateAgentWebTaskQueryPage(
              *                              Create new task                               *
             \* ========================================================================== */
 
-            // NOCOMMIT: Test moving a task and creating a task right after (what is the
-            // position?). Test moving a task and creating a task right before (what is the
-            // position?). The new task should probably get a `MoveInCollection` patch.
-            //
             // NOCOMMIT: When creating tasks, we should ideally add links to the newly created
             // tasks in the output.
 
@@ -1144,7 +1140,6 @@ export async function updateAgentWebTaskQueryPage(
                     throw new InvalidArgumentError(
                         "Can\u2019t create task with additional collection count",
                         {
-                            // NOCOMMIT: Make sure this is tested
                             displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} with an \u201Cand ${newPageTask.additionalCollectionsCount} more\u201D collection count since we don\u2019t know which underlying collections you\u2019re trying to add. Try again after removing the count or replacing it with links to the underlying collections.`,
                         },
                     );
@@ -1157,7 +1152,6 @@ export async function updateAgentWebTaskQueryPage(
                     const quotedTitle = curlyQuote(newPageTask.title);
 
                     throw new InvalidArgumentError("Can\u2019t create task with subtask counts", {
-                        // NOCOMMIT: Make sure this is tested
                         displayMessage: errorDisplayMessage`Can\u2019t create the task ${quotedTitle} with a \u201CSubtasks\u201D field since we don\u2019t know what the underlying subtasks are. Try again after removing the \u201CSubtasks\u201D field, then call the \`read\` tool on the newly created task and use the \`update\` tool to add subtasks to the newly created task.`,
                     });
                 }

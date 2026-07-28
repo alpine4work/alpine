@@ -4,7 +4,6 @@ import {
     agentWebBytesFindDefaultLimit,
     agentWebBytesFindDefaultMatchLimit,
 } from "~/server/agents/web/default_agent_web_bytes_limit.js";
-import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {binarySearchGreaterThanOrEqual} from "~/server/agents/web/internal/binary_search_greater_than_or_equal.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
@@ -29,7 +28,7 @@ export async function callAgentWebFindTool(
         } catch (error) {
             span.addException(error);
 
-            return await printAgentWebError(
+            return printAgentWebError(
                 `Couldn\u2019t find pattern in ${quote(options.path)}`,
                 error,
             );
@@ -122,7 +121,7 @@ async function actuallyCallAgentWebFindTool(
         output += `\n(Use \`offset\` of ${offsetMatchIndex + limitMatchLength} to continue.)\n`;
     }
 
-    return await formatAgentWebMarkdown(output);
+    return output.trimEnd();
 }
 
 function previewAgentWebFindMatch({

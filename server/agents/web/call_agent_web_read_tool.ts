@@ -9,7 +9,6 @@ import {AgentWebPageStoredLinkKeyObject} from "~/server/agents/web/agent_web_pag
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {agentWebBytesDefaultLimit} from "~/server/agents/web/default_agent_web_bytes_limit.js";
-import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
     normalizeAgentWebAccountPage,
@@ -107,7 +106,7 @@ export async function callAgentWebReadTool(
             return truncatedResponse;
         } catch (error) {
             span.addException(error);
-            return await printAgentWebError(`Couldn\u2019t read ${quote(options.path)}`, error);
+            return printAgentWebError(`Couldn\u2019t read ${quote(options.path)}`, error);
         }
     });
 }
@@ -164,6 +163,9 @@ async function actuallyCallAgentWebReadTool(
                 searchParams,
                 limitLength,
                 printPage: async page => {
+                    assert(pageLink.type !== "Skill");
+                    assert(page.type !== "Skill");
+
                     const response = await printAgentWebPageToMarkdownForReadTool(
                         context.storage,
                         pageLink,
@@ -177,7 +179,7 @@ async function actuallyCallAgentWebReadTool(
         // In non-production environments, parse the response back into the underlying page
         // object just to make sure there are no parse errors. We don't do this in
         // production as a performance optimization.
-        if (process.env.NODE_ENV !== "production") {
+        if (process.env.NODE_ENV !== "production" && pageMetadata.type !== "Skill") {
             const responseTree = parseMarkdownTree(response);
 
             try {
@@ -229,8 +231,8 @@ async function actuallyCallAgentWebReadTool(
 
 async function printAgentWebPageToMarkdownForReadTool(
     storage: AgentWebSessionStorage,
-    pageLink: AgentWebPageLink,
-    page: AgentWebPage,
+    pageLink: Exclude<AgentWebPageLink, {type: "Skill"}>,
+    page: Exclude<AgentWebPage, {type: "Skill"}>,
 ): Promise<string> {
     // We should always normalize agent web markdown before printing. The following
     // property is not true in all cases:
@@ -252,7 +254,7 @@ async function printAgentWebPageToMarkdownForReadTool(
 
     const markdown = printMarkdownTree(tree);
 
-    return await formatAgentWebMarkdown(markdown);
+    return markdown.trimEnd();
 }
 
 async function readAgentWebPageLink(
@@ -269,6 +271,12 @@ async function readAgentWebPageLink(
     },
 ): Promise<{response: string; metadata: AgentWebPageMetadata}> {
     switch (pageLink.type) {
+        case "Skill": {
+            return {
+                response: pageLink.content,
+                metadata: {type: "Skill"},
+            };
+        }
         case "Account": {
             return await readAgentWebAccountPage(context, pageLink.id, options);
         }
@@ -338,7 +346,9 @@ async function readAgentWebPageLink(
     }
 }
 
-function normalizeAgentWebPage(page: AgentWebPage): AgentWebPage {
+function normalizeAgentWebPage(
+    page: Exclude<AgentWebPage, {type: "Skill"}>,
+): Exclude<AgentWebPage, {type: "Skill"}> {
     switch (page.type) {
         case "Account": {
             return normalizeAgentWebAccountPage(page);
@@ -377,7 +387,7 @@ function normalizeAgentWebPage(page: AgentWebPage): AgentWebPage {
 
 function printAgentWebPage(
     storage: AgentWebSessionStorage,
-    pageLink: AgentWebPageLink,
+    pageLink: Exclude<AgentWebPageLink, {type: "Skill"}>,
     page: AgentWebPage,
 ): Promise<Root> {
     switch (pageLink.type) {
@@ -454,7 +464,7 @@ function printAgentWebPage(
 
 async function parseAgentWebPageForTest(
     storage: AgentWebSessionStorage,
-    pageMetadata: AgentWebPageMetadata,
+    pageMetadata: Exclude<AgentWebPageMetadata, {type: "Skill"}>,
     response: Root,
 ): Promise<AgentWebPage> {
     assert(process.env.NODE_ENV !== "production");

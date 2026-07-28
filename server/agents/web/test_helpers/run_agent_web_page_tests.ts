@@ -1,6 +1,5 @@
-import {Root} from "mdast";
+import {Nodes, Root} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
@@ -103,8 +102,8 @@ export function runAgentWebPageTests<PageLink, Page>({
                         error = actualError;
                     }
 
-                    expect(await printAgentWebError("", error)).toEqual(
-                        await formatAgentWebMarkdown(testCase.parseError ?? ""),
+                    expect(printAgentWebError("", error)).toEqual(
+                        printPrettyAgentWebPageTestError(testCase.parseError ?? ""),
                     );
                 }
             });
@@ -130,8 +129,8 @@ export function runAgentWebPageTests<PageLink, Page>({
                         error = actualError;
                     }
 
-                    expect(await printAgentWebError("", error)).toEqual(
-                        await formatAgentWebMarkdown(
+                    expect(printAgentWebError("", error)).toEqual(
+                        printPrettyAgentWebPageTestError(
                             testCase.createParseError ?? testCase.parseError ?? "",
                         ),
                     );
@@ -139,4 +138,19 @@ export function runAgentWebPageTests<PageLink, Page>({
             });
         });
     }
+}
+
+function printPrettyAgentWebPageTestError(markdown: string): string {
+    const root = parseMarkdownTree(markdown);
+    const nodes: Array<Nodes> = [root];
+
+    for (const node of nodes) {
+        if (node.type === "text") {
+            node.value = node.value.replaceAll(/\s*\n\s*/g, " ");
+        } else if ("children" in node) {
+            for (const childNode of node.children) nodes.push(childNode);
+        }
+    }
+
+    return printMarkdownTree(root).trimEnd();
 }

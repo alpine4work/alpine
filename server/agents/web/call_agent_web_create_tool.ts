@@ -5,7 +5,6 @@ import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
-import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
 import {
     createAgentWebChannelPage,
@@ -67,7 +66,7 @@ export async function callAgentWebCreateTool(
 
             const type = parseCallAgentWebCreateToolType(options.type);
 
-            return await printAgentWebError(
+            return printAgentWebError(
                 `Couldn\u2019t create${type !== null ? ` ${type}` : ""}`,
                 error,
             );
@@ -89,8 +88,7 @@ async function actuallyCallAgentWebCreateTool(
 
     if (actualType === null) {
         throw new InvalidArgumentError("Can\u2019t create unrecognized `type`", {
-            // NOCOMMIT: Include a link to a skill that says all the stuff you can create!
-            displayMessage: errorDisplayMessage`Unrecognized type ${quote(type)}.`,
+            displayMessage: errorDisplayMessage`Unrecognized type ${quote(type)}. To see everything you can create, call the \`read\` tool with \`/skill/create\`. Try again with a different type.`,
         });
     }
 
@@ -218,7 +216,7 @@ async function actuallyCallAgentWebCreateTool(
         ],
     });
 
-    return await formatAgentWebMarkdown(markdown);
+    return markdown.trimEnd();
 }
 
 type CallAgentWebCreateToolType =

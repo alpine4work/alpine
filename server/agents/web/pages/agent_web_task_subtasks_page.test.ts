@@ -13,6 +13,7 @@ import {
     ApiTaskCollectionReferenceResponse,
     ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 
@@ -45,13 +46,6 @@ const shipLaunchTaskReference: ApiTaskReferenceResponse = {
     id: generateId<TaskId>(),
     title: "Ship launch",
     status: {type: "Closed"},
-};
-
-const otherParentTaskReference: ApiTaskReferenceResponse = {
-    type: "Task",
-    id: generateId<TaskId>(),
-    title: "Other parent",
-    status: {type: "Open", isActive: false},
 };
 
 const aliceReference: ApiAccountReferenceResponse = {
@@ -219,13 +213,12 @@ Subtasks for [Plan launch (Open)](/task/plan-launch). [Next page »](/task/plan-
             },
         },
         {
-            name: "task subtasks page with all task fields",
+            name: "task subtasks page with all supported task fields",
             pageLink: parentTaskReference.id,
             markdown: `\
 Subtasks for [Plan launch (Open)](/task/plan-launch).
 
 - [Write spec (Open)](/task/write-spec)
-  - Parent: [Other parent](/task/other-parent)
   - Subtasks: 3 open, 4 closed
   - Assignee: [Alice](/human/alice)
   - Collections: [Engineering](/task-collection/engineering) and 2 more
@@ -236,7 +229,6 @@ Subtasks for [Plan launch (Open)](/task/plan-launch).
 Subtasks for [Plan launch (Open)](/task/plan-launch).
 
 - [Write spec (Open)](/task/write-spec)
-  - Parent: [Other parent](/task/other-parent)
   - Subtasks: 3 open, 4 closed
   - Assignee: [Alice](/human/alice)
   - Collections: [Engineering](/task-collection/engineering), and 2 more
@@ -249,7 +241,6 @@ Subtasks for [Plan launch (Open)](/task/plan-launch).
                 pagination: null,
                 tasks: [
                     subtaskPageTask(writeSpecTaskReference, {
-                        parent: otherParentTaskReference,
                         subtasks: {openTaskCount: 3, closedTaskCount: 4},
                         assignee: aliceReference,
                         collections: [engineeringReference],
@@ -260,6 +251,21 @@ Subtasks for [Plan launch (Open)](/task/plan-launch).
                 ],
                 isEndOfTasks: false,
             },
+        },
+        {
+            name: "task subtasks page with a Parent field",
+            pageLink: parentTaskReference.id,
+            markdown: `\
+Subtasks for [Plan launch (Open)](/task/plan-launch).
+
+- [Write spec (Open)](/task/write-spec)
+  - Parent: [Other parent](/task/other-parent)
+`,
+            parseError: markdown`
+Error: Unexpected \u201CParent\u201D field for a task in subtasks on line 4. A task\u2019s parent is
+already set by the subtasks page it appears on. Try again after removing the \u201CParent\u201D
+field.
+            `,
         },
         {
             name: "active statuses are parsed case insensitively",
@@ -288,11 +294,11 @@ Subtasks for [Plan launch (Open, active)](/task/plan-launch).
             markdown: `\
 # Plan launch
 `,
-            parseError:
-                "Error: Subtasks markdown must start with \u201cSubtasks for [My Task (Open)]" +
-                "(/task/my-task).\u201d on line 1 (substitute \u201cMy Task\u201d for the task " +
-                "you\u2019re looking at the subtasks for). Try again with a valid task " +
-                "subtasks preamble on line 1.",
+            parseError: markdown`
+Error: Subtasks markdown must start with \u201CSubtasks for [My Task (Open)](/task/my-task).\u201D
+on line 1 (substitute \u201CMy Task\u201D for the task you\u2019re looking at the subtasks for). Try
+again with a valid task subtasks preamble on line 1.
+            `,
         },
         {
             name: "next page link without an after cursor",
@@ -303,11 +309,11 @@ Subtasks for [Plan launch (Open, active)](/task/plan-launch).
             markdown: `\
 Subtasks for [Plan launch (Open)](/task/plan-launch). [Next page »](/task/plan-launch/subtasks)
 `,
-            parseError:
-                "Error: Subtasks markdown must start with \u201cSubtasks for [My Task (Open)]" +
-                "(/task/my-task).\u201d on line 1 (substitute \u201cMy Task\u201d for the task " +
-                "you\u2019re looking at the subtasks for). Try again with a valid task " +
-                "subtasks preamble on line 1.",
+            parseError: markdown`
+Error: Subtasks markdown must start with \u201CSubtasks for [My Task (Open)](/task/my-task).\u201D
+on line 1 (substitute \u201CMy Task\u201D for the task you\u2019re looking at the subtasks for). Try
+again with a valid task subtasks preamble on line 1.
+            `,
         },
         {
             name: "unexpected paragraph after the preamble",
@@ -320,10 +326,11 @@ Subtasks for [Plan launch (Open)](/task/plan-launch).
 
 Unexpected paragraph.
 `,
-            parseError:
-                "Error: Unexpected markdown on line 3. Try again with \u201cSubtasks for " +
-                "[My Task (Open)](/task/my-task).\u201d on line 1 followed by a task list " +
-                "(an unordered list where every item is a task link).",
+            parseError: markdown`
+Error: Unexpected markdown on line 3. Try again with \u201CSubtasks for
+[My Task (Open)](/task/my-task).\u201D on line 1 followed by a task list (an unordered list where
+every item is a task link).
+            `,
         },
         {
             name: "ordered task list",
@@ -336,10 +343,11 @@ Subtasks for [Plan launch (Open)](/task/plan-launch).
 
 1. [Write spec (Open)](/task/write-spec)
 `,
-            parseError:
-                "Error: Unexpected markdown on line 3. Try again with \u201cSubtasks for " +
-                "[My Task (Open)](/task/my-task).\u201d on line 1 followed by a task list " +
-                "(an unordered list where every item is a task link).",
+            parseError: markdown`
+Error: Unexpected markdown on line 3. Try again with \u201CSubtasks for
+[My Task (Open)](/task/my-task).\u201D on line 1 followed by a task list (an unordered list where
+every item is a task link).
+            `,
         },
         {
             name: "content after the end of tasks marker",
@@ -354,9 +362,10 @@ End of tasks.
 
 Unexpected paragraph.
 `,
-            parseError:
-                "Error: Nothing may appear after \u201CEnd of tasks\u201D in subtasks markdown. Try again " +
-                "after removing the extra content after \u201CEnd of tasks\u201D on line 5.",
+            parseError: markdown`
+Error: Nothing may appear after \u201CEnd of tasks\u201D in subtasks markdown. Try again after
+removing the extra content after \u201CEnd of tasks\u201D on line 5.
+            `,
         },
     ],
 });

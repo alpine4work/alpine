@@ -138,7 +138,7 @@ Paragraph 01 detail detail detail detail detail detail.
 (Page truncated, 1.08kb remaining. Showing lines 1-4 of 41. Call the \`scroll\` tool with an \`offset\` of 4 to continue.)`);
 });
 
-test("reads GFM table content without crashing prettier formatting", async () => {
+test("reads a compact GFM table", async () => {
     const documentId = generateId<DocumentId>();
 
     await context.storage.pageStoredLinkByPathname.put("/document/roadmap-table", {
@@ -170,11 +170,11 @@ test("reads GFM table content without crashing prettier formatting", async () =>
     expect(responseString).toEqual(`\
 # Roadmap Table
 
-| Milestone             | Owner    | Status      |
-| --------------------- | -------- | ----------- |
-| API schema freeze     | Platform | Done        |
-| Query planner rollout | Search   | In Progress |
-| Inbox polish          | Comms    | Planned     |`);
+| Milestone | Owner | Status |
+| - | - | - |
+| API schema freeze | Platform | Done |
+| Query planner rollout | Search | In Progress |
+| Inbox polish | Comms | Planned |`);
 });
 
 test("throws a redirect error when document title changes for same document id", async () => {

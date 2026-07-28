@@ -1,3 +1,5 @@
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
+load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
@@ -23,10 +25,10 @@ ts_project(
     # observability with our tracer framework. So there are some codebase-specific
     # dependencies but we try to keep them few and far between.
     deps = [
+        ":agent_web_skill_content_by_path",
         "//:node_modules/@types/mdast",
         "//:node_modules/htmlparser2",
         "//:node_modules/murmurhash",
-        "//:node_modules/prettier",
         "//:node_modules/pretty-bytes",
         "//:node_modules/stemmer",
         "//server/agents/api",
@@ -37,5 +39,19 @@ ts_project(
         "//shared/files",
         "//shared/helpers",
         "//shared/id",
+    ],
+)
+
+copy_file(
+    name = "copy_agent_web_skill_content_by_path",
+    src = "//skills:agent_web_skill_content_by_path.js",
+    out = "agent_web_skill_content_by_path.js",
+)
+
+js_library(
+    name = "agent_web_skill_content_by_path",
+    srcs = [
+        "agent_web_skill_content_by_path.d.ts",
+        "agent_web_skill_content_by_path.js",
     ],
 )
