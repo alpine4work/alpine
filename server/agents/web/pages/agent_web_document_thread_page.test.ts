@@ -637,7 +637,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 <blockquote>
 
-Please **review this section** *today*.
+Please **review this section** _today_.
 
 </blockquote>
 `,

@@ -5,7 +5,7 @@ import {
     parseAgentWebTaskPage,
     printAgentWebTaskPage,
 } from "~/server/agents/web/pages/agent_web_task_page.js";
-import {AgentWebTaskQueryPageUniqueTasksArbitrary} from "~/server/agents/web/test_helpers/agent_web_task_query_page_arbitrary.js";
+import {AgentWebTaskQueryPageUniqueSubtasksArbitrary} from "~/server/agents/web/test_helpers/agent_web_task_query_page_arbitrary.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {
     ApiAccountReferenceArbitrary,
@@ -49,10 +49,12 @@ const AgentWebTaskPageArbitrary: Arbitrary<AgentWebTaskPage> = fc.record({
     notes: ApiContentWithoutCommentMarkArbitrary,
     subtasks: fc.oneof(
         fc.constant(null),
-        AgentWebTaskQueryPageUniqueTasksArbitrary.filter(tasks => tasks.length > 0).map(tasks => ({
-            tasks,
-            seeMore: null,
-        })),
+        AgentWebTaskQueryPageUniqueSubtasksArbitrary.filter(tasks => tasks.length > 0).map(
+            tasks => ({
+                tasks,
+                seeMore: null,
+            }),
+        ),
     ),
 });
 

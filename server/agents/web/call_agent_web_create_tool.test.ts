@@ -218,7 +218,9 @@ test("throws for unsupported create types before calling the API", async () => {
 
 Body.`,
         }),
-    ).resolves.toEqual("Error: Couldn\u2019t create. Unrecognized type `spreadsheet`.");
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t create. Unrecognized type `spreadsheet`. To see everything you can create, call the `read` tool with `/skill/create`. Try again with a different type.",
+    );
 
     expect(api.getCallCount("POST", "/documents")).toBe(0);
 });

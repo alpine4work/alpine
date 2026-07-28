@@ -1449,7 +1449,7 @@ test("throws when parsing an empty layout filter value", async () => {
 test("throws when parsing an empty due filter value", async () => {
     await expectParseTaskQueryFiltersDisplayMessage(
         "due=",
-        "Unexpected value `` for the `due` task filter in the URL search params. Try again " +
+        "Unexpected value empty for the `due` task filter in the URL search params. Try again " +
             "with `due=overdue`, `due=none` for tasks with no due date, or a date operator " +
             "(e.g. `due[before]=2026-07-12` or `due[after]=today`).",
     );

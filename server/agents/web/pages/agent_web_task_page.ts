@@ -517,7 +517,7 @@ export async function printAgentWebTaskPage(
 
         page.subtasks === null
             ? null
-            : printAgentWebTaskQueryPageTaskList(storage, page.subtasks.tasks),
+            : printAgentWebTaskQueryPageTaskList(storage, "TaskSubtasks", page.subtasks.tasks),
 
         page.subtasks?.seeMore === null || page.subtasks === null
             ? null

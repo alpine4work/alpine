@@ -388,6 +388,7 @@ Please clarify this requirement.
                 "Formatting is flexible when matching content so `**needle**` will match `**foo needle bar**` and `- needle` will match `- foo needle bar` because `**needle**` and `- needle` correctly match the word \u201cneedle\u201d and have the right formatting. " +
                 "Simply `needle` without formatting will also match `**foo needle bar**` and `- foo needle bar` however `_needle_` will match neither because it has incorrect formatting. " +
                 "Your content in `<blockquote>` must be valid markdown so `**foo needle` won\u2019t match `**foo needle bar**` because the formatting (`**`) is unterminated, either `**foo needle**` or `foo needle` (without formatting) will match. " +
+                "For a complete reference on how to quote content, call the `read` tool with `/skill/content-quoting`. " +
                 "Try again but make sure to exactly copy the content you want to comment in `/document/launch-spec` into a `<blockquote>`."),
     );
 });

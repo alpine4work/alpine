@@ -56,6 +56,15 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
         case "TaskSubtasks": {
             return {type: "MentionReference", reference: link.task};
         }
+        case "Skill": {
+            // If the agent writes a skill link then output that as a URL to the skill file in
+            // our open source mirror so the user can go open that file and see what the agent
+            // was talking about.
+            return {
+                type: "Url",
+                url: `https://github.com/alpine4work/alpine/blob/main/skills/alpine/${link.path}.md`,
+            };
+        }
         default:
             throw exhaustive(link);
     }

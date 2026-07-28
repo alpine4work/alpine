@@ -70,6 +70,41 @@ test("throws when the link path has not been seen", async () => {
     );
 });
 
+test("reads the main skill at `/skill` but not `/skill/SKILL`", async () => {
+    const response = await callAgentWebReadTool(context, {path: "/skill", limit: "10kb"});
+
+    expect(response).toEqual(
+        expect.stringMatching(
+            /^\[Alpine\]\(https:\/\/alpine\.inc\) is an all-in-one productivity suite[\s\S]*\[Accounts\]\(\/skill\/accounts\)/,
+        ),
+    );
+
+    await expect(
+        callAgentWebReadTool(context, {path: "/skill/SKILL", limit: "10kb"}),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t read `/skill/SKILL`. Nothing found for path `/skill/SKILL`. You may only read paths you\u2019ve already seen a link for. Please try calling the `read` tool again with a path you\u2019ve seen before. If you\u2019re trying to read something you don\u2019t have a link for then don\u2019t try making up a path. Instead try calling the `search` tool which will help you find what you need and will give you links which you can use with the `read` tool.",
+    );
+});
+
+test("reads a known named skill but not an unknown named skill", async () => {
+    const response = await callAgentWebReadTool(context, {
+        path: "/skill/create",
+        limit: "10kb",
+    });
+
+    expect(response).toEqual(
+        expect.stringMatching(
+            /^# What can you create in Alpine\?[\s\S]*\[`document`\]\(\/skill\/documents\)/,
+        ),
+    );
+
+    await expect(
+        callAgentWebReadTool(context, {path: "/skill/unknown", limit: "10kb"}),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t read `/skill/unknown`. Nothing found for path `/skill/unknown`. You may only read paths you\u2019ve already seen a link for. Please try calling the `read` tool again with a path you\u2019ve seen before. If you\u2019re trying to read something you don\u2019t have a link for then don\u2019t try making up a path. Instead try calling the `search` tool which will help you find what you need and will give you links which you can use with the `read` tool.",
+    );
+});
+
 test("returns full markdown and stores normalized read response", async () => {
     const documentId = generateId<DocumentId>();
 

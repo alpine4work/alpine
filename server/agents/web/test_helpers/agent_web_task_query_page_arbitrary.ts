@@ -80,6 +80,11 @@ export const AgentWebTaskQueryPageUniqueTasksArbitrary: Arbitrary<
     selector: task => task.taskId ?? task.title,
 });
 
+export const AgentWebTaskQueryPageUniqueSubtasksArbitrary =
+    AgentWebTaskQueryPageUniqueTasksArbitrary.map(tasks =>
+        tasks.map(task => ({...task, parent: null})),
+    );
+
 const ApiTaskQueryFilterResponsesArbitrary: Arbitrary<ReadonlyArray<ApiTaskQueryFilterResponse>> =
     fc.constantFrom(
         [],

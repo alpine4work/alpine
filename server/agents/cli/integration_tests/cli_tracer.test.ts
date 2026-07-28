@@ -118,7 +118,7 @@ test("send failed CLI events with exceptions to the tracer endpoint", async () =
     const tracerRequest = await tracerRequestResolver.promise;
 
     expect({output, tracerRequest}).toEqual({
-        output: `Error: Couldn’t run command. Missing required \`<path>\` arg. Try again but add the \`<path>\` arg. Expected syntax: \`alpine read <path> [--limit ...]\`.\n`,
+        output: `Error: Couldn’t run command. Missing required \`<path>\` arg. Try again but add the \`<path>\` arg. Expected syntax: \`alpine read <path> [--limit 20kb]\`.\n`,
         tracerRequest: {
             method: "POST",
             url: "/api/tracer",

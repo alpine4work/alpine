@@ -417,7 +417,7 @@ class ArgParser<
             nextIndex++;
             const arg = args[index]!;
 
-            const nominalArgMatch = arg.match(/^--([a-z0-9]+(?:-[a-z0-9]+)*)(?:=|$)/);
+            const nominalArgMatch = arg.match(/^--([a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*)(?:=|$)/);
 
             if (nominalArgMatch === null) {
                 positionalArgs.push(arg);

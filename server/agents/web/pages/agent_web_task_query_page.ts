@@ -624,6 +624,7 @@ export async function printAgentWebTaskQueryPageSearchParams(
 
 export async function printAgentWebTaskQueryPageTaskList(
     storage: AgentWebSessionStorage,
+    pageType: "TaskCollection" | "TaskSubtasks",
     tasks: ReadonlyArray<AgentWebTaskQueryPageTask>,
 ): Promise<List | null> {
     if (tasks.length === 0) return null;
@@ -633,13 +634,14 @@ export async function printAgentWebTaskQueryPageTaskList(
         ordered: false,
         spread: true,
         children: await runAllPromises(
-            tasks.map(task => printAgentWebTaskQueryPageTaskListItem(storage, task)),
+            tasks.map(task => printAgentWebTaskQueryPageTaskListItem(storage, pageType, task)),
         ),
     };
 }
 
 export async function printAgentWebTaskQueryPageTaskListItem(
     storage: AgentWebSessionStorage,
+    pageType: "TaskCollection" | "TaskSubtasks",
     pageTask: AgentWebTaskQueryPageTask,
 ): Promise<ListItem> {
     const taskReference: ApiTaskReferenceResponse | null =
@@ -658,7 +660,7 @@ export async function printAgentWebTaskQueryPageTaskListItem(
             : createAgentWebPageStoredLinkPathname(storage, taskReference),
         runAllPromises(
             printAgentWebTaskFieldListItems(storage, {
-                parent: pageTask.parent,
+                parent: pageType === "TaskCollection" ? pageTask.parent : null,
                 subtasks: pageTask.subtasks,
                 assignee: pageTask.assignee,
                 collections: pageTask.collections,
@@ -1247,6 +1249,7 @@ export async function updateAgentWebTaskQueryPage(
                     children: [
                         await printAgentWebTaskQueryPageTaskListItem(
                             context.storage,
+                            pageLink.type,
                             expectedPageTask,
                         ),
                     ],

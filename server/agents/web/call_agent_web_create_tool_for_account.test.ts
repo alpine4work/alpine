@@ -40,6 +40,8 @@ test.each(["account", "human", "bot"])("throws display message when creating `%s
 
 - Role: Member`,
         }),
-    ).resolves.toEqual(`Error: Couldn\u2019t create. Unrecognized type \`${type}\`.`);
+    ).resolves.toEqual(
+        `Error: Couldn\u2019t create. Unrecognized type \`${type}\`. To see everything you can create, call the \`read\` tool with \`/skill/create\`. Try again with a different type.`,
+    );
     expect(api.getRequestHistory()).toEqual([]);
 });

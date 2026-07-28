@@ -344,27 +344,27 @@ test.each([
     {
         command: "alpine read",
         argName: "path",
-        syntax: "alpine read <path> [--limit ...]",
+        syntax: "alpine read <path> [--limit 20kb]",
     },
     {
         command: "alpine update",
         argName: "path",
-        syntax: "alpine update <path> [--old ...] [--new ...] [--replace-all]",
+        syntax: 'alpine update <path> --old "..." --new "..."',
     },
     {
         command: "alpine scroll",
         argName: "path",
-        syntax: "alpine scroll <path> --offset <...> [--limit ...]",
+        syntax: "alpine scroll <path> --offset 0 [--limit 20kb]",
     },
     {
         command: "alpine find",
         argName: "path",
-        syntax: "alpine find <path> <pattern> [--offset ...] [--limit ...] [--match-limit ...]",
+        syntax: "alpine find <path> <pattern> [--offset 0] [--limit 4kb] [--match-limit 5]",
     },
     {
         command: "alpine find /document/example",
         argName: "pattern",
-        syntax: "alpine find <path> <pattern> [--offset ...] [--limit ...] [--match-limit ...]",
+        syntax: "alpine find <path> <pattern> [--offset 0] [--limit 4kb] [--match-limit 5]",
     },
     {
         command: "alpine search",
@@ -403,31 +403,31 @@ test.each([
     },
 ])("rejects a duplicate nominal argument using $name syntax", async ({command}) => {
     await expect(cli.run(command)).resolves.toEqual(
-        "Error: Couldn\u2019t run command. There\u2019s more than one `--limit` args. Try again with only one `--limit` arg. Expected syntax: `alpine read <path> [--limit ...]`.\n",
+        "Error: Couldn\u2019t run command. There\u2019s more than one `--limit` args. Try again with only one `--limit` arg. Expected syntax: `alpine read <path> [--limit 20kb]`.\n",
     );
 });
 
 test("rejects a missing required nominal argument", async () => {
     await expect(cli.run("alpine scroll /document/example")).resolves.toEqual(
-        "Error: Couldn\u2019t run command. Missing required `--offset` arg. Try again but add the `--offset` arg. Expected syntax: `alpine scroll <path> --offset <...> [--limit ...]`.\n",
+        "Error: Couldn\u2019t run command. Missing required `--offset` arg. Try again but add the `--offset` arg. Expected syntax: `alpine scroll <path> --offset 0 [--limit 20kb]`.\n",
     );
 });
 
 test("rejects an unknown nominal argument", async () => {
     await expect(cli.run("alpine read /document/example --unknown=value")).resolves.toEqual(
-        "Error: Couldn\u2019t run command. Unrecognized `--unknown` arg. Try again without the `--unknown` arg. Expected syntax: `alpine read <path> [--limit ...]`.\n",
+        "Error: Couldn\u2019t run command. Unrecognized `--unknown` arg. Try again without the `--unknown` arg. Expected syntax: `alpine read <path> [--limit 20kb]`.\n",
     );
 });
 
 test("rejects an update without an old argument", async () => {
     await expect(cli.run("alpine update /document/example")).resolves.toEqual(
-        "Error: Couldn\u2019t run command. Missing required `--old` arg. Try again but add the `--old` arg. Expected syntax: `alpine update <path> [--old ...] [--new ...] [--replace-all]`.\n",
+        'Error: Couldn\u2019t run command. Missing required `--old` arg. Try again but add the `--old` arg. Expected syntax: `alpine update <path> --old "..." --new "..."`.\n',
     );
 });
 
 test("rejects an update without a new argument", async () => {
     await expect(cli.run("alpine update /document/example --old=before")).resolves.toEqual(
-        "Error: Couldn\u2019t run command. Missing required `--new` arg. Try again but add the `--new` arg. Expected syntax: `alpine update <path> [--old ...] [--new ...] [--replace-all]`.\n",
+        'Error: Couldn\u2019t run command. Missing required `--new` arg. Try again but add the `--new` arg. Expected syntax: `alpine update <path> --old "..." --new "..."`.\n',
     );
 });
 
@@ -545,7 +545,7 @@ test.each([
     },
 ])("rejects $name", async ({command, argName, value}) => {
     await expect(cli.run(command)).resolves.toEqual(
-        `Error: Couldn\u2019t run command. Couldn\u2019t parse non-negative integer from: \`${value}\`. Try again with zero or a positive integer for the \`--${argName}\` arg.\n`,
+        `Error: Couldn\u2019t run command. Couldn\u2019t parse non-negative integer from: ${value.length === 0 ? "empty" : `\`${value}\``}. Try again with zero or a positive integer for the \`--${argName}\` arg.\n`,
     );
 });
 

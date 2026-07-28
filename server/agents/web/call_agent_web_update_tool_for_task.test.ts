@@ -491,7 +491,7 @@ test("rejects a Parent field on an existing embedded subtask without writing", a
     }).toEqual({
         result:
             `Error: Couldn\u2019t update \`${path}\`. ` +
-            "Unexpected \u201CParent\u201D field for a task in subtasks on line 8. A task\u2019s parent is already set by the subtasks page it appears on. Try again after removing the \u201CParent\u201D field.",
+            "Unknown task field \u201CParent\u201D on line 8. Try again with one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
         writeRequests: [],
     });
 });
@@ -524,7 +524,7 @@ test("rejects a Parent field on a new embedded subtask without writing", async (
     }).toEqual({
         result:
             `Error: Couldn\u2019t update \`${path}\`. ` +
-            "Unexpected \u201CParent\u201D field for a task in subtasks on line 8. A task\u2019s parent is already set by the subtasks page it appears on. Try again after removing the \u201CParent\u201D field.",
+            "Unknown task field \u201CParent\u201D on line 8. Try again with one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
         writeRequests: [],
     });
 });

@@ -546,7 +546,7 @@ without the \u201CNext page »\u201D link.
 
 ## Plan
 
-Review **now** and *carefully*.
+Review **now** and _carefully_.
 
 \`\`\`javascript
 const done = true;

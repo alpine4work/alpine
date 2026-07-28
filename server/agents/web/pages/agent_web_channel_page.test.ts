@@ -373,7 +373,7 @@ Posts in Announcements.
 
 <post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT" comments="0">
 
-Review **launch scope** and *risks*.
+Review **launch scope** and _risks_.
 
 - Confirm launch checklist
 

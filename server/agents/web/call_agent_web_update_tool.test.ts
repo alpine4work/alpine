@@ -291,7 +291,7 @@ test("throws for multiple matches when replaceAll is false", async () => {
             updates: [{old: "repeat", new: "done", replaceAll: false}],
         }),
     ).resolves.toEqual(
-        "Error: Couldn\u2019t update `/document/multiple-matches`. Multiple matches were found for the `old` string \u201Crepeat\u201D. Provide more surrounding context to make the match unique.",
+        "Error: Couldn\u2019t update `/document/multiple-matches`. Multiple matches were found for the `old` string \u201Crepeat\u201D. Provide more surrounding context to make the match unique. If you want to update every match of the `old` string you may use the `replaceAll` arg, however we recommend only making one update at a time to avoid unintentional updates.",
     );
 });
 

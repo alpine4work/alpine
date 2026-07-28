@@ -7,7 +7,7 @@ import {
 } from "~/server/agents/web/pages/agent_web_task_subtasks_page.js";
 import {
     AgentWebTaskQueryPagePaginationArbitrary,
-    AgentWebTaskQueryPageUniqueTasksArbitrary,
+    AgentWebTaskQueryPageUniqueSubtasksArbitrary,
 } from "~/server/agents/web/test_helpers/agent_web_task_query_page_arbitrary.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {ApiTaskReferenceArbitrary} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
@@ -23,7 +23,7 @@ const AgentWebTaskSubtasksPageArbitrary: Arbitrary<AgentWebTaskSubtasksPage> = f
         {weight: 2, arbitrary: fc.constant(null)},
         {weight: 1, arbitrary: AgentWebTaskQueryPagePaginationArbitrary},
     ),
-    tasks: AgentWebTaskQueryPageUniqueTasksArbitrary,
+    tasks: AgentWebTaskQueryPageUniqueSubtasksArbitrary,
     isEndOfTasks: fc.boolean(),
 });
 

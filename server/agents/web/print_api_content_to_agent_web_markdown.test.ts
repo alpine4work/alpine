@@ -145,7 +145,7 @@ Review [Fix auth (Open, active)](/task/fix-auth) today
             ],
         },
         markdown: `\
-*Review [Fix auth (Open, active)](/task/fix-auth) today*
+_Review [Fix auth (Open, active)](/task/fix-auth) today_
 `,
     },
     {

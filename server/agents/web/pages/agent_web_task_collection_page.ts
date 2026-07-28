@@ -497,7 +497,11 @@ export async function printAgentWebTaskCollectionPage(
             throw exhaustive(page);
     }
 
-    const taskList = await printAgentWebTaskQueryPageTaskList(storage, page.tasks);
+    const taskList = await printAgentWebTaskQueryPageTaskList(
+        storage,
+        "TaskCollection",
+        page.tasks,
+    );
     if (taskList !== null) children.push(taskList);
 
     if (page.isEndOfTasks) {

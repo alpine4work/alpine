@@ -177,7 +177,7 @@ export async function printAgentWebTaskSubtasksPage(
         page.pagination === null
             ? Promise.resolve(null)
             : printAgentWebTaskQueryPageSearchParams(storage, page.pagination),
-        printAgentWebTaskQueryPageTaskList(storage, page.tasks),
+        printAgentWebTaskQueryPageTaskList(storage, "TaskSubtasks", page.tasks),
     ]);
 
     const preambleChildren: Array<PhrasingContent> = [
