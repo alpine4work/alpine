@@ -39,6 +39,7 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {wrapMaybeArray} from "~/shared/helpers/array/wrap_maybe_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
     DateString,
@@ -627,8 +628,16 @@ async function runAgentsCliCommand(
                 path: "/skill",
             });
 
-            // Add an h1 to the help page to ground the response when you run `alpine` without
-            // any subcommand.
+            // We make the following changes to the `alpine` skill for the `alpine help`
+            // command:
+            //
+            // 1. Include an h1 and CLI usage to help the agent anchor itself in CLI context.
+            //
+            // 2. Add a not under the areas table noting the agent can use the `read` tool to
+            //    read the skill.
+            //
+            // 3. Add a tip explaining how to use stdin to pipe in content from a create or
+            //    update.
             return `\
 # Alpine CLI
 
@@ -644,7 +653,13 @@ ${scrollArgParser.syntax}
 ${findArgParser.syntax}
 \`\`\`
 
-${response}`;
+${response.replace("## Tips", "(You can call the `read` tool with the above skill links to read the skill, e.g. `alpine read /skill/documents`.)\n\n## Tips")}
+
+### Stdin
+
+When creating large pages, you can pass \`-\` to \`alpine create\` (e.g. \`alpine create document -\`) and pipe content to stdin instead of writing the content inline in the command.
+
+Similarly, when adding a lot of content in an update, you can pass \`-\` to \`alpine update\` (as both the \`--old\` and \`--new\` args, e.g. \`alpine update --old - --new -\`) and pipe update(s) to stdin. Updates should be a JSON object (or an array of JSON objects) with the properties \`old\` and \`new\`.`;
         }
         case "create": {
             const {type, content: contentArg} = createArgParser.parse(args);
@@ -720,6 +735,15 @@ ${response}`;
                     );
                 }
 
+                if (replaceAll === "") {
+                    throw new InvalidArgumentError(
+                        "Stdin requested for `update` tool but `--replace-all` arg is provided",
+                        {
+                            displayMessage: errorDisplayMessage`If the \`--old\` and \`--new\` args are \`-\` that means updates will be read from stdin. Other args like \`--replace-all\` aren\u2019t allowed when reading updates from stdin. Try again but without the \`--replace-all\` arg.`,
+                        },
+                    );
+                }
+
                 let updates: Array<{old: string; new: string; replaceAll: boolean}> = [];
 
                 try {
@@ -730,24 +754,33 @@ ${response}`;
                     }
 
                     const updatesUnknown: unknown = JSON.parse(updatesString);
-                    assert(Array.isArray(updatesUnknown));
 
-                    updates = updatesUnknown.map(update => {
+                    updates = wrapMaybeArray(updatesUnknown).map(update => {
                         assert(isObject(update));
 
                         const {
                             old: updateOld,
                             new: updateNew,
-                            "replace-all": updateReplaceAll,
+                            "replace-all": updateReplaceAllAlias1,
+                            replaceAll: updateReplaceAllAlias2,
                             ...updateRest
                         } = update;
 
                         assert(Object.keys(updateRest).length === 0);
+
+                        assert(typeof updateOld === "string");
+                        assert(typeof updateNew === "string");
+
+                        assert(
+                            updateReplaceAllAlias1 === undefined ||
+                                updateReplaceAllAlias2 === undefined,
+                        );
+
+                        const updateReplaceAll = updateReplaceAllAlias1 ?? updateReplaceAllAlias2;
+
                         assert(
                             updateReplaceAll === undefined || typeof updateReplaceAll === "boolean",
                         );
-                        assert(typeof updateOld === "string");
-                        assert(typeof updateNew === "string");
 
                         return {
                             old: updateOld,
