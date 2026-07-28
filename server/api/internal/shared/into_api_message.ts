@@ -228,7 +228,6 @@ async function intoApiMessagePayload(
     }
 }
 
-// NOCOMMIT: Test with `FileId`s and `FileEntityId`s
 async function intoApiMessagePayloadFiles(
     context: ServerBotActionContext,
     {
@@ -260,9 +259,9 @@ async function intoApiMessagePayloadFiles(
 
                 if (file) fileById.set(fileOrEntityId, file.initialData);
 
-                // IMPORTANT: This code is copied to `into_api_message.ts`, specifically
-                // `intoApiMessagePayloadFiles()`. If you make a change to this code you probably
-                // need to make a change there too.
+                // IMPORTANT: This code is copied from `into_api_content.ts`, specifically
+                // `intoApiContentFileOrPreviewElement()`. If you make a change to this code you
+                // probably need to make a change there too.
                 return {
                     type: "File",
                     file: {
@@ -280,9 +279,9 @@ async function intoApiMessagePayloadFiles(
 
             const entityIdObject = parseFileEntityId(fileOrEntityId);
 
-            // IMPORTANT: This code is copied to `into_api_message.ts`, specifically
-            // `intoApiMessagePayloadFiles()`. If you make a change to this code you probably
-            // need to make a change there too.
+            // IMPORTANT: This code is copied from `into_api_content.ts`, specifically
+            // `intoApiContentFileOrPreviewElement()`. If you make a change to this code you
+            // probably need to make a change there too.
             const title =
                 getSearchEntityMentionTitleForApi(fileOrEntityId, entityResult) ??
                 `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
@@ -358,9 +357,9 @@ async function intoApiMessagePayloadFiles(
                     throw exhaustive(entityIdObject);
             }
 
-            // IMPORTANT: This code is copied to `into_api_message.ts`, specifically
-            // `intoApiMessagePayloadFiles()`. If you make a change to this code you probably
-            // need to make a change there too.
+            // IMPORTANT: This code is copied from `into_api_content.ts`, specifically
+            // `intoApiContentFileOrPreviewElement()`. If you make a change to this code you
+            // probably need to make a change there too.
             return {
                 type: "Preview",
                 reference,

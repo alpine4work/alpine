@@ -8,13 +8,13 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getSearchEntityWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
 import {prepareApiMentionTitle} from "~/shared/api/content/closed_source/prepare_api_mention_title.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiContentResponse,
+    ApiContentResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
@@ -109,7 +109,6 @@ export async function intoApiContentWithReferencesAndReturnReferences<
 
     const referencedIds = getContentReferencedIdsForNode(content);
 
-    // NOCOMMIT: Test `FileEntityId`s
     const searchEntityIds = Array.from(
         new Set(concatIterables(referencedIds.searchEntityIds, referencedIds.fileEntityIds)),
     );

@@ -208,7 +208,6 @@ export const apiForumPaths: Pick<
                                 type: "Post",
                                 postId: post.postId,
                             }),
-                            // NOCOMMIT: Test that we snip correctly
                             content: getPostContentSnippet(post.content, {
                                 platform: "desktop",
                                 routeLayout: "wide",
@@ -434,7 +433,6 @@ export const apiForumPaths: Pick<
         },
     },
 
-    // NOCOMMIT: Test!
     "/posts/{id}-preview": {
         get: async (context, {pathParameters}) => {
             const referencesContext = context.dynamo.unexpectStrongReadConsistency();
@@ -451,15 +449,13 @@ export const apiForumPaths: Pick<
                                 type: "Post",
                                 postId: pathParameters.id,
                             }),
-                            // NOCOMMIT: Test that we snip correctly
                             content: getPostContentSnippet(post.content, {
                                 platform: "desktop",
                                 routeLayout: "wide",
                             }),
-                            contentKeyEncoder: new ApiContentKeyEncoder({
-                                entityId: `Post:${pathParameters.id}`,
-                                version: post.contentVersion,
-                            }),
+                            // As a content snippet, keys won't line up properly with the source content so
+                            // don't generate keys.
+                            contentKeyEncoder: null,
                         }),
                     ]);
 

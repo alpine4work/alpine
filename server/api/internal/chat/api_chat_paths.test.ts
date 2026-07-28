@@ -5,6 +5,7 @@ import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {convertDirectChatToRoomChat} from "~/server/chat/data/convert_direct_chat_to_room_chat.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -13,14 +14,42 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
+import {assertId, generateId} from "~/shared/id/id.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
+import {DocumentId} from "~/shared/id/types/id_types.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 const context = createTestContext({
     chatInjection,
     documentsInjection,
     notificationsInjection: {
         archiveInboxChatEntryAfterSetChatMessageReaction: async () => {},
+    },
+
+    searchInjection: {
+        getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
+            assert(entityId.startsWith("Document:"));
+            const documentId = assertId<DocumentId>(entityId.slice("Document:".length));
+
+            const documentResult = await getDocumentPreviewIfPossible(context, documentId, {
+                consistency: "StrongWithinCache",
+            });
+            if (!documentResult) return null;
+            if (!documentResult.ok) return {isPrivate: true};
+            const document = documentResult.value;
+
+            return {
+                isPrivate: false,
+                entity: new SearchEntityModel({
+                    type: "Document",
+                    title: document.getTitle(),
+                    document: {
+                        id: documentId,
+                        version: document.version,
+                    },
+                }),
+            };
+        },
     },
 });
 
@@ -950,4 +979,89 @@ test("chat message with invalid file object returns 400", async () => {
     });
 
     expect(response).toMatchObject({status: 400});
+});
+
+test("document preview in message files", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document = await TestDocument.create(session, {title: "Lorem Ipsum"});
+
+    const chat = await TestChat.get(session, bot);
+
+    await chat.sendMessage(session, undefined, {files: [`Document:${document.id}`]});
+
+    const response = await server.GET(`/chats/${chat.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: expect.objectContaining({
+            messages: [
+                expect.objectContaining({
+                    payload: expect.objectContaining({
+                        files: [
+                            expect.objectContaining({
+                                element: expect.objectContaining({
+                                    type: "Preview",
+                                    reference: {
+                                        type: "Document",
+                                        id: document.id,
+                                        title: "Lorem Ipsum",
+                                    },
+                                }),
+                            }),
+                        ],
+                    }),
+                }),
+            ],
+        }),
+    });
+});
+
+test("private document preview in message files", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const otherSession = await space.createSession();
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document = await TestDocument.create(otherSession, {title: "Lorem Ipsum"});
+
+    const chat = await TestChat.get(session, bot);
+
+    await chat.sendMessage(session, undefined, {files: [`Document:${document.id}`]});
+
+    const response = await server.GET(`/chats/${chat.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: expect.objectContaining({
+            messages: [
+                expect.objectContaining({
+                    payload: expect.objectContaining({
+                        files: [
+                            expect.objectContaining({
+                                element: expect.objectContaining({
+                                    type: "Preview",
+                                    reference: {
+                                        type: "Document",
+                                        id: document.id,
+                                        title: "Private document",
+                                    },
+                                }),
+                            }),
+                        ],
+                    }),
+                }),
+            ],
+        }),
+    });
 });

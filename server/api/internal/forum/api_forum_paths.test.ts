@@ -60,8 +60,8 @@ function createApiParagraphContent(text: string) {
     return {
         elements: [
             {
-                type: "Paragraph",
-                elements: [{type: "Text", text}],
+                type: "Paragraph" as const,
+                elements: [{type: "Text" as const, text}],
             },
         ],
     };
@@ -522,6 +522,32 @@ describe("/channels/{id}/posts", () => {
         });
     });
 
+    test("truncates channel post preview content deterministically", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {access: "Public"});
+        await channel.createPost(session, "x".repeat(1_300));
+
+        expect(
+            await server.GET(`/channels/${channel.id}/posts`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toMatchObject({
+            status: 200,
+            body: {
+                posts: [
+                    {
+                        contentSnippet: createApiParagraphContent("x".repeat(1_223)),
+                    },
+                ],
+            },
+        });
+    });
+
     test("can\u2019t read channel post previews without access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
@@ -545,6 +571,175 @@ describe("/channels/{id}/posts", () => {
                     message: expect.stringMatching("You aren\u2019t allowed"),
                 }),
             },
+        });
+    });
+});
+
+describe("/posts/{id}-preview", () => {
+    test("can read a post preview", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Post Author", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Test Channel",
+            access: "Public",
+        });
+        const post = await channel.createPost(session, "This is a test post preview.");
+
+        expect(
+            await server.GET(`/posts/${post.id}-preview`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                post: {
+                    id: post.id,
+                    author: expect.objectContaining({
+                        id: session.account.id,
+                        name: "Post Author",
+                    }),
+                    createdTime: expect.any(String),
+                    createdTimeZone: defaultTimeZone,
+                    channel: {
+                        id: channel.id,
+                        name: "Test Channel",
+                    },
+                    contentSnippet: createApiParagraphContent("This is a test post preview."),
+                    commentCount: 0,
+                    reference: {
+                        title: "in Test Channel: This is a test post preview",
+                    },
+                },
+            },
+        });
+    });
+
+    test("can\u2019t read a post preview without access", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const channel = await TestChannel.create(session2, {access: "Private"});
+        const post = await channel.createPost(session2);
+
+        expect(
+            await server.GET(`/posts/${post.id}-preview`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 403,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("You aren\u2019t allowed"),
+                }),
+            },
+        });
+    });
+
+    test("can\u2019t read a post preview for a non-existent post", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        expect(
+            await server.GET(`/posts/${generateId<PostId>()}-preview`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 404,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("doesn\u2019t exist"),
+                }),
+            },
+        });
+    });
+
+    test("can read a post preview with post scope", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const channel = await TestChannel.create(session, {access: "Private"});
+        const post = await channel.createPost(session, "Post-scoped preview content.");
+        const apiKey = await bot.createApiKey({type: "Post", postId: post.id});
+
+        const response = await server.GET(`/posts/${post.id}-preview`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({
+            status: response.status,
+            spaceId: response.body.spaceId,
+            postId: response.body.post.id,
+            contentSnippet: response.body.post.contentSnippet,
+        }).toEqual({
+            status: 200,
+            spaceId: space.id,
+            postId: post.id,
+            contentSnippet: createApiParagraphContent("Post-scoped preview content."),
+        });
+    });
+
+    test("truncates post preview content deterministically", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {access: "Public"});
+        const post = await channel.createPost(session, "x".repeat(1_300));
+
+        const response = await server.GET(`/posts/${post.id}-preview`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({
+            status: response.status,
+            contentSnippet: response.body.post.contentSnippet,
+        }).toEqual({
+            status: 200,
+            contentSnippet: createApiParagraphContent("x".repeat(1_223)),
+        });
+    });
+
+    test("post preview content remains keyless after content and metadata updates", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {access: "Public"});
+        const post = await channel.createPost(session, "Original post content.");
+
+        await post.updateContent(session, "Updated post content.");
+        await post.setReaction(session);
+
+        const response = await server.GET(`/posts/${post.id}-preview`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({
+            status: response.status,
+            contentSnippet: response.body.post.contentSnippet,
+        }).toEqual({
+            status: 200,
+            contentSnippet: createApiParagraphContent("Updated post content."),
         });
     });
 });

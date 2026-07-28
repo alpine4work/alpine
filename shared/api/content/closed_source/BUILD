@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/immer",
         "//:node_modules/murmurhash",
         "//:node_modules/prosemirror-model",
+        "//shared/accounts",
         "//shared/api/content",
         "//shared/api/specification",
         "//shared/content",

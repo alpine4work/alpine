@@ -8,6 +8,7 @@ import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
     getDocumentContent,
     getDocumentContentSteps,
+    getDocumentPreviewIfPossible,
     getResolvedDocumentCommentThreadRanges,
     updateDocumentContent,
     updateDocumentSnapshotForTest,
@@ -27,8 +28,8 @@ import {
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
 import {
-    DocumentContentProsemirrorSchema,
     assertDocumentContent,
+    DocumentContentProsemirrorSchema as schema,
 } from "~/shared/documents/document_content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -40,11 +41,38 @@ import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 const context = createTestContext({
     chatInjection,
     documentsInjection,
     tasksInjection,
+
+    searchInjection: {
+        getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
+            assert(entityId.startsWith("Document:"));
+            const documentId = assertId<DocumentId>(entityId.slice("Document:".length));
+
+            const documentResult = await getDocumentPreviewIfPossible(context, documentId, {
+                consistency: "StrongWithinCache",
+            });
+            if (!documentResult) return null;
+            if (!documentResult.ok) return {isPrivate: true};
+            const document = documentResult.value;
+
+            return {
+                isPrivate: false,
+                entity: new SearchEntityModel({
+                    type: "Document",
+                    title: document.getTitle(),
+                    document: {
+                        id: documentId,
+                        version: document.version,
+                    },
+                }),
+            };
+        },
+    },
 
     // Reimplement the Durable Object `/update-content-with-diff` route in tests so we
     // can test the API endpoint. The actual route in
@@ -76,7 +104,7 @@ const context = createTestContext({
                     version: document.version,
                     steps: [
                         new RemoveAllMarksStep(
-                            DocumentContentProsemirrorSchema.marks.comment.create({
+                            schema.marks.comment.create({
                                 commentThreadId,
                             }),
                         ),
@@ -95,7 +123,7 @@ const context = createTestContext({
                     version,
                     steps: [
                         new AddMarksAfterRemoveAllStep(
-                            DocumentContentProsemirrorSchema.marks.comment.create({
+                            schema.marks.comment.create({
                                 commentThreadId,
                             }),
                             ranges,
@@ -147,14 +175,12 @@ const context = createTestContext({
         const titleNode =
             requestBody.title === undefined
                 ? oldContent.child(0)
-                : DocumentContentProsemirrorSchema.nodes.title.create(
+                : schema.nodes.title.create(
                       null,
-                      requestBody.title.length > 0
-                          ? DocumentContentProsemirrorSchema.text(requestBody.title)
-                          : null,
+                      requestBody.title.length > 0 ? schema.text(requestBody.title) : null,
                   );
 
-        const requestContent = DocumentContentProsemirrorSchema.nodes.doc.create(oldContent.attrs, [
+        const requestContent = schema.nodes.doc.create(oldContent.attrs, [
             titleNode,
             ...(requestBody.content ?? oldContent.content.content.slice(1)),
         ]);
@@ -778,8 +804,6 @@ test("can read document content with document scope", async () => {
 });
 
 describe("comment threads", () => {
-    const schema = DocumentContentProsemirrorSchema;
-
     function textSlice(text: string, marks: ReadonlyArray<Mark> = []) {
         if (text.length === 0) return Slice.empty;
         return new Slice(Fragment.from(schema.text(text, marks)), 0, 0);
@@ -2288,4 +2312,158 @@ test("document comment with invalid file object returns 400", async () => {
     );
 
     expect(response).toMatchObject({status: 400});
+});
+
+test("document preview in response", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document1 = await TestDocument.create(session);
+    const document2 = await TestDocument.create(session, {title: "Lorem Ipsum"});
+
+    await document1.update(session, lastUpdatePos => [
+        new ReplaceStep(
+            lastUpdatePos + 1,
+            lastUpdatePos + 1,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: `Document:${document2.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const response = await server.GET(`/documents/${document1.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            document: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "Preview",
+                            reference: {
+                                type: "Document",
+                                id: document2.id,
+                                title: "Lorem Ipsum",
+                            },
+                        }),
+                    ]),
+                }),
+            }),
+        },
+    });
+});
+
+test("untitled document preview in response", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document1 = await TestDocument.create(session);
+    const document2 = await TestDocument.create(session);
+
+    await document1.update(session, lastUpdatePos => [
+        new ReplaceStep(
+            lastUpdatePos + 1,
+            lastUpdatePos + 1,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: `Document:${document2.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const response = await server.GET(`/documents/${document1.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            document: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "Preview",
+                            reference: {
+                                type: "Document",
+                                id: document2.id,
+                                title: "Untitled",
+                            },
+                        }),
+                    ]),
+                }),
+            }),
+        },
+    });
+});
+
+test("private document preview in response", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const otherSession = await space.createSession();
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document1 = await TestDocument.create(session);
+    const document2 = await TestDocument.create(otherSession, {title: "Lorem Ipsum"});
+
+    await document1.update(session, lastUpdatePos => [
+        new ReplaceStep(
+            lastUpdatePos + 1,
+            lastUpdatePos + 1,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: `Document:${document2.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const response = await server.GET(`/documents/${document1.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            document: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "Preview",
+                            reference: {
+                                type: "Document",
+                                id: document2.id,
+                                title: "Private document",
+                            },
+                        }),
+                    ]),
+                }),
+            }),
+        },
+    });
 });

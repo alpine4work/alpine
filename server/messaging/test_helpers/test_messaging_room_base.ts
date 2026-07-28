@@ -27,6 +27,7 @@ import {
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
@@ -48,7 +49,7 @@ const testMessageCountByConstructor = new DefaultMap<
 
 type TestMessagingRoomCreateMessageOptions = {
     parent?: TestMessage | MessageContentPayloadParent;
-    files?: Iterable<TestFile | FileId>;
+    files?: Iterable<TestFile | FileId | FileEntityId>;
     createdTimeZone?: TimeZone;
     overrideCreatedTime?: Date;
     isStream?: boolean;
@@ -75,7 +76,7 @@ export abstract class TestMessagingRoomBase {
         options: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
-            fileIds: ReadonlyArray<FileId>;
+            fileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone?: TimeZone;
             overrideCreatedTime?: Date;
             isStream?: boolean;

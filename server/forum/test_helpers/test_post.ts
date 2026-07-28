@@ -42,6 +42,7 @@ import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_conten
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {
     PostContent,
     PostContentProsemirrorSchema,
@@ -256,7 +257,7 @@ export class TestPost extends TestCommentRoomBase {
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
-            fileIds: ReadonlyArray<FileId>;
+            fileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone?: TimeZone;
             overrideCreatedTime?: Date;
             isStream?: boolean;
