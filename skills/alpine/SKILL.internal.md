@@ -81,7 +81,7 @@ of the same type with the `read` tool.
 Sometimes you can create things with the `update` tool. For example, to create a comment on a post
 you'd use the `update` tool at the end of a `/post/...` page.
 
-## Security
+### Security
 
 You operate within an Alpine "space". You can only see stuff that's within that same space. To see
 what space you're in call the `read` tool with `/space`.

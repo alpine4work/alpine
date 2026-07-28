@@ -8,7 +8,9 @@ import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markd
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
@@ -25,6 +27,7 @@ main().then(
 
 async function main() {
     const directoryPath = process.cwd();
+    const cliDirectoryPath = resolvePath(directoryPath, "alpine");
 
     const markdownDirectoryRelativePaths = new Set<string>();
 
@@ -47,8 +50,8 @@ async function main() {
         }
     }
 
-    await runAllPromises(
-        mapIterable(markdownPaths, async markdownPath => {
+    const formattedMarkdownEntriesForCli = await runAllPromises(
+        mapIterable(markdownPaths, async (markdownPath): Promise<[string, string] | null> => {
             assert(markdownPath.endsWith(".internal.md"));
 
             const markdownDirectoryPath = dirname(markdownPath);
@@ -207,6 +210,37 @@ async function main() {
 
             const formattedMarkdownContent = printMarkdownTree(markdownTree);
 
+            const traverseForCli = (node: Root | RootContent) => {
+                // Transform links to be prefixed with `/skill/` so when the CLI reads the skill it
+                // knows to call the `read` tool with the `/skill/` path.
+                if (node.type === "link" && !/^https?:\/\//.test(node.url)) {
+                    assert(!node.url.startsWith("../"));
+                    node.url = resolvePath("/skill", node.url.slice(0, -3));
+                }
+
+                if ("children" in node) {
+                    let nextIndex = 0;
+
+                    while (nextIndex < node.children.length) {
+                        const index = nextIndex;
+                        nextIndex++;
+                        const childNode = node.children[index]!;
+
+                        traverseForCli(childNode);
+
+                        // Remove YAML skill frontmatter when preparing the skill for the CLI.
+                        if (childNode.type === "yaml") {
+                            node.children.splice(index, 1);
+                            nextIndex = index;
+                        }
+                    }
+                }
+            };
+
+            traverseForCli(markdownTree);
+
+            const formattedMarkdownContentForCli = printMarkdownTree(markdownTree);
+
             // Make sure the file size is under `agentWebBytesDefaultLimit` (20kb as of
             // 2026-07-27). Which is the default limit for `read`. We calculated
             // `agentWebBytesDefaultLimit` to be a comfortable amount to give an agent a good
@@ -219,7 +253,9 @@ async function main() {
             // `truncateAgentWebReadResponse()` for more information about that decision.
             const maxLengthInKb = 5;
 
-            if (formattedMarkdownContent.length >= maxLengthInKb * 1000) {
+            // Make sure we check the length of the "for CLI" variant as that's what'll be
+            // subjected to the `read` limit we're based on.
+            if (formattedMarkdownContentForCli.length >= maxLengthInKb * 1000) {
                 throw new InternalError(
                     quote`Skill markdown file too large, expected all markdown skill files to be under ${maxLengthInKb}kb but ${relativePath(directoryPath, markdownPath)} is ${parseFloat(Math.max(maxLengthInKb + 0.1, formattedMarkdownContent.length / 1000).toFixed(1))}kb. Consider splitting the skill file into multiple smaller files?`,
                 );
@@ -229,6 +265,22 @@ async function main() {
                 markdownPath.slice(0, -".internal.md".length) + ".open_source.generated.md",
                 formattedMarkdownContent,
             );
+
+            if (!markdownPath.startsWith(`${cliDirectoryPath}/`)) return null;
+
+            return [
+                markdownPath.slice(cliDirectoryPath.length + 1, -".internal.md".length),
+                formattedMarkdownContentForCli,
+            ];
         }),
+    );
+
+    await fs.writeFile(
+        resolvePath(directoryPath, "agent_web_skill_content_by_path.js"),
+        `export const agentWebSkillContentByPath = new Map([
+${Array.from(filterIterable(formattedMarkdownEntriesForCli, isNonNullable), ([path, content]) => {
+    return `    [${JSON.stringify(path)}, ${JSON.stringify(content.trimEnd())}],\n`;
+}).join("")}]);
+`,
     );
 }
