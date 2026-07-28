@@ -12,7 +12,7 @@ Usage:
 \`\`\`
 alpine read <path> [--limit 20kb]
 alpine create <type> <content>
-alpine update <path> --old "..." --new "..." [--replace-all]
+alpine update <path> --old "..." --new "..."
 alpine delete <path>
 alpine search <query>
 alpine scroll <path> --offset 0 [--limit 20kb]
