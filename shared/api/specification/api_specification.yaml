@@ -2650,6 +2650,10 @@ components:
                     $ref: "#/components/schemas/ChannelId"
                 title:
                     type: string
+                deleted:
+                    type: boolean
+                private:
+                    type: boolean
 
         ChatReference:
             type: object
@@ -2672,6 +2676,10 @@ components:
                     $ref: "#/components/schemas/ChatId"
                 title:
                     type: string
+                deleted:
+                    type: boolean
+                private:
+                    type: boolean
 
         DocumentReference:
             type: object
@@ -2694,6 +2702,10 @@ components:
                     $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
+                deleted:
+                    type: boolean
+                private:
+                    type: boolean
 
         DocumentThreadReference:
             type: object
@@ -2733,6 +2745,10 @@ components:
                     $ref: "#/components/schemas/PostId"
                 title:
                     type: string
+                deleted:
+                    type: boolean
+                private:
+                    type: boolean
 
         TaskReference:
             type: object
@@ -2757,6 +2773,10 @@ components:
                     type: string
                 status:
                     $ref: "#/components/schemas/TaskStatus"
+                deleted:
+                    type: boolean
+                private:
+                    type: boolean
 
         TaskCollectionReference:
             type: object
@@ -2811,6 +2831,10 @@ components:
                     $ref: "#/components/schemas/SiteId"
                 title:
                     type: string
+                deleted:
+                    type: boolean
+                private:
+                    type: boolean
 
         MentionReference:
             oneOf:
@@ -3884,7 +3908,13 @@ components:
                     items:
                         $ref: "#/components/schemas/InboxEntryTitleItem"
                 preview:
-                    type: string
+                    description: >
+                        A short preview of the latest message as rich text items: an `Account` item
+                        for the message author followed by a `Text` item with the message snippet.
+                        Omitted when the entry has no message content.
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/InboxEntryPreviewItem"
                 time:
                     $ref: "#/components/schemas/DateTime"
                 loudNotificationCount:
@@ -3936,6 +3966,36 @@ components:
                 account:
                     $ref: "#/components/schemas/Account"
 
+        InboxEntryPreviewItem:
+            oneOf:
+                - $ref: "#/components/schemas/InboxEntryPreviewTextItem"
+                - $ref: "#/components/schemas/InboxEntryPreviewAccountItem"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/InboxEntryPreviewTextItem"
+                    Account: "#/components/schemas/InboxEntryPreviewAccountItem"
+
+        InboxEntryPreviewTextItem:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+
+        InboxEntryPreviewAccountItem:
+            type: object
+            required: [type, account]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    $ref: "#/components/schemas/Account"
+
         InboxEntryAccountFeatured:
             type: object
             required: [type, account]
@@ -3974,12 +4034,7 @@ components:
                 type:
                     const: Chat
                 chat:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/ChatId"
+                    $ref: "#/components/schemas/ChatReference_Response"
                 previewMessage:
                     type: object
                     required: [index]
@@ -3998,12 +4053,7 @@ components:
                 type:
                     const: CreatedChannelPosts
                 channel:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/ChannelId"
+                    $ref: "#/components/schemas/ChannelReference_Response"
                 posts:
                     type: array
                     minItems: 1
@@ -4024,16 +4074,11 @@ components:
                 type:
                     const: Post
                 post:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/PostId"
-                # TODO(#public-api): Document that `previewMessage` is optional because an
-                # `InboxPostEntry` can be created from a mention in the post itself, before
-                # any comments exist on the post. In that case there is no comment to preview.
+                    $ref: "#/components/schemas/PostReference_Response"
                 previewMessage:
+                    # Present when the entry surfaces a specific comment (deep-linked
+                    # via its index). Absent for post-body mentions, which link to the
+                    # post itself.
                     type: object
                     required: [index]
                     additionalProperties: false
@@ -4052,12 +4097,7 @@ components:
                 type:
                     const: CreatedDocumentThreads
                 document:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/DocumentId"
+                    $ref: "#/components/schemas/DocumentReference_Response"
                 threads:
                     type: array
                     minItems: 1
@@ -4072,26 +4112,31 @@ components:
         InboxDocumentThreadEntry:
             type: object
             required:
-                [title, time, loudNotificationCount, status, featured, type, thread, previewMessage]
+                [
+                    title,
+                    time,
+                    loudNotificationCount,
+                    status,
+                    featured,
+                    type,
+                    document,
+                    thread,
+                    previewMessage,
+                ]
             additionalProperties: false
             properties:
                 <<: *inboxEntrySharedProperties
                 type:
                     const: DocumentThread
+                document:
+                    $ref: "#/components/schemas/DocumentReference_Response"
                 thread:
                     type: object
-                    required: [id, document]
+                    required: [id]
                     additionalProperties: false
                     properties:
                         id:
                             $ref: "#/components/schemas/DocumentThreadId"
-                        document:
-                            type: object
-                            required: [id]
-                            additionalProperties: false
-                            properties:
-                                id:
-                                    $ref: "#/components/schemas/DocumentId"
                 previewMessage:
                     type: object
                     required: [index]
@@ -4111,12 +4156,7 @@ components:
                 type:
                     const: TaskMessages
                 task:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/TaskId"
+                    $ref: "#/components/schemas/TaskReference_Response"
                 previewMessage:
                     type: object
                     required: [index]

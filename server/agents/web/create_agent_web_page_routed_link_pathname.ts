@@ -55,6 +55,12 @@ export async function createAgentWebPageRoutedLinkPathname(
             assert(pathname.startsWith("/task/"));
             return `${pathname}/subtasks`;
         }
+        case "Inbox": {
+            const pathname = await createAgentWebPageStoredLinkPathname(storage, pageLink.account);
+            // Bots never have an inbox, so an inbox link is always for a human.
+            assert(pathname.startsWith("/human/"));
+            return `${pathname}/inbox`;
+        }
         default:
             throw exhaustive(pageLink);
     }

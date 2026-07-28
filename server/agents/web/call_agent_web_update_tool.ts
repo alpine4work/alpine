@@ -24,6 +24,10 @@ import {
     updateAgentWebDocumentThreadPage,
 } from "~/server/agents/web/pages/agent_web_document_thread_page.js";
 import {
+    parseAgentWebInboxPage,
+    updateAgentWebInboxPage,
+} from "~/server/agents/web/pages/agent_web_inbox_page.js";
+import {
     parseAgentWebPostPage,
     updateAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
@@ -311,6 +315,16 @@ async function updateAgentWebPageLink(
             ]);
 
             return updateAgentWebAccountPage(context, oldPageMetadata, oldPage, newPage);
+        }
+        case "Inbox": {
+            const oldResponse = oldResponseLazy.get();
+
+            const [oldPage, newPage] = await runAllPromises([
+                parseAgentWebInboxPage(context.storage, oldPageMetadata.id, oldResponse),
+                parseAgentWebInboxPage(context.storage, oldPageMetadata.id, newResponse),
+            ]);
+
+            return updateAgentWebInboxPage(context, oldPageMetadata, oldPage, newPage);
         }
         case "Document": {
             const newPage = await parseAgentWebDocumentPage(

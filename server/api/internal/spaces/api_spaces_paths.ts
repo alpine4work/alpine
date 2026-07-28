@@ -19,7 +19,9 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {mergeKeywordAndSemanticSearchResults} from "~/shared/search/merge_keyword_and_semantic_search_results.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {standardSearchOptions} from "~/shared/search/search_options.js";
 
 export const apiSpacesPaths: Pick<
@@ -137,8 +139,6 @@ export const apiSpacesPaths: Pick<
         },
     },
 
-    // TODO(#public-api): Document that reads from this endpoint will always be
-    // eventually consistent.
     "/spaces/{id}/accounts/{accountId}/inbox": {
         get: async (context, {pathParameters}) => {
             const {id: spaceId, accountId} = pathParameters;
@@ -161,6 +161,8 @@ export const apiSpacesPaths: Pick<
         },
     },
 
+    // TODO(#public-api): Document that reads from this endpoint will always be
+    // eventually consistent.
     "/spaces/{id}/accounts/{accountId}/inbox/entries": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {id: spaceId, accountId} = pathParameters;
@@ -189,6 +191,23 @@ export const apiSpacesPaths: Pick<
                     ? (entriesResult.items[entriesResult.items.length - 1]?.cursor ?? null)
                     : null;
 
+            const entries = await runAllPromises(
+                entriesResult.items.map(async ({model}) => {
+                    // Task and chat entries carry a title (and, for tasks, a status) that isn't on the
+                    // inbox model, so we resolve the referenced entities from the search index. The
+                    // resolver access-checks each entity for the request actor, matching how the entry
+                    // models were hydrated.
+                    const entityId = getInboxEntrySearchEntityIdIfExists(model);
+                    const resolvedEntity = entityId
+                        ? await inboxContext.searchInjection.getSearchMentionEntityIfPossible(
+                              spaceId,
+                              entityId,
+                          )
+                        : null;
+                    return intoApiInboxEntry(model, resolvedEntity);
+                }),
+            );
+
             return {
                 content: {
                     inbox: {
@@ -196,7 +215,7 @@ export const apiSpacesPaths: Pick<
                         newEntryCount: inbox.model.entryCount,
                     },
                     nextCursor,
-                    entries: entriesResult.items.map(({model}) => intoApiInboxEntry(model)),
+                    entries,
                 },
             };
         },
@@ -295,3 +314,21 @@ export const apiSpacesPaths: Pick<
         },
     },
 };
+
+/**
+ * The search-index entity id for an inbox entry that references a title-bearing
+ * entity not carried on the model (tasks and chats), or `undefined` for entries
+ * that don't need resolution.
+ */
+function getInboxEntrySearchEntityIdIfExists(
+    entry: InboxEntryModel,
+): SearchMentionEntityId | undefined {
+    switch (entry.type) {
+        case "Task":
+            return `Task:${entry.task.taskId}`;
+        case "Chat":
+            return `Chat:${entry.chatId}`;
+        default:
+            return undefined;
+    }
+}

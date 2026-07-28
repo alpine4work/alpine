@@ -1,4 +1,5 @@
 import {
+    ApiAccountReferenceResponse,
     ApiDocumentReferenceResponse,
     ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -15,7 +16,8 @@ export type AgentWebPageRoutedLink =
     | AgentWebPageSkillRoutedLink
     | AgentWebPageDocumentThreadRoutedLink
     | AgentWebPageTaskMessageListRoutedLink
-    | AgentWebPageTaskSubtasksRoutedLink;
+    | AgentWebPageTaskSubtasksRoutedLink
+    | AgentWebPageInboxRoutedLink;
 
 export type AgentWebPageSkillRoutedLink = {
     readonly type: "Skill";
@@ -37,4 +39,9 @@ export type AgentWebPageTaskMessageListRoutedLink = {
 export type AgentWebPageTaskSubtasksRoutedLink = {
     readonly type: "TaskSubtasks";
     readonly task: ApiTaskReferenceResponse;
+};
+
+export type AgentWebPageInboxRoutedLink = {
+    readonly type: "Inbox";
+    readonly account: ApiAccountReferenceResponse;
 };

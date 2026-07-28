@@ -11,7 +11,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
  * Routes a URL pathname to the appropriate `AgentWebPageLink`. Whether that's a
- * stored page link or routed pagel link. This function actually implements the
+ * stored page link or routed page link. This function actually implements the
  * routing functionality for `AgentWebPageRoutedLink`.
  */
 export async function routeAgentWebPageLinkPathname(
@@ -97,6 +97,31 @@ export async function routeAgentWebPageLinkPathname(
                     pathnameParts[2] === "comments"
                         ? {type: "TaskMessageList", task: result.pageLink}
                         : {type: "TaskSubtasks", task: result.pageLink},
+                latestPathname,
+            };
+        }
+        case "human": {
+            if (pathnameParts.length !== 3) break;
+            if (pathnameParts[2] !== "inbox") break;
+
+            const result = await getAgentWebPageStoredLinkByPathname(
+                storage,
+                `/human/${pathnameParts[1]!}`,
+            );
+            if (result === null) return null;
+
+            assert(result.pageLink.type === "Account");
+
+            // Bots never have an inbox. So `/bot/{name}/inbox` isn't routed at all, and a name
+            // that resolves to a bot (e.g. a human and a bot sharing a slug) has no inbox
+            // page.
+            if (result.pageLink.bot) return null;
+
+            assert(result.latestPathname.startsWith("/human/"));
+            const latestPathname = `${result.latestPathname}/inbox`;
+
+            return {
+                pageLink: {type: "Inbox", account: result.pageLink},
                 latestPathname,
             };
         }

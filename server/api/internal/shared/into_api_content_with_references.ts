@@ -28,6 +28,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
+    deletedSearchEntityTitle,
     missingSearchEntityTitle,
     privateSearchEntityTitle,
 } from "~/shared/search/missing_and_private_search_entity_titles.js";
@@ -203,6 +204,7 @@ export function getSearchEntityMentionTitleForApi(
     entityId: SearchMentionEntityId,
     entityResult:
         | {isPrivate: true}
+        | {isDeleted: true}
         | {isPrivate: false; entity: SearchEntityModel}
         | null
         | undefined,
@@ -210,6 +212,14 @@ export function getSearchEntityMentionTitleForApi(
     if (!entityResult) {
         const {type} = parseSearchMentionEntityId(entityId);
         return `${missingSearchEntityTitle} ${getSearchEntityNoun(type)}`;
+    }
+
+    // Callers that already know an entity was deleted (e.g. the inbox, where the model
+    // has no title to resolve) can signal it explicitly. Resolvable entities with a
+    // `null` title are surfaced as deleted by `prepareApiMentionTitle` below.
+    if ("isDeleted" in entityResult) {
+        const {type} = parseSearchMentionEntityId(entityId);
+        return `${deletedSearchEntityTitle} ${getSearchEntityNoun(type)}`;
     }
 
     if (entityResult.isPrivate) {

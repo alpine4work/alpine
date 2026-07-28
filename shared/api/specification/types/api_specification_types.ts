@@ -3385,6 +3385,8 @@ export namespace ApiSpecification {
                 readonly type: "Channel";
                 readonly id: components["schemas"]["ChannelId"];
                 readonly title?: string;
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly ChannelReference_Response: {
                 /**
@@ -3394,6 +3396,8 @@ export namespace ApiSpecification {
                 readonly type: "Channel";
                 readonly id: components["schemas"]["ChannelId"];
                 readonly title: string;
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly ChatReference: {
                 /**
@@ -3403,6 +3407,8 @@ export namespace ApiSpecification {
                 readonly type: "Chat";
                 readonly id: components["schemas"]["ChatId"];
                 readonly title?: string;
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly ChatReference_Response: {
                 /**
@@ -3412,6 +3418,8 @@ export namespace ApiSpecification {
                 readonly type: "Chat";
                 readonly id: components["schemas"]["ChatId"];
                 readonly title: string;
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly DocumentReference: {
                 /**
@@ -3421,6 +3429,8 @@ export namespace ApiSpecification {
                 readonly type: "Document";
                 readonly id: components["schemas"]["DocumentId"];
                 readonly title?: string;
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly DocumentReference_Response: {
                 /**
@@ -3430,6 +3440,8 @@ export namespace ApiSpecification {
                 readonly type: "Document";
                 readonly id: components["schemas"]["DocumentId"];
                 readonly title: string;
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly DocumentThreadReference: {
                 /**
@@ -3450,6 +3462,8 @@ export namespace ApiSpecification {
                 readonly type: "Post";
                 readonly id: components["schemas"]["PostId"];
                 readonly title?: string;
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly PostReference_Response: {
                 /**
@@ -3459,6 +3473,8 @@ export namespace ApiSpecification {
                 readonly type: "Post";
                 readonly id: components["schemas"]["PostId"];
                 readonly title: string;
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly TaskReference: {
                 /**
@@ -3469,6 +3485,8 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["TaskId"];
                 readonly title?: string;
                 readonly status?: components["schemas"]["TaskStatus"];
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly TaskReference_Response: {
                 /**
@@ -3479,6 +3497,8 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["TaskId"];
                 readonly title: string;
                 readonly status: components["schemas"]["TaskStatus"];
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly TaskCollectionReference: {
                 /**
@@ -3506,6 +3526,8 @@ export namespace ApiSpecification {
                 readonly type: "Site";
                 readonly id: components["schemas"]["SiteId"];
                 readonly title?: string;
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly SiteReference_Response: {
                 /**
@@ -3515,6 +3537,8 @@ export namespace ApiSpecification {
                 readonly type: "Site";
                 readonly id: components["schemas"]["SiteId"];
                 readonly title: string;
+                readonly deleted?: boolean;
+                readonly private?: boolean;
             };
             readonly MentionReference:
                 | components["schemas"]["AccountReference"]
@@ -4096,7 +4120,12 @@ export namespace ApiSpecification {
             };
             readonly InboxEntryShared: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -4123,6 +4152,25 @@ export namespace ApiSpecification {
                 readonly type: "Account";
                 readonly account: components["schemas"]["Account"];
             };
+            readonly InboxEntryPreviewItem:
+                | components["schemas"]["InboxEntryPreviewTextItem"]
+                | components["schemas"]["InboxEntryPreviewAccountItem"];
+            readonly InboxEntryPreviewTextItem: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Text";
+                readonly text: string;
+            };
+            readonly InboxEntryPreviewAccountItem: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Account";
+                readonly account: components["schemas"]["Account"];
+            };
             readonly InboxEntryAccountFeatured: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -4140,7 +4188,12 @@ export namespace ApiSpecification {
                 | components["schemas"]["InboxTaskMessagesEntry"];
             readonly InboxChatEntry: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -4152,16 +4205,19 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "Chat";
-                readonly chat: {
-                    readonly id: components["schemas"]["ChatId"];
-                };
+                readonly chat: components["schemas"]["ChatReference_Response"];
                 readonly previewMessage: {
                     readonly index: number;
                 };
             };
             readonly InboxCreatedChannelPostsEntry: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -4173,16 +4229,19 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "CreatedChannelPosts";
-                readonly channel: {
-                    readonly id: components["schemas"]["ChannelId"];
-                };
+                readonly channel: components["schemas"]["ChannelReference_Response"];
                 readonly posts: readonly {
                     readonly id: components["schemas"]["PostId"];
                 }[];
             };
             readonly InboxPostEntry: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -4194,16 +4253,19 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "Post";
-                readonly post: {
-                    readonly id: components["schemas"]["PostId"];
-                };
+                readonly post: components["schemas"]["PostReference_Response"];
                 readonly previewMessage?: {
                     readonly index: number;
                 };
             };
             readonly InboxCreatedDocumentThreadsEntry: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -4215,16 +4277,19 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "CreatedDocumentThreads";
-                readonly document: {
-                    readonly id: components["schemas"]["DocumentId"];
-                };
+                readonly document: components["schemas"]["DocumentReference_Response"];
                 readonly threads: readonly {
                     readonly id: components["schemas"]["DocumentThreadId"];
                 }[];
             };
             readonly InboxDocumentThreadEntry: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -4236,11 +4301,9 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "DocumentThread";
+                readonly document: components["schemas"]["DocumentReference_Response"];
                 readonly thread: {
                     readonly id: components["schemas"]["DocumentThreadId"];
-                    readonly document: {
-                        readonly id: components["schemas"]["DocumentId"];
-                    };
                 };
                 readonly previewMessage: {
                     readonly index: number;
@@ -4248,7 +4311,12 @@ export namespace ApiSpecification {
             };
             readonly InboxTaskMessagesEntry: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -4260,9 +4328,7 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "TaskMessages";
-                readonly task: {
-                    readonly id: components["schemas"]["TaskId"];
-                };
+                readonly task: components["schemas"]["TaskReference_Response"];
                 readonly previewMessage: {
                     readonly index: number;
                 };
@@ -6133,7 +6199,12 @@ export namespace ApiSpecification {
             };
             readonly InboxChatEntry_Response: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem_Response"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem_Response"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -6145,16 +6216,19 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "Chat";
-                readonly chat: {
-                    readonly id: components["schemas"]["ChatId"];
-                };
+                readonly chat: components["schemas"]["ChatReference_Response"];
                 readonly previewMessage: {
                     readonly index: number;
                 };
             };
             readonly InboxCreatedChannelPostsEntry_Response: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem_Response"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem_Response"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -6166,16 +6240,19 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "CreatedChannelPosts";
-                readonly channel: {
-                    readonly id: components["schemas"]["ChannelId"];
-                };
+                readonly channel: components["schemas"]["ChannelReference_Response"];
                 readonly posts: readonly {
                     readonly id: components["schemas"]["PostId"];
                 }[];
             };
             readonly InboxPostEntry_Response: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem_Response"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem_Response"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -6187,16 +6264,19 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "Post";
-                readonly post: {
-                    readonly id: components["schemas"]["PostId"];
-                };
+                readonly post: components["schemas"]["PostReference_Response"];
                 readonly previewMessage?: {
                     readonly index: number;
                 };
             };
             readonly InboxCreatedDocumentThreadsEntry_Response: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem_Response"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem_Response"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -6208,16 +6288,19 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "CreatedDocumentThreads";
-                readonly document: {
-                    readonly id: components["schemas"]["DocumentId"];
-                };
+                readonly document: components["schemas"]["DocumentReference_Response"];
                 readonly threads: readonly {
                     readonly id: components["schemas"]["DocumentThreadId"];
                 }[];
             };
             readonly InboxDocumentThreadEntry_Response: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem_Response"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem_Response"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -6229,11 +6312,9 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "DocumentThread";
+                readonly document: components["schemas"]["DocumentReference_Response"];
                 readonly thread: {
                     readonly id: components["schemas"]["DocumentThreadId"];
-                    readonly document: {
-                        readonly id: components["schemas"]["DocumentId"];
-                    };
                 };
                 readonly previewMessage: {
                     readonly index: number;
@@ -6241,7 +6322,12 @@ export namespace ApiSpecification {
             };
             readonly InboxTaskMessagesEntry_Response: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem_Response"][];
-                readonly preview?: string;
+                /**
+                 * @description A short preview of the latest message as rich text items: an
+                 * `Account` item for the message author followed by a `Text` item with the message
+                 * snippet. Omitted when the entry has no message content.
+                 */
+                readonly preview?: readonly components["schemas"]["InboxEntryPreviewItem_Response"][];
                 readonly time: components["schemas"]["DateTime"];
                 readonly loudNotificationCount: number;
                 /** @enum {string} */
@@ -6253,9 +6339,7 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "TaskMessages";
-                readonly task: {
-                    readonly id: components["schemas"]["TaskId"];
-                };
+                readonly task: components["schemas"]["TaskReference_Response"];
                 readonly previewMessage: {
                     readonly index: number;
                 };
@@ -6480,6 +6564,14 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskCollectionReference_Response"]
                 | components["schemas"]["SiteReference_Response"];
             readonly InboxEntryTitleAccountItem_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Account";
+                readonly account: components["schemas"]["Account_Response"];
+            };
+            readonly InboxEntryPreviewAccountItem_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -6764,6 +6856,9 @@ export namespace ApiSpecification {
             readonly InboxEntryTitleItem_Response:
                 | components["schemas"]["InboxEntryTitleTextItem"]
                 | components["schemas"]["InboxEntryTitleAccountItem_Response"];
+            readonly InboxEntryPreviewItem_Response:
+                | components["schemas"]["InboxEntryPreviewTextItem"]
+                | components["schemas"]["InboxEntryPreviewAccountItem_Response"];
             readonly ContentUnorderedListBlockElement_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum

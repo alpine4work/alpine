@@ -265,6 +265,15 @@ export type ApiInboxEntryTitleTextItem =
 export type ApiInboxEntryTitleAccountItem =
     ApiSpecification.components["schemas"]["InboxEntryTitleAccountItem"];
 
+export type ApiInboxEntryPreviewItem =
+    ApiSpecification.components["schemas"]["InboxEntryPreviewItem"];
+
+export type ApiInboxEntryPreviewTextItem =
+    ApiSpecification.components["schemas"]["InboxEntryPreviewTextItem"];
+
+export type ApiInboxEntryPreviewAccountItem =
+    ApiSpecification.components["schemas"]["InboxEntryPreviewAccountItem"];
+
 export type ApiInboxEntryAccountFeatured =
     ApiSpecification.components["schemas"]["InboxEntryAccountFeatured"];
 
@@ -1007,6 +1016,9 @@ export type ApiMentionReferenceResponse =
 export type ApiInboxEntryTitleAccountItemResponse =
     ApiSpecification.components["schemas"]["InboxEntryTitleAccountItem_Response"];
 
+export type ApiInboxEntryPreviewAccountItemResponse =
+    ApiSpecification.components["schemas"]["InboxEntryPreviewAccountItem_Response"];
+
 export type ApiContentListBlockElementItemResponse =
     ApiSpecification.components["schemas"]["ContentListBlockElementItem_Response"];
 
@@ -1100,6 +1112,9 @@ export type ApiContentMentionInlineElementResponse =
 
 export type ApiInboxEntryTitleItemResponse =
     ApiSpecification.components["schemas"]["InboxEntryTitleItem_Response"];
+
+export type ApiInboxEntryPreviewItemResponse =
+    ApiSpecification.components["schemas"]["InboxEntryPreviewItem_Response"];
 
 export type ApiContentUnorderedListBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentUnorderedListBlockElement_Response"];

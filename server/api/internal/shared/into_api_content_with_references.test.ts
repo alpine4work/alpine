@@ -1,4 +1,5 @@
 import {
+    getSearchEntityMentionTitleForApi,
     intoApiContentWithReferences,
     intoApiContentWithReferencesAndReturnReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
@@ -14,8 +15,19 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {
+    ChannelId,
+    ChatId,
+    DocumentId,
+    PostId,
+    SiteId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
+import {SearchMentionEntityId, isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
+import {emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 const context = createTestContext({});
 const schema = DocumentContentProsemirrorSchema;
@@ -327,5 +339,137 @@ describe("intoApiContentWithReferences", () => {
             searchReferenceIds: [existingDocumentEntityId, privateDocumentEntityId],
             fileReferenceCount: 0,
         });
+    });
+});
+
+describe("getSearchEntityMentionTitleForApi()", () => {
+    test.each<{searchEntity: SearchEntityModel; expected: string}>([
+        {
+            searchEntity: new SearchEntityModel({
+                type: "Document",
+                title: "Roadmap",
+                document: {id: generateId<DocumentId>(), version: 0},
+            }),
+            expected: "Roadmap",
+        },
+        {
+            searchEntity: new SearchEntityModel({
+                type: "Channel",
+                title: "Engineering",
+                channel: {id: generateId<ChannelId>(), version: 0},
+            }),
+            expected: "Engineering",
+        },
+        {
+            searchEntity: new SearchEntityModel({
+                type: "Chat",
+                title: "Weekly Standup",
+                chat: {
+                    id: generateId<ChatId>(),
+                    version: 0,
+                    media: {type: "Account", account: createTestAccountModel()},
+                },
+            }),
+            expected: "Weekly Standup",
+        },
+        {
+            searchEntity: new SearchEntityModel({
+                type: "Task",
+                title: "Fix the bug",
+                task: {
+                    id: generateId<TaskId>(),
+                    titleSnapshot: emptyTaskTitleModel.get().getSnapshot(),
+                    displayStatus: {value: "OpenActive", version: [0, 0]},
+                },
+            }),
+            expected: "Fix the bug",
+        },
+        {
+            searchEntity: new SearchEntityModel({
+                type: "TaskCollection",
+                title: "Sprint 1",
+                collection: {
+                    id: generateId<TaskCollectionId>(),
+                    titleVersion: [0, 0],
+                    color: {value: null, version: [0, 0]},
+                },
+            }),
+            expected: "Sprint 1",
+        },
+        {
+            searchEntity: new SearchEntityModel({
+                type: "Post",
+                title: "in #eng: Big news",
+                post: {
+                    id: generateId<PostId>(),
+                    version: 0,
+                    channelVersion: 0,
+                    author: createTestAccountModel({name: "Bob Jones"}),
+                },
+            }),
+            expected: "Bob in #eng: Big news",
+        },
+        {
+            searchEntity: new SearchEntityModel({
+                type: "Site",
+                title: "Docs",
+                site: {id: generateId<SiteId>(), version: 0, firstEntityId: null},
+            }),
+            expected: "Docs",
+        },
+    ])("labels a resolvable entity as $expected", ({searchEntity, expected}) => {
+        assert(isSearchMentionEntityId(searchEntity.id));
+
+        expect(
+            getSearchEntityMentionTitleForApi(searchEntity.id, {
+                isPrivate: false,
+                entity: searchEntity,
+            }),
+        ).toBe(expected);
+    });
+
+    test.each<{entityId: SearchMentionEntityId; expected: string}>([
+        {entityId: `Document:${generateId<DocumentId>()}`, expected: "Deleted document"},
+        {entityId: `Channel:${generateId<ChannelId>()}`, expected: "Deleted channel"},
+        {entityId: `Chat:${generateId<ChatId>()}`, expected: "Deleted chat"},
+        {entityId: `Task:${generateId<TaskId>()}`, expected: "Deleted task"},
+        {
+            entityId: `TaskCollection:${generateId<TaskCollectionId>()}`,
+            expected: "Deleted task collection",
+        },
+        {entityId: `Post:${generateId<PostId>()}`, expected: "Deleted post"},
+        {entityId: `Site:${generateId<SiteId>()}`, expected: "Deleted site"},
+    ])("labels a deleted entity as $expected", ({entityId, expected}) => {
+        expect(getSearchEntityMentionTitleForApi(entityId, {isDeleted: true})).toBe(expected);
+    });
+
+    test.each<{entityId: SearchMentionEntityId; expected: string}>([
+        {entityId: `Document:${generateId<DocumentId>()}`, expected: "Private document"},
+        {entityId: `Channel:${generateId<ChannelId>()}`, expected: "Private channel"},
+        {entityId: `Chat:${generateId<ChatId>()}`, expected: "Private chat"},
+        {entityId: `Task:${generateId<TaskId>()}`, expected: "Private task"},
+        {
+            entityId: `TaskCollection:${generateId<TaskCollectionId>()}`,
+            expected: "Private task collection",
+        },
+        {entityId: `Post:${generateId<PostId>()}`, expected: "Private post"},
+        {entityId: `Site:${generateId<SiteId>()}`, expected: "Private site"},
+    ])("labels a private entity as $expected", ({entityId, expected}) => {
+        expect(getSearchEntityMentionTitleForApi(entityId, {isPrivate: true})).toBe(expected);
+    });
+
+    test.each<{entityId: SearchMentionEntityId; expected: string}>([
+        {entityId: `Document:${generateId<DocumentId>()}`, expected: "Unknown document"},
+        {entityId: `Channel:${generateId<ChannelId>()}`, expected: "Unknown channel"},
+        {entityId: `Chat:${generateId<ChatId>()}`, expected: "Unknown chat"},
+        {entityId: `Task:${generateId<TaskId>()}`, expected: "Unknown task"},
+        {
+            entityId: `TaskCollection:${generateId<TaskCollectionId>()}`,
+            expected: "Unknown task collection",
+        },
+        {entityId: `Post:${generateId<PostId>()}`, expected: "Unknown post"},
+        {entityId: `Site:${generateId<SiteId>()}`, expected: "Unknown site"},
+    ])("labels an unknown entity as $expected", ({entityId, expected}) => {
+        expect(getSearchEntityMentionTitleForApi(entityId, undefined)).toBe(expected);
     });
 });

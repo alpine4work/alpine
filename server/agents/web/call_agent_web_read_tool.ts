@@ -45,6 +45,12 @@ import {
     readAgentWebDocumentThreadPage,
 } from "~/server/agents/web/pages/agent_web_document_thread_page.js";
 import {
+    normalizeAgentWebInboxPage,
+    parseAgentWebInboxPage,
+    printAgentWebInboxPage,
+    readAgentWebInboxPage,
+} from "~/server/agents/web/pages/agent_web_inbox_page.js";
+import {
     normalizeAgentWebPostPage,
     parseAgentWebPostPage,
     printAgentWebPostPage,
@@ -326,6 +332,9 @@ async function readAgentWebPageLink(
         case "Document": {
             return await readAgentWebDocumentPage(context, pageLink.id, options);
         }
+        case "Inbox": {
+            return await readAgentWebInboxPage(context, pageLink.account, options);
+        }
         case "DocumentThread": {
             return await readAgentWebDocumentThreadPage(
                 context,
@@ -401,6 +410,9 @@ function normalizeAgentWebPage(
         case "Document": {
             return normalizeAgentWebDocumentPage(page);
         }
+        case "Inbox": {
+            return normalizeAgentWebInboxPage(page);
+        }
         case "DocumentThread": {
             return normalizeAgentWebDocumentThreadPage(page);
         }
@@ -443,6 +455,10 @@ function printAgentWebPage(
         case "Document": {
             assert(page.type === "Document");
             return printAgentWebDocumentPage(storage, pageLink.id, page);
+        }
+        case "Inbox": {
+            assert(page.type === "Inbox");
+            return printAgentWebInboxPage(storage, pageLink.account.id, page);
         }
         case "DocumentThread": {
             assert(page.type === "DocumentThread");
@@ -522,6 +538,9 @@ async function parseAgentWebPageForTest(
         }
         case "Document": {
             return await parseAgentWebDocumentPage(storage, pageMetadata.id, response);
+        }
+        case "Inbox": {
+            return await parseAgentWebInboxPage(storage, pageMetadata.id, response);
         }
         case "DocumentThread": {
             return await parseAgentWebDocumentThreadPage(

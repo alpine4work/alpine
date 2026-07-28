@@ -24,6 +24,7 @@ export function createAgentWebPageLinkApiPreviewReferenceIfPossible(
         case "PostMessage":
         case "TaskMessage":
         case "File":
+        case "Inbox":
         case "Skill":
             return null;
         default:

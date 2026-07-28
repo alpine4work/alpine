@@ -3,6 +3,7 @@ import {AgentWebChannelPageWithMetadata} from "~/server/agents/web/pages/agent_w
 import {AgentWebChatPageWithMetadata} from "~/server/agents/web/pages/agent_web_chat_page.js";
 import {AgentWebDocumentPageWithMetadata} from "~/server/agents/web/pages/agent_web_document_page.js";
 import {AgentWebDocumentThreadPageWithMetadata} from "~/server/agents/web/pages/agent_web_document_thread_page.js";
+import {AgentWebInboxPageWithMetadata} from "~/server/agents/web/pages/agent_web_inbox_page.js";
 import {AgentWebPostPageWithMetadata} from "~/server/agents/web/pages/agent_web_post_page.js";
 import {AgentWebTaskCollectionPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
 import {AgentWebTaskMessageListPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
@@ -36,7 +37,7 @@ export type AgentWebPage = DistributiveOmit<AgentWebPageWithMetadata, "metadata"
  * invisible to the agent. Metadata isn't exposed via the `read` tool but is needed
  * to power the `update` tool.
  *
- * For example, document version is included in metdata. We don't include the
+ * For example, document version is included in metadata. We don't include the
  * document version in the Markdown string we return from `read` (the agent doesn't
  * need to see the version). However, we need the document version when calling the
  * `update` tool to prevent clobbering updates made collaboratively by other humans
@@ -54,6 +55,7 @@ export type AgentWebPageWithMetadata =
     | AgentWebAccountPageWithMetadata
     | AgentWebDocumentPageWithMetadata
     | AgentWebDocumentThreadPageWithMetadata
+    | AgentWebInboxPageWithMetadata
     | AgentWebChannelPageWithMetadata
     | AgentWebChatPageWithMetadata
     | AgentWebPostPageWithMetadata

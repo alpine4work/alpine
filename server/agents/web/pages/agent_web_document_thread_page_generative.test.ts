@@ -14,17 +14,11 @@ import {
 } from "~/server/agents/web/test_helpers/agent_web_messaging_page_arbitrary.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {
-    ApiContentTextArbitrary,
     ApiContentWithoutCommentMarkArbitrary,
+    ApiDocumentReferenceArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
-
-const ApiDocumentReferenceArbitrary = fc.record({
-    type: fc.constant("Document"),
-    id: createIdArbitrary<DocumentId>(),
-    title: ApiContentTextArbitrary,
-});
 
 const AgentWebDocumentThreadHeadPagePreambleArbitrary: Arbitrary<AgentWebDocumentThreadHeadPagePreamble> =
     fc.record({

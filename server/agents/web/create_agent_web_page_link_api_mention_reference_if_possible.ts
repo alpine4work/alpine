@@ -1,9 +1,11 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export function createAgentWebPageLinkApiMentionReferenceIfPossible(
     link: AgentWebPageLink,
+    spaceId: SpaceId,
 ): {type: "MentionReference"; reference: ApiMentionReferenceResponse} | {type: "Url"; url: string} {
     switch (link.type) {
         case "Account":
@@ -55,6 +57,12 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
         case "TaskMessageList":
         case "TaskSubtasks": {
             return {type: "MentionReference", reference: link.task};
+        }
+        case "Inbox": {
+            return {
+                type: "Url",
+                url: `https://alpine.inc/inbox/${spaceId}`,
+            };
         }
         case "Skill": {
             // If the agent writes a skill link then output that as a URL to the skill file in
