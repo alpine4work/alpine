@@ -24,12 +24,20 @@ import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_
 import {callAgentWebSearchTool} from "~/server/agents/web/call_agent_web_search_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
+import {
+    agentWebBytesDefaultLimit,
+    agentWebBytesFindDefaultLimit,
+    agentWebBytesFindDefaultMatchLimit,
+} from "~/server/agents/web/default_agent_web_bytes_limit.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
+import {
+    FailedPreconditionError,
+    InvalidArgumentError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
@@ -39,6 +47,7 @@ import {
 } from "~/shared/helpers/date/date_string.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -55,7 +64,7 @@ main()
         process.exit(0);
     })
     .catch(async error => {
-        const markdown = await printAgentWebError("Couldn\u2019t run command", error);
+        const markdown = printAgentWebError("Couldn\u2019t run command", error);
         await write(markdown);
         process.exit(1);
     })
@@ -120,9 +129,13 @@ async function main() {
     const {tracer, flushTracer} = createCliTracer({baseUrl, dataDirectoryPath});
 
     try {
-        const [command = "", ...args] = process.argv.slice(2);
+        let command = process.argv[2] ?? "help";
+        const args = process.argv.slice(3);
 
-        const commands = new Set(["read", "create", "update", "scroll", "find", "search"]);
+        // Support standard ways to ask for help from a CLI tool.
+        if (command === "--help" || command === "-h") command = "help";
+
+        const commands = new Set(["help", "read", "create", "update", "scroll", "find", "search"]);
 
         const handleSpanName = `CLI ${commands.has(command) ? command : "unknown"}`;
 
@@ -286,218 +299,311 @@ async function mainWithinTransaction({
     return await runAgentsCliCommand(context, command, args);
 }
 
-function parseArgs<
-    const RequiredPositionalArgs extends ReadonlyArray<string> = readonly [],
-    const OptionalPositionalArgs extends ReadonlyArray<string> = readonly [],
-    const RequiredNominalArgs extends ReadonlyArray<string> = readonly [],
-    const OptionalNominalArgs extends ReadonlyArray<string> = readonly [],
-    const OptionalNominalFlagArgs extends ReadonlyArray<string> = readonly [],
-    const OptionalNominalListArgs extends ReadonlyArray<string> = readonly [],
->(
-    command: string,
-    args: ReadonlyArray<string>,
-    {
-        requiredPositionalArgs,
-        optionalPositionalArgs,
-        requiredNominalArgs,
-        optionalNominalListArgs,
-        optionalNominalArgs,
-        optionalNominalFlagArgs,
-    }: {
-        requiredPositionalArgs?: RequiredPositionalArgs;
-        optionalPositionalArgs?: OptionalPositionalArgs;
-        requiredNominalArgs?: RequiredNominalArgs;
-        optionalNominalListArgs?: OptionalNominalListArgs;
-        optionalNominalArgs?: OptionalNominalArgs;
-        optionalNominalFlagArgs?: OptionalNominalFlagArgs;
-    },
-): {[Key in RequiredPositionalArgs[number] | RequiredNominalArgs[number]]: string} & {
-    [Key in
-        | OptionalPositionalArgs[number]
-        | OptionalNominalArgs[number]
-        | OptionalNominalFlagArgs[number]]?: string;
-} & {
-    [Key in OptionalNominalListArgs[number]]: Array<string>;
-} & {
-    createExpectedSyntax: () => ErrorDisplayMessage;
-} {
-    const positionalArgs: Array<string> = [];
-    const nominalArgs = new Map<string, string>();
-    const nominalListArgs = new Map<string, Array<string>>();
+class ArgParser<
+    const RequiredPositionalArgs extends ReadonlyArray<{name: string}> = readonly [],
+    const OptionalPositionalArgs extends ReadonlyArray<{name: string}> = readonly [],
+    const RequiredNominalArgs extends ReadonlyArray<{name: string; preview: string}> = readonly [],
+    const OptionalNominalArgs extends ReadonlyArray<{name: string; preview: string}> = readonly [],
+    const OptionalNominalListArgs extends ReadonlyArray<{name: string; preview: string}> =
+        readonly [],
+    const RequiredNominalListArgs extends ReadonlyArray<{name: string; preview: string}> =
+        readonly [],
+    const OptionalNominalFlagArgs extends ReadonlyArray<{name: string}> = readonly [],
+> {
+    readonly #requiredPositionalArgs: RequiredPositionalArgs;
+    readonly #optionalPositionalArgs: OptionalPositionalArgs;
+    readonly #requiredNominalArgs: RequiredNominalArgs;
+    readonly #optionalNominalListArgs: OptionalNominalListArgs;
+    readonly #optionalNominalListArgNameSet: ReadonlySet<string>;
+    readonly #requiredNominalListArgs: RequiredNominalListArgs;
+    readonly #requiredNominalListArgNameSet: ReadonlySet<string>;
+    readonly #optionalNominalArgs: OptionalNominalArgs;
+    readonly #optionalNominalFlagArgs: OptionalNominalFlagArgs;
+    readonly #optionalNominalFlagArgNameSet: ReadonlySet<string>;
+    readonly syntax: string;
 
-    const optionalNominalFlagArgsSet = new Set(optionalNominalFlagArgs);
-    const optionalNominalListArgsSet = new Set(optionalNominalListArgs);
+    constructor(
+        command: string,
+        {
+            requiredPositionalArgs = [] as any,
+            optionalPositionalArgs = [] as any,
+            requiredNominalArgs = [] as any,
+            optionalNominalListArgs = [] as any,
+            requiredNominalListArgs = [] as any,
+            optionalNominalArgs = [] as any,
+            optionalNominalFlagArgs = [] as any,
+        }: {
+            requiredPositionalArgs?: RequiredPositionalArgs;
+            optionalPositionalArgs?: OptionalPositionalArgs;
+            requiredNominalArgs?: RequiredNominalArgs;
+            optionalNominalListArgs?: OptionalNominalListArgs;
+            requiredNominalListArgs?: RequiredNominalListArgs;
+            optionalNominalArgs?: OptionalNominalArgs;
+            optionalNominalFlagArgs?: OptionalNominalFlagArgs;
+        },
+    ) {
+        const nameSet = (args: ReadonlyArray<{name: string}>) =>
+            new Set(mapIterable(args, arg => arg.name));
 
-    const createExpectedSyntax = () => {
-        let expectedSyntax = `alpine ${command}`;
+        this.#requiredPositionalArgs = requiredPositionalArgs;
+        this.#optionalPositionalArgs = optionalPositionalArgs;
+        this.#requiredNominalArgs = requiredNominalArgs;
+        this.#optionalNominalListArgs = optionalNominalListArgs;
+        this.#optionalNominalListArgNameSet = nameSet(optionalNominalListArgs);
+        this.#requiredNominalListArgs = requiredNominalListArgs;
+        this.#requiredNominalListArgNameSet = nameSet(requiredNominalListArgs);
+        this.#optionalNominalArgs = optionalNominalArgs;
+        this.#optionalNominalFlagArgs = optionalNominalFlagArgs;
+        this.#optionalNominalFlagArgNameSet = nameSet(optionalNominalFlagArgs);
+
+        let syntax = `alpine ${command}`;
 
         if (requiredPositionalArgs) {
-            for (const requiredPositionalArgName of requiredPositionalArgs) {
-                expectedSyntax += ` <${requiredPositionalArgName}>`;
+            for (const requiredPositionalArg of requiredPositionalArgs) {
+                syntax += ` <${requiredPositionalArg.name}>`;
             }
         }
 
         if (optionalPositionalArgs) {
-            for (const optionalPositionalArgName of optionalPositionalArgs) {
-                expectedSyntax += ` [${optionalPositionalArgName}]`;
+            for (const optionalPositionalArg of optionalPositionalArgs) {
+                syntax += ` [${optionalPositionalArg.name}]`;
             }
         }
 
         if (requiredNominalArgs) {
-            for (const requiredNominalArgName of requiredNominalArgs) {
-                expectedSyntax += ` --${requiredNominalArgName} <...>`;
+            for (const requiredNominalArg of requiredNominalArgs) {
+                syntax += ` --${requiredNominalArg.name} ${requiredNominalArg.preview}`;
+            }
+        }
+
+        if (requiredNominalListArgs) {
+            for (const requiredNominalListArg of requiredNominalListArgs) {
+                syntax += ` --${requiredNominalListArg.name} ${requiredNominalListArg.preview}`;
             }
         }
 
         if (optionalNominalListArgs) {
-            for (const optionalNominalListArgName of optionalNominalListArgs) {
-                expectedSyntax += ` [--${optionalNominalListArgName} ...]`;
+            for (const optionalNominalListArg of optionalNominalListArgs) {
+                syntax += ` [--${optionalNominalListArg.name} ${optionalNominalListArg.preview}]`;
             }
         }
 
         if (optionalNominalArgs) {
-            for (const optionalNominalArgName of optionalNominalArgs) {
-                expectedSyntax += ` [--${optionalNominalArgName} ...]`;
+            for (const optionalNominalArg of optionalNominalArgs) {
+                syntax += ` [--${optionalNominalArg.name} ${optionalNominalArg.preview}]`;
             }
         }
 
         if (optionalNominalFlagArgs) {
-            for (const optionalNominalFlagArgName of optionalNominalFlagArgs) {
-                expectedSyntax += ` [--${optionalNominalFlagArgName}]`;
+            for (const optionalNominalFlagArg of optionalNominalFlagArgs) {
+                syntax += ` [--${optionalNominalFlagArg.name}]`;
             }
         }
 
-        return errorDisplayMessage`${quote(expectedSyntax)}`;
-    };
-
-    let nextIndex = 0;
-    while (nextIndex < args.length) {
-        const index = nextIndex;
-        nextIndex++;
-        const arg = args[index]!;
-
-        const nominalArgMatch = arg.match(/^--([a-z0-9]+(?:-[a-z0-9]+)*)(?:=|$)/);
-
-        if (nominalArgMatch === null) {
-            positionalArgs.push(arg);
-        } else if (nominalArgMatch[0].endsWith("=")) {
-            const nominalArgValueLength = nominalArgMatch[0].length;
-            const nominalArgName = arg.slice(2, nominalArgValueLength - 1);
-            const nominalArgValue = arg.slice(nominalArgValueLength);
-
-            if (optionalNominalListArgsSet.has(nominalArgName)) {
-                getOrSetDefaultMapValue(nominalListArgs, nominalArgName, () => []).push(
-                    nominalArgValue,
-                );
-            } else {
-                if (nominalArgs.has(nominalArgName)) {
-                    throw new InvalidArgumentError("Duplicate nominal argument", {
-                        displayMessage: errorDisplayMessage`There\u2019s more than one ${quote(`--${nominalArgName}`)} args. Try again with only one ${quote(`--${nominalArgName}`)} arg. Expected syntax: ${createExpectedSyntax()}.`,
-                    });
-                }
-
-                nominalArgs.set(nominalArgName, nominalArgValue);
-            }
-        } else {
-            const nominalArgName = arg.slice(2);
-            let nominalArgValue: string;
-
-            if (optionalNominalFlagArgsSet.has(nominalArgName)) {
-                nominalArgValue = "";
-            } else {
-                nextIndex++;
-                nominalArgValue = args[index + 1] ?? "";
-            }
-
-            if (optionalNominalListArgsSet.has(nominalArgName)) {
-                getOrSetDefaultMapValue(nominalListArgs, nominalArgName, () => []).push(
-                    nominalArgValue,
-                );
-            } else {
-                if (nominalArgs.has(nominalArgName)) {
-                    throw new InvalidArgumentError("Duplicate nominal argument", {
-                        displayMessage: errorDisplayMessage`There\u2019s more than one ${quote(`--${nominalArgName}`)} args. Try again with only one ${quote(`--${nominalArgName}`)} arg. Expected syntax: ${createExpectedSyntax()}.`,
-                    });
-                }
-
-                nominalArgs.set(nominalArgName, nominalArgValue);
-            }
-        }
+        this.syntax = syntax;
     }
 
-    const nominalValidArgsSet = new Set(
-        concatIterables(
-            requiredNominalArgs ?? emptyArray,
-            optionalNominalArgs ?? emptyArray,
-            optionalNominalFlagArgs ?? emptyArray,
-        ),
-    );
+    parse(args: ReadonlyArray<string>): {
+        [Key in
+            | RequiredPositionalArgs[number]["name"]
+            | RequiredNominalArgs[number]["name"]]: string;
+    } & {
+        [Key in
+            | OptionalPositionalArgs[number]["name"]
+            | OptionalNominalArgs[number]["name"]
+            | OptionalNominalFlagArgs[number]["name"]]?: string;
+    } & {
+        [Key in
+            | OptionalNominalListArgs[number]["name"]
+            | RequiredNominalListArgs[number]["name"]]: Array<string>;
+    } {
+        const positionalArgs: Array<string> = [];
+        const nominalArgs = new Map<string, string>();
+        const nominalListArgs = new Map<string, Array<string>>();
 
-    const parsedArgs: any = {};
+        let nextIndex = 0;
+        while (nextIndex < args.length) {
+            const index = nextIndex;
+            nextIndex++;
+            const arg = args[index]!;
 
-    let positionalArgIndex = 0;
+            const nominalArgMatch = arg.match(/^--([a-z0-9]+(?:-[a-z0-9]+)*)(?:=|$)/);
 
-    if (requiredPositionalArgs) {
-        for (const requiredPositionalArgName of requiredPositionalArgs) {
+            if (nominalArgMatch === null) {
+                positionalArgs.push(arg);
+            } else if (nominalArgMatch[0].endsWith("=")) {
+                const nominalArgValueLength = nominalArgMatch[0].length;
+                const nominalArgName = arg.slice(2, nominalArgValueLength - 1);
+                const nominalArgValue = arg.slice(nominalArgValueLength);
+
+                if (
+                    this.#optionalNominalListArgNameSet.has(nominalArgName) ||
+                    this.#requiredNominalListArgNameSet.has(nominalArgName)
+                ) {
+                    getOrSetDefaultMapValue(nominalListArgs, nominalArgName, () => []).push(
+                        nominalArgValue,
+                    );
+                } else {
+                    if (nominalArgs.has(nominalArgName)) {
+                        throw new InvalidArgumentError("Duplicate nominal argument", {
+                            displayMessage: errorDisplayMessage`There\u2019s more than one ${quote(`--${nominalArgName}`)} args. Try again with only one ${quote(`--${nominalArgName}`)} arg. Expected syntax: ${quote(this.syntax)}.`,
+                        });
+                    }
+
+                    nominalArgs.set(nominalArgName, nominalArgValue);
+                }
+            } else {
+                const nominalArgName = arg.slice(2);
+                let nominalArgValue: string;
+
+                if (this.#optionalNominalFlagArgNameSet.has(nominalArgName)) {
+                    nominalArgValue = "";
+                } else {
+                    nextIndex++;
+                    nominalArgValue = args[index + 1] ?? "";
+                }
+
+                if (
+                    this.#optionalNominalListArgNameSet.has(nominalArgName) ||
+                    this.#requiredNominalListArgNameSet.has(nominalArgName)
+                ) {
+                    getOrSetDefaultMapValue(nominalListArgs, nominalArgName, () => []).push(
+                        nominalArgValue,
+                    );
+                } else {
+                    if (nominalArgs.has(nominalArgName)) {
+                        throw new InvalidArgumentError("Duplicate nominal argument", {
+                            displayMessage: errorDisplayMessage`There\u2019s more than one ${quote(`--${nominalArgName}`)} args. Try again with only one ${quote(`--${nominalArgName}`)} arg. Expected syntax: ${quote(this.syntax)}.`,
+                        });
+                    }
+
+                    nominalArgs.set(nominalArgName, nominalArgValue);
+                }
+            }
+        }
+
+        const nominalValidArgNameSet = new Set(
+            mapIterable(
+                concatIterables(
+                    this.#requiredNominalArgs ?? emptyArray,
+                    this.#optionalNominalArgs ?? emptyArray,
+                    this.#optionalNominalFlagArgs ?? emptyArray,
+                ),
+                arg => arg.name,
+            ),
+        );
+
+        const parsedArgs: any = {};
+
+        let positionalArgIndex = 0;
+
+        for (const requiredPositionalArg of this.#requiredPositionalArgs) {
             if (positionalArgIndex >= positionalArgs.length) {
                 throw new InvalidArgumentError("Missing required positional arg", {
-                    displayMessage: errorDisplayMessage`Missing required ${quote(`<${requiredPositionalArgName}>`)} arg. Try again but add the ${quote(`<${requiredPositionalArgName}>`)} arg. Expected syntax: ${createExpectedSyntax()}.`,
+                    displayMessage: errorDisplayMessage`Missing required ${quote(`<${requiredPositionalArg.name}>`)} arg. Try again but add the ${quote(`<${requiredPositionalArg.name}>`)} arg. Expected syntax: ${quote(this.syntax)}.`,
                 });
             }
 
-            parsedArgs[requiredPositionalArgName] = positionalArgs[positionalArgIndex];
+            parsedArgs[requiredPositionalArg.name] = positionalArgs[positionalArgIndex];
             positionalArgIndex++;
         }
-    }
 
-    if (optionalPositionalArgs) {
-        for (const optionalPositionalArgName of optionalPositionalArgs) {
+        for (const optionalPositionalArg of this.#optionalPositionalArgs) {
             if (positionalArgIndex >= positionalArgs.length) break;
 
-            parsedArgs[optionalPositionalArgName] = positionalArgs[positionalArgIndex];
+            parsedArgs[optionalPositionalArg.name] = positionalArgs[positionalArgIndex];
             positionalArgIndex++;
         }
-    }
 
-    if (positionalArgIndex < positionalArgs.length) {
-        const unexpectedArgCount = positionalArgs.length - positionalArgIndex;
+        if (positionalArgIndex < positionalArgs.length) {
+            const unexpectedArgCount = positionalArgs.length - positionalArgIndex;
 
-        throw new InvalidArgumentError("Extra positional args", {
-            displayMessage: errorDisplayMessage`Unexpected args. Try again but remove the ${unexpectedArgCount} unused arg${unexpectedArgCount !== 1 ? "s" : ""}. Expected syntax: ${createExpectedSyntax()}.`,
-        });
-    }
+            throw new InvalidArgumentError("Extra positional args", {
+                displayMessage: errorDisplayMessage`Unexpected args. Try again but remove the ${unexpectedArgCount} unused arg${unexpectedArgCount !== 1 ? "s" : ""}. Expected syntax: ${quote(this.syntax)}.`,
+            });
+        }
 
-    if (requiredNominalArgs) {
-        for (const requiredNominalArgName of requiredNominalArgs) {
-            if (!nominalArgs.has(requiredNominalArgName)) {
+        for (const requiredNominalArg of this.#requiredNominalArgs) {
+            if (!nominalArgs.has(requiredNominalArg.name)) {
                 throw new InvalidArgumentError("Missing required nominal arg", {
-                    displayMessage: errorDisplayMessage`Missing required ${quote(`--${requiredNominalArgName}`)} arg. Try again but add the ${quote(`--${requiredNominalArgName}`)} arg. Expected syntax: ${createExpectedSyntax()}.`,
+                    displayMessage: errorDisplayMessage`Missing required ${quote(`--${requiredNominalArg.name}`)} arg. Try again but add the ${quote(`--${requiredNominalArg.name}`)} arg. Expected syntax: ${quote(this.syntax)}.`,
                 });
             }
         }
-    }
 
-    for (const [nominalArgName, nominalArgValue] of nominalArgs) {
-        if (nominalValidArgsSet.has(nominalArgName)) {
-            parsedArgs[nominalArgName] = nominalArgValue;
-        } else {
-            throw new InvalidArgumentError("Unknown nominal arg", {
-                displayMessage: errorDisplayMessage`Unrecognized ${quote(`--${nominalArgName}`)} arg. Try again without the ${quote(`--${nominalArgName}`)} arg. Expected syntax: ${createExpectedSyntax()}.`,
-            });
+        for (const [nominalArgName, nominalArgValue] of nominalArgs) {
+            if (nominalValidArgNameSet.has(nominalArgName)) {
+                parsedArgs[nominalArgName] = nominalArgValue;
+            } else {
+                throw new InvalidArgumentError("Unknown nominal arg", {
+                    displayMessage: errorDisplayMessage`Unrecognized ${quote(`--${nominalArgName}`)} arg. Try again without the ${quote(`--${nominalArgName}`)} arg. Expected syntax: ${quote(this.syntax)}.`,
+                });
+            }
         }
-    }
 
-    if (optionalNominalListArgs) {
-        for (const optionalNominalListArgName of optionalNominalListArgs) {
-            parsedArgs[optionalNominalListArgName] =
-                nominalListArgs.get(optionalNominalListArgName) ?? [];
+        for (const optionalNominalListArg of this.#optionalNominalListArgs) {
+            parsedArgs[optionalNominalListArg.name] =
+                nominalListArgs.get(optionalNominalListArg.name) ?? [];
         }
+
+        for (const requiredNominalListArg of this.#requiredNominalListArgs) {
+            const parsedListArgs = nominalListArgs.get(requiredNominalListArg.name) ?? [];
+
+            if (parsedListArgs.length === 0) {
+                throw new InvalidArgumentError("Missing required nominal arg", {
+                    displayMessage: errorDisplayMessage`Missing required ${quote(`--${requiredNominalListArg.name}`)} arg. Try again but add the ${quote(`--${requiredNominalListArg.name}`)} arg. Expected syntax: ${quote(this.syntax)}.`,
+                });
+            }
+
+            parsedArgs[requiredNominalListArg.name] = parsedListArgs;
+        }
+
+        return parsedArgs;
     }
-
-    parsedArgs.createExpectedSyntax = createExpectedSyntax;
-
-    return parsedArgs;
 }
+
+const createArgParser = new ArgParser("create", {
+    requiredPositionalArgs: [{name: "type"}, {name: "content"}],
+});
+
+const readArgParser = new ArgParser("read", {
+    requiredPositionalArgs: [{name: "path"}],
+    optionalNominalArgs: [{name: "limit", preview: agentWebBytesDefaultLimit}],
+});
+
+const updateArgParser = new ArgParser("update", {
+    requiredPositionalArgs: [{name: "path"}],
+    requiredNominalListArgs: [
+        // eslint-disable-next-line cyberworlds/string-quotes
+        {name: "old", preview: '"..."'},
+        // eslint-disable-next-line cyberworlds/string-quotes
+        {name: "new", preview: '"..."'},
+    ],
+    optionalNominalFlagArgs: [{name: "replace-all"}],
+});
+
+const deleteArgParser = new ArgParser("delete", {
+    requiredPositionalArgs: [{name: "path"}],
+});
+
+const scrollArgParser = new ArgParser("scroll", {
+    requiredPositionalArgs: [{name: "path"}],
+    requiredNominalArgs: [{name: "offset", preview: "0"}],
+    optionalNominalArgs: [{name: "limit", preview: agentWebBytesDefaultLimit}],
+});
+
+const findArgParser = new ArgParser("find", {
+    requiredPositionalArgs: [{name: "path"}, {name: "pattern"}],
+    optionalNominalArgs: [
+        {name: "offset", preview: "0"},
+        {name: "limit", preview: agentWebBytesFindDefaultMatchLimit},
+        {name: "match-limit", preview: agentWebBytesFindDefaultLimit.toString()},
+    ],
+});
+
+const searchArgParser = new ArgParser("search", {
+    requiredPositionalArgs: [{name: "query"}],
+});
 
 async function runAgentsCliCommand(
     context: AgentWebContext,
@@ -505,10 +611,32 @@ async function runAgentsCliCommand(
     args: ReadonlyArray<string>,
 ): Promise<string> {
     switch (command) {
-        case "create": {
-            const {type, content: contentArg} = parseArgs(command, args, {
-                requiredPositionalArgs: ["type", "content"],
+        case "help": {
+            const response = await callAgentWebReadTool(context, {
+                path: "/skill",
             });
+
+            // Add an h1 to the help page to ground the response when you run `alpine` without
+            // any subcommand.
+            return `\
+# Alpine CLI
+
+Usage:
+
+\`\`\`
+${readArgParser.syntax}
+${createArgParser.syntax}
+${updateArgParser.syntax}
+${deleteArgParser.syntax}
+${searchArgParser.syntax}
+${scrollArgParser.syntax}
+${findArgParser.syntax}
+\`\`\`
+
+${response}`;
+        }
+        case "create": {
+            const {type, content: contentArg} = createArgParser.parse(args);
 
             let content: string;
 
@@ -528,10 +656,7 @@ async function runAgentsCliCommand(
             });
         }
         case "read": {
-            const {path, limit} = parseArgs(command, args, {
-                requiredPositionalArgs: ["path"],
-                optionalNominalArgs: ["limit"],
-            });
+            const {path, limit} = readArgParser.parse(args);
 
             return await callAgentWebReadTool(context, {
                 path,
@@ -544,24 +669,7 @@ async function runAgentsCliCommand(
                 old: oldArgs,
                 new: newArgs,
                 "replace-all": replaceAll,
-                createExpectedSyntax,
-            } = parseArgs(command, args, {
-                requiredPositionalArgs: ["path"],
-                optionalNominalListArgs: ["old", "new"],
-                optionalNominalFlagArgs: ["replace-all"],
-            });
-
-            if (oldArgs.length === 0) {
-                throw new InvalidArgumentError("Missing required nominal `--old` arg", {
-                    displayMessage: errorDisplayMessage`Missing required \`--old\` arg. Try again but add the \`--old\` arg. Expected syntax: ${createExpectedSyntax()}.`,
-                });
-            }
-
-            if (newArgs.length === 0) {
-                throw new InvalidArgumentError("Missing required nominal `--new` arg", {
-                    displayMessage: errorDisplayMessage`Missing required \`--new\` arg. Try again but add the \`--new\` arg. Expected syntax: ${createExpectedSyntax()}.`,
-                });
-            }
+            } = updateArgParser.parse(args);
 
             if (oldArgs.length !== newArgs.length) {
                 if (oldArgs.length < newArgs.length) {
@@ -657,12 +765,15 @@ async function runAgentsCliCommand(
                 })),
             });
         }
-        case "scroll": {
-            const {path, offset, limit} = parseArgs(command, args, {
-                requiredPositionalArgs: ["path"],
-                requiredNominalArgs: ["offset"],
-                optionalNominalArgs: ["limit"],
+        case "delete": {
+            deleteArgParser.parse(args);
+
+            throw new UnimplementedError("Delete tool hasn\u2019t been implemented yet", {
+                displayMessage: errorDisplayMessage`The \`delete\` tool hasn\u2019t been implemented yet. Before allowing bots to delete stuff from Alpine, the Alpine team wants to build a trash feature so humans can recover anything that was accidentally deleted. Tell your human they need to manually delete things from Alpine, for now. For more information, contact ${errorDisplayMessage.supportLink}.`,
             });
+        }
+        case "scroll": {
+            const {path, offset, limit} = scrollArgParser.parse(args);
 
             return await callAgentWebScrollTool(context, {
                 path,
@@ -677,10 +788,7 @@ async function runAgentsCliCommand(
                 offset,
                 limit,
                 "match-limit": matchLimit,
-            } = parseArgs(command, args, {
-                requiredPositionalArgs: ["path", "pattern"],
-                optionalNominalArgs: ["offset", "limit", "match-limit"],
-            });
+            } = findArgParser.parse(args);
 
             return await callAgentWebFindTool(context, {
                 path,
@@ -692,9 +800,7 @@ async function runAgentsCliCommand(
             });
         }
         case "search": {
-            const {query} = parseArgs(command, args, {
-                requiredPositionalArgs: ["query"],
-            });
+            const {query} = searchArgParser.parse(args);
 
             return await callAgentWebSearchTool(context, {query});
         }
