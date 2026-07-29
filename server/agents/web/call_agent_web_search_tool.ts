@@ -11,7 +11,7 @@ import {
     splitApiSearchMessageResultBodyMatch,
 } from "~/server/agents/web/internal/split_api_search_message_result_body_match.js";
 import {
-    ApiSearchResultMatchZippedItem,
+    ApiSearchResultZippedMatch,
     zipApiSearchResultMatch,
 } from "~/server/agents/web/internal/zip_api_search_result_match.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
@@ -185,7 +185,7 @@ async function createAgentWebSearchEntityResultListItem(
 
     const resultLinkLabel = printAgentWebPageStoredLinkLabel(result);
 
-    // We need to use the title highlighted by `titleMatch` to start the link label.
+    // We need to use the title highlighted by `titleMatches` to start the link label.
     // But some link labels will include extra information (like tasks which include
     // the status).
     assert(resultLinkLabel.startsWith(result.title));
@@ -194,17 +194,18 @@ async function createAgentWebSearchEntityResultListItem(
         type: "link",
         url: resultLinkPathname,
         children: [
-            ...intoPhrasingContent(zipApiSearchResultMatch(result.title, result.titleMatch)),
+            ...intoPhrasingContent(zipApiSearchResultMatch(result.title, result.titleMatches)),
             ...(resultLinkLabel.length > result.title.length
                 ? [{type: "text" as const, value: resultLinkLabel.slice(result.title.length)}]
                 : []),
         ],
     };
 
-    const bodyMatchContent =
-        result.body && result.bodyMatch
-            ? intoPhrasingContent(zipApiSearchResultMatch(result.body, result.bodyMatch))
-            : [];
+    const bodyMatchContent = result.bodySnippet
+        ? intoPhrasingContent(
+              zipApiSearchResultMatch(result.bodySnippet.text, result.bodySnippet.matches),
+          )
+        : [];
 
     const bodyMatchParagraph: Paragraph | null =
         bodyMatchContent.length > 0 ? {type: "paragraph", children: bodyMatchContent} : null;
@@ -297,7 +298,7 @@ async function createAgentWebSearchMessageResultListItem(
 }
 
 function intoPhrasingContent(
-    match: ReadonlyArray<ApiSearchResultMatchZippedItem>,
+    match: ReadonlyArray<ApiSearchResultZippedMatch>,
 ): Array<PhrasingContent> {
     const content: Array<PhrasingContent> = [];
 

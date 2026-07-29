@@ -46,7 +46,7 @@ type ApiSearchResultMatchItemWithText = {text: string; isMatch?: true};
 
 type TestApiSearchResultResponse = ApiSearchResultResponse extends infer Result
     ? Result extends ApiSearchResultResponse
-        ? Omit<Result, "body" | "bodyMatch" | "titleMatch"> & {
+        ? Omit<Result, "bodySnippet" | "titleMatches"> & {
               bodyMatch: Array<ApiSearchResultMatchItemWithText> | null;
           }
         : never
@@ -57,18 +57,25 @@ function intoApiSearchResultResponses(
 ): Array<ApiSearchResultResponse> {
     return results.map(result => {
         const {bodyMatch, ...resultWithoutBodyMatch} = result;
+        const matches: Array<{index: number; length: number}> = [];
+        let index = 0;
+        for (const segment of bodyMatch ?? []) {
+            if (segment.isMatch && segment.text.length > 0) {
+                matches.push({index, length: segment.text.length});
+            }
+            index += segment.text.length;
+        }
 
         return {
             ...resultWithoutBodyMatch,
-            titleMatch: result.title === null ? null : [{length: result.title.length}],
-            body: bodyMatch === null ? null : bodyMatch.map(segment => segment.text).join(""),
-            bodyMatch:
+            titleMatches: result.title === null ? null : [],
+            bodySnippet:
                 bodyMatch === null
                     ? null
-                    : bodyMatch.map(segment => ({
-                          length: segment.text.length,
-                          ...(segment.isMatch ? {isMatch: true as const} : {}),
-                      })),
+                    : {
+                          text: bodyMatch.map(segment => segment.text).join(""),
+                          matches,
+                      },
         };
     }) as Array<ApiSearchResultResponse>;
 }

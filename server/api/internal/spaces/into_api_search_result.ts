@@ -17,18 +17,32 @@ import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 
 export function intoApiSearchResult(
     {model, bodyTextSnippet, parsedFilter: resultParsedFilter}: SearchEntityResultModel,
-    queryText = "",
+    queryText: string,
 ): ApiSearchResultResponse | null {
-    const body =
-        bodyTextSnippet.length > 0 ? bodyTextSnippet.map(snippet => snippet.text).join("") : null;
+    let bodySnippet: {
+        text: string;
+        matches: Array<ApiSearchResultMatch>;
+    } | null;
 
-    const bodyMatch =
-        bodyTextSnippet.length > 0
-            ? bodyTextSnippet.map((snippet): ApiSearchResultMatch[number] => ({
-                  length: snippet.text.length,
-                  ...(snippet.isHighlighted ? {isMatch: true} : {}),
-              }))
-            : null;
+    if (bodyTextSnippet.length === 0) {
+        bodySnippet = null;
+    } else {
+        bodySnippet = {
+            text: "",
+            matches: [],
+        };
+
+        let bodyIndex = 0;
+        for (const {text, isHighlighted} of bodyTextSnippet) {
+            bodySnippet.text += text;
+
+            if (isHighlighted && text.length > 0) {
+                bodySnippet.matches.push({index: bodyIndex, length: text.length});
+            }
+
+            bodyIndex += text.length;
+        }
+    }
 
     const parsedFilter = resultParsedFilter ?? undefined;
 
@@ -39,9 +53,8 @@ export function intoApiSearchResult(
             type: "Account",
             id: model.id,
             title,
-            titleMatch: createApiSearchResultTitleMatch(title, queryText),
-            body: null,
-            bodyMatch: null,
+            titleMatches: createApiSearchResultTitleMatches(title, queryText),
+            bodySnippet: null,
             parsedFilter,
             shortName: getAccountShortNameWithoutFullNameTooltip(model.initialData),
             bot: model.botId !== undefined ? {id: model.botId} : undefined,
@@ -67,9 +80,8 @@ export function intoApiSearchResult(
                 type: "Channel",
                 id: entity.channel.id,
                 title,
-                titleMatch: createApiSearchResultTitleMatch(title, queryText),
-                body: null,
-                bodyMatch: null,
+                titleMatches: createApiSearchResultTitleMatches(title, queryText),
+                bodySnippet: null,
                 parsedFilter,
             };
         }
@@ -80,25 +92,22 @@ export function intoApiSearchResult(
                 type: "Chat",
                 id: entity.chat.id,
                 title,
-                titleMatch: createApiSearchResultTitleMatch(title, queryText),
-                body: null,
-                bodyMatch: null,
+                titleMatches: createApiSearchResultTitleMatches(title, queryText),
+                bodySnippet: null,
                 parsedFilter,
             };
         }
         case "ChatMessage": {
             // look at `get_search_entity` to see which data is supposed to be there
-            assert(body !== null);
-            assert(bodyMatch !== null);
+            assert(bodySnippet !== null);
 
             return {
                 type: "ChatMessage",
                 id: entity.message.chatId,
                 index: entity.message.index,
                 title: null,
-                titleMatch: null,
-                body,
-                bodyMatch,
+                titleMatches: null,
+                bodySnippet,
                 parsedFilter,
                 author: intoApiAccount(entity.message.author.initialData),
             };
@@ -110,15 +119,13 @@ export function intoApiSearchResult(
                 type: "Document",
                 id: entity.document.id,
                 title,
-                titleMatch: createApiSearchResultTitleMatch(title, queryText),
-                body,
-                bodyMatch,
+                titleMatches: createApiSearchResultTitleMatches(title, queryText),
+                bodySnippet,
                 parsedFilter,
             };
         }
         case "DocumentComment": {
-            assert(body !== null);
-            assert(bodyMatch !== null);
+            assert(bodySnippet !== null);
 
             return {
                 type: "DocumentMessage",
@@ -126,9 +133,8 @@ export function intoApiSearchResult(
                 threadId: entity.comment.commentThreadId,
                 index: entity.comment.index,
                 title: null,
-                titleMatch: null,
-                body,
-                bodyMatch,
+                titleMatches: null,
+                bodySnippet,
                 parsedFilter,
                 author: intoApiAccount(entity.comment.author.initialData),
             };
@@ -145,25 +151,22 @@ export function intoApiSearchResult(
                 // Posts start with "in ${channelName}: " and expect client rendering code to add
                 // the post author name to the start of the title.
                 title,
-                titleMatch: createApiSearchResultTitleMatch(title, queryText),
-                body,
-                bodyMatch,
+                titleMatches: createApiSearchResultTitleMatches(title, queryText),
+                bodySnippet,
                 parsedFilter,
                 author: intoApiAccount(entity.post.author.initialData),
             };
         }
         case "PostComment": {
-            assert(body !== null);
-            assert(bodyMatch !== null);
+            assert(bodySnippet !== null);
 
             return {
                 type: "PostMessage",
                 id: entity.comment.postId,
                 index: entity.comment.index,
                 title: null,
-                titleMatch: null,
-                body,
-                bodyMatch,
+                titleMatches: null,
+                bodySnippet,
                 parsedFilter,
                 author: intoApiAccount(entity.comment.author.initialData),
             };
@@ -175,9 +178,8 @@ export function intoApiSearchResult(
                 type: "Task",
                 id: entity.task.id,
                 title,
-                titleMatch: createApiSearchResultTitleMatch(title, queryText),
-                body,
-                bodyMatch,
+                titleMatches: createApiSearchResultTitleMatches(title, queryText),
+                bodySnippet,
                 parsedFilter,
                 status: intoApiTaskStatus(entity.task.displayStatus.value),
             };
@@ -189,24 +191,21 @@ export function intoApiSearchResult(
                 type: "TaskCollection",
                 id: entity.collection.id,
                 title,
-                titleMatch: createApiSearchResultTitleMatch(title, queryText),
-                body: null,
-                bodyMatch: null,
+                titleMatches: createApiSearchResultTitleMatches(title, queryText),
+                bodySnippet: null,
                 parsedFilter,
             };
         }
         case "TaskComment": {
-            assert(body !== null);
-            assert(bodyMatch !== null);
+            assert(bodySnippet !== null);
 
             return {
                 type: "TaskMessage",
                 id: entity.comment.taskId,
                 index: entity.comment.index,
                 title: null,
-                titleMatch: null,
-                body,
-                bodyMatch,
+                titleMatches: null,
+                bodySnippet,
                 parsedFilter,
                 author: intoApiAccount(entity.comment.author.initialData),
             };
@@ -216,9 +215,8 @@ export function intoApiSearchResult(
 
             return {
                 title,
-                titleMatch: createApiSearchResultTitleMatch(title, queryText),
-                body: null,
-                bodyMatch: null,
+                titleMatches: createApiSearchResultTitleMatches(title, queryText),
+                bodySnippet: null,
                 parsedFilter,
                 type: "Site",
                 id: entity.site.id,
@@ -229,13 +227,17 @@ export function intoApiSearchResult(
     }
 }
 
-function createApiSearchResultTitleMatch(title: string, queryText: string): ApiSearchResultMatch {
+function createApiSearchResultTitleMatches(
+    title: string,
+    queryText: string,
+): Array<ApiSearchResultMatch> {
     const queryTokens = new Set(
         approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(queryText).map(
             token => token.text,
         ),
     );
-    const isMatchByIndex = Array.from({length: title.length}, () => false);
+
+    const titleMatches: Array<ApiSearchResultMatch> = [];
 
     // As of 2023-12-18 our in-process highlighter doesn't have full compatibility with
     // OpenSearch's highlighter. For example, we don't support highlighting tokens that
@@ -246,30 +248,13 @@ function createApiSearchResultTitleMatch(title: string, queryText: string): ApiS
     )) {
         if (!queryTokens.has(token.text)) continue;
 
-        isMatchByIndex.fill(
-            true,
-            token.sourceStartIndex,
-            token.sourceStartIndex + token.sourceLength,
-        );
-    }
-
-    const titleMatch: Array<ApiSearchResultMatch[number]> = [];
-
-    for (let startIndex = 0; startIndex < title.length; ) {
-        const isMatch = isMatchByIndex[startIndex]!;
-        let endIndex = startIndex + 1;
-        while (endIndex < title.length && isMatchByIndex[endIndex] === isMatch) {
-            endIndex++;
-        }
-
-        titleMatch.push({
-            length: endIndex - startIndex,
-            ...(isMatch ? {isMatch: true} : {}),
+        titleMatches.push({
+            index: token.sourceStartIndex,
+            length: token.sourceLength,
         });
-        startIndex = endIndex;
     }
 
-    return titleMatch;
+    return titleMatches;
 }
 
 function getMissingSearchEntityTitle(entity: {type: SearchDynamicEntityType}): string {

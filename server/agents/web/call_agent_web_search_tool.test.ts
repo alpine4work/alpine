@@ -72,74 +72,85 @@ test("prints entity results as links", async () => {
             type: "Document",
             id: generateId<DocumentId>(),
             title: "Test Document",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
         },
         {
             type: "Post",
             id: generateId<PostId>(),
             title: "Test Post",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
             author: createApiAccountMock({name: "John Smith"}),
         },
         {
             type: "Task",
             id: generateId<TaskId>(),
             title: "Test Task Open active",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
             status: {type: "Open", isActive: true},
         },
         {
             type: "Task",
             id: generateId<TaskId>(),
             title: "Test Task Open inactive",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
             status: {type: "Open", isActive: false},
         },
         {
             type: "Task",
             id: generateId<TaskId>(),
             title: "Test Task Closed",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
             status: {type: "Closed"},
         },
         {
             type: "TaskCollection",
             id: generateId<TaskCollectionId>(),
             title: "Test Collection",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
         },
         {
             type: "Chat",
             id: generateId<ChatId>(),
             title: "Test Chat",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
         },
         {
             type: "Account",
             id: generateId<AccountId>(),
             title: "Alice Smith",
+            titleMatches: [],
+            bodySnippet: null,
             shortName: "Alice",
-            bodyMatch: null,
         },
         {
             type: "Account",
             id: generateId<AccountId>(),
             title: "Claude",
+            titleMatches: [],
+            bodySnippet: null,
             shortName: "Claude",
             bot: {id: generateId<BotId>()},
-            bodyMatch: null,
         },
         {
             type: "Channel",
             id: generateId<ChannelId>(),
             title: "Test Channel",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
         },
         {
             type: "Site",
             id: generateId<SiteId>(),
             title: "Test Site",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
         },
     ]);
 
@@ -167,43 +178,72 @@ test("prints entity results as links", async () => {
 11. [Test Site](/site/test-site)`);
 });
 
+test("prints title matches and merges matches separated only by whitespace", async () => {
+    mockSearch("Direct chat setup", [
+        {
+            type: "Chat",
+            id: generateId<ChatId>(),
+            title: "Direct chat setup",
+            titleMatches: [
+                {index: 0, length: 6},
+                {index: 7, length: 4},
+                {index: 12, length: 5},
+            ],
+            bodySnippet: null,
+        },
+    ]);
+
+    expect(await callAgentWebSearchTool(context, {query: "Direct chat setup"})).toEqual(
+        "1. [**Direct chat setup**](/chat/direct-chat-setup)",
+    );
+});
+
 test("prints body matches under entity results", async () => {
     mockSearch("test", [
         {
             type: "Document",
             id: generateId<DocumentId>(),
             title: "Test Document",
-            bodyMatch: [{text: "Test Document", isMatch: true}, {text: " test document"}],
+            titleMatches: [],
+            bodySnippet: {
+                text: "Test Document test document",
+                matches: [{index: 0, length: 13}],
+            },
         },
         {
             type: "Post",
             id: generateId<PostId>(),
             title: "Test Post",
-            bodyMatch: [
-                {text: "Test Post", isMatch: true},
-                {text: " not highlighted "},
-                {text: "hello world", isMatch: true},
-                {text: " test post"},
-            ],
+            titleMatches: [],
+            bodySnippet: {
+                text: "Test Post not highlighted hello world test post",
+                matches: [
+                    {index: 0, length: 9},
+                    {index: 26, length: 11},
+                ],
+            },
             author: createApiAccountMock({name: "John Smith"}),
         },
         {
             type: "Task",
             id: generateId<TaskId>(),
             title: "Test Task",
-            bodyMatch: [
-                {text: "Test Task", isMatch: true},
-                {text: " "},
-                {text: "hello world", isMatch: true},
-                {text: " test task"},
-            ],
+            titleMatches: [],
+            bodySnippet: {
+                text: "Test Task hello world test task",
+                matches: [
+                    {index: 0, length: 9},
+                    {index: 10, length: 11},
+                ],
+            },
             status: {type: "Open", isActive: true},
         },
         {
             type: "Channel",
             id: generateId<ChannelId>(),
             title: "Test Channel",
-            bodyMatch: [],
+            titleMatches: [],
+            bodySnippet: {text: "", matches: []},
         },
     ]);
 
@@ -218,7 +258,7 @@ test("prints body matches under entity results", async () => {
 
 3. [Test Task (Open, active)](/task/test-task)
 
-   **Test Task** **hello world** test task
+   **Test Task hello world** test task
 
 4. [Test Channel](/channel/test-channel)`);
 });
@@ -230,12 +270,14 @@ test("prints message results as links labeled with a preview of the match", asyn
             id: generateId<ChatId>(),
             index: 5,
             title: null,
-            bodyMatch: [
-                {text: "This", isMatch: true},
-                {text: " is a "},
-                {text: "short", isMatch: true},
-                {text: " message"},
-            ],
+            titleMatches: null,
+            bodySnippet: {
+                text: "This is a short message",
+                matches: [
+                    {index: 0, length: 4},
+                    {index: 10, length: 5},
+                ],
+            },
             author: createApiAccountMock({name: "John Smith"}),
         },
         {
@@ -244,7 +286,11 @@ test("prints message results as links labeled with a preview of the match", asyn
             threadId: generateId<DocumentCommentThreadId>(),
             index: 1,
             title: null,
-            bodyMatch: [{text: "An "}, {text: "important", isMatch: true}, {text: " comment"}],
+            titleMatches: null,
+            bodySnippet: {
+                text: "An important comment",
+                matches: [{index: 3, length: 9}],
+            },
             author: createApiAccountMock({name: "Jane Doe"}),
         },
         {
@@ -252,7 +298,11 @@ test("prints message results as links labeled with a preview of the match", asyn
             id: generateId<PostId>(),
             index: 3,
             title: null,
-            bodyMatch: [{text: "A "}, {text: "thoughtful", isMatch: true}, {text: " reply"}],
+            titleMatches: null,
+            bodySnippet: {
+                text: "A thoughtful reply",
+                matches: [{index: 2, length: 10}],
+            },
             author: createApiAccountMock({name: "Alice Johnson"}),
         },
         {
@@ -260,7 +310,11 @@ test("prints message results as links labeled with a preview of the match", asyn
             id: generateId<TaskId>(),
             index: 7,
             title: null,
-            bodyMatch: [{text: "A "}, {text: "helpful", isMatch: true}, {text: " update"}],
+            titleMatches: null,
+            bodySnippet: {
+                text: "A helpful update",
+                matches: [{index: 2, length: 7}],
+            },
             author: createApiAccountMock({name: "Bob Wilson"}),
         },
     ]);
@@ -282,7 +336,8 @@ test("prints the missing entity title for message results without a body match",
             id: generateId<ChatId>(),
             index: 5,
             title: null,
-            bodyMatch: [],
+            titleMatches: null,
+            bodySnippet: {text: "", matches: []},
             author: createApiAccountMock({name: "John Smith"}),
         },
         {
@@ -291,7 +346,8 @@ test("prints the missing entity title for message results without a body match",
             threadId: generateId<DocumentCommentThreadId>(),
             index: 1,
             title: null,
-            bodyMatch: [],
+            titleMatches: null,
+            bodySnippet: {text: "", matches: []},
             author: createApiAccountMock({name: "Jane Doe"}),
         },
         {
@@ -299,7 +355,8 @@ test("prints the missing entity title for message results without a body match",
             id: generateId<PostId>(),
             index: 3,
             title: null,
-            bodyMatch: [],
+            titleMatches: null,
+            bodySnippet: {text: "", matches: []},
             author: createApiAccountMock({name: "Alice Johnson"}),
         },
         {
@@ -307,7 +364,8 @@ test("prints the missing entity title for message results without a body match",
             id: generateId<TaskId>(),
             index: 7,
             title: null,
-            bodyMatch: [],
+            titleMatches: null,
+            bodySnippet: {text: "", matches: []},
             author: createApiAccountMock({name: "Bob Wilson"}),
         },
     ]);
@@ -330,13 +388,14 @@ test("truncates long message previews and prints the rest of the match after the
             threadId: generateId<DocumentCommentThreadId>(),
             index: 1,
             title: null,
-            bodyMatch: [
-                {text: "Important", isMatch: true},
-                {text: " document comment "},
-                {text: "keyword", isMatch: true},
-                {text: " with a really long body match that will be displayed"},
-                {text: " outside of the link itself"},
-            ],
+            titleMatches: null,
+            bodySnippet: {
+                text: "Important document comment keyword with a really long body match that will be displayed outside of the link itself",
+                matches: [
+                    {index: 0, length: 9},
+                    {index: 27, length: 7},
+                ],
+            },
             author: createApiAccountMock({name: "Jane Doe"}),
         },
         {
@@ -344,11 +403,11 @@ test("truncates long message previews and prints the rest of the match after the
             id: generateId<TaskId>(),
             index: 7,
             title: null,
-            bodyMatch: [
-                {
-                    text: "We need to update the documentation with all the latest changes and improvements",
-                },
-            ],
+            titleMatches: null,
+            bodySnippet: {
+                text: "We need to update the documentation with all the latest changes and improvements",
+                matches: [],
+            },
             author: createApiAccountMock({name: "Bob Wilson"}),
         },
     ]);
@@ -365,28 +424,35 @@ test("groups results under the parsed filter summary", async () => {
             type: "Document",
             id: generateId<DocumentId>(),
             title: "Matching Document 1",
-            bodyMatch: [{text: "content", isMatch: true}],
+            titleMatches: [],
+            bodySnippet: {
+                text: "content",
+                matches: [{index: 0, length: 7}],
+            },
             parsedFilter: {summary: "documents created yesterday"},
         },
         {
             type: "Document",
             id: generateId<DocumentId>(),
             title: "Matching Document 2",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
             parsedFilter: {summary: "documents created yesterday"},
         },
         {
             type: "Post",
             id: generateId<PostId>(),
             title: "Non-matching Post",
-            bodyMatch: [{text: "post content"}],
+            titleMatches: [],
+            bodySnippet: {text: "post content", matches: []},
             author: createApiAccountMock({name: "John Smith"}),
         },
         {
             type: "Task",
             id: generateId<TaskId>(),
             title: "Non-matching Task",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
             status: {type: "Open", isActive: true},
         },
     ]);
@@ -417,14 +483,16 @@ test("prints a section for every parsed filter summary", async () => {
             type: "Document",
             id: generateId<DocumentId>(),
             title: "Matching Document",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
             parsedFilter: {summary: "documents created yesterday"},
         },
         {
             type: "Post",
             id: generateId<PostId>(),
             title: "Matching Post",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
             author: createApiAccountMock({name: "John Smith"}),
             parsedFilter: {summary: "posts created yesterday"},
         },
@@ -432,7 +500,8 @@ test("prints a section for every parsed filter summary", async () => {
             type: "Task",
             id: generateId<TaskId>(),
             title: "Matching Task",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
             status: {type: "Open", isActive: true},
             parsedFilter: {summary: "tasks assigned to Jane"},
         },
@@ -440,7 +509,8 @@ test("prints a section for every parsed filter summary", async () => {
             type: "Chat",
             id: generateId<ChatId>(),
             title: "Non-matching Chat",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
         },
     ]);
 
@@ -470,7 +540,8 @@ test("does not print an Other section when every result matched a filter", async
             type: "Document",
             id: generateId<DocumentId>(),
             title: "Matching Document",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
             parsedFilter: {summary: "documents created yesterday"},
         },
     ]);
@@ -487,13 +558,15 @@ test("dedupes pathnames for two entities with the same title", async () => {
             type: "Document",
             id: generateId<DocumentId>(),
             title: "Roadmap",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
         },
         {
             type: "Document",
             id: generateId<DocumentId>(),
             title: "Roadmap",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
         },
     ]);
 
@@ -510,7 +583,8 @@ test("reuses the pathname for the same entity across searches", async () => {
             type: "Document",
             id: documentId,
             title: "Test Document",
-            bodyMatch: null,
+            titleMatches: [],
+            bodySnippet: null,
         },
     ];
 
@@ -534,8 +608,9 @@ test("search result links can be read with the read tool", async () => {
             type: "Account",
             id: accountId,
             title: "Alice Smith",
+            titleMatches: [{index: 0, length: 5}],
+            bodySnippet: null,
             shortName: "Alice",
-            bodyMatch: null,
         },
     ]);
 

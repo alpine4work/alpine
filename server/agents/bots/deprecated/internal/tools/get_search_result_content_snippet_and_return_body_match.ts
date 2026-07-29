@@ -19,7 +19,7 @@ type ApiSearchMessageResult =
     | ApiSearchPostMessageResult
     | ApiSearchDocumentMessageResult;
 
-export type ApiSearchResultMatchZippedItem = {
+export type ApiSearchResultZippedMatch = {
     readonly text: string;
     readonly isMatch: boolean;
 };
@@ -48,7 +48,7 @@ const maxGraphemeCount = 50;
  *
  * ```
  * bodyMatch: [
- *   {text: "Hello "},
+ *   {text: "Hello ", isMatch: false},
  *   {text: "world", isMatch: true},
  *   {text: " how are you today?", isMatch: true}
  * ]
@@ -59,8 +59,8 @@ const maxGraphemeCount = 50;
  * ```
  * {
  *   preview: [
- *     {text: "John: "}, // Not counted towards `maxGraphemeCount`
- *     {text: "Hello "}, // 6 graphemes
+ *     {text: "John: ", isMatch: false}, // Not counted towards `maxGraphemeCount`
+ *     {text: "Hello ", isMatch: false}, // 6 graphemes
  *     {text: "world", isMatch: true}, // 5 graphemes
  *     {text: " how", isMatch: true} // 3 graphemes
  *   ],
@@ -71,13 +71,16 @@ const maxGraphemeCount = 50;
  * ```
  */
 export function getSearchResultContentSnippetAndReturnBodyMatch(
-    result: Pick<ApiSearchMessageResult, "body" | "bodyMatch" | "author" | "type">,
+    result: Pick<ApiSearchMessageResult, "bodySnippet" | "author" | "type">,
 ): {
-    preview: Array<ApiSearchResultMatchZippedItem>;
-    newBodyMatch: Array<ApiSearchResultMatchZippedItem>;
+    preview: Array<ApiSearchResultZippedMatch>;
+    newBodyMatch: Array<ApiSearchResultZippedMatch>;
 } {
-    const bodyMatch = zipApiSearchResultMatch(result.body, result.bodyMatch);
-    const previewMessagePrefix = {text: `${result.author.shortName}: `} as const;
+    const bodyMatch = zipApiSearchResultMatch(result.bodySnippet.text, result.bodySnippet.matches);
+    const previewMessagePrefix = {
+        text: `${result.author.shortName}: `,
+        isMatch: false,
+    } as const;
 
     // If there's no body match, we use the missing search entity title. It'll look
     // something like "<Author>: Unknown task comment"
@@ -85,7 +88,10 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
         return {
             preview: [
                 previewMessagePrefix,
-                {text: getMissingSearchEntityTitleForMessage(result.type)},
+                {
+                    text: getMissingSearchEntityTitleForMessage(result.type),
+                    isMatch: false,
+                },
             ],
             newBodyMatch: [],
         };
@@ -93,8 +99,8 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
 
     let totalGraphemeCount = 0;
     let segmentIndex = 0;
-    const preview: Array<ApiSearchResultMatchZippedItem> = [previewMessagePrefix];
-    const newBodyMatch: Array<ApiSearchResultMatchZippedItem> = [];
+    const preview: Array<ApiSearchResultZippedMatch> = [previewMessagePrefix];
+    const newBodyMatch: Array<ApiSearchResultZippedMatch> = [];
 
     for (const segment of bodyMatch) {
         const text = segment.text;
@@ -181,22 +187,37 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
 
 export function zipApiSearchResultMatch(
     text: string,
-    match: ApiSearchResultMatch,
-): Array<ApiSearchResultMatchZippedItem> {
-    const segments: Array<ApiSearchResultMatchZippedItem> = [];
+    matches: ReadonlyArray<ApiSearchResultMatch>,
+): Array<ApiSearchResultZippedMatch> {
+    const segments: Array<ApiSearchResultZippedMatch> = [];
     let startIndex = 0;
 
-    for (const segment of match) {
-        const endIndex = startIndex + segment.length;
+    for (const match of matches) {
+        assert(match.index >= startIndex);
+        const endIndex = match.index + match.length;
         assert(endIndex <= text.length);
+
+        if (match.index > startIndex) {
+            segments.push({
+                text: text.slice(startIndex, match.index),
+                isMatch: false,
+            });
+        }
+
         segments.push({
-            text: text.slice(startIndex, endIndex),
-            isMatch: segment.isMatch ?? false,
+            text: text.slice(match.index, endIndex),
+            isMatch: true,
         });
         startIndex = endIndex;
     }
 
-    assert(startIndex === text.length);
+    if (startIndex < text.length) {
+        segments.push({
+            text: text.slice(startIndex),
+            isMatch: false,
+        });
+    }
+
     return segments;
 }
 

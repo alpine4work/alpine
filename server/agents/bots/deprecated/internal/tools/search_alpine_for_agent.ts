@@ -7,7 +7,7 @@ import {
     printAgentPlainTextLabel,
 } from "~/server/agents/bots/deprecated/internal/link_references/print_agent_link_path.js";
 import {
-    ApiSearchResultMatchZippedItem,
+    ApiSearchResultZippedMatch,
     getSearchResultContentSnippetAndReturnBodyMatch,
     zipApiSearchResultMatch,
 } from "~/server/agents/bots/deprecated/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
@@ -344,10 +344,11 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult): Li
         children: [{type: "text", value: printAgentPlainTextLabel(link)}],
     };
 
-    const bodyMatchContent: Array<PhrasingContent> =
-        result.body && result.bodyMatch
-            ? intoPhrasingContent(zipApiSearchResultMatch(result.body, result.bodyMatch))
-            : [];
+    const bodyMatchContent: Array<PhrasingContent> = result.bodySnippet
+        ? intoPhrasingContent(
+              zipApiSearchResultMatch(result.bodySnippet.text, result.bodySnippet.matches),
+          )
+        : [];
 
     const bodyMatchParagraph: Paragraph | null =
         bodyMatchContent.length > 0
@@ -391,7 +392,7 @@ function isApiSearchResultInConversationState(
 }
 
 function intoPhrasingContent(
-    bodyMatch: ReadonlyArray<ApiSearchResultMatchZippedItem>,
+    bodyMatch: ReadonlyArray<ApiSearchResultZippedMatch>,
 ): Array<PhrasingContent> {
     return bodyMatch.map(({text, isMatch}) => {
         const textContent: PhrasingContent = {type: "text", value: text};
