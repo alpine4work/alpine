@@ -2607,10 +2607,8 @@ components:
                     const: Account
                 id:
                     $ref: "#/components/schemas/AccountId"
-                # NOCOMMIT: Make sure `title` is the long name in mentions
                 title:
                     type: string
-                # NOCOMMIT: Make sure we return `botId` when returning an account target! Mentions + search results.
                 shortName:
                     $ref: "#/components/schemas/LabelString"
                 bot:
@@ -6855,7 +6853,6 @@ components:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 shortName:
                     $ref: "#/components/schemas/LabelString"
-                # NOCOMMIT: Make sure we return `botId` when returning an account target! Mentions + search results.
                 bot:
                     type: object
                     required: [id]
