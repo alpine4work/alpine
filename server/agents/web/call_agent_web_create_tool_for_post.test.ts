@@ -4,10 +4,9 @@ import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_
 import type {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import type {
     ApiAccountResponse,
@@ -70,25 +69,22 @@ const context: AgentWebContext = {
 beforeEach(async () => {
     await storage.deleteAll();
 
-    const actualBotAccountPathname = await createAgentWebPageStoredLinkPathname(
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
         storage,
         context.botAccount,
     );
     assert(actualBotAccountPathname === context.botAccount.pathname);
 
-    const actualAlicePathname = await createAgentWebPageStoredLinkPathname(
-        storage,
-        intoApiAccountReference(aliceAccount),
-    );
+    const actualAlicePathname = await storeAgentWebPageLinkForTest(storage, aliceAccount);
     assert(actualAlicePathname === "/human/alice");
 
-    const actualAnnouncementsPathname = await createAgentWebPageStoredLinkPathname(
+    const actualAnnouncementsPathname = await storeAgentWebPageLinkForTest(
         storage,
         announcementsChannelReference,
     );
     assert(actualAnnouncementsPathname === "/channel/announcements");
 
-    const actualExistingPostPathname = await createAgentWebPageStoredLinkPathname(
+    const actualExistingPostPathname = await storeAgentWebPageLinkForTest(
         storage,
         existingPostReference,
     );
