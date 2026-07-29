@@ -143,6 +143,7 @@ export async function updateAgentWebTaskSubtasksPage(
     oldPageMetadata: AgentWebTaskSubtasksPageMetadata,
     oldPage: AgentWebTaskSubtasksPage,
     newPage: AgentWebTaskSubtasksPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<AgentWebTaskSubtasksPageMetadata> {
     if (!isDeepEqual(oldPage.task, newPage.task)) {
         throw new InvalidArgumentError("Can\u2019t update task subtasks preamble", {
@@ -156,6 +157,7 @@ export async function updateAgentWebTaskSubtasksPage(
         oldPageMetadata,
         oldPage,
         newPage,
+        {addAdditionalOutput},
     );
 
     return {
