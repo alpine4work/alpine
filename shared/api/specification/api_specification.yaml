@@ -2683,6 +2683,23 @@ components:
                 title:
                     type: string
 
+        DocumentThreadReference:
+            type: object
+            required: [type, document, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: DocumentThread
+                id:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                document:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentId"
+
         PostReference:
             type: object
             required: [type, id]
@@ -6740,60 +6757,17 @@ components:
 
         MessageRoomReference:
             oneOf:
-                - $ref: "#/components/schemas/ChatMessageRoomReference"
-                - $ref: "#/components/schemas/DocumentThreadMessageRoomReference"
-                - $ref: "#/components/schemas/PostMessageRoomReference"
-                - $ref: "#/components/schemas/TaskMessageRoomReference"
+                - $ref: "#/components/schemas/ChatReference"
+                - $ref: "#/components/schemas/DocumentThreadReference"
+                - $ref: "#/components/schemas/PostReference"
+                - $ref: "#/components/schemas/TaskReference"
             discriminator:
                 propertyName: type
                 mapping:
-                    Chat: "#/components/schemas/ChatMessageRoomReference"
-                    DocumentThread: "#/components/schemas/DocumentThreadMessageRoomReference"
-                    Post: "#/components/schemas/PostMessageRoomReference"
-                    Task: "#/components/schemas/TaskMessageRoomReference"
-
-        # NOCOMMIT: Get rid of these? Replace with actual reference types.
-        ChatMessageRoomReference:
-            type: object
-            required: [type, id]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Chat
-                id:
-                    $ref: "#/components/schemas/ChatId"
-
-        DocumentThreadMessageRoomReference:
-            type: object
-            required: [type, id, threadId]
-            additionalProperties: false
-            properties:
-                type:
-                    const: DocumentThread
-                id:
-                    $ref: "#/components/schemas/DocumentId"
-                threadId:
-                    $ref: "#/components/schemas/DocumentThreadId"
-
-        PostMessageRoomReference:
-            type: object
-            required: [type, id]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Post
-                id:
-                    $ref: "#/components/schemas/PostId"
-
-        TaskMessageRoomReference:
-            type: object
-            required: [type, id]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Task
-                id:
-                    $ref: "#/components/schemas/TaskId"
+                    Chat: "#/components/schemas/ChatReference"
+                    DocumentThread: "#/components/schemas/DocumentThreadReference"
+                    Post: "#/components/schemas/PostReference"
+                    Task: "#/components/schemas/TaskReference"
 
         # =========================================================================== #
         #                                  Search                                     #
