@@ -193,6 +193,7 @@ export async function readAgentWebTaskPage(
 export async function createAgentWebTaskPage(
     context: AgentWebContext,
     newPage: AgentWebTaskPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<{
     pageMetadata: AgentWebTaskPageMetadata;
     pageLink: Extract<ApiMentionReferenceResponse, {readonly type: "Task"}>;
@@ -256,6 +257,7 @@ export async function createAgentWebTaskPage(
             emptySubtaskMetadata,
             {pagination: null, tasks: [], isEndOfTasks: true},
             {pagination: null, tasks: newPage.subtasks.tasks, isEndOfTasks: true},
+            {addAdditionalOutput},
         ));
     }
 
@@ -311,6 +313,7 @@ export async function updateAgentWebTaskPage(
     oldPageMetadata: AgentWebTaskPageMetadata,
     oldPage: AgentWebTaskPage,
     newPage: AgentWebTaskPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<AgentWebTaskPageMetadata> {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
@@ -422,6 +425,7 @@ export async function updateAgentWebTaskPage(
             tasks: newPage.subtasks?.tasks ?? [],
             isEndOfTasks: oldPageMetadata.subtasks.beforeCursor === null,
         },
+        {addAdditionalOutput},
     );
 
     const [, notesPatchResponse, subtasksMetadata] = await runAllPromises([

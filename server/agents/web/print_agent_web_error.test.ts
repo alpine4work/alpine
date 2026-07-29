@@ -156,5 +156,14 @@ test("escapes Markdown formatting in an internal error message", () => {
     expect(printAgentWebError("Read failed", error)).toBe(`\
 Error: Read failed. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
-> Internal error: Markdown: \\*\\*bold\\*\\*, \\_italic\\_, \\\`code\\\`, \\[link], \\<tag>, \\&quot;.`);
+> Internal error: Markdown: **bold**, _italic_, \`code\`, \\[link], <tag>, \u0022.`);
+});
+
+test("escapes Markdown footnote formatting in an internal error message", () => {
+    const error = new Error("Hello, world! [^1]\n\n[^1]: This is a footnote");
+
+    expect(printAgentWebError("Read failed", error)).toBe(`\
+Error: Read failed. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Hello, world! \\[^1]\\n\\n\\[^1]: This is a footnote`);
 });

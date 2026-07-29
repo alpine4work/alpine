@@ -301,7 +301,8 @@ async function readAgentWebPageLink(
             );
         }
         case "File": {
-            throw new UnimplementedError("NOCOMMIT");
+            // TODO(#agents-web): How should we return a file via the CLI or MCP?
+            throw new UnimplementedError("Reading a file is unimplemented");
         }
         case "Channel": {
             return await readAgentWebChannelPage(context, pageLink.id, options);
@@ -339,7 +340,8 @@ async function readAgentWebPageLink(
             return await readAgentWebTaskSubtasksPage(context, pageLink.task.id, options);
         }
         case "Site": {
-            throw new UnimplementedError("NOCOMMIT");
+            // TODO(#agents-web): Implement sites API and agent web format.
+            throw new UnimplementedError("Reading a site is unimplemented");
         }
         default:
             throw exhaustive(pageLink);
@@ -412,7 +414,8 @@ function printAgentWebPage(
             );
         }
         case "File": {
-            throw new UnimplementedError("NOCOMMIT");
+            // TODO(#agents-web): How should we return a file via the CLI or MCP?
+            throw new UnimplementedError("Reading a file is unimplemented");
         }
         case "Channel": {
             assert(page.type === "Channel");
@@ -455,7 +458,8 @@ function printAgentWebPage(
             return printAgentWebTaskSubtasksPage(storage, pageLink.task.id, page);
         }
         case "Site": {
-            throw new UnimplementedError("NOCOMMIT");
+            // TODO(#agents-web): Implement sites API and agent web format.
+            throw new UnimplementedError("Reading a site is unimplemented");
         }
         default:
             throw exhaustive(pageLink);

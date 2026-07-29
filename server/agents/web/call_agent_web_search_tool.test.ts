@@ -3,7 +3,7 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {
-    agentWebSearchResultLimit,
+    defaultAgentWebSearchResultLimit,
     callAgentWebSearchTool,
 } from "~/server/agents/web/call_agent_web_search_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
@@ -54,7 +54,7 @@ function mockSearch(query: string, results: Array<ApiSearchResultResponse>): voi
     api.mockGet("/spaces/{id}/search", {
         params: {
             path: {id: spaceId},
-            query: {query, limit: agentWebSearchResultLimit},
+            query: {query, limit: defaultAgentWebSearchResultLimit},
         },
         data: {results},
     });

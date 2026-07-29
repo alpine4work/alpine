@@ -156,6 +156,7 @@ export async function updateAgentWebTaskMessageListPage(
     oldPageMetadata: AgentWebTaskMessageListPageMetadata,
     oldPage: AgentWebTaskMessageListPage,
     newPage: AgentWebTaskMessageListPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<AgentWebTaskMessageListPageMetadata> {
     if (
         !isDeepEqual(
@@ -175,6 +176,7 @@ export async function updateAgentWebTaskMessageListPage(
         oldPageMetadata,
         oldPage,
         newPage,
+        addAdditionalOutput,
         prepareCustomBlockUpdate: oldCustomBlock => {
             throw exhaustive(oldCustomBlock);
         },

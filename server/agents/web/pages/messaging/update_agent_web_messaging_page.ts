@@ -34,12 +34,7 @@ import {
     ApiMessageContentPayloadFileResponse,
     ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {
-    FailedPreconditionError,
-    InternalError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -53,9 +48,6 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
-export const updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage =
-    "Update was successful, but the agent needs to know there were some other messages added it hasn\u2019t observed";
-
 export async function updateAgentWebMessagingPage<
     Preamble,
     CustomBlock extends AgentWebMessagingPageCustomBlockBase,
@@ -68,6 +60,7 @@ export async function updateAgentWebMessagingPage<
         oldPageMetadata,
         oldPage,
         newPage,
+        addAdditionalOutput,
         prepareCustomBlockUpdate,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
@@ -81,6 +74,14 @@ export async function updateAgentWebMessagingPage<
         oldPageMetadata: MaybeThunk<MaybePromise<AgentWebMessagingPageMetadata>>;
         oldPage: AgentWebMessagingPage<Preamble, CustomBlock>;
         newPage: AgentWebMessagingPage<Preamble, CustomBlock>;
+        addAdditionalOutput: (
+            output: string,
+            detail: {
+                type: "UnseenMessages";
+                pathname: string;
+                newMessageIndexes: ReadonlyArray<number>;
+            },
+        ) => void;
         prepareCustomBlockUpdate: (
             oldCustomBlock: CustomBlock,
             newCustomBlock: CustomBlock,
@@ -662,18 +663,9 @@ export async function updateAgentWebMessagingPage<
     if (!isDeepEqual(newMessageIndexes, expectedNewMessageIndexes)) {
         const actualPathname = typeof pathname === "function" ? await pathname() : await pathname;
 
-        throw Object.assign(
-            new FailedPreconditionError(
-                updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
-                {
-                    displayMessage: errorDisplayMessage`Update was successful, ${newMessageIndexes.length === 1 ? `the ${messageNouns.noun} you added was` : `the ${messageNouns.pluralNoun} you added were`} created. But between the last ${messageNouns.noun} you read${lastMessageIndex > 0 ? ` (\`<${messageNouns.noun} id="${lastMessageIndex - 1}">\`)` : ""} and the ${newMessageIndexes.length === 1 ? messageNouns.noun : messageNouns.pluralNoun} you created there are some new ${messageNouns.pluralNoun} from others you haven\u2019t seen. These new ${messageNouns.pluralNoun} may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with ${quote(`${actualPathname}${lastMessageIndex > 0 ? `?after=${lastMessageIndex}` : "?start"}`)}.`,
-                },
-            ),
-            // This error is caught by `createAgentWebChatPage()` which wants to change the
-            // display message to something more semantically relevant. Include `newMessages`
-            // so `createAgentWebChatPage()` has the same information we do when constructing
-            // this error.
-            {newMessageIndexes},
+        addAdditionalOutput(
+            `Between the last ${messageNouns.noun} you read${lastMessageIndex > 0 ? ` (\`<${messageNouns.noun} id="${lastMessageIndex - 1}">\`)` : ""} and the ${newMessageIndexes.length === 1 ? messageNouns.noun : messageNouns.pluralNoun} you created there are some new ${messageNouns.pluralNoun} from others you haven\u2019t seen. These new ${messageNouns.pluralNoun} may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with ${quote(`${actualPathname}${lastMessageIndex > 0 ? `?after=${lastMessageIndex}` : "?start"}`)}.`,
+            {type: "UnseenMessages", pathname: actualPathname, newMessageIndexes},
         );
     }
 

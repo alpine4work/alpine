@@ -629,6 +629,7 @@ export async function updateAgentWebDocumentThreadPage(
     oldPageMetadata: MaybeThunk<MaybePromise<AgentWebDocumentThreadPageMetadata>>,
     oldPage: AgentWebDocumentThreadPage,
     newPage: AgentWebDocumentThreadPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<AgentWebDocumentThreadPageMetadata> {
     if (oldPage.preamble.document.id !== newPage.preamble.document.id) {
         throw new InvalidArgumentError("Can\u2019t update document in document thread preamble", {
@@ -654,6 +655,7 @@ export async function updateAgentWebDocumentThreadPage(
         oldPageMetadata,
         oldPage,
         newPage,
+        addAdditionalOutput,
         prepareCustomBlockUpdate: (oldCustomBlock, newCustomBlock) => {
             if (oldCustomBlock.matchAttribute !== newCustomBlock.matchAttribute) {
                 throw new InvalidArgumentError("Can\u2019t update document preview match", {

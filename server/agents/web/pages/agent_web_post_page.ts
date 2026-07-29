@@ -644,6 +644,7 @@ export async function updateAgentWebPostPage(
     oldPageMetadata: MaybeThunk<MaybePromise<AgentWebPostPageMetadata>>,
     oldPage: AgentWebPostPage,
     newPage: AgentWebPostPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<AgentWebPostPageMetadata> {
     switch (oldPage.subType) {
         case "Head": {
@@ -703,6 +704,7 @@ export async function updateAgentWebPostPage(
         oldPageMetadata,
         oldPage,
         newPage,
+        addAdditionalOutput,
         prepareCustomBlockUpdate: (oldCustomBlock, newCustomBlock) => {
             // Strip response properties from the block before comparing for equality. We don't
             // care if `reference.title`s aren't equal. The `title` might have changed between

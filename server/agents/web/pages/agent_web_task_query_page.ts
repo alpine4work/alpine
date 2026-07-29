@@ -2,6 +2,7 @@ import {CalendarDate, fromDate, toCalendarDate} from "@internationalized/date";
 import {Link, List, ListItem, Node} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
+import {printAgentWebPageStoredLinkLabel} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
     agentWebTaskQueryCursorHashLength,
@@ -909,6 +910,7 @@ export async function updateAgentWebTaskQueryPage(
     oldPageMetadata: AgentWebTaskQueryPageMetadata,
     oldPage: AgentWebTaskQueryPage,
     newPage: AgentWebTaskQueryPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<{
     execute: (
         pageLink:
@@ -1131,9 +1133,6 @@ export async function updateAgentWebTaskQueryPage(
             /* ========================================================================== *\
              *                              Create new task                               *
             \* ========================================================================== */
-
-            // NOCOMMIT: When creating tasks, we should ideally add links to the newly created
-            // tasks in the output.
 
             if (newPageTask.taskId === null) {
                 if (newPageTask.additionalCollectionsCount !== 0) {
@@ -1541,7 +1540,14 @@ export async function updateAgentWebTaskQueryPage(
                 });
             }
 
-            for (const execution of executions) {
+            const createPatches: Array<{
+                patchIndex: number;
+                reference: Omit<ApiTaskReferenceResponse, "id">;
+            }> = [];
+
+            for (let executionIndex = 0; executionIndex < executions.length; executionIndex++) {
+                const execution = executions[executionIndex]!;
+
                 const movementPatch = movementPatchByPageTaskIndex.get(execution.taskIndex);
 
                 switch (execution.type) {
@@ -1563,6 +1569,17 @@ export async function updateAgentWebTaskQueryPage(
                                       ...execution.task,
                                       parent: {task: {id: pageLink.task.id}},
                                   };
+
+                        const trimmedTitle = (task.title ?? "").trim();
+
+                        createPatches.push({
+                            patchIndex: patches.length,
+                            reference: {
+                                type: "Task",
+                                title: trimmedTitle.length === 0 ? "Untitled" : trimmedTitle,
+                                status: task.status ?? {type: "Open", isActive: false},
+                            },
+                        });
 
                         patches.push({
                             taskIndex: execution.taskIndex,
@@ -1715,6 +1732,78 @@ export async function updateAgentWebTaskQueryPage(
                         default:
                             throw exhaustive(patch.patch);
                     }
+                }
+
+                const createdTaskLinks = await runAllPromises(
+                    createPatches.map(async (createPatch): Promise<Link> => {
+                        const result = assertExists(
+                            patchResponse.data.results[createPatch.patchIndex],
+                        );
+                        assert(result.type === "Create");
+
+                        const reference: ApiTaskReferenceResponse = {
+                            ...createPatch.reference,
+                            id: result.task.id,
+                        };
+
+                        const createdPathname = await createAgentWebPageStoredLinkPathname(
+                            context.storage,
+                            reference,
+                        );
+
+                        return {
+                            type: "link",
+                            url: createdPathname,
+                            children: [
+                                {
+                                    type: "text",
+                                    value: printAgentWebPageStoredLinkLabel(reference),
+                                },
+                            ],
+                        };
+                    }),
+                );
+
+                // Document in the output when we created some tasks along with all our other
+                // outputs. So the agent can then go and read the newly created tasks.
+                if (createdTaskLinks.length === 1) {
+                    addAdditionalOutput(
+                        printMarkdownTree({
+                            type: "root",
+                            children: [
+                                {
+                                    type: "paragraph",
+                                    children: [
+                                        {type: "text", value: "Created the following task: "},
+                                        createdTaskLinks[0]!,
+                                    ],
+                                },
+                            ],
+                        }),
+                    );
+                } else if (createdTaskLinks.length > 0) {
+                    addAdditionalOutput(
+                        printMarkdownTree({
+                            type: "root",
+                            children: [
+                                {
+                                    type: "paragraph",
+                                    children: [
+                                        {type: "text", value: "Created the following tasks:"},
+                                    ],
+                                },
+                                {
+                                    type: "list",
+                                    children: createdTaskLinks.map(createdTaskLink => ({
+                                        type: "listItem",
+                                        children: [
+                                            {type: "paragraph", children: [createdTaskLink]},
+                                        ],
+                                    })),
+                                },
+                            ],
+                        }),
+                    );
                 }
             }
 

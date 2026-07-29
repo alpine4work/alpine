@@ -1,10 +1,11 @@
+import {BlockContent, DefinitionContent} from "mdast";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
 
 /**
  * Prints an error to a Markdown string to be returned to an agent. Uses the
@@ -38,25 +39,9 @@ export function printAgentWebError(title: string, error: unknown): string {
     }
 
     let markdown = "";
-    let internalErrorMessage: string | null = null;
 
     if (displayMessages.length === 1) {
         markdown = `Error: ${title.length > 0 ? `${title}. ` : ""}${printErrorDisplayMessage(displayMessages[0]!)}`;
-
-        // API errors include their server stack in non-production environments. Preserve
-        // the internal message when the API could only return the generic display message
-        // so agents still get an actionable explanation.
-        if (
-            error instanceof ErrorBase &&
-            printErrorDisplayMessage(displayMessages[0]!) ===
-                printErrorDisplayMessage(defaultErrorDisplayMessage) &&
-            isObject(error.cause) &&
-            isObject(error.cause.error) &&
-            typeof error.cause.error.stack === "string"
-        ) {
-            const stackFirstLine = error.cause.error.stack.split("\n", 1)[0]!;
-            internalErrorMessage = stackFirstLine.replace(/^[^:\n]*Error: /, "");
-        }
     } else if (displayMessages.length > 0) {
         markdown = `Error: ${title.length > 0 ? `${title}. ` : ""}(${displayMessages.length} errors)\n\n`;
         markdown += displayMessages
@@ -69,20 +54,73 @@ export function printAgentWebError(title: string, error: unknown): string {
         // message so we don't show just a generic "Unexpected error" message. An agent web
         // user (either developer or agent) is technical and so some potentially confusing
         // information is better than no information.
-        if (error instanceof Error) internalErrorMessage = error.message;
-    }
+        if (error instanceof Error) {
+            let errorMessage = error.message;
 
-    if (internalErrorMessage !== null) {
-        // Escape special characters like `\n`.
-        internalErrorMessage = JSON.stringify(internalErrorMessage).slice(1, -1);
+            // Escape special characters like `\n`.
+            errorMessage = JSON.stringify(errorMessage).slice(1, -1);
 
-        // Escape markdown formatting characters like `**foo**` and what not.
-        internalErrorMessage = printMarkdownTree({
-            type: "paragraph",
-            children: [{type: "text", value: internalErrorMessage}],
-        }).trim();
+            errorMessage = `Internal error: ${errorMessage}`;
 
-        markdown += `\n\n> Internal error: ${internalErrorMessage}`;
+            const errorMessageChildren = parseMarkdownTree(errorMessage).children.map(
+                (node): BlockContent | DefinitionContent => {
+                    switch (node.type) {
+                        case "break":
+                        case "delete":
+                        case "emphasis":
+                        case "image":
+                        case "imageReference":
+                        case "inlineCode":
+                        case "link":
+                        case "linkReference":
+                        case "strong":
+                        case "text":
+                        case "inlineMath": {
+                            return {
+                                type: "paragraph",
+                                children: [node],
+                            };
+                        }
+                        case "mdxFlowExpression":
+                        case "mdxJsxFlowElement":
+                        case "mdxJsxTextElement":
+                        case "mdxTextExpression":
+                        case "mdxjsEsm":
+                        case "footnoteDefinition":
+                        case "footnoteReference":
+                        case "listItem":
+                        case "tableCell":
+                        case "tableRow":
+                        case "yaml": {
+                            return {
+                                type: "paragraph",
+                                children: [
+                                    {
+                                        type: "text",
+                                        value: errorMessage
+                                            .slice(
+                                                assertExists(node.position?.start.offset),
+                                                assertExists(node.position?.end.offset),
+                                            )
+                                            .trim(),
+                                    },
+                                ],
+                            };
+                        }
+                        default:
+                            return node;
+                    }
+                },
+            );
+
+            // Escape markdown formatting characters like `**foo**` and what not.
+            errorMessage = printMarkdownTree({
+                type: "blockquote",
+                children: errorMessageChildren,
+            }).trim();
+
+            markdown += `\n\n${errorMessage}`;
+        }
     }
 
     return printMarkdownTree(parseMarkdownTree(markdown)).trimEnd();

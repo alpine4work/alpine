@@ -26,8 +26,6 @@ End of messages.'
 `),
     ).toEqual(`\
 Error: Couldn’t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
-
-> Internal error: Creating room chats from the API isn’t implemented yet
 `);
 });
 

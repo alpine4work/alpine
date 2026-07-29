@@ -24,7 +24,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 /**
  * The maximum number of results we ask the Alpine search API for.
  */
-export const agentWebSearchResultLimit = 10;
+export const defaultAgentWebSearchResultLimit = 10;
 
 /**
  * Searches the agent's Alpine space and returns the results as Markdown lists of
@@ -35,10 +35,9 @@ export const agentWebSearchResultLimit = 10;
  * section per filter, followed by an "Other results" section for results that only
  * matched the keyword search.
  */
-// NOCOMMIT: Allow agent to set the `limit` argument
 export async function callAgentWebSearchTool(
     context: AgentWebContext,
-    options: {query: string},
+    options: {query: string; limit?: number},
 ): Promise<string> {
     return await context.span.withSpan("Call agent web search tool", async span => {
         try {
@@ -53,12 +52,12 @@ export async function callAgentWebSearchTool(
 
 async function actuallyCallAgentWebSearchTool(
     context: AgentWebContext,
-    {query}: {query: string},
+    {query, limit = defaultAgentWebSearchResultLimit}: {query: string; limit?: number},
 ): Promise<string> {
     const {data} = await context.api.get(context.span, "/spaces/{id}/search", {
         params: {
             path: {id: context.spaceId},
-            query: {query, limit: agentWebSearchResultLimit},
+            query: {query, limit},
         },
     });
     if (data.results.length === 0) return "No results found.\n";

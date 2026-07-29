@@ -3,10 +3,7 @@ import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
-import {
-    AgentWebPageStoredLink,
-    printAgentWebPageStoredLinkLabel,
-} from "~/server/agents/web/agent_web_page_stored_link.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
@@ -21,10 +18,7 @@ import {
     readAgentWebMessagingPage,
     readAgentWebMessagingPageAroundMessage,
 } from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
-import {
-    updateAgentWebMessagingPage,
-    updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
-} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
+import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
@@ -32,18 +26,14 @@ import {intoApiAccountReference} from "~/shared/api/specification/into_api_accou
 import {
     ApiAccountReferenceResponse,
     ApiChatReferenceResponse,
+    ApiChatResponse,
     ApiContentInlineElementResponse,
     ApiContentResponseWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {
-    FailedPreconditionError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
+import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {
     NonEmptyReadonlyArray,
     assertNonEmptyReadonlyArray,
@@ -199,11 +189,12 @@ async function getChatRoomMetadata(
 export async function createAgentWebChatPage(
     context: AgentWebContext,
     newPage: AgentWebChatPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<{
     pageMetadata: AgentWebChatPageMetadata;
     pageLink: Extract<AgentWebPageStoredLink, {type: "Chat"}>;
 }> {
-    let wasCreated = false;
+    let createdChat: ApiChatResponse | null = null;
 
     // Creation is placed in a `Lazy` since we want to create the chat at the last
     // possible moment before it's needed. We want `updateAgentWebChatPage()` to run
@@ -211,8 +202,6 @@ export async function createAgentWebChatPage(
     // `updateAgentWebChatPage()` tries to create new chat messages do we want to
     // create the chat.
     const createPromise = new Lazy(async () => {
-        wasCreated = true;
-
         const {
             data: {chat},
         } = await context.api.post(context.span, "/chats", {
@@ -228,6 +217,8 @@ export async function createAgentWebChatPage(
             },
         });
 
+        createdChat = chat;
+
         const pageLink: Extract<AgentWebPageStoredLink, {type: "Chat"}> = {
             type: "Chat",
             id: chat.id,
@@ -240,54 +231,36 @@ export async function createAgentWebChatPage(
         };
     });
 
-    try {
-        const pageMetadata = await updateAgentWebChatPage(
-            context,
-            async () => {
-                const {pageLink} = await createPromise.get();
-                return await createAgentWebPageStoredLinkPathname(context.storage, pageLink);
-            },
-            async () => {
-                const {chat} = await createPromise.get();
-                return {
-                    type: "Chat",
-                    id: chat.id,
-                    isStartOfMessages: true,
-                    isEndOfMessages: true,
-                    messages: [],
-                };
-            },
-            {...newPage, blocks: []},
-            newPage,
-        );
+    const pageMetadata = await updateAgentWebChatPage(
+        context,
+        async () => {
+            const {pageLink} = await createPromise.get();
+            return await createAgentWebPageStoredLinkPathname(context.storage, pageLink);
+        },
+        async () => {
+            const {chat} = await createPromise.get();
+            return {
+                type: "Chat",
+                id: chat.id,
+                isStartOfMessages: true,
+                isEndOfMessages: true,
+                messages: [],
+            };
+        },
+        {...newPage, blocks: []},
+        newPage,
+        {
+            addAdditionalOutput: (output, detail) => {
+                if (
+                    createdChat === null ||
+                    createdChat.type !== "Direct" ||
+                    detail.type !== "UnseenMessages"
+                ) {
+                    addAdditionalOutput(output);
+                    return;
+                }
 
-        const {pageLink} = await createPromise.get();
-
-        return {pageMetadata, pageLink};
-    } catch (error) {
-        // If the chat was successfully created then we want to change the `displayMessage`
-        // for the unexpected new messages error.
-        if (wasCreated) {
-            const {chat, pageLink} = await createPromise.get();
-
-            if (
-                chat.type === "Direct" &&
-                error instanceof FailedPreconditionError &&
-                error.message === updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage
-            ) {
-                assert("newMessageIndexes" in error);
-                const {newMessageIndexes} = error;
-                assert(isReadonlyArray(newMessageIndexes));
-                assert(newMessageIndexes.length > 0);
-                const firstNewMessageIndex = newMessageIndexes[0]!;
-                assert(typeof firstNewMessageIndex === "number");
-                assert(firstNewMessageIndex >= 0);
-                assert(Number.isInteger(firstNewMessageIndex));
-
-                const pathname = await createAgentWebPageStoredLinkPathname(
-                    context.storage,
-                    pageLink,
-                );
+                const chat = createdChat;
 
                 const chatSummaryEntries: Array<string> = [
                     ...chat.members.slice(0, 2).map(member => member.account.shortName),
@@ -301,22 +274,16 @@ export async function createAgentWebChatPage(
 
                 const chatSummary = joinPrettyConjunctionList(chatSummaryEntries);
 
-                throw Object.assign(
-                    new FailedPreconditionError(
-                        updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
-                        {
-                            cause: error,
-                            // NOCOMMIT: Print this to markdown properly
-                            displayMessage: errorDisplayMessage`Create was successful. Found chat: [${printAgentWebPageStoredLinkLabel(pageLink)}](${pathname}). ${newMessageIndexes.length === 1 ? `The message you added was` : `The messages you added were`} created, but a chat with ${chatSummary} already existed so your ${newMessageIndexes.length === 1 ? `message was` : `messages were`} added to the end of the existing chat. If you want to see the previous messages in the chat before the new ${newMessageIndexes.length === 1 ? `message` : `messages`} you added then call the \`read\` tool with ${quote(`${pathname}?before=${firstNewMessageIndex}`)}.`,
-                        },
-                    ),
-                    {newMessageIndexes},
+                addAdditionalOutput(
+                    `A chat with ${chatSummary} already existed so your ${detail.newMessageIndexes.length === 1 ? `message was` : `messages were`} added to the end of the existing chat instead of creating a new chat. If you want to see the previous messages in the chat before the new ${detail.newMessageIndexes.length === 1 ? `message` : `messages`} you added then call the \`read\` tool with ${quote(`${detail.pathname}?before=${detail.newMessageIndexes[0]!}`)}.`,
                 );
-            }
-        }
+            },
+        },
+    );
 
-        throw error;
-    }
+    const {pageLink} = await createPromise.get();
+
+    return {pageMetadata, pageLink};
 }
 
 export async function updateAgentWebChatPage(
@@ -325,6 +292,18 @@ export async function updateAgentWebChatPage(
     oldPageMetadata: MaybeThunk<MaybePromise<AgentWebChatPageMetadata>>,
     oldPage: AgentWebChatPage,
     newPage: AgentWebChatPage,
+    {
+        addAdditionalOutput,
+    }: {
+        addAdditionalOutput: (
+            output: string,
+            detail: {
+                type: "UnseenMessages";
+                pathname: string;
+                newMessageIndexes: ReadonlyArray<number>;
+            },
+        ) => void;
+    },
 ): Promise<AgentWebChatPageMetadata> {
     switch (oldPage.preamble.type) {
         case "Direct": {
@@ -387,6 +366,7 @@ export async function updateAgentWebChatPage(
         oldPageMetadata,
         oldPage,
         newPage,
+        addAdditionalOutput,
         prepareCustomBlockUpdate: oldCustomBlock => {
             throw exhaustive(oldCustomBlock);
         },

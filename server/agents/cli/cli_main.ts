@@ -21,7 +21,10 @@ import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_
 import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
-import {callAgentWebSearchTool} from "~/server/agents/web/call_agent_web_search_tool.js";
+import {
+    callAgentWebSearchTool,
+    defaultAgentWebSearchResultLimit,
+} from "~/server/agents/web/call_agent_web_search_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {
@@ -615,6 +618,7 @@ const findArgParser = new ArgParser("find", {
 
 const searchArgParser = new ArgParser("search", {
     requiredPositionalArgs: [{name: "query"}],
+    optionalNominalArgs: [{name: "limit", preview: defaultAgentWebSearchResultLimit.toString()}],
 });
 
 async function runAgentsCliCommand(
@@ -844,9 +848,12 @@ Similarly, when adding a lot of content in an update, you can pass \`-\` to \`al
             });
         }
         case "search": {
-            const {query} = searchArgParser.parse(args);
+            const {query, limit} = searchArgParser.parse(args);
 
-            return await callAgentWebSearchTool(context, {query});
+            return await callAgentWebSearchTool(context, {
+                query,
+                limit: limit !== undefined ? parseNonNegativeInteger("limit", limit) : undefined,
+            });
         }
         default: {
             throw new InvalidArgumentError(`Unknown subcommand: ${command}`, {

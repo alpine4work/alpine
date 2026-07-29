@@ -224,6 +224,7 @@ export async function readAgentWebTaskCollectionPage(
 export async function createAgentWebTaskCollectionPage(
     context: AgentWebContext,
     newPage: AgentWebTaskCollectionPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<{
     pageMetadata: AgentWebTaskCollectionPageMetadata;
     pageLink: Extract<AgentWebPageStoredLink, {type: "TaskCollection"}>;
@@ -270,6 +271,7 @@ export async function createAgentWebTaskCollectionPage(
             emptyTaskMetadata,
             {pagination: null, tasks: [], isEndOfTasks: true},
             {pagination: null, tasks: newPage.tasks, isEndOfTasks: true},
+            {addAdditionalOutput},
         ));
     }
 
@@ -300,6 +302,7 @@ export async function updateAgentWebTaskCollectionPage(
     oldPageMetadata: AgentWebTaskCollectionPageMetadata,
     oldPage: AgentWebTaskCollectionPage,
     newPage: AgentWebTaskCollectionPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<AgentWebTaskCollectionPageMetadata> {
     switch (oldPage.subType) {
         case "Head": {
@@ -340,6 +343,7 @@ export async function updateAgentWebTaskCollectionPage(
         oldPageMetadata,
         oldPage,
         newPage,
+        {addAdditionalOutput},
     );
 
     const collectionPatches: Array<ApiTaskCollectionPatch> = [];

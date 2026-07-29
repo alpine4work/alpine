@@ -77,13 +77,24 @@ export async function callAgentWebUpdateTool(
     },
 ): Promise<string> {
     return await context.span.withSpan("Call agent web update tool", async span => {
+        let output: string;
+        const additionalOutput: Array<string> = [];
+
         try {
-            return await actuallyCallAgentWebUpdateTool({...context, span}, options);
+            output = await actuallyCallAgentWebUpdateTool({...context, span}, options, {
+                addAdditionalOutput: output => additionalOutput.push(output.trim()),
+            });
         } catch (error) {
             span.addException(error);
 
-            return printAgentWebError(`Couldn\u2019t update ${quote(options.path)}`, error);
+            output = printAgentWebError(`Couldn\u2019t update ${quote(options.path)}`, error);
         }
+
+        if (additionalOutput.length > 0) {
+            output += `\n\n${additionalOutput.join("\n\n")}`;
+        }
+
+        return output;
     });
 }
 
@@ -99,6 +110,11 @@ async function actuallyCallAgentWebUpdateTool(
             new: string;
             replaceAll: boolean;
         }>;
+    },
+    {
+        addAdditionalOutput,
+    }: {
+        addAdditionalOutput: (output: string) => void;
     },
 ): Promise<string> {
     assert(updates.length > 0);
@@ -252,32 +268,16 @@ async function actuallyCallAgentWebUpdateTool(
                 readResponse.pageMetadata,
                 new Lazy(() => parseMarkdownTree(readResponse.response)),
                 (() => parseMarkdownTree(newResponse))(),
+                {addAdditionalOutput},
             );
         } catch (error) {
-            if (!isPartialSuccess) throw error;
+            if (isPartialSuccess) {
+                addAdditionalOutput(
+                    `This update was a partial success. You must call the \`read\` tool again for ${quote(originalPath)} to find out which parts of the update were successful.`,
+                );
+            }
 
-            // Delete the read response since we don't know which parts of the update were
-            // successful and which parts failed!
-            await context.storage.readResponseByPath.delete(path);
-
-            const errorCode = getErrorCode(error);
-            const ErrorConstructor = getErrorConstructorForCode(errorCode);
-            const displayMessage = getErrorDisplayMessage(error);
-
-            // Modify the `displayMessage` so the agent knows the update was a partial success
-            // and that it needs to call `read` again since just trying `update` again won't
-            // work because we deleted the entry from `readResponseByPath`.
-            throw new ErrorConstructor(
-                (error instanceof Error ? error.message : String(error)) +
-                    " (PARTIAL SUCCESS: some of this update was persisted)",
-                {
-                    cause: error,
-                    displayMessage: concatErrorDisplayMessages(
-                        displayMessage,
-                        errorDisplayMessage` (This update was a partial success. You must call the \`read\` tool again for ${quote(originalPath)} to find out which parts of the update were successful.)`,
-                    ),
-                },
-            );
+            throw error;
         }
 
         // Allow future `scroll` calls and future `update` calls to operate on the updated
@@ -300,6 +300,7 @@ async function updateAgentWebPageLink(
     // Lazily compute the `oldResponse` since sometimes we don't need it.
     oldResponseLazy: Lazy<Root>,
     newResponse: Root,
+    options: {addAdditionalOutput: (output: string) => void},
 ): Promise<AgentWebPageMetadata> {
     switch (oldPageMetadata.type) {
         case "Skill": {
@@ -348,6 +349,7 @@ async function updateAgentWebPageLink(
                 oldPageMetadata,
                 oldPage,
                 newPage,
+                options,
             );
         }
         case "Channel": {
@@ -374,6 +376,7 @@ async function updateAgentWebPageLink(
                 oldPageMetadata,
                 oldPage,
                 newPage,
+                options,
             );
         }
         case "TaskMessageList": {
@@ -390,6 +393,7 @@ async function updateAgentWebPageLink(
                 oldPageMetadata,
                 oldPage,
                 newPage,
+                options,
             );
         }
         case "Task": {
@@ -400,7 +404,13 @@ async function updateAgentWebPageLink(
                 parseAgentWebTaskPage(context.storage, oldPageMetadata.id, newResponse),
             ]);
 
-            return await updateAgentWebTaskPage(context, oldPageMetadata, oldPage, newPage);
+            return await updateAgentWebTaskPage(
+                context,
+                oldPageMetadata,
+                oldPage,
+                newPage,
+                options,
+            );
         }
         case "TaskCollection": {
             const oldResponse = oldResponseLazy.get();
@@ -415,6 +425,7 @@ async function updateAgentWebPageLink(
                 oldPageMetadata,
                 oldPage,
                 newPage,
+                options,
             );
         }
         case "TaskSubtasks": {
@@ -425,7 +436,13 @@ async function updateAgentWebPageLink(
                 parseAgentWebTaskSubtasksPage(context.storage, oldPageMetadata.id, newResponse),
             ]);
 
-            return await updateAgentWebTaskSubtasksPage(context, oldPageMetadata, oldPage, newPage);
+            return await updateAgentWebTaskSubtasksPage(
+                context,
+                oldPageMetadata,
+                oldPage,
+                newPage,
+                options,
+            );
         }
         case "Post": {
             const oldResponse = oldResponseLazy.get();
@@ -441,6 +458,7 @@ async function updateAgentWebPageLink(
                 oldPageMetadata,
                 oldPage,
                 newPage,
+                options,
             );
         }
         default:

@@ -37,13 +37,8 @@ import {
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
-import {InvalidArgumentError, getErrorCode} from "~/shared/error/error.js";
-import {
-    concatErrorDisplayMessages,
-    errorDisplayMessage,
-} from "~/shared/error/error_display_message.js";
-import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -59,18 +54,29 @@ export async function callAgentWebCreateTool(
     },
 ): Promise<string> {
     return await context.span.withSpan("Call agent web create tool", async span => {
+        let output: string;
+        const additionalOutput: Array<string> = [];
+
         try {
-            return await actuallyCallAgentWebCreateTool({...context, span}, options);
+            output = await actuallyCallAgentWebCreateTool({...context, span}, options, {
+                addAdditionalOutput: output => additionalOutput.push(output.trim()),
+            });
         } catch (error) {
             span.addException(error);
 
             const type = parseCallAgentWebCreateToolType(options.type);
 
-            return printAgentWebError(
+            output = printAgentWebError(
                 `Couldn\u2019t create${type !== null ? ` ${type}` : ""}`,
                 error,
             );
         }
+
+        if (additionalOutput.length > 0) {
+            output += `\n\n${additionalOutput.join("\n\n")}`;
+        }
+
+        return output;
     });
 }
 
@@ -83,6 +89,7 @@ async function actuallyCallAgentWebCreateTool(
         type: string;
         content: string;
     },
+    {addAdditionalOutput}: {addAdditionalOutput: (information: string) => void},
 ): Promise<string> {
     const actualType = parseCallAgentWebCreateToolType(type);
 
@@ -143,28 +150,16 @@ async function actuallyCallAgentWebCreateTool(
             contextWithPartialSuccessDetection,
             actualType,
             contentTree,
+            {addAdditionalOutput},
         ));
     } catch (error) {
-        if (!isPartialSuccess) throw error;
+        if (isPartialSuccess) {
+            addAdditionalOutput(
+                "This create was a partial success. Try to figure out which parts of the create were successful before trying again.",
+            );
+        }
 
-        const errorCode = getErrorCode(error);
-        const ErrorConstructor = getErrorConstructorForCode(errorCode);
-        const displayMessage = getErrorDisplayMessage(error);
-
-        // Modify the `displayMessage` so the agent knows the update was a partial success
-        // and that it needs to call `read` again since just trying `update` again won't
-        // work because we deleted the entry from `readResponseByPath`.
-        throw new ErrorConstructor(
-            (error instanceof Error ? error.message : String(error)) +
-                " (PARTIAL SUCCESS: some of this create was persisted)",
-            {
-                cause: error,
-                displayMessage: concatErrorDisplayMessages(
-                    displayMessage,
-                    errorDisplayMessage` (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)`,
-                ),
-            },
-        );
+        throw error;
     }
 
     const pageLinkPathname = await createAgentWebPageLinkPathname(context.storage, pageLink);
@@ -267,6 +262,7 @@ async function createAgentWebPageLink(
     context: AgentWebContext,
     type: CallAgentWebCreateToolType,
     content: Root,
+    options: {addAdditionalOutput: (output: string) => void},
 ): Promise<{
     pageMetadata: AgentWebPageMetadata;
     pageLink: AgentWebPageLink;
@@ -293,7 +289,11 @@ async function createAgentWebPageLink(
         case "chat": {
             const newPage = await parseAgentWebChatPage(context.storage, null, content);
 
-            const {pageMetadata, pageLink} = await createAgentWebChatPage(context, newPage);
+            const {pageMetadata, pageLink} = await createAgentWebChatPage(
+                context,
+                newPage,
+                options,
+            );
 
             return {
                 pageMetadata,
@@ -326,7 +326,11 @@ async function createAgentWebPageLink(
         case "task": {
             const newPage = await parseAgentWebTaskPage(context.storage, null, content);
 
-            const {pageMetadata, pageLink} = await createAgentWebTaskPage(context, newPage);
+            const {pageMetadata, pageLink} = await createAgentWebTaskPage(
+                context,
+                newPage,
+                options,
+            );
 
             return {
                 pageMetadata,
@@ -340,6 +344,7 @@ async function createAgentWebPageLink(
             const {pageMetadata, pageLink} = await createAgentWebTaskCollectionPage(
                 context,
                 newPage,
+                options,
             );
 
             return {
