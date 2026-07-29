@@ -1782,3 +1782,146 @@ Paginated comment 7. This comment has enough detail to make the response require
 </comment>
 `);
 });
+
+test("read a task page with more than fifty subtasks", async () => {
+    const collection = await TestTaskCollection.create(cli.session, {
+        name: "Large read state tasks",
+        access: "Public",
+    });
+    const parentTask = await TestTask.create(cli.session, {
+        title: "Large parent read state",
+        collections: collection,
+    });
+
+    expect(await cli.run("alpine search 'Large read state tasks'")).toEqual(
+        expect.stringContaining(
+            "[Large read state tasks](/task-collection/large-read-state-tasks)",
+        ),
+    );
+
+    expect(await cli.run("alpine read /task-collection/large-read-state-tasks")).toEqual(`\
+# Large read state tasks
+
+- [Large parent read state (Open)](/task/large-parent-read-state)
+
+End of tasks.
+`);
+
+    for (let index = 1; index <= 51; index++) {
+        await TestTask.create(cli.session, {
+            title: `Read state subtask ${index}`,
+            parent: parentTask,
+        });
+    }
+
+    expect(await cli.run("alpine read /task/large-parent-read-state")).toEqual(`\
+# Large parent read state
+
+- Status: Open
+- Collections: [Large read state tasks](/task-collection/large-read-state-tasks)
+
+## Subtasks
+
+- [Read state subtask 1 (Open)](/task/read-state-subtask-1)
+
+- [Read state subtask 2 (Open)](/task/read-state-subtask-2)
+
+- [Read state subtask 3 (Open)](/task/read-state-subtask-3)
+
+- [Read state subtask 4 (Open)](/task/read-state-subtask-4)
+
+- [Read state subtask 5 (Open)](/task/read-state-subtask-5)
+
+- [Read state subtask 6 (Open)](/task/read-state-subtask-6)
+
+- [Read state subtask 7 (Open)](/task/read-state-subtask-7)
+
+- [Read state subtask 8 (Open)](/task/read-state-subtask-8)
+
+- [Read state subtask 9 (Open)](/task/read-state-subtask-9)
+
+- [Read state subtask 10 (Open)](/task/read-state-subtask-10)
+
+- [Read state subtask 11 (Open)](/task/read-state-subtask-11)
+
+- [Read state subtask 12 (Open)](/task/read-state-subtask-12)
+
+- [Read state subtask 13 (Open)](/task/read-state-subtask-13)
+
+- [Read state subtask 14 (Open)](/task/read-state-subtask-14)
+
+- [Read state subtask 15 (Open)](/task/read-state-subtask-15)
+
+- [Read state subtask 16 (Open)](/task/read-state-subtask-16)
+
+- [Read state subtask 17 (Open)](/task/read-state-subtask-17)
+
+- [Read state subtask 18 (Open)](/task/read-state-subtask-18)
+
+- [Read state subtask 19 (Open)](/task/read-state-subtask-19)
+
+- [Read state subtask 20 (Open)](/task/read-state-subtask-20)
+
+- [Read state subtask 21 (Open)](/task/read-state-subtask-21)
+
+- [Read state subtask 22 (Open)](/task/read-state-subtask-22)
+
+- [Read state subtask 23 (Open)](/task/read-state-subtask-23)
+
+- [Read state subtask 24 (Open)](/task/read-state-subtask-24)
+
+- [Read state subtask 25 (Open)](/task/read-state-subtask-25)
+
+- [Read state subtask 26 (Open)](/task/read-state-subtask-26)
+
+- [Read state subtask 27 (Open)](/task/read-state-subtask-27)
+
+- [Read state subtask 28 (Open)](/task/read-state-subtask-28)
+
+- [Read state subtask 29 (Open)](/task/read-state-subtask-29)
+
+- [Read state subtask 30 (Open)](/task/read-state-subtask-30)
+
+- [Read state subtask 31 (Open)](/task/read-state-subtask-31)
+
+- [Read state subtask 32 (Open)](/task/read-state-subtask-32)
+
+- [Read state subtask 33 (Open)](/task/read-state-subtask-33)
+
+- [Read state subtask 34 (Open)](/task/read-state-subtask-34)
+
+- [Read state subtask 35 (Open)](/task/read-state-subtask-35)
+
+- [Read state subtask 36 (Open)](/task/read-state-subtask-36)
+
+- [Read state subtask 37 (Open)](/task/read-state-subtask-37)
+
+- [Read state subtask 38 (Open)](/task/read-state-subtask-38)
+
+- [Read state subtask 39 (Open)](/task/read-state-subtask-39)
+
+- [Read state subtask 40 (Open)](/task/read-state-subtask-40)
+
+- [Read state subtask 41 (Open)](/task/read-state-subtask-41)
+
+- [Read state subtask 42 (Open)](/task/read-state-subtask-42)
+
+- [Read state subtask 43 (Open)](/task/read-state-subtask-43)
+
+- [Read state subtask 44 (Open)](/task/read-state-subtask-44)
+
+- [Read state subtask 45 (Open)](/task/read-state-subtask-45)
+
+- [Read state subtask 46 (Open)](/task/read-state-subtask-46)
+
+- [Read state subtask 47 (Open)](/task/read-state-subtask-47)
+
+- [Read state subtask 48 (Open)](/task/read-state-subtask-48)
+
+- [Read state subtask 49 (Open)](/task/read-state-subtask-49)
+
+- [Read state subtask 50 (Open)](/task/read-state-subtask-50)
+
+[See more (1 remaining) »](/task/large-parent-read-state/subtasks?after=000000)
+`);
+});
