@@ -412,9 +412,12 @@ test("allows a later new message to quote an earlier new message", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t update `/chat/incident-response`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)",
-    );
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Creating message with parent as agent isn\u2019t implemented yet
+
+This update was a partial success. You must call the \`read\` tool again for \`/chat/incident-response\` to find out which parts of the update were successful.`);
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -427,7 +430,6 @@ test("allows a later new message to quote an earlier new message", async () => {
 test("reports unseen messages after creating one message in an empty chat", async () => {
     await readChat({totalMessageCount: 0});
     mockCreateMessages({count: 1, startIndex: 1});
-
     await expect(
         callAgentWebUpdateTool(context, {
             path: chatPath,
@@ -439,11 +441,10 @@ test("reports unseen messages after creating one message in an empty chat", asyn
                 },
             ],
         }),
-    ).resolves.toEqual(
-        // NOCOMMIT: Can we do better at all here? Maybe not call it an "Error"?
-        "Error: Couldn\u2019t update `/chat/incident-response`. " +
-            "Update was successful, the message you added was created. But between the last message you read and the message you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?start`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)",
-    );
+    ).resolves.toEqual(`\
+Update was successful.
+
+Between the last message you read and the message you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`/chat/incident-response?start\`.`);
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -468,10 +469,10 @@ test("reports unseen messages after creating multiple messages in an empty chat"
                 },
             ],
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t update `/chat/incident-response`. " +
-            "Update was successful, the messages you added were created. But between the last message you read and the messages you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?start`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)",
-    );
+    ).resolves.toEqual(`\
+Update was successful.
+
+Between the last message you read and the messages you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`/chat/incident-response?start\`.`);
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -508,10 +509,10 @@ test("reports unseen messages after creating one message with existing messages"
                 },
             ],
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t update `/chat/incident-response`. " +
-            'Update was successful, the message you added was created. But between the last message you read (`<message id="1">`) and the message you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?after=2`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)',
-    );
+    ).resolves.toEqual(`\
+Update was successful.
+
+Between the last message you read (\`<message id="1">\`) and the message you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`/chat/incident-response?after=2\`.`);
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -544,10 +545,10 @@ test("reports unseen messages after creating multiple messages with existing mes
                 },
             ],
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t update `/chat/incident-response`. " +
-            'Update was successful, the messages you added were created. But between the last message you read (`<message id="1">`) and the messages you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?after=2`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)',
-    );
+    ).resolves.toEqual(`\
+Update was successful.
+
+Between the last message you read (\`<message id="1">\`) and the messages you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`/chat/incident-response?after=2\`.`);
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
@@ -1075,6 +1076,7 @@ test("rejects creating non-message custom blocks", async () => {
             oldPage,
             newPage,
             prepareCustomBlockUpdate: () => ({update: async () => {}}),
+            addAdditionalOutput: () => {},
         }),
     ).rejects.toMatchObject({
         message: "Can only create messages",

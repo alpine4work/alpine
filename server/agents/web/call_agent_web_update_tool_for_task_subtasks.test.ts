@@ -310,7 +310,10 @@ test("creates a task in the middle of manually ordered subtasks", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.");
+    ).resolves.toEqual(`\
+Update was successful.
+
+Created the following task: [New subtask (Closed)](/task/new-subtask)`);
 
     expect(
         api
@@ -410,7 +413,10 @@ test("moves a subtask and creates a subtask immediately after it at the same pos
             .filter(request => request.method === "PATCH" && request.path === "/tasks")
             .map(request => request.body),
     }).toEqual({
-        result: "Update was successful.",
+        result: `\
+Update was successful.
+
+Created the following task: [New subtask (Open)](/task/new-subtask)`,
         requests: [
             {
                 spaceId,
@@ -432,8 +438,11 @@ test("moves a subtask and creates a subtask immediately after it at the same pos
                         task: {
                             title: "New subtask",
                             status: {type: "Open", isActive: false},
+                            assignee: undefined,
                             parent: {task: {id: parentTask.id}},
                             collections: [],
+                            due: undefined,
+                            priority: undefined,
                         },
                         patches: [
                             {
@@ -515,7 +524,10 @@ test("creates a subtask immediately before a moved subtask at the same position"
             .filter(request => request.method === "PATCH" && request.path === "/tasks")
             .map(request => request.body),
     }).toEqual({
-        result: "Update was successful.",
+        result: `\
+Update was successful.
+
+Created the following task: [New subtask (Open)](/task/new-subtask)`,
         requests: [
             {
                 spaceId,
@@ -525,8 +537,11 @@ test("creates a subtask immediately before a moved subtask at the same position"
                         task: {
                             title: "New subtask",
                             status: {type: "Open", isActive: false},
+                            assignee: undefined,
                             parent: {task: {id: parentTask.id}},
                             collections: [],
+                            due: undefined,
+                            priority: undefined,
                         },
                         patches: [
                             {
@@ -615,7 +630,14 @@ End of tasks.`,
             .filter(request => request.method === "PATCH" && request.path === "/tasks")
             .map(request => request.body),
     }).toEqual({
-        result: "Update was successful.",
+        result: `\
+Update was successful.
+
+Created the following tasks:
+
+- [First new subtask (Open)](/task/first-new-subtask)
+
+- [Second new subtask (Open)](/task/second-new-subtask)`,
         requests: [
             {
                 spaceId,
@@ -625,8 +647,11 @@ End of tasks.`,
                         task: {
                             title: "First new subtask",
                             status: {type: "Open", isActive: false},
+                            assignee: undefined,
                             parent: {task: {id: parentTask.id}},
                             collections: [],
+                            due: undefined,
+                            priority: undefined,
                         },
                         patches: [{type: "MoveInParent", position: {type: "End"}}],
                     },
@@ -635,8 +660,11 @@ End of tasks.`,
                         task: {
                             title: "Second new subtask",
                             status: {type: "Open", isActive: false},
+                            assignee: undefined,
                             parent: {task: {id: parentTask.id}},
                             collections: [],
+                            due: undefined,
+                            priority: undefined,
                         },
                         patches: [{type: "MoveInParent", position: {type: "End"}}],
                     },
@@ -695,7 +723,10 @@ test("updates and creates tasks in one request", async () => {
             .filter(request => request.method === "PATCH" && request.path === "/tasks")
             .map(request => request.body),
     }).toEqual({
-        result: "Update was successful.",
+        result: `\
+Update was successful.
+
+Created the following task: [New subtask (Open)](/task/new-subtask)`,
         requests: [
             {
                 spaceId,
@@ -710,8 +741,11 @@ test("updates and creates tasks in one request", async () => {
                         task: {
                             title: "New subtask",
                             status: {type: "Open", isActive: false},
+                            assignee: undefined,
                             parent: {task: {id: parentTask.id}},
                             collections: [],
+                            due: undefined,
+                            priority: undefined,
                         },
                         patches: [{type: "MoveInParent", position: {type: "End"}}],
                     },

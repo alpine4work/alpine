@@ -14,7 +14,7 @@ alpine read <path> [--limit 20kb]
 alpine create <type> <content>
 alpine update <path> --old "..." --new "..."
 alpine delete <path>
-alpine search <query>
+alpine search <query> [--limit 10]
 alpine scroll <path> --offset 0 [--limit 20kb]
 alpine find <path> <pattern> [--offset 0] [--limit 4kb] [--match-limit 5]
 \`\`\`

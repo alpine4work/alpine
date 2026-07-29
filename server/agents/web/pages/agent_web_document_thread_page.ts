@@ -476,6 +476,7 @@ export async function createAgentWebDocumentThreadPage(
     context: AgentWebContext,
     documentPath: string,
     newPage: AgentWebDocumentThreadPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ) {
     const documentReadResponse = await context.storage.readResponseByPath.get(documentPath);
 
@@ -616,6 +617,7 @@ export async function createAgentWebDocumentThreadPage(
         },
         {...newPage, blocks: [quoteBlock, firstCommentBlock]},
         newPage,
+        {addAdditionalOutput},
     );
 
     const {pageLink} = await createPromise.get();

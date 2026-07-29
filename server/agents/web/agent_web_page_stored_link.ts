@@ -190,6 +190,13 @@ export function printAgentWebPageStoredLinkLabel(link: ApiMentionReferenceRespon
             return link.title;
         }
         case "Task": {
+            // We include the status in the label which to help the agent distinguish whether
+            // the task is opened or closed. This mirrors the UI which includes the status of a
+            // task in the task mention. Which makes this a clever trick. When mentioning a
+            // task, the agent will follow the format its read and put the status _inside_ the
+            // link instead of outside (we observe the agent liked putting the status outside
+            // before). Then the user sees the status as part of the mention and the status
+            // isn't repeated twice.
             return `${link.title} ${link.status.type === "Open" ? (link.status.isActive ? "(Open, active)" : "(Open)") : "(Closed)"}`;
         }
         default:

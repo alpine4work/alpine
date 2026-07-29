@@ -658,9 +658,12 @@ Replying to an ambiguous parent.
 
 End of messages.`,
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
-    );
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Creating message with parent as agent isn\u2019t implemented yet
+
+This create was a partial success. Try to figure out which parts of the create were successful before trying again.`);
 
     expect(getCreateChatRequests()).toHaveLength(1);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
@@ -734,10 +737,12 @@ Replying to the second match.
 
 End of messages.`,
         }),
-    ).resolves.toEqual(
-        // NOCOMMIT: Why is there no "Internal error:" here?
-        "Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
-    );
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Creating message with parent as agent isn\u2019t implemented yet
+
+This create was a partial success. Try to figure out which parts of the create were successful before trying again.`);
     expect(getCreateChatRequests()).toHaveLength(1);
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         createTextMessageRequestBody("needle needle"),
@@ -774,9 +779,12 @@ Replying to the message we just created.
 
 End of messages.`,
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
-    );
+    ).resolves.toEqual(`\
+Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Creating message with parent as agent isn\u2019t implemented yet
+
+This create was a partial success. Try to figure out which parts of the create were successful before trying again.`);
 
     expect(getCreateChatRequests()).toMatchObject([
         {
@@ -1058,10 +1066,10 @@ I am following up in the existing direct chat.
 
 End of messages.`,
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t create chat. " +
-            "Create was successful. Found chat: [Alice and Bob Existing Single](/chat/alice-and-bob-existing-single). The message you added was created, but a chat with Alice and Bob already existed so your message was added to the end of the existing chat. If you want to see the previous messages in the chat before the new message you added then call the `read` tool with `/chat/alice-and-bob-existing-single?before=20`. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
-    );
+    ).resolves.toEqual(`\
+Create was successful. New chat: [Alice and Bob Existing Single](/chat/alice-and-bob-existing-single).
+
+A chat with Alice and Bob already existed so your message was added to the end of the existing chat instead of creating a new chat. If you want to see the previous messages in the chat before the new message you added then call the \`read\` tool with \`/chat/alice-and-bob-existing-single?before=20\`.`);
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         createTextMessageRequestBody("I am following up in the existing direct chat."),
@@ -1092,10 +1100,10 @@ These should land after the existing history.
 
 End of messages.`,
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t create chat. " +
-            "Create was successful. Found chat: [Alice and Bob Existing Multiple](/chat/alice-and-bob-existing-multiple). The messages you added were created, but a chat with Alice and Bob already existed so your messages were added to the end of the existing chat. If you want to see the previous messages in the chat before the new messages you added then call the `read` tool with `/chat/alice-and-bob-existing-multiple?before=20`. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
-    );
+    ).resolves.toEqual(`\
+Create was successful. New chat: [Alice and Bob Existing Multiple](/chat/alice-and-bob-existing-multiple).
+
+A chat with Alice and Bob already existed so your messages were added to the end of the existing chat instead of creating a new chat. If you want to see the previous messages in the chat before the new messages you added then call the \`read\` tool with \`/chat/alice-and-bob-existing-multiple?before=20\`.`);
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         createTextMessageRequestBody("I am following up in the existing direct chat."),

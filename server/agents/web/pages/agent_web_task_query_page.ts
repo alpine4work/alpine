@@ -1424,6 +1424,8 @@ export async function updateAgentWebTaskQueryPage(
 
     return {
         execute: async pageLink => {
+            let isCreate: boolean;
+
             switch (pageLink.type) {
                 case "TaskCollection": {
                     // We allow `originalPageLink.id` to be `null` so that a task collection and its
@@ -1433,6 +1435,8 @@ export async function updateAgentWebTaskQueryPage(
                         originalPageLink.type === "TaskCollection" &&
                             (originalPageLink.id === null || originalPageLink.id === pageLink.id),
                     );
+
+                    isCreate = originalPageLink.id === null;
                     break;
                 }
                 case "TaskSubtasks": {
@@ -1445,6 +1449,8 @@ export async function updateAgentWebTaskQueryPage(
                             (originalPageLink.task.id === null ||
                                 originalPageLink.task.id === pageLink.task.id),
                     );
+
+                    isCreate = originalPageLink.id === null;
                     break;
                 }
                 default:
@@ -1774,8 +1780,14 @@ export async function updateAgentWebTaskQueryPage(
                                 {
                                     type: "paragraph",
                                     children: [
-                                        {type: "text", value: "Created the following task: "},
+                                        {
+                                            type: "text",
+                                            value: isCreate
+                                                ? "Also created the following task: "
+                                                : "Created the following task: ",
+                                        },
                                         createdTaskLinks[0]!,
+                                        {type: "text", value: "."},
                                     ],
                                 },
                             ],
@@ -1789,7 +1801,12 @@ export async function updateAgentWebTaskQueryPage(
                                 {
                                     type: "paragraph",
                                     children: [
-                                        {type: "text", value: "Created the following tasks:"},
+                                        {
+                                            type: "text",
+                                            value: isCreate
+                                                ? "Also created the following tasks:"
+                                                : "Created the following tasks:",
+                                        },
                                     ],
                                 },
                                 {

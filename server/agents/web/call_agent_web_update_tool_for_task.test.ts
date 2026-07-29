@@ -394,7 +394,10 @@ test("adds a new task in a subtask section", async () => {
                 },
             ],
         }),
-    ).resolves.toEqual("Update was successful.");
+    ).resolves.toEqual(`\
+Update was successful.
+
+Created the following task: [New subtask (Closed)](/task/new-subtask)`);
 
     expect(getTaskListPatchRequests().map(request => request.body)).toEqual([
         {

@@ -315,7 +315,11 @@ async function createAgentWebPageLink(
         case "post": {
             const newPage = await parseAgentWebPostPage(context.storage, null, content);
 
-            const {pageMetadata, pageLink} = await createAgentWebPostPage(context, newPage);
+            const {pageMetadata, pageLink} = await createAgentWebPostPage(
+                context,
+                newPage,
+                options,
+            );
 
             return {
                 pageMetadata,
@@ -365,6 +369,7 @@ async function createAgentWebPageLink(
                 context,
                 documentPath,
                 newPage,
+                options,
             );
 
             return {

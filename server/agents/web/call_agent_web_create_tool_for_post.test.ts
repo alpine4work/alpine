@@ -780,10 +780,10 @@ Created after another comment.
 
 End of comments.`,
         }),
-    ).resolves.toEqual(
-        "Error: Couldn\u2019t create post. " +
-            "Update was successful, the comment you added was created. But between the last comment you read and the comment you created there are some new comments from others you haven\u2019t seen. These new comments may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/post/racing-comment?start`. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
-    );
+    ).resolves.toEqual(`\
+Create was successful. New post: [Racing Comment](/post/racing-comment).
+
+Between the last comment you read and the comment you created there are some new comments from others you haven\u2019t seen. These new comments may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`/post/racing-comment?start\`.`);
     expect(getCreatePostRequests()).toHaveLength(1);
     expect(getCreateCommentRequests()).toHaveLength(1);
 });

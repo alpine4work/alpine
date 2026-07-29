@@ -347,9 +347,10 @@ test("creates a task with a new subtask and all its fields", async () => {
             body: request.body,
         })),
     }).toEqual({
-        result:
-            "Create was successful. New task: " +
-            "[Create with a new subtask](/task/create-with-a-new-subtask).",
+        result: `\
+Create was successful. New task: [Create with a new subtask](/task/create-with-a-new-subtask).
+
+Created the following task: [Draft launch brief (Open, active)](/task/draft-launch-brief)`,
         requests: [
             {
                 method: "POST",

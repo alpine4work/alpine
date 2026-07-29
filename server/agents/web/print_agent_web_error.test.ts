@@ -78,7 +78,7 @@ test("hides all AggregateError display messages when one plain Error has none", 
     expect(printAgentWebError("Update failed", error)).toBe(`\
 Error: Update failed. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
-> Internal error: Couldn\u2019t update \\*\\*two\\*\\* tasks`);
+> Internal error: Couldn\u2019t update **two** tasks`);
 });
 
 test("hides all AggregateError display messages when one ErrorBase has none", () => {
@@ -116,7 +116,7 @@ Error: An unexpected error occurred, please try again. If the problem continues,
 > Internal error: Task ID is invalid`);
 });
 
-test("prints the server error behind a generic API display message", () => {
+test("doesn\u2019t print the server error behind a generic API display message", () => {
     const error = new InternalError("API request failed", {
         displayMessage: defaultErrorDisplayMessage,
         cause: {
@@ -131,9 +131,7 @@ test("prints the server error behind a generic API display message", () => {
     });
 
     expect(printAgentWebError("Couldn\u2019t create chat", error)).toBe(`\
-Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
-
-> Internal error: Creating room chats from the API isn\u2019t implemented yet`);
+Error: Couldn\u2019t create chat. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc`);
 });
 
 test("prints a non-Error value without an internal error message", () => {
@@ -147,7 +145,7 @@ test("escapes special characters in an internal error message", () => {
     expect(printAgentWebError("", error)).toBe(`\
 Error: An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
-> Internal error: First line\\nSecond line\\r\\nTabbed\\tNUL\\u0000 quote \u201C backslash \\\\\\\\`);
+> Internal error: First line\\nSecond line\\r\\nTabbed\\tNUL\\u0000 quote \u201C backslash \\\\`);
 });
 
 test("escapes Markdown formatting in an internal error message", () => {

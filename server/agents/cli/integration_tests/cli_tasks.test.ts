@@ -354,6 +354,8 @@ alpine update /task-collection/move-and-add-roadmap \\
 `),
     ).toEqual(`\
 Update was successful.
+
+Created the following task: [Move add new task (Open)](/task/move-add-new-task)
 `);
 
     expect(await cli.run("alpine read /task-collection/move-and-add-roadmap")).toEqual(`\
@@ -396,6 +398,8 @@ alpine update /task-collection/adjacent-move-roadmap \\
 `),
     ).toEqual(`\
 Update was successful.
+
+Created the following task: [Adjacent new task (Open)](/task/adjacent-new-task)
 `);
 
     expect(await cli.run("alpine read /task-collection/adjacent-move-roadmap")).toEqual(`\
@@ -428,6 +432,14 @@ alpine create task '# Adjacent subtask parent
 `),
     ).toEqual(`\
 Create was successful. New task: [Adjacent subtask parent](/task/adjacent-subtask-parent).
+
+Created the following tasks:
+
+- [Adjacent first subtask (Open)](/task/adjacent-first-subtask)
+
+- [Adjacent second subtask (Open)](/task/adjacent-second-subtask)
+
+- [Adjacent third subtask (Open)](/task/adjacent-third-subtask)
 `);
 
     expect(await cli.run("alpine read /task/adjacent-subtask-parent/subtasks")).toEqual(`\
@@ -462,6 +474,12 @@ alpine update /task/adjacent-subtask-parent/subtasks \\
 `),
     ).toEqual(`\
 Update was successful.
+
+Created the following tasks:
+
+- [Adjacent new subtask 1 (Open)](/task/adjacent-new-subtask-1)
+
+- [Adjacent new subtask 2 (Open)](/task/adjacent-new-subtask-2)
 `);
 
     expect(await cli.run("alpine read /task/adjacent-subtask-parent/subtasks")).toEqual(`\
