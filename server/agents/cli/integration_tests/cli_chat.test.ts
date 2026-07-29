@@ -480,9 +480,7 @@ test("read a room chat from the start and follow its next page", async () => {
     }
 
     expect(await cli.run("alpine search 'YouTube start pagination'")).toEqual(
-        expect.stringContaining(
-            "[**YouTube start pagination**](/chat/youtube-start-pagination)",
-        ),
+        expect.stringContaining("[**YouTube start pagination**](/chat/youtube-start-pagination)"),
     );
 
     expect(await cli.run("alpine read '/chat/youtube-start-pagination?start' --limit=1kb"))
