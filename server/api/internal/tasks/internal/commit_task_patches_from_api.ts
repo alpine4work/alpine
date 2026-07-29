@@ -243,8 +243,6 @@ export async function commitTaskPatchesFromApi(
         // authorization data once.
         updateTaskIds.length > 0
             ? context.tasks.loadQueries(
-                  // NOCOMMIT: What happens if task exists but in a different space? We should throw
-                  // some kind of error.
                   spaceId,
                   {
                       queries: [],
