@@ -5,6 +5,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {processIndexSearchEntityJob} from "~/server/search/data/index/search_entity_index.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const cli = setupCliForTest();
@@ -45,9 +46,13 @@ Create was successful. New document: [YouTube launch](/document/youtube-launch).
 });
 
 test("create document from stdin", async () => {
-    await cli.run(`printf '%s' '# YouTube stdin creation
+    expect(
+        await cli.run(`printf '%s' '# YouTube stdin creation
 
-YouTube was created from stdin.' | alpine create document -`);
+YouTube was created from stdin.' | alpine create document -`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube stdin creation](/document/youtube-stdin-creation).
+`);
 
     expect(await cli.run("alpine read /document/youtube-stdin-creation")).toEqual(`\
 # YouTube stdin creation
@@ -57,10 +62,14 @@ YouTube was created from stdin.
 });
 
 test("read document created by the CLI", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# YouTube overview
 
 YouTube is an American online video sharing and social media platform headquartered in San Bruno, California.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube overview](/document/youtube-overview).
 `);
 
     expect(await cli.run("alpine read /document/youtube-overview")).toEqual(`\
@@ -112,13 +121,17 @@ YouTube is an American online video sharing and social media platform.
 });
 
 test("create and read document with a GFM table", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 printf '%s' '# YouTube milestones
 
 | Year | Event |
 | - | - |
 | 2005 | Founded |
 | 2006 | Acquired |' | alpine create document -
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube milestones](/document/youtube-milestones).
 `);
 
     expect(await cli.run("alpine read /document/youtube-milestones")).toEqual(`\
@@ -155,15 +168,25 @@ The first video, “Me at the zoo,” was uploaded on April 23, 2005.
 });
 
 test("scroll document", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# YouTube acquisition
 
 Google bought YouTube for $1.65 billion in October 2006.
 
 The acquisition expanded the platform beyond advertising.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube acquisition](/document/youtube-acquisition).
 `);
 
-    await cli.run("alpine read /document/youtube-acquisition");
+    expect(await cli.run("alpine read /document/youtube-acquisition")).toEqual(`\
+# YouTube acquisition
+
+Google bought YouTube for $1.65 billion in October 2006.
+
+The acquisition expanded the platform beyond advertising.
+`);
 
     expect(await cli.run("alpine scroll /document/youtube-acquisition --offset 2")).toEqual(`\
 Google bought YouTube for $1.65 billion in October 2006.
@@ -175,15 +198,25 @@ The acquisition expanded the platform beyond advertising.
 });
 
 test("scroll document with offset positioned before path", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# YouTube acquisition
 
 Google bought YouTube for $1.65 billion in October 2006.
 
 The acquisition expanded the platform beyond advertising.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube acquisition](/document/youtube-acquisition).
 `);
 
-    await cli.run("alpine read /document/youtube-acquisition");
+    expect(await cli.run("alpine read /document/youtube-acquisition")).toEqual(`\
+# YouTube acquisition
+
+Google bought YouTube for $1.65 billion in October 2006.
+
+The acquisition expanded the platform beyond advertising.
+`);
 
     expect(await cli.run("alpine scroll --offset ' 2 ' /document/youtube-acquisition")).toEqual(`\
 Google bought YouTube for $1.65 billion in October 2006.
@@ -195,13 +228,21 @@ The acquisition expanded the platform beyond advertising.
 });
 
 test("find in document", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# YouTube founders
 
 YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube founders](/document/youtube-founders).
 `);
 
-    await cli.run("alpine read /document/youtube-founders");
+    expect(await cli.run("alpine read /document/youtube-founders")).toEqual(`\
+# YouTube founders
+
+YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim.
+`);
 
     expect(await cli.run("alpine find /document/youtube-founders 'Jawed Karim' --match-limit=80b"))
         .toEqual(`\
@@ -218,13 +259,21 @@ YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim.
 });
 
 test("update document", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# YouTube advertising revenue
 
 YouTube’s annual advertising revenue increased to $28.8 billion in 2021.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube advertising revenue](/document/youtube-advertising-revenue).
 `);
 
-    await cli.run("alpine read /document/youtube-advertising-revenue");
+    expect(await cli.run("alpine read /document/youtube-advertising-revenue")).toEqual(`\
+# YouTube advertising revenue
+
+YouTube’s annual advertising revenue increased to $28.8 billion in 2021.
+`);
 
     expect(
         await cli.run("alpine update /document/youtube-advertising-revenue --old 2021 --new 2022"),
@@ -241,16 +290,54 @@ YouTube’s annual advertising revenue increased to $28.8 billion in 2022.
     );
 });
 
+test("update document title", async () => {
+    expect(
+        await cli.run(`\
+alpine create document '# Original YouTube title
+
+The document body stays the same.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [Original YouTube title](/document/original-youtube-title).
+`);
+
+    expect(await cli.run("alpine read /document/original-youtube-title")).toEqual(`\
+# Original YouTube title
+
+The document body stays the same.
+`);
+
+    expect(
+        await cli.run(
+            "alpine update /document/original-youtube-title --old '# Original YouTube title' --new '# Updated YouTube title'",
+        ),
+    ).toEqual(`\
+Update was successful.
+`);
+
+    expect(await cli.run("alpine read /document/original-youtube-title")).toEqual(`\
+# Updated YouTube title
+
+The document body stays the same.
+`);
+});
+
 test("update document multiple times", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# Multiple YouTube updates
 
 YouTube has an old title and an old description.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [Multiple YouTube updates](/document/multiple-youtube-updates).
 `);
 
-    await cli.run(
-        "alpine update /document/multiple-youtube-updates --old 'old title' --new 'updated title' --old 'old description' --new 'updated description'",
-    );
+    expect(
+        await cli.run(
+            "alpine update /document/multiple-youtube-updates --old 'old title' --new 'updated title' --old 'old description' --new 'updated description'",
+        ),
+    ).toEqual("Update was successful.\n");
 
     expect(await cli.run("alpine read /document/multiple-youtube-updates")).toEqual(`\
 # Multiple YouTube updates
@@ -260,15 +347,21 @@ YouTube has an updated title and an updated description.
 });
 
 test("update document with multiple nominal arguments in unusual orders", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# Unusually ordered YouTube updates
 
 YouTube repeats one one and two two.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [Unusually ordered YouTube updates](/document/unusually-ordered-youtube-updates).
 `);
 
-    await cli.run(
-        "alpine update --replace-all --new=ONE --old one --old=two --new TWO /document/unusually-ordered-youtube-updates",
-    );
+    expect(
+        await cli.run(
+            "alpine update --replace-all --new=ONE --old one --old=two --new TWO /document/unusually-ordered-youtube-updates",
+        ),
+    ).toEqual("Update was successful.\n");
 
     expect(await cli.run("alpine read /document/unusually-ordered-youtube-updates")).toEqual(`\
 # Unusually ordered YouTube updates
@@ -278,15 +371,21 @@ YouTube repeats ONE ONE and TWO TWO.
 });
 
 test("update document with camelCase nominal arg name in unusual orders", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# Unusually ordered YouTube updates
 
 YouTube repeats one one and two two.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [Unusually ordered YouTube updates](/document/unusually-ordered-youtube-updates).
 `);
 
-    await cli.run(
-        "alpine update --replaceAll --new=ONE --old one --old=two --new TWO /document/unusually-ordered-youtube-updates",
-    );
+    expect(
+        await cli.run(
+            "alpine update --replaceAll --new=ONE --old one --old=two --new TWO /document/unusually-ordered-youtube-updates",
+        ),
+    ).toEqual("Update was successful.\n");
 
     expect(await cli.run("alpine read /document/unusually-ordered-youtube-updates")).toEqual(`\
 # Unusually ordered YouTube updates
@@ -296,15 +395,21 @@ YouTube repeats ONE ONE and TWO TWO.
 });
 
 test("update document from stdin array", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# YouTube stdin update
 
 YouTube repeats one one and then two.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube stdin update](/document/youtube-stdin-update).
 `);
 
-    await cli.run(
-        `printf '%s' '[{"old":"one","new":"ONE","replace-all":true},{"old":"two","new":"TWO"}]' | alpine update /document/youtube-stdin-update --old - --old - --new - --new -`,
-    );
+    expect(
+        await cli.run(
+            `printf '%s' '[{"old":"one","new":"ONE","replace-all":true},{"old":"two","new":"TWO"}]' | alpine update /document/youtube-stdin-update --old - --old - --new - --new -`,
+        ),
+    ).toEqual("Update was successful.\n");
 
     expect(await cli.run("alpine read /document/youtube-stdin-update")).toEqual(`\
 # YouTube stdin update
@@ -314,15 +419,21 @@ YouTube repeats ONE ONE and then TWO.
 });
 
 test("update document from stdin object", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# YouTube stdin update
 
 YouTube repeats one one and then two.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube stdin update](/document/youtube-stdin-update).
 `);
 
-    await cli.run(
-        `printf '%s' '{"old":"two","new":"TWO"}' | alpine update /document/youtube-stdin-update --old - --new -`,
-    );
+    expect(
+        await cli.run(
+            `printf '%s' '{"old":"two","new":"TWO"}' | alpine update /document/youtube-stdin-update --old - --new -`,
+        ),
+    ).toEqual("Update was successful.\n");
 
     expect(await cli.run("alpine read /document/youtube-stdin-update")).toEqual(`\
 # YouTube stdin update
@@ -332,15 +443,21 @@ YouTube repeats one one and then TWO.
 });
 
 test("update document from stdin object with camelCase arg", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# YouTube stdin update
 
 YouTube repeats one one and then two.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube stdin update](/document/youtube-stdin-update).
 `);
 
-    await cli.run(
-        `printf '%s' '{"old":"one","new":"ONE","replaceAll":true}' | alpine update /document/youtube-stdin-update --old - --new -`,
-    );
+    expect(
+        await cli.run(
+            `printf '%s' '{"old":"one","new":"ONE","replaceAll":true}' | alpine update /document/youtube-stdin-update --old - --new -`,
+        ),
+    ).toEqual("Update was successful.\n");
 
     expect(await cli.run("alpine read /document/youtube-stdin-update")).toEqual(`\
 # YouTube stdin update
@@ -350,10 +467,14 @@ YouTube repeats ONE ONE and then two.
 });
 
 test("update document from stdin object with CLI arg", async () => {
-    await cli.run(`\
+    expect(
+        await cli.run(`\
 alpine create document '# YouTube stdin update
 
 YouTube repeats one one and then two.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube stdin update](/document/youtube-stdin-update).
 `);
 
     expect(
@@ -413,7 +534,7 @@ test.each([
         syntax: "alpine search <query> [--limit 10]",
     },
 ])("rejects a missing required $argName argument", async ({command, argName, syntax}) => {
-    await expect(cli.run(command)).resolves.toEqual(
+    expect(await cli.run(command)).toEqual(
         `Error: Couldn\u2019t run command. Missing required \`<${argName}>\` arg. Try again but add the \`<${argName}>\` arg. Expected syntax: \`${syntax}\`.\n`,
     );
 });
@@ -428,7 +549,7 @@ test.each([
         countMessage: "2 unused args",
     },
 ])("rejects $countMessage", async ({command, countMessage}) => {
-    await expect(cli.run(command)).resolves.toEqual(
+    expect(await cli.run(command)).toEqual(
         `Error: Couldn\u2019t run command. Unexpected args. Try again but remove the ${countMessage}. Expected syntax: \`alpine search <query> [--limit 10]\`.\n`,
     );
 });
@@ -443,31 +564,31 @@ test.each([
         command: "alpine read /document/example --limit=1kb --limit 2kb",
     },
 ])("rejects a duplicate nominal argument using $name syntax", async ({command}) => {
-    await expect(cli.run(command)).resolves.toEqual(
+    expect(await cli.run(command)).toEqual(
         "Error: Couldn\u2019t run command. There\u2019s more than one `--limit` args. Try again with only one `--limit` arg. Expected syntax: `alpine read <path> [--limit 20kb]`.\n",
     );
 });
 
 test("rejects a missing required nominal argument", async () => {
-    await expect(cli.run("alpine scroll /document/example")).resolves.toEqual(
+    expect(await cli.run("alpine scroll /document/example")).toEqual(
         "Error: Couldn\u2019t run command. Missing required `--offset` arg. Try again but add the `--offset` arg. Expected syntax: `alpine scroll <path> --offset 0 [--limit 20kb]`.\n",
     );
 });
 
 test("rejects an unknown nominal argument", async () => {
-    await expect(cli.run("alpine read /document/example --unknown=value")).resolves.toEqual(
+    expect(await cli.run("alpine read /document/example --unknown=value")).toEqual(
         "Error: Couldn\u2019t run command. Unrecognized `--unknown` arg. Try again without the `--unknown` arg. Expected syntax: `alpine read <path> [--limit 20kb]`.\n",
     );
 });
 
 test("rejects an update without an old argument", async () => {
-    await expect(cli.run("alpine update /document/example")).resolves.toEqual(
+    expect(await cli.run("alpine update /document/example")).toEqual(
         'Error: Couldn\u2019t run command. Missing required `--old` arg. Try again but add the `--old` arg. Expected syntax: `alpine update <path> --old "..." --new "..."`.\n',
     );
 });
 
 test("rejects an update without a new argument", async () => {
-    await expect(cli.run("alpine update /document/example --old=before")).resolves.toEqual(
+    expect(await cli.run("alpine update /document/example --old=before")).toEqual(
         'Error: Couldn\u2019t run command. Missing required `--new` arg. Try again but add the `--new` arg. Expected syntax: `alpine update <path> --old "..." --new "..."`.\n',
     );
 });
@@ -485,7 +606,7 @@ test.each([
         countMessage: "2 more `--old` args",
     },
 ])("rejects an update missing $name", async ({command, countMessage}) => {
-    await expect(cli.run(command)).resolves.toEqual(
+    expect(await cli.run(command)).toEqual(
         `Error: Couldn\u2019t run command. Must provide an \`--old\` arg for every \`--new\` arg. Try again but with ${countMessage}.\n`,
     );
 });
@@ -503,7 +624,7 @@ test.each([
         countMessage: "2 more `--new` args",
     },
 ])("rejects an update missing $name", async ({command, countMessage}) => {
-    await expect(cli.run(command)).resolves.toEqual(
+    expect(await cli.run(command)).toEqual(
         `Error: Couldn\u2019t run command. Must provide a \`--new\` arg for every \`--old\` arg. Try again but with ${countMessage}.\n`,
     );
 });
@@ -518,7 +639,7 @@ test.each([
         command: "alpine update /document/example --old=before --new=-",
     },
 ])("rejects stdin requested only for the $name update value", async ({command}) => {
-    await expect(cli.run(command)).resolves.toEqual(
+    expect(await cli.run(command)).toEqual(
         "Error: Couldn\u2019t run command. If one of an `--old` arg or `--new` arg is `-` that means updates will be read from stdin. Try again but make sure every `--old` arg and `--new` arg use `-` to proceed with reading updates from stdin.\n",
     );
 });
@@ -540,9 +661,9 @@ test.each([
     {name: "a missing new property", stdin: '[{"old":"before"}]'},
     {name: "a non-string new property", stdin: '[{"old":"before","new":1}]'},
 ])("rejects update stdin containing $name", async ({stdin}) => {
-    await expect(
-        cli.run(`printf '%s' '${stdin}' | alpine update /document/example --old - --new -`),
-    ).resolves.toEqual(
+    expect(
+        await cli.run(`printf '%s' '${stdin}' | alpine update /document/example --old - --new -`),
+    ).toEqual(
         "Error: Couldn\u2019t run command. Invalid update JSON from stdin. Update JSON must be an array of objects with `old` and `new` string properties. Optionally a `replace-all` boolean property as well. Try again with a valid JSON array of updates written to stdin.\n",
     );
 });
@@ -585,7 +706,7 @@ test.each([
         value: "nope",
     },
 ])("rejects $name", async ({command, argName, value}) => {
-    await expect(cli.run(command)).resolves.toEqual(
+    expect(await cli.run(command)).toEqual(
         `Error: Couldn\u2019t run command. Couldn\u2019t parse non-negative integer from: ${value.length === 0 ? "empty" : `\`${value}\``}. Try again with zero or a positive integer for the \`--${argName}\` arg.\n`,
     );
 });
@@ -596,15 +717,15 @@ test.each([
         subcommand: "unknown",
     },
 ])("rejects subcommand `$subcommand`", async ({command, subcommand}) => {
-    await expect(cli.run(command)).resolves.toEqual(
+    expect(await cli.run(command)).toEqual(
         `Error: Couldn\u2019t run command. Unknown subcommand: \`${subcommand}\`. Try again with one of \`read\`, \`update\`, \`create\`, or \`search\`.\n`,
     );
 });
 
 test("rejects a data path whose directory cannot be created", async () => {
-    await expect(
-        cli.run("ALPINE_DATA_PATH=/dev/null/alpine-cli-test alpine read /document/example"),
-    ).resolves.toEqual(
+    expect(
+        await cli.run("ALPINE_DATA_PATH=/dev/null/alpine-cli-test alpine read /document/example"),
+    ).toEqual(
         "Error: Couldn\u2019t run command. Couldn\u2019t create data directory at `/dev/null/alpine-cli-test`. Try changing the `ALPINE_DATA_PATH` environment variable to a location you can write to.\n",
     );
 });
@@ -625,12 +746,12 @@ test.each([
     const writeAuthCommand =
         authContents === undefined ? "" : `printf '%s' '${authContents}' > "$data_path/auth.json"`;
 
-    await expect(
-        cli.run(`data_path="${dataDirectoryPath}"
+    expect(
+        await cli.run(`data_path="${dataDirectoryPath}"
 mkdir "$data_path"
 ${writeAuthCommand}
 ALPINE_DATA_PATH="$data_path" alpine read /document/example`),
-    ).resolves.toEqual(
+    ).toEqual(
         `Error: Couldn\u2019t run command. Couldn\u2019t read \`auth.json\` from \`${dataDirectoryPath}\`.\n`,
     );
 });
@@ -638,12 +759,12 @@ ALPINE_DATA_PATH="$data_path" alpine read /document/example`),
 test("rejects an auth file without an API key", async () => {
     const dataDirectoryPath = `${cli.dataDirectoryPath}-missing-api-key`;
 
-    await expect(
-        cli.run(`data_path="${dataDirectoryPath}"
+    expect(
+        await cli.run(`data_path="${dataDirectoryPath}"
 mkdir "$data_path"
 printf '%s' '{}' > "$data_path/auth.json"
 ALPINE_DATA_PATH="$data_path" alpine read /document/example`),
-    ).resolves.toEqual(
+    ).toEqual(
         "Error: Couldn\u2019t run command. Couldn\u2019t find an `apiKey` property in `auth.json`.\n",
     );
 });
@@ -651,13 +772,13 @@ ALPINE_DATA_PATH="$data_path" alpine read /document/example`),
 test("rejects a data path whose database cannot be opened", async () => {
     const dataDirectoryPath = `${cli.dataDirectoryPath}-invalid-database`;
 
-    await expect(
-        cli.run(`data_path="${dataDirectoryPath}"
+    expect(
+        await cli.run(`data_path="${dataDirectoryPath}"
 mkdir "$data_path"
 cp "$ALPINE_DATA_PATH/auth.json" "$data_path/auth.json"
 mkdir "$data_path/agents-web.db"
 ALPINE_DATA_PATH="$data_path" alpine read /document/example`),
-    ).resolves.toEqual(
+    ).toEqual(
         `Error: Couldn\u2019t run command. Couldn\u2019t open the database in \`${dataDirectoryPath}\`. Maybe you can\u2019t write to \`${dataDirectoryPath}\`? Try changing the \`ALPINE_DATA_PATH\` environment variable to a location you can write to.\n`,
     );
 });
@@ -665,12 +786,12 @@ ALPINE_DATA_PATH="$data_path" alpine read /document/example`),
 test("rejects an unreachable auth API", async () => {
     const dataDirectoryPath = `${cli.dataDirectoryPath}-unreachable-auth-api`;
 
-    await expect(
-        cli.run(`data_path="${dataDirectoryPath}"
+    expect(
+        await cli.run(`data_path="${dataDirectoryPath}"
 mkdir "$data_path"
 sed -E 's/,"authResponse":.*$/}/' "$ALPINE_DATA_PATH/auth.json" > "$data_path/auth.json"
 ALPINE_DATA_PATH="$data_path" ALPINE_API_URL=http://127.0.0.1:1 alpine read /document/example`),
-    ).resolves.toEqual(
+    ).toEqual(
         "Error: Couldn\u2019t run command. Couldn\u2019t get the current bot from the API. Make sure you\u2019re online and can reach `http://127.0.0.1:1/auth`.\n",
     );
 });
@@ -678,15 +799,60 @@ ALPINE_DATA_PATH="$data_path" ALPINE_API_URL=http://127.0.0.1:1 alpine read /doc
 test("rejects an auth file that cannot be updated", async () => {
     const dataDirectoryPath = `${cli.dataDirectoryPath}-readonly-auth-file`;
 
-    await expect(
-        cli.run(`data_path="${dataDirectoryPath}"
+    expect(
+        await cli.run(`data_path="${dataDirectoryPath}"
 mkdir "$data_path"
 sed -E 's/,"authResponse":.*$/}/' "$ALPINE_DATA_PATH/auth.json" > "$data_path/auth.json"
 chmod 400 "$data_path/auth.json"
 ALPINE_DATA_PATH="$data_path" alpine read /document/example`),
-    ).resolves.toEqual(
+    ).toEqual(
         `Error: Couldn\u2019t run command. Couldn\u2019t write \`auth.json\` to \`${dataDirectoryPath}\`. Try again after confirming the user running this CLI is allowed to write to \`${dataDirectoryPath}\`.\n`,
     );
+});
+
+// TODO(#agents-web): Implement the document comment thread creation API endpoint.
+test("rejects creating a document comment thread while the API endpoint is unimplemented", async () => {
+    expect(
+        await cli.run(`\
+alpine create document '# YouTube launch review
+
+The launch date needs verification.'
+`),
+    ).toEqual(`\
+Create was successful. New document: [YouTube launch review](/document/youtube-launch-review).
+`);
+
+    expect(await cli.run("alpine read /document/youtube-launch-review")).toEqual(`\
+# YouTube launch review
+
+The launch date needs verification.
+`);
+
+    expect(
+        await cli.run(`\
+alpine create document-comment-thread 'Document comment thread on [YouTube launch review](/document/youtube-launch-review).
+
+- [ ] Unresolved
+
+<blockquote>
+
+launch date
+
+</blockquote>
+
+<comment>
+
+Can we verify this date?
+
+</comment>
+
+End of comments.'
+`),
+    ).toEqual(`\
+Error: Couldn’t create document comment thread. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
+
+> Internal error: Document comment thread creation API endpoint hasn’t been implemented yet
+`);
 });
 
 test("search for and read a comment at the start of an unresolved document comment thread", async () => {
@@ -1003,12 +1169,17 @@ test("read fallback content after removing an unresolved document comment mark",
     });
     const commentStart = title.length + 3 + body.indexOf(commentedText);
 
-    await document.createCommentThread(
+    const commentThread = await document.createCommentThread(
         dianaSession,
         {from: commentStart, to: commentStart + commentedText.length},
         "Why was this playback note removed?",
         {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
     );
+    await commentThread.createComment(dianaSession, "The west coast review is complete.", {
+        parent: commentThread.firstComment,
+        createdTimeZone: assertTimeZone("America/Los_Angeles"),
+        overrideCreatedTime: new Date("2026-05-14T15:05:00.000Z"),
+    });
 
     // Don't wait for the document indexing throttle.
     await indexDocumentSearchEntityImmediately(document);
@@ -1053,6 +1224,18 @@ Why was this playback note removed?
 
 </comment>
 
+<comment id="1" from="[Diana](/human/diana)" time="5 minutes later" timezone="PDT">
+
+<blockquote cite="?comment=0">
+
+[Diana](/human/diana): Why was this playback note removed?
+
+</blockquote>
+
+The west coast review is complete.
+
+</comment>
+
 End of comments.
 `);
 });
@@ -1074,29 +1257,32 @@ test("resolve a document comment thread", async () => {
     );
 
     await indexDocumentSearchEntityImmediately(document);
-    await cli.run("alpine search 'YouTube resolution review'");
-    await cli.run("alpine read /document/youtube-resolution-review");
-    await cli.run("alpine read /document/youtube-resolution-review/comments/1");
-
-    const updateOutput = await cli.run(
-        "alpine update /document/youtube-resolution-review/comments/1 --old '- [ ] Unresolved' --new '- [x] Resolved'",
+    expect(await cli.run("alpine search 'YouTube resolution review'")).toEqual(
+        expect.stringContaining("[YouTube resolution review](/document/youtube-resolution-review)"),
     );
+    expect(await cli.run("alpine read /document/youtube-resolution-review")).toEqual(`\
+# YouTube resolution review
 
-    expect({
-        updateOutput,
-        commentThread: await commentThread.get(),
-        documentOutput: await cli.run("alpine read /document/youtube-resolution-review"),
-        threadOutput: await cli.run("alpine read /document/youtube-resolution-review/comments/1"),
-    }).toEqual({
-        updateOutput: "Update was successful.\n",
-        commentThread: expect.objectContaining({isResolved: true}),
-        documentOutput: `\
+Review the <comment id="1">launch decision</comment>.
+`);
+    expect(await cli.run("alpine read /document/youtube-resolution-review/comments/1")).toEqual(
+        expect.stringContaining("- [ ] Unresolved"),
+    );
+    expect(
+        await cli.run(
+            "alpine update /document/youtube-resolution-review/comments/1 --old '- [ ] Unresolved' --new '- [x] Resolved'",
+        ),
+    ).toEqual("Update was successful.\n");
+
+    expect(await commentThread.get()).toEqual(expect.objectContaining({isResolved: true}));
+    expect(await cli.run("alpine read /document/youtube-resolution-review")).toEqual(`\
 # YouTube resolution review
 
 Review the launch decision.
-`,
-        threadOutput: expect.stringContaining("- [x] Resolved"),
-    });
+`);
+    expect(await cli.run("alpine read /document/youtube-resolution-review/comments/1")).toEqual(
+        expect.stringContaining("- [x] Resolved"),
+    );
 });
 
 test("unresolve a document comment thread", async () => {
@@ -1116,31 +1302,36 @@ test("unresolve a document comment thread", async () => {
     );
 
     await indexDocumentSearchEntityImmediately(document);
-    await cli.run("alpine search 'YouTube reopened review'");
-    await cli.run("alpine read /document/youtube-reopened-review");
-    await cli.run("alpine read /document/youtube-reopened-review/comments/1");
-    await commentThread.resolve(cli.session);
-    await cli.run("alpine read /document/youtube-reopened-review/comments/1");
-
-    const updateOutput = await cli.run(
-        "alpine update /document/youtube-reopened-review/comments/1 --old '- [x] Resolved' --new '- [ ] Unresolved'",
+    expect(await cli.run("alpine search 'YouTube reopened review'")).toEqual(
+        expect.stringContaining("[YouTube reopened review](/document/youtube-reopened-review)"),
     );
-
-    expect({
-        updateOutput,
-        commentThread: await commentThread.get(),
-        documentOutput: await cli.run("alpine read /document/youtube-reopened-review"),
-        threadOutput: await cli.run("alpine read /document/youtube-reopened-review/comments/1"),
-    }).toEqual({
-        updateOutput: "Update was successful.\n",
-        commentThread: expect.objectContaining({isResolved: false}),
-        documentOutput: `\
+    expect(await cli.run("alpine read /document/youtube-reopened-review")).toEqual(`\
 # YouTube reopened review
 
 Revisit the <comment id="1">launch decision</comment>.
-`,
-        threadOutput: expect.stringContaining("- [ ] Unresolved"),
-    });
+`);
+    expect(await cli.run("alpine read /document/youtube-reopened-review/comments/1")).toEqual(
+        expect.stringContaining("- [ ] Unresolved"),
+    );
+    await commentThread.resolve(cli.session);
+    expect(await cli.run("alpine read /document/youtube-reopened-review/comments/1")).toEqual(
+        expect.stringContaining("- [x] Resolved"),
+    );
+    expect(
+        await cli.run(
+            "alpine update /document/youtube-reopened-review/comments/1 --old '- [x] Resolved' --new '- [ ] Unresolved'",
+        ),
+    ).toEqual("Update was successful.\n");
+
+    expect(await commentThread.get()).toEqual(expect.objectContaining({isResolved: false}));
+    expect(await cli.run("alpine read /document/youtube-reopened-review")).toEqual(`\
+# YouTube reopened review
+
+Revisit the <comment id="1">launch decision</comment>.
+`);
+    expect(await cli.run("alpine read /document/youtube-reopened-review/comments/1")).toEqual(
+        expect.stringContaining("- [ ] Unresolved"),
+    );
 });
 
 test("add a document comment", async () => {
@@ -1163,8 +1354,14 @@ test("add a document comment", async () => {
     );
 
     await indexDocumentSearchEntityImmediately(document);
-    await cli.run("alpine search 'YouTube evidence review'");
-    await cli.run("alpine read /document/youtube-evidence-review");
+    expect(await cli.run("alpine search 'YouTube evidence review'")).toEqual(
+        expect.stringContaining("[YouTube evidence review](/document/youtube-evidence-review)"),
+    );
+    expect(await cli.run("alpine read /document/youtube-evidence-review")).toEqual(`\
+# YouTube evidence review
+
+Review the <comment id="1">launch evidence</comment>.
+`);
 
     expect(await cli.run("alpine read /document/youtube-evidence-review/comments/1")).toEqual(`\
 Document comment thread on [YouTube evidence review](/document/youtube-evidence-review).
@@ -1188,26 +1385,22 @@ Please review this evidence.
 End of comments.
 `);
 
-    const updateOutput = await cli.run(`\
-alpine update /document/youtube-evidence-review/comments/1 --old 'End of comments.' --new '<comment>
+    expect(
+        await cli.run(`\
+alpine update /document/youtube-evidence-review/comments/1 --old 'End of comments.' --new '<comment timezone="UTC">
 
 I reviewed the launch evidence.
 
 </comment>
 
 End of comments.'
-`);
+`),
+    ).toEqual("Update was successful.\n");
 
     const newComment = await commentThread._getMessage(cli.session.action(), 1);
     assert(newComment.payload.type === "Content");
 
-    expect({
-        updateOutput,
-        text: newComment.payload.content.doc.textContent,
-    }).toEqual({
-        updateOutput: "Update was successful.\n",
-        text: "I reviewed the launch evidence.",
-    });
+    expect(newComment.payload.content.doc.textContent).toEqual("I reviewed the launch evidence.");
 });
 
 test("add a document comment with a file attachment", async () => {
@@ -1234,6 +1427,7 @@ test("add a document comment with a file attachment", async () => {
         cli.session,
         {from: commentStart, to: commentStart + commentedText.length},
         "Please attach the source image.",
+        {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
     );
 
     await indexDocumentSearchEntityImmediately(sourceDocument);
@@ -1241,13 +1435,48 @@ test("add a document comment with a file attachment", async () => {
 
     // Reading the source gives the CLI a stable pathname for the file that can be
     // reused in the document comment update.
-    await cli.run("alpine search 'Attachment source'");
-    await cli.run("alpine search 'YouTube evidence review'");
-    const sourceReadOutput = await cli.run("alpine read /document/attachment-source");
-    const targetReadOutput = await cli.run("alpine read /document/youtube-evidence-review");
-    await cli.run("alpine read /document/youtube-evidence-review/comments/1");
+    expect(await cli.run("alpine search 'Attachment source'")).toEqual(
+        expect.stringContaining("[Attachment source](/document/attachment-source)"),
+    );
+    expect(await cli.run("alpine search 'YouTube evidence review'")).toEqual(
+        expect.stringContaining("[YouTube evidence review](/document/youtube-evidence-review)"),
+    );
+    expect(await cli.run("alpine read /document/attachment-source")).toEqual(`\
+# Attachment source
 
-    const updateOutput = await cli.run(`\
+Attachment available below.
+
+![](/file/image.png)
+`);
+    expect(await cli.run("alpine read /document/youtube-evidence-review")).toEqual(`\
+# YouTube evidence review
+
+Review the attached <comment id="1">launch evidence</comment>.
+`);
+    expect(await cli.run("alpine read /document/youtube-evidence-review/comments/1")).toEqual(`\
+Document comment thread on [YouTube evidence review](/document/youtube-evidence-review).
+
+- [ ] Unresolved
+
+<blockquote>
+
+launch evidence
+
+</blockquote>
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Anthony](/human/anthony-mose)">
+
+Please attach the source image.
+
+</comment>
+
+End of comments.
+`);
+
+    expect(
+        await cli.run(`\
 alpine update /document/youtube-evidence-review/comments/1 --old 'End of comments.' --new '<comment>
 
 Attached launch evidence.
@@ -1257,37 +1486,56 @@ Attached launch evidence.
 </comment>
 
 End of comments.'
+`),
+    ).toEqual("Update was successful.\n");
+
+    expect(
+        (await cli.run("alpine read /document/youtube-evidence-review/comments/1")).replace(
+            /<time>([^<]+)<\/time>/g,
+            (timeElement, label: string) =>
+                label === "May 14th at 11:00am EDT" ? timeElement : "<time><created-time></time>",
+        ),
+    ).toEqual(`\
+Document comment thread on [YouTube evidence review](/document/youtube-evidence-review).
+
+- [ ] Unresolved
+
+<blockquote>
+
+launch evidence
+
+</blockquote>
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Anthony](/human/anthony-mose)">
+
+Please attach the source image.
+
+</comment>
+
+<time><created-time></time>
+
+<comment id="1" from="[My](/bot/my-bot)">
+
+Attached launch evidence.
+
+![](/file/image.png)
+
+</comment>
+
+End of comments.
 `);
-    assert(updateOutput === "Update was successful.\n", updateOutput);
 
     const newComment = await commentThread._getMessage(cli.session.action(), 1);
     assert(newComment.payload.type === "Content");
-
-    expect({
-        sourceReadOutput,
-        targetReadOutput,
-        updateOutput,
-        files: newComment.payload.files.map(commentFile =>
+    expect(
+        newComment.payload.files.map(commentFile =>
             commentFile.type === "File"
                 ? {type: commentFile.type, id: commentFile.file.id}
                 : commentFile,
         ),
-    }).toEqual({
-        sourceReadOutput: `\
-# Attachment source
-
-Attachment available below.
-
-![](/file/image.png)
-`,
-        targetReadOutput: `\
-# YouTube evidence review
-
-Review the attached <comment id="1">launch evidence</comment>.
-`,
-        updateOutput: "Update was successful.\n",
-        files: [{type: "File", id: file.id}],
-    });
+    ).toEqual([{type: "File", id: file.id}]);
 });
 
 test("search for a document and read one of its comment threads", async () => {

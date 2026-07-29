@@ -1,6 +1,7 @@
 /* eslint-disable cyberworlds/string-quotes */
 
 import {setupCliForTest} from "~/server/agents/cli/integration_tests/setup_cli_for_test.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 
 const cli = setupCliForTest();
 
@@ -40,74 +41,50 @@ When creating large pages, you can pass \`-\` to \`alpine create\` (e.g. \`alpin
 Similarly, when adding a lot of content in an update, you can pass \`-\` to \`alpine update\` (as both the \`--old\` and \`--new\` args, e.g. \`alpine update --old - --new -\`) and pipe update(s) to stdin. Updates should be a JSON object (or an array of JSON objects) with the properties \`old\` and \`new\`.
 `;
 
+const expectedHelpPattern = new RegExp(
+    `^${escapeRegExp(expectedHelpBeginning)}[\\s\\S]*${escapeRegExp(expectedHelpMiddle)}[\\s\\S]*${escapeRegExp(expectedHelpEnding)}$`,
+);
+
 test("show help when no command is provided", async () => {
-    const output = await cli.run("alpine");
-
-    // Nice `expect().toContain()` error message first which will show us a pretty diff
-    // and then make sure we start with the contained string.
-    expect(output).toContain(expectedHelpBeginning);
-    expect(output.startsWith(expectedHelpBeginning)).toBe(true);
-
-    // Nice `expect().toContain()` error message first which will show us a pretty diff
-    // and then make sure we end with the contained string.
-    expect(output).toContain(expectedHelpEnding);
-    expect(output.endsWith(expectedHelpEnding)).toBe(true);
-
-    expect(output).toContain(expectedHelpMiddle);
+    expect(await cli.run("alpine")).toEqual(expect.stringMatching(expectedHelpPattern));
 });
 
 test("show help with the help command", async () => {
-    const output = await cli.run("alpine help");
-
-    // Nice `expect().toContain()` error message first which will show us a pretty diff
-    // and then make sure we start with the contained string.
-    expect(output).toContain(expectedHelpBeginning);
-    expect(output.startsWith(expectedHelpBeginning)).toBe(true);
-
-    // Nice `expect().toContain()` error message first which will show us a pretty diff
-    // and then make sure we end with the contained string.
-    expect(output).toContain(expectedHelpEnding);
-    expect(output.endsWith(expectedHelpEnding)).toBe(true);
-
-    expect(output).toContain(expectedHelpMiddle);
+    expect(await cli.run("alpine help")).toEqual(expect.stringMatching(expectedHelpPattern));
 });
 
 test("show help with the long help flag", async () => {
-    const output = await cli.run("alpine --help");
-
-    // Nice `expect().toContain()` error message first which will show us a pretty diff
-    // and then make sure we start with the contained string.
-    expect(output).toContain(expectedHelpBeginning);
-    expect(output.startsWith(expectedHelpBeginning)).toBe(true);
-
-    // Nice `expect().toContain()` error message first which will show us a pretty diff
-    // and then make sure we end with the contained string.
-    expect(output).toContain(expectedHelpEnding);
-    expect(output.endsWith(expectedHelpEnding)).toBe(true);
-
-    expect(output).toContain(expectedHelpMiddle);
+    expect(await cli.run("alpine --help")).toEqual(expect.stringMatching(expectedHelpPattern));
 });
 
 test("show help with the short help flag", async () => {
-    const output = await cli.run("alpine -h");
-
-    // Nice `expect().toContain()` error message first which will show us a pretty diff
-    // and then make sure we start with the contained string.
-    expect(output).toContain(expectedHelpBeginning);
-    expect(output.startsWith(expectedHelpBeginning)).toBe(true);
-
-    // Nice `expect().toContain()` error message first which will show us a pretty diff
-    // and then make sure we end with the contained string.
-    expect(output).toContain(expectedHelpEnding);
-    expect(output.endsWith(expectedHelpEnding)).toBe(true);
-
-    expect(output).toContain(expectedHelpMiddle);
+    expect(await cli.run("alpine -h")).toEqual(expect.stringMatching(expectedHelpPattern));
 });
 
 test("read a skill linked from help", async () => {
     expect(await cli.run("alpine read /skill/create")).toContain(
         "To create something in Alpine, pass one of the listed `type`s below",
     );
+});
+
+test("read a second skill with different documentation", async () => {
+    expect(await cli.run("alpine read /skill/accounts")).toEqual(`\
+Does this work???
+`);
+});
+
+test("reject updates to a read-only skill", async () => {
+    expect(await cli.run("alpine read /skill/create")).toContain(
+        "To create something in Alpine, pass one of the listed `type`s below",
+    );
+
+    expect(
+        await cli.run(
+            "alpine update /skill/create --old '# What can you create in Alpine?' --new '# What can agents create in Alpine?'",
+        ),
+    ).toEqual(`\
+Error: Couldn\u2019t update \`/skill/create\`. Can\u2019t update a \`/skill/...\` page. Skills are read-only documentation written by the Alpine team to help you, the agent, navigate and update context in Alpine. If you think there\u2019s a mistake in a skill, please reach out to support@alpine.inc.
+`);
 });
 
 test("show a useful error when reading a skill that does not exist", async () => {
