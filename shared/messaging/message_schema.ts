@@ -292,7 +292,6 @@ const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
     }),
     Create: Schema.object({
         type: Schema.value("Create"),
-        // NOCOMMIT: Rename to `reference`?
         target: Schema.union({
             Document: Schema.object({
                 type: Schema.value("Document"),
