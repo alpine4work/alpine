@@ -433,7 +433,7 @@ alpine create task '# Adjacent subtask parent
     ).toEqual(`\
 Create was successful. New task: [Adjacent subtask parent](/task/adjacent-subtask-parent).
 
-Created the following tasks:
+Also created the following tasks:
 
 - [Adjacent first subtask (Open)](/task/adjacent-first-subtask)
 
