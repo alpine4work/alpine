@@ -480,7 +480,7 @@ async function parseAgentWebTaskParentField(
         const quotedValue = curlyQuote(value);
 
         return new InvalidArgumentError("Invalid task fields", {
-            displayMessage: errorDisplayMessage`Unexpected task parent link ${quotedValue} on line ${position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).`,
+            displayMessage: errorDisplayMessage`Unexpected task parent link ${quotedValue} on line ${position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a single link to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`) and nothing else.`,
         });
     };
 
@@ -519,7 +519,7 @@ async function parseAgentWebTaskAssigneeField(
         const quotedValue = curlyQuote(value);
 
         return new InvalidArgumentError("Invalid task fields", {
-            displayMessage: errorDisplayMessage`Unexpected task assignee link ${quotedValue} on line ${position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).`,
+            displayMessage: errorDisplayMessage`Unexpected task assignee link ${quotedValue} on line ${position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a single link to a human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`) and nothing else.`,
         });
     };
 
@@ -660,7 +660,7 @@ async function parseAgentWebTaskCollectionsField(
         for (const nestedItem of nestedList.children) {
             const createError = () => {
                 throw new InvalidArgumentError("Invalid task collections field", {
-                    displayMessage: errorDisplayMessage`Unexpected markdown in task collection list item on line ${nestedItem.position?.start.line ?? "unknown"}. Try again with a single collection link (e.g. \`[My Collection](/task-collection/my-collection)\`) in each nested list item.`,
+                    displayMessage: errorDisplayMessage`Unexpected markdown in task collection list item on line ${nestedItem.position?.start.line ?? "unknown"}. Try again with a single collection link (e.g. \`[My Collection](/task-collection/my-collection)\`) in each nested list item and nothing else.`,
                 });
             };
 
