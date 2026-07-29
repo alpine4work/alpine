@@ -777,8 +777,6 @@ async function parseAgentWebTaskQueryPageTask(
         fieldList !== null
             ? parseAgentWebTaskFieldListItems(storage, fieldList.children, [
                   ...(pageType !== "TaskSubtasks" ? (["parent"] as const) : []),
-                  // NOCOMMIT: Can we not require subtasks when adding a task to a collection? Maybe
-                  // `additionalCollectionsCount` too?
                   "subtasks",
                   "assignee",
                   "collections",
