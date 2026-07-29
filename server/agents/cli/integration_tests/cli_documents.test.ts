@@ -70,6 +70,47 @@ YouTube is an American online video sharing and social media platform headquarte
 `);
 });
 
+test("read document from a URL with localhost syntax", async () => {
+    const document = await TestDocument.create(cli.session, {
+        title: "YouTube URL overview",
+        body: "YouTube is an American online video sharing and social media platform.",
+        access: "Public",
+    });
+
+    expect(await cli.run(`alpine read '${cli.services.getBaseUrl()}/doc/${document.id}'`))
+        .toEqual(`\
+Found path for URL: \`/document/youtube-url-overview\`.
+
+Call the \`read\` tool again with that path to see the document\u2019s content.
+`);
+
+    expect(await cli.run("alpine read /document/youtube-url-overview")).toEqual(`\
+# YouTube URL overview
+
+YouTube is an American online video sharing and social media platform.
+`);
+});
+
+test("read document from a URL with the Alpine domain", async () => {
+    const document = await TestDocument.create(cli.session, {
+        title: "YouTube URL overview",
+        body: "YouTube is an American online video sharing and social media platform.",
+        access: "Public",
+    });
+
+    expect(await cli.run(`alpine read 'https://alpine.inc/doc/${document.id}'`)).toEqual(`\
+Found path for URL: \`/document/youtube-url-overview\`.
+
+Call the \`read\` tool again with that path to see the document\u2019s content.
+`);
+
+    expect(await cli.run("alpine read /document/youtube-url-overview")).toEqual(`\
+# YouTube URL overview
+
+YouTube is an American online video sharing and social media platform.
+`);
+});
+
 test("create and read document with a GFM table", async () => {
     await cli.run(`\
 printf '%s' '# YouTube milestones

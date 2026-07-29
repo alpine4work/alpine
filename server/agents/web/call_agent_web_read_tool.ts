@@ -93,7 +93,6 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
@@ -160,7 +159,9 @@ async function actuallyCallAgentWebReadTool(
             referenceResponse,
         );
 
-        return `Found path for URL: ${quote(pathname)}.\n\nCall the \`read\` tool again with that path to see the ${getApiMentionReferenceNoun(reference.type)}\u2019s content.`;
+        return {
+            truncatedResponse: `Found path for URL: ${quote(pathname)}.\n\nCall the \`read\` tool again with that path to see the ${getApiMentionReferenceNoun(reference.type)}\u2019s content.`,
+        };
     }
 
     const {path, pathname, searchParams} = normalizeAgentWebPath(originalPath);
