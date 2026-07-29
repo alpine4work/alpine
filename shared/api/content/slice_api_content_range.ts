@@ -437,7 +437,6 @@ function sliceCodeBlockElement(
 
     let previousLine: {line: ApiContentCodeBlockElementLineResponse; length: number} | undefined;
 
-    // NOCOMMIT: Can this be simplified at all?
     for (const line of element.lines) {
         if (context.state === "After") break;
 
