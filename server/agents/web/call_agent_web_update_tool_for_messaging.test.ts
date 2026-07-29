@@ -1257,6 +1257,25 @@ Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occ
 > Internal error: Message update API endpoint hasn\u2019t been implemented yet`);
 });
 
+test("rejects updating a deleted bot message", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => ({
+            ...createMessage({index, author: botApiAccount}),
+            payload: {type: "Deleted"},
+        }),
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [{old: "Deleted message", new: "Replacement content", replaceAll: false}],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can\u2019t update a deleted message. `<message id="0">` was deleted. Try again without changing the deleted message.',
+    );
+});
+
 test("throws UnimplementedError when updating existing bot message content with unchanged files", async () => {
     await readChat({
         totalMessageCount: 1,
@@ -1405,6 +1424,31 @@ test("throws UnimplementedError when creating a reply with a blockquote parent",
 Error: Couldn\u2019t update \`/chat/incident-response\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
 > Internal error: Creating message with parent as agent isn\u2019t implemented yet`);
+});
+
+test("rejects creating a reply that quotes a deleted message", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => ({
+            ...createMessage({index, author: aliceAccount}),
+            payload: {type: "Deleted"},
+        }),
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice): Deleted message\n\n</blockquote>\n\nReplying to the deleted message.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can\u2019t quote a deleted message. `<message id="0">` was deleted. Try again without the `<blockquote>` or quote a message that hasn\u2019t been deleted.',
+    );
 });
 
 test("throws UnimplementedError when creating a reply to a bullet list item", async () => {
@@ -1701,6 +1745,51 @@ test("rejects creating a reply when cite overlaps but does not match a merged me
     );
 
     expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("only merges adjacent message blocks with the same deletion state", async () => {
+    await expect(
+        readChat({
+            totalMessageCount: 4,
+            createMessage: index => {
+                const message = createMessage({
+                    index,
+                    author: aliceAccount,
+                    createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 3)).toISOString(),
+                    content: `Message ${index}`,
+                });
+
+                return index === 1 || index === 2
+                    ? {...message, payload: {type: "Deleted"}}
+                    : message;
+            },
+        }),
+    ).resolves.toEqual(`\
+# Incident Response
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Message 0
+
+</message>
+
+<message id="1-2" from="[Alice](/human/alice)">
+
+Deleted message
+
+Deleted message
+
+</message>
+
+<message id="3" from="[Alice](/human/alice)">
+
+Message 3
+
+</message>
+
+End of messages.`);
 });
 
 test("throws UnimplementedError when replying to content spanning a merged message block", async () => {

@@ -3,6 +3,7 @@
 import {writeFile} from "fs/promises";
 import {setupCliForTest} from "~/server/agents/cli/integration_tests/setup_cli_for_test.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {deleteChatMessage} from "~/server/chat/data/chat_messaging.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
@@ -683,6 +684,82 @@ End of messages.'
     });
 });
 
+test("only merges adjacent message blocks with the same deletion state", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+    const chat = await TestChat.createRoom(cli.session, {name: "Deleted merge room"});
+    await chat.sendMessage(aliceSession, "Message 0", {
+        overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z"),
+    });
+    const firstDeletedMessage = await chat.sendMessage(aliceSession, "Message 1", {
+        overrideCreatedTime: new Date("2026-05-14T15:03:00.000Z"),
+    });
+    const secondDeletedMessage = await chat.sendMessage(aliceSession, "Message 2", {
+        overrideCreatedTime: new Date("2026-05-14T15:06:00.000Z"),
+    });
+    await chat.sendMessage(aliceSession, "Message 3", {
+        overrideCreatedTime: new Date("2026-05-14T15:09:00.000Z"),
+    });
+    await firstDeletedMessage.delete(aliceSession);
+    await secondDeletedMessage.delete(aliceSession);
+
+    await cli.run("alpine search 'Deleted merge room'");
+
+    expect(await cli.run("alpine read /chat/deleted-merge-room")).toEqual(`\
+# Deleted merge room
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Message 0
+
+</message>
+
+<message id="1-2" from="[Alice](/human/alice)">
+
+Deleted message
+
+Deleted message
+
+</message>
+
+<message id="3" from="[Alice](/human/alice)">
+
+Message 3
+
+</message>
+
+End of messages.
+`);
+});
+
+test("rejects updating a deleted bot message", async () => {
+    const chat = await TestChat.createRoom(cli.session, {name: "Deleted update room"});
+    const botAccount = await TestBot.createAndInstantiate(cli.session, {
+        name: "Deleted Update Bot",
+    });
+    const message = await chat.sendMessage(botAccount, "Original bot message", {
+        overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z"),
+    });
+    await deleteChatMessage(botAccount.action(), {
+        chatId: chat.id,
+        messageIndex: message.index,
+    });
+
+    const apiKey = await botAccount.createApiKey({type: "Chat", chatId: chat.id});
+    await writeFile(`${cli.dataDirectoryPath}/auth.json`, JSON.stringify({apiKey}));
+    await cli.run("alpine search 'Deleted update room'");
+    await cli.run("alpine read /chat/deleted-update-room");
+
+    expect(
+        await cli.run(`\
+alpine update /chat/deleted-update-room --old 'Deleted message' --new 'Replacement content'
+`),
+    ).toEqual(`\
+Error: Couldn’t update \`/chat/deleted-update-room\`. You can’t update a deleted message. \`<message id="0">\` was deleted. Try again without changing the deleted message.
+`);
+});
+
 test("rejects adding a reply while agent message parents are unimplemented", async () => {
     const aliceSession = await cli.session.space.createSession({name: "Alice"});
     const chat = await TestChat.createRoom(cli.session, {name: "YouTube reply room"});
@@ -728,6 +805,38 @@ End of messages.'
 Error: Couldn’t update \`/chat/youtube-reply-room\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
 > Internal error: Creating message with parent as agent isn’t implemented yet
+`);
+});
+
+test("rejects adding a reply that quotes a deleted message", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+    const chat = await TestChat.createRoom(cli.session, {name: "Deleted reply room"});
+    const deletedMessage = await chat.sendMessage(aliceSession, "Original message", {
+        overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z"),
+    });
+    await deletedMessage.delete(aliceSession);
+
+    await cli.run("alpine search 'Deleted reply room'");
+    await cli.run("alpine read /chat/deleted-reply-room");
+
+    expect(
+        await cli.run(`\
+alpine update /chat/deleted-reply-room --old 'End of messages.' --new '<message>
+
+<blockquote cite="?message=0">
+
+[Alice](/human/alice): Deleted message
+
+</blockquote>
+
+Replying to the deleted message.
+
+</message>
+
+End of messages.'
+`),
+    ).toEqual(`\
+Error: Couldn’t update \`/chat/deleted-reply-room\`. You can’t quote a deleted message. \`<message id="0">\` was deleted. Try again without the \`<blockquote>\` or quote a message that hasn’t been deleted.
 `);
 });
 
