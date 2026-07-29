@@ -538,6 +538,7 @@ export function normalizeAgentWebPostPage<Page extends AgentWebPostPage>(page: P
 export async function createAgentWebPostPage(
     context: AgentWebContext,
     newPage: AgentWebPostPage,
+    {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<{
     pageMetadata: AgentWebPostPageMetadata;
     pageLink: Extract<AgentWebPageStoredLink, {type: "Post"}>;
@@ -631,6 +632,7 @@ export async function createAgentWebPostPage(
         },
         {...newPage, blocks: [postBlock]},
         newPage,
+        {addAdditionalOutput},
     );
 
     const {pageLink} = await createPromise.get();
