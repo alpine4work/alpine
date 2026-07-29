@@ -6,7 +6,11 @@ import {
     printAgentLinkPath,
     printAgentPlainTextLabel,
 } from "~/server/agents/bots/deprecated/internal/link_references/print_agent_link_path.js";
-import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/bots/deprecated/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
+import {
+    ApiSearchResultMatchZippedItem,
+    getSearchResultContentSnippetAndReturnBodyMatch,
+    zipApiSearchResultMatch,
+} from "~/server/agents/bots/deprecated/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
@@ -15,7 +19,6 @@ import {
     ApiSearchDocumentMessageResult,
     ApiSearchPostMessageResult,
     ApiSearchResult,
-    ApiSearchResultBodyMatch,
     ApiSearchTaskMessageResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
@@ -341,7 +344,10 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult): Li
         children: [{type: "text", value: printAgentPlainTextLabel(link)}],
     };
 
-    const bodyMatchContent: Array<PhrasingContent> = intoPhrasingContent(result.bodyMatch);
+    const bodyMatchContent: Array<PhrasingContent> =
+        result.body && result.bodyMatch
+            ? intoPhrasingContent(zipApiSearchResultMatch(result.body, result.bodyMatch))
+            : [];
 
     const bodyMatchParagraph: Paragraph | null =
         bodyMatchContent.length > 0
@@ -384,9 +390,9 @@ function isApiSearchResultInConversationState(
     }
 }
 
-function intoPhrasingContent(bodyMatch: ApiSearchResultBodyMatch | null): Array<PhrasingContent> {
-    if (!bodyMatch) return [];
-
+function intoPhrasingContent(
+    bodyMatch: ReadonlyArray<ApiSearchResultMatchZippedItem>,
+): Array<PhrasingContent> {
     return bodyMatch.map(({text, isMatch}) => {
         const textContent: PhrasingContent = {type: "text", value: text};
         if (!isMatch) return textContent;

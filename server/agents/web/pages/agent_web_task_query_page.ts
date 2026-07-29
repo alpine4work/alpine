@@ -1786,8 +1786,8 @@ export async function updateAgentWebTaskQueryPage(
                                         {
                                             type: "text",
                                             value: isCreate
-                                                ? "Also created the following task: "
-                                                : "Created the following task: ",
+                                                ? "Also created this task: "
+                                                : "Created this task: ",
                                         },
                                         createdTaskLinks[0]!,
                                         {type: "text", value: "."},
@@ -1807,8 +1807,8 @@ export async function updateAgentWebTaskQueryPage(
                                         {
                                             type: "text",
                                             value: isCreate
-                                                ? "Also created the following tasks:"
-                                                : "Created the following tasks:",
+                                                ? "Also created these tasks:"
+                                                : "Created these tasks:",
                                         },
                                     ],
                                 },

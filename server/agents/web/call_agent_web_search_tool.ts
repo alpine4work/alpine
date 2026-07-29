@@ -10,13 +10,15 @@ import {
     ApiSearchMessageResultResponse,
     splitApiSearchMessageResultBodyMatch,
 } from "~/server/agents/web/internal/split_api_search_message_result_body_match.js";
+import {
+    ApiSearchResultMatchZippedItem,
+    zipApiSearchResultMatch,
+} from "~/server/agents/web/internal/zip_api_search_result_match.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {
-    ApiSearchResultBodyMatch,
-    ApiSearchResultResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -181,13 +183,28 @@ async function createAgentWebSearchEntityResultListItem(
 ): Promise<ListItem> {
     const resultLinkPathname = await createAgentWebPageStoredLinkPathname(storage, result);
 
+    const resultLinkLabel = printAgentWebPageStoredLinkLabel(result);
+
+    // We need to use the title highlighted by `titleMatch` to start the link label.
+    // But some link labels will include extra information (like tasks which include
+    // the status).
+    assert(resultLinkLabel.startsWith(result.title));
+
     const resultLink: Link = {
         type: "link",
         url: resultLinkPathname,
-        children: [{type: "text", value: printAgentWebPageStoredLinkLabel(result)}],
+        children: [
+            ...intoPhrasingContent(zipApiSearchResultMatch(result.title, result.titleMatch)),
+            ...(resultLinkLabel.length > result.title.length
+                ? [{type: "text" as const, value: resultLinkLabel.slice(result.title.length)}]
+                : []),
+        ],
     };
 
-    const bodyMatchContent = intoPhrasingContent(result.bodyMatch);
+    const bodyMatchContent =
+        result.body && result.bodyMatch
+            ? intoPhrasingContent(zipApiSearchResultMatch(result.body, result.bodyMatch))
+            : [];
 
     const bodyMatchParagraph: Paragraph | null =
         bodyMatchContent.length > 0 ? {type: "paragraph", children: bodyMatchContent} : null;
@@ -279,14 +296,31 @@ async function createAgentWebSearchMessageResultListItem(
     };
 }
 
-function intoPhrasingContent(bodyMatch: ApiSearchResultBodyMatch | null): Array<PhrasingContent> {
-    if (!bodyMatch) return [];
+function intoPhrasingContent(
+    match: ReadonlyArray<ApiSearchResultMatchZippedItem>,
+): Array<PhrasingContent> {
+    const content: Array<PhrasingContent> = [];
 
-    return bodyMatch.map(({text, isMatch}) => {
-        const textContent: PhrasingContent = {type: "text", value: text};
-        if (!isMatch) return textContent;
-        return {type: "strong", children: [textContent]};
-    });
+    for (let index = 0; index < match.length; index++) {
+        const segment = match[index]!;
+        if (!segment.isMatch) {
+            content.push({type: "text", value: segment.text});
+            continue;
+        }
+
+        let text = segment.text;
+        while (/^\s+$/u.test(match[index + 1]?.text ?? "") && match[index + 2]?.isMatch) {
+            text += match[index + 1]!.text + match[index + 2]!.text;
+            index += 2;
+        }
+
+        content.push({
+            type: "strong",
+            children: [{type: "text", value: text}],
+        });
+    }
+
+    return content;
 }
 
 function flatBodyMatch(bodyMatch: ReadonlyArray<{text: string}>): string {

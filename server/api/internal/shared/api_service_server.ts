@@ -601,11 +601,11 @@ export async function createApiServiceRequestListener(
 
                 const currentDate = today(defaultTimeZone);
 
-                const versionHeader = request.headers.get("Version");
+                const versionHeader = request.headers.get("Alpine-Version");
                 if (versionHeader === null) {
                     return createApiErrorResponse({
                         status: 400,
-                        message: `Missing \`Version\` header. When starting a new project, you should set the \`Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Version\` header from today\u2019s date or your code may break from backwards incompatible API changes.`,
+                        message: `Missing \`Alpine-Version\` header. When starting a new project, you should set the \`Alpine-Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Alpine-Version\` header from today\u2019s date or your code may be broken by backwards incompatible API changes.`,
                         isRetryable: false,
                     });
                 }
@@ -615,7 +615,7 @@ export async function createApiServiceRequestListener(
                 if (version.compare(currentDate.add({days: 1})) > 0) {
                     return createApiErrorResponse({
                         status: 400,
-                        message: `Can\u2019t set the \`Version\` header to a future date. When starting a new project, you should set the \`Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Version\` header from today\u2019s date or your code may break from backwards incompatible API changes.`,
+                        message: `Can\u2019t set the \`Alpine-Version\` header to a future date. When starting a new project, you should set the \`Alpine-Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Alpine-Version\` header from today\u2019s date or your code may be broken by backwards incompatible API changes.`,
                         isRetryable: false,
                     });
                 }

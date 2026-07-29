@@ -1,12 +1,18 @@
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
-import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/bots/deprecated/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
-import {ApiSearchResultBodyMatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiSearchResultMatchZippedItem,
+    getSearchResultContentSnippetAndReturnBodyMatch,
+} from "~/server/agents/bots/deprecated/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 
-function createTestSearchResult(bodyMatch: ApiSearchResultBodyMatch) {
+function createTestSearchResult(bodyMatch: Array<ApiSearchResultMatchZippedItem>) {
     return {
-        bodyMatch,
+        body: bodyMatch.map(segment => segment.text).join(""),
+        bodyMatch: bodyMatch.map(segment => ({
+            length: segment.text.length,
+            ...(segment.isMatch ? {isMatch: true} : {}),
+        })),
         author: createApiAccountMock({name: "John"}),
         type: "ChatMessage",
         id: generateId<ChatId>(),
@@ -18,7 +24,7 @@ function createTestSearchResult(bodyMatch: ApiSearchResultBodyMatch) {
 
 describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
     test("returns Unknown chat message for empty body match", () => {
-        const bodyMatch: ApiSearchResultBodyMatch = [];
+        const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [];
         const result = getSearchResultContentSnippetAndReturnBodyMatch(
             createTestSearchResult(bodyMatch),
         );
@@ -29,7 +35,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
     });
 
     test("returns preview with author prefix and preserves marks", () => {
-        const bodyMatch: ApiSearchResultBodyMatch = [
+        const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
             {text: "Hello "},
             {text: "world", isMatch: true},
             {text: " test"},
@@ -47,7 +53,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
     });
 
     test("truncates when content exceeds limit", () => {
-        const bodyMatch: ApiSearchResultBodyMatch = [
+        const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
             {
                 text: "This is a very long text that will definitely exceed the maximum grapheme count limit",
             },
@@ -65,7 +71,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
     });
 
     test("truncates at 50 graphemes including author prefix", () => {
-        const bodyMatch: ApiSearchResultBodyMatch = [{text: "a".repeat(75)}];
+        const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [{text: "a".repeat(75)}];
         const result = getSearchResultContentSnippetAndReturnBodyMatch(
             createTestSearchResult(bodyMatch),
         );
@@ -78,7 +84,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
     });
 
     test("includes all remaining segments after truncation point", () => {
-        const bodyMatch: ApiSearchResultBodyMatch = [
+        const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
             {text: "a".repeat(60)},
             {text: "second segment", isMatch: true},
             {text: "third segment"},
@@ -93,7 +99,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
     });
 
     test("returns empty newBodyMatch when all content fits in preview", () => {
-        const bodyMatch: ApiSearchResultBodyMatch = [
+        const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
             {text: "Short"},
             {text: " text", isMatch: true},
         ];
@@ -107,7 +113,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
     });
 
     test("does not expand word boundary beyond 14 characters", () => {
-        const bodyMatch: ApiSearchResultBodyMatch = [
+        const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
             {
                 text: "Hello verylongwordthatexceedsthefourteencharacterthresholdbecauseitsmuchtoolong",
             },
@@ -124,7 +130,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
     });
 
     test("handles empty string segments", () => {
-        const bodyMatch: ApiSearchResultBodyMatch = [
+        const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
             {text: ""},
             {text: "Hello", isMatch: true},
             {text: ""},
@@ -144,7 +150,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
     });
 
     test("handles single character segments", () => {
-        const bodyMatch: ApiSearchResultBodyMatch = [
+        const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
             {text: "H", isMatch: true},
             {text: "e"},
             {text: "l", isMatch: true},
@@ -169,7 +175,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
 
     describe("edge cases", () => {
         test("handles segments at exact grapheme boundary", () => {
-            const bodyMatch: ApiSearchResultBodyMatch = [{text: "a".repeat(50)}];
+            const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [{text: "a".repeat(50)}];
             const result = getSearchResultContentSnippetAndReturnBodyMatch(
                 createTestSearchResult(bodyMatch),
             );
@@ -182,7 +188,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
         });
 
         test("handles case where firstSpan after boundary is empty", () => {
-            const bodyMatch: ApiSearchResultBodyMatch = [
+            const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
                 {
                     text: "This is a very long first segment that exceeds the 50 grapheme limit on its own",
                 },
@@ -200,7 +206,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
         });
 
         test("handles all segments fitting exactly at limit", () => {
-            const bodyMatch: ApiSearchResultBodyMatch = [
+            const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
                 {text: "a".repeat(22)},
                 {text: "b".repeat(22), isMatch: true},
             ];
@@ -219,7 +225,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
         });
 
         test("handles very short content", () => {
-            const bodyMatch: ApiSearchResultBodyMatch = [{text: "Hi"}];
+            const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [{text: "Hi"}];
             const result = getSearchResultContentSnippetAndReturnBodyMatch(
                 createTestSearchResult(bodyMatch),
             );
@@ -232,7 +238,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
 
     describe("real-world scenarios", () => {
         test("handles complex search result with multiple matches", () => {
-            const bodyMatch: ApiSearchResultBodyMatch = [
+            const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
                 {text: "This is a document about "},
                 {text: "machine learning", isMatch: true},
                 {text: " and its applications in "},
@@ -254,7 +260,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
         });
 
         test("handles very long search result with truncation", () => {
-            const bodyMatch: ApiSearchResultBodyMatch = [
+            const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
                 {text: "This is a document about "},
                 {text: "machine learning", isMatch: true},
                 {text: " and its applications in "},
@@ -284,7 +290,7 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
         });
 
         test("preserves match information in remaining content", () => {
-            const bodyMatch: ApiSearchResultBodyMatch = [
+            const bodyMatch: Array<ApiSearchResultMatchZippedItem> = [
                 {text: "Short intro "},
                 {
                     text: "This is matched content that is very long and will be cut off",

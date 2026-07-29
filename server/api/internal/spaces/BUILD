@@ -21,6 +21,7 @@ ts_project(
         "//server/context",
         "//server/forum/data",
         "//server/notifications/data",
+        "//server/opensearch",
         "//server/search/data/index",
         "//server/spaces",
         "//shared/accounts",

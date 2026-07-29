@@ -42,6 +42,37 @@ const request = {
     room: cast<ApiMessageRoomReference>({type: "Chat", id: generateId()}),
 } as const;
 
+type ApiSearchResultMatchItemWithText = {text: string; isMatch?: true};
+
+type TestApiSearchResultResponse = ApiSearchResultResponse extends infer Result
+    ? Result extends ApiSearchResultResponse
+        ? Omit<Result, "body" | "bodyMatch" | "titleMatch"> & {
+              bodyMatch: Array<ApiSearchResultMatchItemWithText> | null;
+          }
+        : never
+    : never;
+
+function intoApiSearchResultResponses(
+    results: Array<TestApiSearchResultResponse>,
+): Array<ApiSearchResultResponse> {
+    return results.map(result => {
+        const {bodyMatch, ...resultWithoutBodyMatch} = result;
+
+        return {
+            ...resultWithoutBodyMatch,
+            titleMatch: result.title === null ? null : [{length: result.title.length}],
+            body: bodyMatch === null ? null : bodyMatch.map(segment => segment.text).join(""),
+            bodyMatch:
+                bodyMatch === null
+                    ? null
+                    : bodyMatch.map(segment => ({
+                          length: segment.text.length,
+                          ...(segment.isMatch ? {isMatch: true as const} : {}),
+                      })),
+        };
+    }) as Array<ApiSearchResultResponse>;
+}
+
 afterEach(async () => {
     await storage.deleteAll();
 });
@@ -58,7 +89,7 @@ describe("searchAlpineForAgent", () => {
     });
 
     test("handles search results without body matches", async () => {
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Document",
                 title: "Test Document",
@@ -142,7 +173,10 @@ describe("searchAlpineForAgent", () => {
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),
@@ -176,7 +210,7 @@ The following search results matched the keyword search but did not match any sp
     });
 
     test("handles search results with body matches", async () => {
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Document",
                 title: "Test Document",
@@ -275,7 +309,10 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),
@@ -318,7 +355,7 @@ The following search results matched the keyword search but did not match any sp
 
     test("returns \u2018No results found\u2019 when all results are in the current message room", async () => {
         const currentChatId = generateId<ChatId>();
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Chat",
                 title: "Test Chat",
@@ -327,7 +364,10 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const requestWithRoom = {
             ...request,
@@ -345,7 +385,7 @@ The following search results matched the keyword search but did not match any sp
         const currentChatId = generateId<ChatId>();
         const otherChatId = generateId<ChatId>();
 
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Chat",
                 title: "Current Chat",
@@ -376,7 +416,10 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const requestWithRoom = {
             ...request,
@@ -401,7 +444,7 @@ The following search results matched the keyword search but did not match any sp
         const currentPostId = generateId<PostId>();
         const otherPostId = generateId<PostId>();
 
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Post",
                 title: "Current Post",
@@ -434,7 +477,10 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const requestWithRoom = {
             ...request,
@@ -459,7 +505,7 @@ The following search results matched the keyword search but did not match any sp
         const currentTaskId = generateId<TaskId>();
         const otherTaskId = generateId<TaskId>();
 
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Task",
                 title: "Current Task",
@@ -492,7 +538,10 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const requestWithRoom = {
             ...request,
@@ -521,7 +570,7 @@ The following search results matched the keyword search but did not match any sp
         const otherDocumentId = generateId<DocumentId>();
         const otherThreadId = generateId<DocumentCommentThreadId>();
 
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Document",
                 title: "Current Document",
@@ -554,7 +603,10 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const requestWithRoom = {
             ...request,
@@ -584,7 +636,7 @@ The following search results matched the keyword search but did not match any sp
     test("returns \u2018No results found\u2019 when all results are filtered out", async () => {
         const currentChatId = generateId<ChatId>();
 
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Chat",
                 title: "Current Chat",
@@ -609,7 +661,10 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const requestWithRoom = {
             ...request,
@@ -629,7 +684,7 @@ The following search results matched the keyword search but did not match any sp
         const otherDocumentId = generateId<DocumentId>();
         const otherThreadId = generateId<DocumentCommentThreadId>();
 
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "DocumentMessage",
                 title: null,
@@ -703,7 +758,10 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const requestWithRoom = {
             ...request,
@@ -736,7 +794,7 @@ The following search results matched the keyword search but did not match any sp
     test("does not filter non-message-room entities (Accounts, Channels, Documents, TaskCollections)", async () => {
         const currentChatId = generateId<ChatId>();
 
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Account",
                 title: "Test Account",
@@ -764,7 +822,10 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const requestWithRoom = {
             ...request,
@@ -791,7 +852,7 @@ The following search results matched the keyword search but did not match any sp
 
     test("groups results by parsed filter", async () => {
         const documentId2 = generateId<DocumentId>();
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Document",
                 title: "Matching Document 1",
@@ -822,7 +883,10 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),
@@ -853,7 +917,7 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
 
     test("creates multiple parsed filter groups if there are different matched filters.", async () => {
         const documentId2 = generateId<DocumentId>();
-        const results: Array<ApiSearchResultResponse> = [
+        const results: Array<TestApiSearchResultResponse> = [
             {
                 type: "Document",
                 title: "Matching Document 1",
@@ -885,7 +949,10 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
+            data: {results: intoApiSearchResultResponses(results)},
+        });
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),

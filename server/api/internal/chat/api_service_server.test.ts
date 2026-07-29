@@ -71,6 +71,93 @@ test("serves the final API specification", async () => {
     });
 });
 
+describe("Alpine-Version header", () => {
+    beforeEach(() => {
+        import.meta.jest.useFakeTimers();
+        import.meta.jest.setSystemTime(new Date("2026-07-29T02:00:00.000Z"));
+    });
+
+    afterEach(() => {
+        import.meta.jest.useRealTimers();
+    });
+
+    test("is required", async () => {
+        expect(
+            await server.GET(`/chats/${generateId()}/messages/0`, {
+                unsetHeaders: ["Alpine-Version"],
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: {
+                    message: expect.stringMatching(/^Missing `Alpine-Version` header\./),
+                    retry: {
+                        able: false,
+                    },
+                },
+            },
+        });
+    });
+
+    test("recommends using today\u2019s date in the default time zone", async () => {
+        expect(
+            await server.GET(`/chats/${generateId()}/messages/0`, {
+                unsetHeaders: ["Alpine-Version"],
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: {
+                    message:
+                        "Missing `Alpine-Version` header. When starting a new project, you should set the `Alpine-Version` header to today\u2019s date: `2026-07-28`. Don\u2019t dynamically compute the `Alpine-Version` header from today\u2019s date or your code may be broken by backwards incompatible API changes.",
+                    retry: {
+                        able: false,
+                    },
+                },
+            },
+        });
+    });
+
+    test("allows one date in the future but not two", async () => {
+        const allowedResponse = await server.GET(`/chats/${generateId()}/messages/0`, {
+            headers: {"Alpine-Version": "2026-07-29"},
+        });
+        const rejectedResponse = await server.GET(`/chats/${generateId()}/messages/0`, {
+            headers: {"Alpine-Version": "2026-07-30"},
+        });
+
+        expect([allowedResponse, rejectedResponse]).toEqual([
+            {
+                status: 401,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: {
+                        message: "Missing `Authorization` header.",
+                        retry: {
+                            able: false,
+                        },
+                    },
+                },
+            },
+            {
+                status: 400,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: {
+                        message:
+                            "Can\u2019t set the `Alpine-Version` header to a future date. When starting a new project, you should set the `Alpine-Version` header to today\u2019s date: `2026-07-28`. Don\u2019t dynamically compute the `Alpine-Version` header from today\u2019s date or your code may be broken by backwards incompatible API changes.",
+                        retry: {
+                            able: false,
+                        },
+                    },
+                },
+            },
+        ]);
+    });
+});
+
 test("requires authorization header", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);

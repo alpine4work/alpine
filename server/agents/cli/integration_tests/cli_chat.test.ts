@@ -45,13 +45,13 @@ test("create an empty direct chat", async () => {
     expect(await cli.run("alpine search 'Direct chat setup'")).toEqual(`\
 ## Chats
 
-1. [Direct chat setup](/chat/direct-chat-setup)
+1. [**Direct chat setup**](/chat/direct-chat-setup)
 
 ## Other
 
 The following results don’t match any natural language filter but Alpine thought they might be relevant anyway. Use your best judgement when determining if they’re actually useful for responding to the user’s request.
 
-1. [Alice: Register Alice for the **direct** **chat** test.](/chat-message/alice-register-alice-for-the-direct-chat-test)
+1. [Alice: Register Alice for the **direct chat** test.](/chat-message/alice-register-alice-for-the-direct-chat-test)
 `);
 
     expect(await cli.run("alpine read /chat/direct-chat-setup")).toEqual(`\
@@ -103,11 +103,11 @@ test("create a three-member direct chat with an initial message", async () => {
     });
 
     expect(await cli.run("alpine search 'Direct create directory'")).toEqual(`\
-1. [Direct create directory](/chat/direct-create-directory)
+1. [**Direct create directory**](/chat/direct-create-directory)
 
-2. [Direct Create Bot](/bot/direct-create-bot)
+2. [**Direct Create** Bot](/bot/direct-create-bot)
 
-3. [Direct: Register **Direct** **Create** Bot.](/chat-message/direct-register-direct-create-bot)
+3. [Direct: Register **Direct Create** Bot.](/chat-message/direct-register-direct-create-bot)
 `);
 
     expect(await cli.run("alpine read /chat/direct-create-directory")).toEqual(`\
@@ -212,7 +212,7 @@ Three-member state: [Group direct chat](https://alpine.inc/chat/${groupChat.id}#
     expect(await cli.run("alpine search 'Direct chat directory'")).toEqual(`\
 ## Chats
 
-1. [Direct chat directory](/chat/direct-chat-directory)
+1. [**Direct chat directory**](/chat/direct-chat-directory)
 `);
 
     expect(await cli.run("alpine read /chat/direct-chat-directory")).toEqual(`\
@@ -384,7 +384,7 @@ test("find text in a room chat", async () => {
     });
 
     expect(await cli.run("alpine search 'YouTube founders room'")).toEqual(
-        expect.stringContaining("[YouTube founders room](/chat/youtube-founders-room)"),
+        expect.stringContaining("[**YouTube founders room**](/chat/youtube-founders-room)"),
     );
 
     expect(await cli.run("alpine read /chat/youtube-founders-room")).toEqual(`\
@@ -431,7 +431,7 @@ test("scroll a room chat", async () => {
     });
 
     expect(await cli.run("alpine search 'YouTube scroll room'")).toEqual(
-        expect.stringContaining("[YouTube scroll room](/chat/youtube-scroll-room)"),
+        expect.stringContaining("[**YouTube scroll room**](/chat/youtube-scroll-room)"),
     );
 
     expect(await cli.run("alpine read /chat/youtube-scroll-room")).toEqual(`\
@@ -480,7 +480,9 @@ test("read a room chat from the start and follow its next page", async () => {
     }
 
     expect(await cli.run("alpine search 'YouTube start pagination'")).toEqual(
-        expect.stringContaining("[YouTube start pagination](/chat/youtube-start-pagination)"),
+        expect.stringContaining(
+            "[**YouTube start pagination**](/chat/youtube-start-pagination)",
+        ),
     );
 
     expect(await cli.run("alpine read '/chat/youtube-start-pagination?start' --limit=1kb"))
@@ -575,7 +577,7 @@ test("read a room chat from the end and follow its previous page", async () => {
     }
 
     expect(await cli.run("alpine search 'YouTube end pagination'")).toEqual(
-        expect.stringContaining("[YouTube end pagination](/chat/youtube-end-pagination)"),
+        expect.stringContaining("[**YouTube end pagination**](/chat/youtube-end-pagination)"),
     );
 
     expect(await cli.run("alpine read /chat/youtube-end-pagination --limit=1kb")).toEqual(`\
@@ -650,7 +652,7 @@ test("add a message to a room chat", async () => {
     const chat = await TestChat.createRoom(cli.session, {name: "YouTube update room"});
 
     expect(await cli.run("alpine search 'YouTube update room'")).toEqual(
-        expect.stringContaining("[YouTube update room](/chat/youtube-update-room)"),
+        expect.stringContaining("[**YouTube update room**](/chat/youtube-update-room)"),
     );
 
     expect(await cli.run("alpine read /chat/youtube-update-room")).toEqual(`\
@@ -691,7 +693,7 @@ test("rejects adding a reply while agent message parents are unimplemented", asy
     });
 
     expect(await cli.run("alpine search 'YouTube reply room'")).toEqual(
-        expect.stringContaining("[YouTube reply room](/chat/youtube-reply-room)"),
+        expect.stringContaining("[**YouTube reply room**](/chat/youtube-reply-room)"),
     );
 
     expect(await cli.run("alpine read /chat/youtube-reply-room")).toEqual(`\
@@ -764,13 +766,13 @@ test("add a message with a file attachment to a room chat", async () => {
     expect(await cli.run("alpine search 'Chat attachment source'")).toEqual(`\
 ## Chats
 
-1. [YouTube attachment room](/chat/youtube-attachment-room)
+1. [YouTube **attachment** room](/chat/youtube-attachment-room)
 
 ## Other
 
 The following results don’t match any natural language filter but Alpine thought they might be relevant anyway. Use your best judgement when determining if they’re actually useful for responding to the user’s request.
 
-1. [Chat attachment source](/document/chat-attachment-source)
+1. [**Chat attachment source**](/document/chat-attachment-source)
 
    The **source** image is available below.
 `);
@@ -784,9 +786,9 @@ The source image is available below.
 `);
 
     expect(await cli.run("alpine search 'YouTube attachment room'")).toEqual(`\
-1. [YouTube attachment room](/chat/youtube-attachment-room)
+1. [**YouTube attachment room**](/chat/youtube-attachment-room)
 
-2. [Chat attachment source](/document/chat-attachment-source)
+2. [Chat **attachment** source](/document/chat-attachment-source)
 
    The source image is available below.
 `);

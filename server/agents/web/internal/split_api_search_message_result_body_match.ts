@@ -1,8 +1,11 @@
 import {
+    ApiSearchResultMatchZippedItem,
+    zipApiSearchResultMatch,
+} from "~/server/agents/web/internal/zip_api_search_result_match.js";
+import {
     ApiSearchChatMessageResultResponse,
     ApiSearchDocumentMessageResultResponse,
     ApiSearchPostMessageResultResponse,
-    ApiSearchResultBodyMatch,
     ApiSearchTaskMessageResultResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -18,8 +21,6 @@ export type ApiSearchMessageResultResponse =
     | ApiSearchTaskMessageResultResponse
     | ApiSearchPostMessageResultResponse
     | ApiSearchDocumentMessageResultResponse;
-
-type ApiSearchResultBodyMatchItem = ApiSearchResultBodyMatch[number];
 
 /**
  * The number of [graphemes][1] (aka characters) to include in a link label before
@@ -49,12 +50,12 @@ const hardMaxGraphemeCount = softMaxGraphemeCount + maxReasonableEnglishWordGrap
  * or at the hard maximum grapheme count when no whitespace follows.
  */
 export function splitApiSearchMessageResultBodyMatch(
-    result: Pick<ApiSearchMessageResultResponse, "bodyMatch" | "type">,
+    result: Pick<ApiSearchMessageResultResponse, "body" | "bodyMatch" | "type">,
 ): {
-    preview: ApiSearchResultBodyMatch;
-    newBodyMatch: ApiSearchResultBodyMatch;
+    preview: Array<ApiSearchResultMatchZippedItem>;
+    newBodyMatch: Array<ApiSearchResultMatchZippedItem>;
 } {
-    const bodyMatch = result.bodyMatch || [];
+    const bodyMatch = zipApiSearchResultMatch(result.body, result.bodyMatch);
 
     // If there's no body match, use the missing search entity title.
     if (bodyMatch.length === 0) {
@@ -66,8 +67,8 @@ export function splitApiSearchMessageResultBodyMatch(
 
     let totalGraphemeCount = 0;
     let segmentIndex = 0;
-    const preview: Array<ApiSearchResultBodyMatchItem> = [];
-    const newBodyMatch: Array<ApiSearchResultBodyMatchItem> = [];
+    const preview: Array<ApiSearchResultMatchZippedItem> = [];
+    const newBodyMatch: Array<ApiSearchResultMatchZippedItem> = [];
 
     for (const segment of bodyMatch) {
         let length = 0;

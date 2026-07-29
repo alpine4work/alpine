@@ -286,7 +286,10 @@ export const apiSpacesPaths: Pick<
 
             return {
                 content: {
-                    results: results.map(intoApiSearchResult).filter(isNonNullable).slice(0, limit),
+                    results: results
+                        .map(result => intoApiSearchResult(result, queryText))
+                        .filter(isNonNullable)
+                        .slice(0, limit),
                 },
             };
         },

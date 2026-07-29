@@ -5832,6 +5832,9 @@ export namespace ApiSpecification {
                 readonly type: "Account";
                 readonly id: components["schemas"]["AccountId"];
                 readonly title: string;
+                readonly titleMatch: components["schemas"]["SearchResultMatch"];
+                /** @constant */
+                readonly body: null;
                 /** @constant */
                 readonly bodyMatch: null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
@@ -5848,7 +5851,9 @@ export namespace ApiSpecification {
                 readonly type: "Channel";
                 readonly id: components["schemas"]["ChannelId"];
                 readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
+                readonly titleMatch: components["schemas"]["SearchResultMatch"];
+                readonly body: string | null;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"] | null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchChatResult: {
@@ -5859,6 +5864,9 @@ export namespace ApiSpecification {
                 readonly type: "Chat";
                 readonly id: components["schemas"]["ChatId"];
                 readonly title: string;
+                readonly titleMatch: components["schemas"]["SearchResultMatch"];
+                /** @constant */
+                readonly body: null;
                 /** @constant */
                 readonly bodyMatch: null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
@@ -5873,7 +5881,10 @@ export namespace ApiSpecification {
                 readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
+                /** @constant */
+                readonly titleMatch: null;
+                readonly body: string;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account"];
             };
@@ -5885,7 +5896,9 @@ export namespace ApiSpecification {
                 readonly type: "Document";
                 readonly id: components["schemas"]["DocumentId"];
                 readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
+                readonly titleMatch: components["schemas"]["SearchResultMatch"];
+                readonly body: string | null;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"] | null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchDocumentMessageResult: {
@@ -5899,7 +5912,10 @@ export namespace ApiSpecification {
                 readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
+                /** @constant */
+                readonly titleMatch: null;
+                readonly body: string;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account"];
             };
@@ -5911,7 +5927,9 @@ export namespace ApiSpecification {
                 readonly type: "Post";
                 readonly id: components["schemas"]["PostId"];
                 readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
+                readonly titleMatch: components["schemas"]["SearchResultMatch"];
+                readonly body: string | null;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"] | null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account"];
             };
@@ -5925,12 +5943,18 @@ export namespace ApiSpecification {
                 readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
+                /** @constant */
+                readonly titleMatch: null;
+                readonly body: string;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account"];
             };
             readonly SearchSiteResult: {
                 readonly title: string;
+                readonly titleMatch: components["schemas"]["SearchResultMatch"];
+                /** @constant */
+                readonly body: null;
                 /** @constant */
                 readonly bodyMatch: null;
                 /**
@@ -5949,7 +5973,9 @@ export namespace ApiSpecification {
                 readonly type: "Task";
                 readonly id: components["schemas"]["TaskId"];
                 readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
+                readonly titleMatch: components["schemas"]["SearchResultMatch"];
+                readonly body: string | null;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"] | null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly status: components["schemas"]["TaskStatus"];
             };
@@ -5963,7 +5989,10 @@ export namespace ApiSpecification {
                 readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
+                /** @constant */
+                readonly titleMatch: null;
+                readonly body: string;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account"];
             };
@@ -5975,12 +6004,15 @@ export namespace ApiSpecification {
                 readonly type: "TaskCollection";
                 readonly id: components["schemas"]["TaskCollectionId"];
                 readonly title: string;
+                readonly titleMatch: components["schemas"]["SearchResultMatch"];
+                /** @constant */
+                readonly body: null;
                 /** @constant */
                 readonly bodyMatch: null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
-            readonly SearchResultBodyMatch: readonly {
-                readonly text: string;
+            readonly SearchResultMatch: readonly {
+                readonly length: number;
                 /** @constant */
                 readonly isMatch?: true;
             }[];
@@ -6294,7 +6326,10 @@ export namespace ApiSpecification {
                 readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
+                /** @constant */
+                readonly titleMatch: null;
+                readonly body: string;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account_Response"];
             };
@@ -6309,7 +6344,10 @@ export namespace ApiSpecification {
                 readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
+                /** @constant */
+                readonly titleMatch: null;
+                readonly body: string;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account_Response"];
             };
@@ -6321,7 +6359,9 @@ export namespace ApiSpecification {
                 readonly type: "Post";
                 readonly id: components["schemas"]["PostId"];
                 readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
+                readonly titleMatch: components["schemas"]["SearchResultMatch"];
+                readonly body: string | null;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"] | null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account_Response"];
             };
@@ -6335,7 +6375,10 @@ export namespace ApiSpecification {
                 readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
+                /** @constant */
+                readonly titleMatch: null;
+                readonly body: string;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account_Response"];
             };
@@ -6349,7 +6392,10 @@ export namespace ApiSpecification {
                 readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
+                /** @constant */
+                readonly titleMatch: null;
+                readonly body: string;
+                readonly bodyMatch: components["schemas"]["SearchResultMatch"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account_Response"];
             };

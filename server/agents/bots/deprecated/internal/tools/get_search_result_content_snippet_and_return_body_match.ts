@@ -3,9 +3,10 @@ import {
     ApiSearchChatMessageResult,
     ApiSearchDocumentMessageResult,
     ApiSearchPostMessageResult,
-    ApiSearchResultBodyMatch,
+    ApiSearchResultMatch,
     ApiSearchTaskMessageResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {countGraphemes, iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
@@ -18,7 +19,10 @@ type ApiSearchMessageResult =
     | ApiSearchPostMessageResult
     | ApiSearchDocumentMessageResult;
 
-type ApiSearchResultBodyMatchItem = ApiSearchResultBodyMatch[number];
+export type ApiSearchResultMatchZippedItem = {
+    readonly text: string;
+    readonly isMatch: boolean;
+};
 
 /**
  * The number of [graphemes][1] (aka characters) to include in a link label.
@@ -67,12 +71,12 @@ const maxGraphemeCount = 50;
  * ```
  */
 export function getSearchResultContentSnippetAndReturnBodyMatch(
-    result: Pick<ApiSearchMessageResult, "bodyMatch" | "author" | "type">,
+    result: Pick<ApiSearchMessageResult, "body" | "bodyMatch" | "author" | "type">,
 ): {
-    preview: ApiSearchResultBodyMatch;
-    newBodyMatch: ApiSearchResultBodyMatch;
+    preview: Array<ApiSearchResultMatchZippedItem>;
+    newBodyMatch: Array<ApiSearchResultMatchZippedItem>;
 } {
-    const bodyMatch = result.bodyMatch || [];
+    const bodyMatch = zipApiSearchResultMatch(result.body, result.bodyMatch);
     const previewMessagePrefix = {text: `${result.author.shortName}: `} as const;
 
     // If there's no body match, we use the missing search entity title. It'll look
@@ -89,8 +93,8 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
 
     let totalGraphemeCount = 0;
     let segmentIndex = 0;
-    const preview: Array<ApiSearchResultBodyMatchItem> = [previewMessagePrefix];
-    const newBodyMatch: Array<ApiSearchResultBodyMatchItem> = [];
+    const preview: Array<ApiSearchResultMatchZippedItem> = [previewMessagePrefix];
+    const newBodyMatch: Array<ApiSearchResultMatchZippedItem> = [];
 
     for (const segment of bodyMatch) {
         const text = segment.text;
@@ -173,6 +177,27 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
     }
 
     return {preview, newBodyMatch};
+}
+
+export function zipApiSearchResultMatch(
+    text: string,
+    match: ApiSearchResultMatch,
+): Array<ApiSearchResultMatchZippedItem> {
+    const segments: Array<ApiSearchResultMatchZippedItem> = [];
+    let startIndex = 0;
+
+    for (const segment of match) {
+        const endIndex = startIndex + segment.length;
+        assert(endIndex <= text.length);
+        segments.push({
+            text: text.slice(startIndex, endIndex),
+            isMatch: segment.isMatch ?? false,
+        });
+        startIndex = endIndex;
+    }
+
+    assert(startIndex === text.length);
+    return segments;
 }
 
 function getMissingSearchEntityTitleForMessage(

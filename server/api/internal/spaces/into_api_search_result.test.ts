@@ -48,6 +48,8 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 title: "Test User",
+                titleMatch: [{length: 9}],
+                body: null,
                 bodyMatch: null,
                 type: "Account",
                 id: accountId,
@@ -83,6 +85,8 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 title: "Test Bot",
+                titleMatch: [{length: 8}],
+                body: null,
                 bodyMatch: null,
                 type: "Account",
                 id: accountId,
@@ -117,6 +121,8 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 id: documentId,
                 title: "Test Document",
+                titleMatch: [{length: 13}],
+                body: null,
                 bodyMatch: null,
             });
         });
@@ -149,11 +155,9 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 id: documentId,
                 title: "Test Document",
-                bodyMatch: [
-                    {text: "This is "},
-                    {text: "highlighted", isMatch: true},
-                    {text: " text"},
-                ],
+                titleMatch: [{length: 13}],
+                body: "This is highlighted text",
+                bodyMatch: [{length: 8}, {length: 11, isMatch: true}, {length: 5}],
             });
         });
 
@@ -181,7 +185,53 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 id: documentId,
                 title: "Test Document",
-                bodyMatch: [{text: "Plain text"}],
+                titleMatch: [{length: 13}],
+                body: "Plain text",
+                bodyMatch: [{length: 10}],
+            });
+        });
+    });
+
+    describe("title match handling", () => {
+        test("approximately highlights title words matched by the query", () => {
+            const chatId = generateId<ChatId>();
+            const model = new SearchEntityModel({
+                type: "Chat",
+                title: "Direct chat setup",
+                chat: {
+                    id: chatId,
+                    version: 0,
+                    media: {
+                        type: "AccountPile",
+                        previewAccounts: [],
+                        accountCount: 0,
+                    },
+                },
+            });
+
+            const result = intoApiSearchResult(
+                new SearchEntityResultModel({
+                    model,
+                    score: 1.0,
+                    bodyTextSnippet: [],
+                    parsedFilter: null,
+                }),
+                "Direct chat setup",
+            );
+
+            expect(result).toEqual({
+                type: "Chat",
+                id: chatId,
+                title: "Direct chat setup",
+                titleMatch: [
+                    {length: 6, isMatch: true},
+                    {length: 1},
+                    {length: 4, isMatch: true},
+                    {length: 1},
+                    {length: 5, isMatch: true},
+                ],
+                body: null,
+                bodyMatch: null,
             });
         });
     });
@@ -211,6 +261,8 @@ describe("intoApiSearchResult", () => {
                 type: "Channel",
                 id: channelId,
                 title: "General Channel",
+                titleMatch: [{length: 15}],
+                body: null,
                 bodyMatch: null,
             });
         });
@@ -239,6 +291,8 @@ describe("intoApiSearchResult", () => {
                 type: "Channel",
                 id: channelId,
                 title: "Unknown channel",
+                titleMatch: [{length: 15}],
+                body: null,
                 bodyMatch: null,
             });
         });
@@ -274,6 +328,8 @@ describe("intoApiSearchResult", () => {
                 type: "Chat",
                 id: chatId,
                 title: "Team Discussion",
+                titleMatch: [{length: 15}],
+                body: null,
                 bodyMatch: null,
             });
         });
@@ -307,6 +363,8 @@ describe("intoApiSearchResult", () => {
                 type: "Chat",
                 id: chatId,
                 title: "Unknown chat",
+                titleMatch: [{length: 12}],
+                body: null,
                 bodyMatch: null,
             });
         });
@@ -346,7 +404,9 @@ describe("intoApiSearchResult", () => {
                 id: chatId,
                 index: messageIndex,
                 title: null,
-                bodyMatch: [{text: "Hello world", isMatch: true}],
+                titleMatch: null,
+                body: "Hello world",
+                bodyMatch: [{length: 11, isMatch: true}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Message Author",
@@ -380,7 +440,9 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 id: documentId,
                 title: "Project Proposal",
-                bodyMatch: [{text: "Document content"}],
+                titleMatch: [{length: 16}],
+                body: "Document content",
+                bodyMatch: [{length: 16}],
             });
         });
 
@@ -408,6 +470,8 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 id: documentId,
                 title: "Unknown document",
+                titleMatch: [{length: 16}],
+                body: null,
                 bodyMatch: null,
             });
         });
@@ -450,7 +514,9 @@ describe("intoApiSearchResult", () => {
                 threadId: commentThreadId,
                 index: commentIndex,
                 title: null,
-                bodyMatch: [{text: "Great point!", isMatch: true}],
+                titleMatch: null,
+                body: "Great point!",
+                bodyMatch: [{length: 12, isMatch: true}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Comment Author",
@@ -491,8 +557,10 @@ describe("intoApiSearchResult", () => {
             expect(result).toEqual({
                 type: "Post",
                 id: postId,
-                title: "Announcement",
-                bodyMatch: [{text: "Post content"}],
+                title: "Post Announcement",
+                titleMatch: [{length: 17}],
+                body: "Post content",
+                bodyMatch: [{length: 12}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Post Author",
@@ -532,6 +600,8 @@ describe("intoApiSearchResult", () => {
                 type: "Post",
                 id: postId,
                 title: "Unknown post",
+                titleMatch: [{length: 12}],
+                body: null,
                 bodyMatch: null,
                 author: expect.objectContaining({
                     id: authorId,
@@ -575,7 +645,9 @@ describe("intoApiSearchResult", () => {
                 id: postId,
                 index: commentIndex,
                 title: null,
-                bodyMatch: [{text: "Nice post!", isMatch: true}],
+                titleMatch: null,
+                body: "Nice post!",
+                bodyMatch: [{length: 10, isMatch: true}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Comment Author",
@@ -613,7 +685,9 @@ describe("intoApiSearchResult", () => {
                 type: "Task",
                 id: taskId,
                 title: "Fix the bug",
-                bodyMatch: [{text: "Task description"}],
+                titleMatch: [{length: 11}],
+                body: "Task description",
+                bodyMatch: [{length: 16}],
                 status: {type: "Open", isActive: false},
             });
         });
@@ -646,6 +720,8 @@ describe("intoApiSearchResult", () => {
                 type: "Task",
                 id: taskId,
                 title: "Implement feature",
+                titleMatch: [{length: 17}],
+                body: null,
                 bodyMatch: null,
                 status: {type: "Open", isActive: true},
             });
@@ -679,6 +755,8 @@ describe("intoApiSearchResult", () => {
                 type: "Task",
                 id: taskId,
                 title: "Completed task",
+                titleMatch: [{length: 14}],
+                body: null,
                 bodyMatch: null,
                 status: {type: "Closed"},
             });
@@ -712,6 +790,8 @@ describe("intoApiSearchResult", () => {
                 type: "Task",
                 id: taskId,
                 title: "Unknown task",
+                titleMatch: [{length: 12}],
+                body: null,
                 bodyMatch: null,
                 status: {type: "Open", isActive: true},
             });
@@ -747,6 +827,8 @@ describe("intoApiSearchResult", () => {
                 type: "TaskCollection",
                 id: collectionId,
                 title: "Sprint 1 Tasks",
+                titleMatch: [{length: 14}],
+                body: null,
                 bodyMatch: null,
             });
         });
@@ -779,6 +861,8 @@ describe("intoApiSearchResult", () => {
                 type: "TaskCollection",
                 id: collectionId,
                 title: "Unknown task collection",
+                titleMatch: [{length: 23}],
+                body: null,
                 bodyMatch: null,
             });
         });
@@ -818,7 +902,9 @@ describe("intoApiSearchResult", () => {
                 id: taskId,
                 index: commentIndex,
                 title: null,
-                bodyMatch: [{text: "Working on it", isMatch: true}],
+                titleMatch: null,
+                body: "Working on it",
+                bodyMatch: [{length: 13, isMatch: true}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Task Commenter",
