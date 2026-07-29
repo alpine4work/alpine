@@ -1,5 +1,4 @@
 import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebDocumentThreadPage,
     AgentWebDocumentThreadPageCustomBlock,
@@ -8,6 +7,7 @@ import {
     printAgentWebDocumentThreadPage,
 } from "~/server/agents/web/pages/agent_web_document_thread_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
@@ -290,7 +290,7 @@ Preview body.
 </blockquote>
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
+                await storeAgentWebPageLinkForTest(storage, pageLink.document);
                 await storage.documentCommentThreadNumberById.put(
                     `${pageLink.document.id}-${pageLink.threadId}`,
                     1,
@@ -500,7 +500,7 @@ First comment.
 </comment>
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
+                await storeAgentWebPageLinkForTest(storage, pageLink.document);
                 await storage.documentCommentThreadNumberById.put(
                     `${pageLink.document.id}-${pageLink.threadId}`,
                     1,
@@ -509,7 +509,7 @@ First comment.
                     `${pageLink.document.id}-1`,
                     pageLink.threadId,
                 );
-                await createAgentWebPageStoredLinkPathname(storage, bobReference);
+                await storeAgentWebPageLinkForTest(storage, bobReference);
             },
             parseError: markdown`
 Error: \`- [ ] Unresolved\` can only be included on the first page of a document comment thread,
@@ -535,7 +535,7 @@ First comment.
 </comment>
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
+                await storeAgentWebPageLinkForTest(storage, pageLink.document);
                 await storage.documentCommentThreadNumberById.put(
                     `${pageLink.document.id}-${pageLink.threadId}`,
                     1,
@@ -544,7 +544,7 @@ First comment.
                     `${pageLink.document.id}-1`,
                     pageLink.threadId,
                 );
-                await createAgentWebPageStoredLinkPathname(storage, bobReference);
+                await storeAgentWebPageLinkForTest(storage, bobReference);
             },
             parseError: markdown`
 Error: \`- [x] Resolved\` can only be included on the first page of a document comment thread, right
@@ -695,7 +695,7 @@ Preview body.
 </blockquote>
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
+                await storeAgentWebPageLinkForTest(storage, pageLink.document);
                 await storage.documentCommentThreadNumberById.put(
                     `${pageLink.document.id}-${pageLink.threadId}`,
                     1,
@@ -704,7 +704,7 @@ Preview body.
                     `${pageLink.document.id}-1`,
                     pageLink.threadId,
                 );
-                await createAgentWebPageStoredLinkPathname(storage, bobReference);
+                await storeAgentWebPageLinkForTest(storage, bobReference);
             },
             parseError: markdown`
 Error: There must be only one \`<blockquote>\` and it must be placed immediately after the first

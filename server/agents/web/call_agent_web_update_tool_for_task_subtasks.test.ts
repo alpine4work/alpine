@@ -8,8 +8,8 @@ import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
     ApiTaskResponse,
     ApiTaskWithNotesResponse,
@@ -70,13 +70,7 @@ function withoutNotes(task: ApiTaskResponse | ApiTaskWithNotesResponse): ApiTask
 
 beforeEach(async () => {
     await storage.deleteAll();
-    await createAgentWebPageStoredLinkPathname(storage, context.botAccount);
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "Task",
-        id: parentTask.id,
-        title: parentTask.title,
-        status: parentTask.status,
-    });
+    await storeAgentWebPageLinkForTest(storage, [context.botAccount, parentTask]);
 });
 
 test("manually reorders task subtasks", async () => {
@@ -140,12 +134,7 @@ test("adds a task to manually ordered subtasks", async () => {
         index: 3,
         title: "Added subtask",
     });
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "Task",
-        id: addedTask.id,
-        title: addedTask.title,
-        status: addedTask.status,
-    });
+    await storeAgentWebPageLinkForTest(storage, addedTask);
     api.mockPatch("/tasks", {
         params: "Any",
         data: {

@@ -5,7 +5,6 @@ import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -46,8 +45,7 @@ const context: AgentWebContext = {
 
 beforeEach(async () => {
     await storage.deleteAll();
-    await createAgentWebPageStoredLinkPathname(storage, context.botAccount);
-    await createAgentWebPageStoredLinkPathname(storage, launchTaskReference);
+    await storeAgentWebPageLinkForTest(storage, [context.botAccount, launchTaskReference]);
 });
 
 function getApiPostTaskCollectionsRequestHistory() {
@@ -296,7 +294,7 @@ test("creates a task collection with a new task and all its fields", async () =>
     const otherCollectionId = generateId<TaskCollectionId>();
     const createdTask = createApiTaskMock({index: 10, title: "Draft launch plan"});
 
-    await createAgentWebPageStoredLinkPathname(storage, {
+    await storeAgentWebPageLinkForTest(storage, {
         type: "TaskCollection",
         id: otherCollectionId,
         title: "Operations",
@@ -668,7 +666,7 @@ test("validates task fields before creating a task collection", async () => {
 });
 
 test("validates a new task\u2019s additional collection count before creating a collection", async () => {
-    await createAgentWebPageStoredLinkPathname(storage, {
+    await storeAgentWebPageLinkForTest(storage, {
         type: "TaskCollection",
         id: generateId<TaskCollectionId>(),
         title: "Operations",
@@ -847,7 +845,7 @@ test("rejects creating a task collection with an unknown task link", async () =>
 });
 
 test("rejects creating a task collection with a next page link", async () => {
-    await createAgentWebPageStoredLinkPathname(storage, {
+    await storeAgentWebPageLinkForTest(storage, {
         type: "TaskCollection",
         id: generateId<TaskCollectionId>(),
         title: "Roadmap",

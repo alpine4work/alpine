@@ -2,8 +2,8 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_document.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -39,7 +39,7 @@ const context: AgentWebContext = {
 test("reads document", async () => {
     const documentId = generateId<DocumentId>();
 
-    await createAgentWebPageStoredLinkPathname(context.storage, {
+    await storeAgentWebPageLinkForTest(context.storage, {
         type: "Document",
         id: documentId,
         title: "Hello, world!",
@@ -81,7 +81,7 @@ This is a _really cool_ document!
 test("reads document with emphasis + strong formatting", async () => {
     const documentId = generateId<DocumentId>();
 
-    await createAgentWebPageStoredLinkPathname(context.storage, {
+    await storeAgentWebPageLinkForTest(context.storage, {
         type: "Document",
         id: documentId,
         title: "Hello, world!",

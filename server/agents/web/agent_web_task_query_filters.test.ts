@@ -3,9 +3,9 @@ import {
     parseAgentWebTaskQueryFilters,
     printAgentWebTaskQueryFilters,
 } from "~/server/agents/web/agent_web_task_query_filters.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {normalizeApiTaskQueryFilters} from "~/shared/api/content/normalize_api_task_query_filters.js";
 import {
     fromApiAccountReference,
@@ -115,7 +115,7 @@ async function createAccountForTest(
 
     // `printAgentWebTaskQueryFilters()` creates links on demand but tests create them
     // ahead of time so pathname dedupe numbers are assigned deterministically.
-    await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(account));
+    await storeAgentWebPageLinkForTest(storage, account);
 
     return account;
 }
@@ -128,11 +128,7 @@ async function createTaskCollectionForTest(
         name,
     };
 
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "TaskCollection",
-        id: collection.id,
-        title: collection.name,
-    });
+    await storeAgentWebPageLinkForTest(storage, collection);
 
     return collection;
 }
@@ -1379,14 +1375,14 @@ test("ignores unknown search params between filter params", async () => {
 test("parses an old account pathname after the account was renamed", async () => {
     const accountId = generateId<AccountId>();
 
-    await createAgentWebPageStoredLinkPathname(storage, {
+    await storeAgentWebPageLinkForTest(storage, {
         type: "Account",
         id: accountId,
         title: "John Doe",
         shortName: "John",
     });
 
-    await createAgentWebPageStoredLinkPathname(storage, {
+    await storeAgentWebPageLinkForTest(storage, {
         type: "Account",
         id: accountId,
         title: "Johnny Doe",

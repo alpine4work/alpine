@@ -11,8 +11,8 @@ import {mockApiGetChatMessages} from "~/server/agents/api/test_helpers/mock_api_
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
     ApiContentResponse,
@@ -53,13 +53,13 @@ const context: AgentWebContext = {
 };
 
 beforeEach(async () => {
-    const actualBotAccountPathname = await createAgentWebPageStoredLinkPathname(
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
         storage,
         context.botAccount,
     );
     assert(actualBotAccountPathname === context.botAccount.pathname);
 
-    const chatPathname = await createAgentWebPageStoredLinkPathname(storage, {
+    const chatPathname = await storeAgentWebPageLinkForTest(storage, {
         type: "Chat",
         id: chatId,
         title: "Incident Response",

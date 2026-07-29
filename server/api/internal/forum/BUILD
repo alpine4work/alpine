@@ -25,5 +25,6 @@ ts_project(
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
+        "//shared/search",
     ],
 )

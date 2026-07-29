@@ -1,4 +1,3 @@
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebPostPage,
     normalizeAgentWebPostPage,
@@ -6,6 +5,7 @@ import {
     printAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
@@ -522,8 +522,7 @@ Post body.
 </post>
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
-                await createAgentWebPageStoredLinkPathname(storage, bobReference);
+                await storeAgentWebPageLinkForTest(storage, [aliceReference, bobReference]);
             },
             parseError: markdown`
 Error: A \`<post>\` must be the first thing in post markdown and it must be placed after the first
@@ -546,8 +545,7 @@ Post body.
 </post>
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, launchPostReference);
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+                await storeAgentWebPageLinkForTest(storage, [launchPostReference, aliceReference]);
             },
             parseError: markdown`
 Error: Can\u2019t add a \`<post>\` to a post\u2019s comments section. Remove the \`<post>\` and try

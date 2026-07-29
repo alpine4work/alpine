@@ -1,8 +1,8 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -33,7 +33,7 @@ const context: AgentWebContext = {
 
 beforeEach(async () => {
     await storage.deleteAll();
-    await createAgentWebPageStoredLinkPathname(storage, context.botAccount);
+    await storeAgentWebPageLinkForTest(storage, context.botAccount);
 });
 
 function channelContentFromText(text: string): ApiContentResponseWithoutKeys {
@@ -234,7 +234,7 @@ End of posts.
 });
 
 test("rejects creating a channel with pagination", async () => {
-    await createAgentWebPageStoredLinkPathname(storage, {
+    await storeAgentWebPageLinkForTest(storage, {
         type: "Channel",
         id: generateId<ChannelId>(),
         title: "Announcements",

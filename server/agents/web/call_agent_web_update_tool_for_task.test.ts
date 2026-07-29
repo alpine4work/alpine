@@ -5,10 +5,9 @@ import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
     ApiContentResponseWithoutKeys,
     ApiTaskPatchResult,
@@ -77,12 +76,14 @@ const emptyNotesContent: ApiContentResponseWithoutKeys = {
 };
 
 beforeEach(async () => {
-    await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(aliceAccount));
-    await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(bobAccount));
-    await createAgentWebPageStoredLinkPathname(storage, parentTaskReference);
-    await createAgentWebPageStoredLinkPathname(storage, otherParentTaskReference);
-    await createAgentWebPageStoredLinkPathname(storage, engineeringCollectionReference);
-    await createAgentWebPageStoredLinkPathname(storage, roadmapCollectionReference);
+    await storeAgentWebPageLinkForTest(storage, [
+        aliceAccount,
+        bobAccount,
+        parentTaskReference,
+        otherParentTaskReference,
+        engineeringCollectionReference,
+        roadmapCollectionReference,
+    ]);
 });
 
 function mockTaskPatch(taskId: TaskId, count = 1) {
@@ -212,7 +213,7 @@ async function readTask({
     }>;
     totalSubtaskCount?: number;
 }): Promise<{taskId: TaskId; path: string}> {
-    const path = await createAgentWebPageStoredLinkPathname(storage, {
+    const path = await storeAgentWebPageLinkForTest(storage, {
         type: "Task",
         id: taskId,
         title,
@@ -294,12 +295,7 @@ test("adds a subtask section when the task previously had no subtasks", async ()
         title: subtask.title,
         parent: {id: taskId, title: "Parent task without subtasks"},
     });
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "Task",
-        id: subtask.id,
-        title: subtask.title,
-        status: subtask.status,
-    });
+    await storeAgentWebPageLinkForTest(storage, subtask);
     api.mockGet("/tasks/{id}", {
         params: {path: {id: subtask.id}},
         data: {spaceId, task: withoutNotes(subtask)},

@@ -7,8 +7,8 @@ import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_we
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
     ApiAccountResponse,
@@ -89,19 +89,16 @@ const context: AgentWebContext = {
 beforeEach(async () => {
     await storage.deleteAll();
 
-    const actualBotAccountPathname = await createAgentWebPageStoredLinkPathname(
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
         storage,
         context.botAccount,
     );
     assert(actualBotAccountPathname === context.botAccount.pathname);
 
-    const actualDocumentPathname = await createAgentWebPageStoredLinkPathname(
-        storage,
-        documentReference,
-    );
+    const actualDocumentPathname = await storeAgentWebPageLinkForTest(storage, documentReference);
     assert(actualDocumentPathname === "/document/launch-spec");
 
-    const actualOtherDocumentPathname = await createAgentWebPageStoredLinkPathname(
+    const actualOtherDocumentPathname = await storeAgentWebPageLinkForTest(
         storage,
         otherDocumentReference,
     );
@@ -113,20 +110,7 @@ beforeEach(async () => {
     );
     assert(actualDocumentThreadPathname === documentThreadPath);
 
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "Account",
-        id: aliceAccount.id,
-        title: aliceAccount.name,
-        shortName: aliceAccount.shortName,
-        bot: aliceAccount.bot,
-    });
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "Account",
-        id: bobAccount.id,
-        title: bobAccount.name,
-        shortName: bobAccount.shortName,
-        bot: bobAccount.bot,
-    });
+    await storeAgentWebPageLinkForTest(storage, [aliceAccount, bobAccount]);
 });
 
 function createTextContent(text: string): ApiContentResponseWithoutKeys {

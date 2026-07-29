@@ -23,7 +23,7 @@ import {agentWebMessagingPageMessageNouns} from "~/server/agents/web/pages/messa
 import {getReadAgentWebMessagingPageAroundMessageStartCursor} from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiAccountResponse,
@@ -76,13 +76,13 @@ const context: AgentWebContext = {
 };
 
 beforeEach(async () => {
-    const actualBotAccountPathname = await createAgentWebPageStoredLinkPathname(
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
         storage,
         context.botAccount,
     );
     assert(actualBotAccountPathname === context.botAccount.pathname);
 
-    const chatPathname = await createAgentWebPageStoredLinkPathname(storage, {
+    const chatPathname = await storeAgentWebPageLinkForTest(storage, {
         type: "Chat",
         id: chatId,
         title: "Incident Response",
@@ -297,7 +297,7 @@ test("creates a message with file attachments", async () => {
     });
 
     const documentId = generateId<DocumentId>();
-    const documentPathname = await createAgentWebPageStoredLinkPathname(storage, {
+    const documentPathname = await storeAgentWebPageLinkForTest(storage, {
         type: "Document",
         id: documentId,
         title: "Launch plan",
@@ -1510,7 +1510,7 @@ test("rejects creating a reply when the blockquote author prefix is wrong", asyn
         createMessage: index =>
             createMessage({index, author: aliceAccount, content: "Parent message"}),
     });
-    await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(bobAccount));
+    await storeAgentWebPageLinkForTest(storage, bobAccount);
 
     await expect(
         callAgentWebUpdateTool(context, {

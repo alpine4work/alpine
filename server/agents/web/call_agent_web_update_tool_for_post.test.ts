@@ -8,8 +8,8 @@ import {mockApiGetPostMessages} from "~/server/agents/api/test_helpers/mock_api_
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
     ApiAccountResponse,
@@ -97,37 +97,24 @@ const context: AgentWebContext = {
 beforeEach(async () => {
     await storage.deleteAll();
 
-    const actualBotAccountPathname = await createAgentWebPageStoredLinkPathname(
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
         storage,
         context.botAccount,
     );
     assert(actualBotAccountPathname === context.botAccount.pathname);
 
-    const actualPostPathname = await createAgentWebPageStoredLinkPathname(storage, postReference);
+    const actualPostPathname = await storeAgentWebPageLinkForTest(storage, postReference);
     assert(actualPostPathname === postPath);
 
-    const actualOtherPostPathname = await createAgentWebPageStoredLinkPathname(
-        storage,
-        otherPostReference,
-    );
+    const actualOtherPostPathname = await storeAgentWebPageLinkForTest(storage, otherPostReference);
     assert(actualOtherPostPathname === otherPostPath);
 
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "Account",
-        id: aliceAccount.id,
-        title: aliceAccount.name,
-        shortName: aliceAccount.shortName,
-        bot: aliceAccount.bot,
-    });
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "Account",
-        id: bobAccount.id,
-        title: bobAccount.name,
-        shortName: bobAccount.shortName,
-        bot: bobAccount.bot,
-    });
-    await createAgentWebPageStoredLinkPathname(storage, announcementsChannelReference);
-    await createAgentWebPageStoredLinkPathname(storage, productUpdatesChannelReference);
+    await storeAgentWebPageLinkForTest(storage, [
+        aliceAccount,
+        bobAccount,
+        announcementsChannelReference,
+        productUpdatesChannelReference,
+    ]);
 });
 
 function createTextContent(text: string): ApiContentResponseWithoutKeys {

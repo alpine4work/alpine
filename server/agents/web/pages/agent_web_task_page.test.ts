@@ -1,6 +1,4 @@
-import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebTaskPage,
     normalizeAgentWebTaskPage,
@@ -8,8 +6,10 @@ import {
     printAgentWebTaskPage,
 } from "~/server/agents/web/pages/agent_web_task_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
     ApiAccountReferenceResponse,
+    ApiMentionReferenceResponse,
     ApiTaskCollectionReferenceResponse,
     ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -75,13 +75,14 @@ async function setupTaskPageSubtasksStorage({
     storedLinks = [],
 }: {
     storage: AgentWebSessionStorage;
-    storedLinks?: ReadonlyArray<AgentWebPageStoredLink>;
+    storedLinks?: ReadonlyArray<ApiMentionReferenceResponse>;
 }) {
-    await createAgentWebPageStoredLinkPathname(storage, currentTaskReference);
-    await createAgentWebPageStoredLinkPathname(storage, subtaskReference);
-    for (const storedLink of storedLinks) {
-        await createAgentWebPageStoredLinkPathname(storage, storedLink);
-    }
+    await storeAgentWebPageLinkForTest(
+        storage,
+        currentTaskReference,
+        subtaskReference,
+        storedLinks,
+    );
 }
 
 runAgentWebPageTests<TaskId, AgentWebTaskPage>({
@@ -120,7 +121,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
 - Parent: [Parent task](/task/parent-task)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, parentReference);
+                await storeAgentWebPageLinkForTest(storage, parentReference);
             },
             page: {
                 type: "Task",
@@ -149,9 +150,11 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
 - due date: 2027-07-12
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, parentReference);
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    parentReference,
+                    aliceReference,
+                    engineeringReference,
+                ]);
             },
             printMarkdown: `\
 # Lowercase fields
@@ -651,7 +654,7 @@ colon in between (e.g. \`- Priority: Medium\`).
 - Priority: High
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+                await storeAgentWebPageLinkForTest(storage, aliceReference);
             },
             printMarkdown: `\
 # Out of order
@@ -732,7 +735,7 @@ Error: Unexpected task priority \u201CImmediate\u201D on line 4. Try again with 
 - Parent: [Engineering](/task-collection/engineering)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, engineeringReference);
             },
             parseError: markdown`
 Error: Unexpected task parent link \u201CEngineering\u201D on line 4. Try again with a link to a
@@ -749,10 +752,8 @@ task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
 - Parent: [Parent task](/task/parent-task) [Other task](/task/other-task)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, parentReference);
-                await createAgentWebPageStoredLinkPathname(storage, otherTaskReference);
+                await storeAgentWebPageLinkForTest(storage, [parentReference, otherTaskReference]);
             },
-            // NOCOMMIT: Well this is weird!
             parseError: markdown`
 Error: Unexpected task parent link \u201CParent task Other task\u201D on line 4. Try again with a
 link to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
@@ -768,7 +769,7 @@ link to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
 - Assignee: [Engineering](/task-collection/engineering)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, engineeringReference);
             },
             parseError: markdown`
 Error: Unexpected task assignee link \u201CEngineering\u201D on line 4. Try again with a link to a
@@ -785,10 +786,8 @@ human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).
 - Assignee: [Alice](/human/alice) [Bob](/human/bob)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
-                await createAgentWebPageStoredLinkPathname(storage, bobReference);
+                await storeAgentWebPageLinkForTest(storage, [aliceReference, bobReference]);
             },
-            // NOCOMMIT: Well this is weird!
             parseError: markdown`
 Error: Unexpected task assignee link \u201CAlice Bob\u201D on line 4. Try again with a link to a
 human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).
@@ -804,8 +803,10 @@ human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).
 - Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
-                await createAgentWebPageStoredLinkPathname(storage, roadmapReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    engineeringReference,
+                    roadmapReference,
+                ]);
             },
             page: {
                 type: "Task",
@@ -831,7 +832,7 @@ human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).
 - Status: Open (Active)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, engineeringReference);
             },
             printMarkdown: `\
 # Singular fields
@@ -881,7 +882,7 @@ list of collection links (e.g.
   - [Roadmap](/task-collection/roadmap)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, engineeringReference);
             },
             parseError: markdown`
 Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated
@@ -900,8 +901,10 @@ list of collection links and nothing else after that (e.g.
   - [Engineering](/task-collection/engineering)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
-                await createAgentWebPageStoredLinkPathname(storage, roadmapReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    engineeringReference,
+                    roadmapReference,
+                ]);
             },
             parseError: markdown`
 Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated
@@ -920,7 +923,7 @@ list of collection links and nothing else after that (e.g.
   - [Engineering](/task-collection/engineering)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, engineeringReference);
             },
             parseError: markdown`
 Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated
@@ -939,7 +942,7 @@ list of collection links and nothing else after that (e.g.
   - [Engineering](/task-collection/engineering)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, engineeringReference);
             },
             parseError: markdown`
 Error: Unexpected markdown after task collection list on line 5. Try again with a comma separated
@@ -957,8 +960,10 @@ list of collection links and nothing else after that (e.g.
 - Collections: [Engineering](/task-collection/engineering) [Roadmap](/task-collection/roadmap)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
-                await createAgentWebPageStoredLinkPathname(storage, roadmapReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    engineeringReference,
+                    roadmapReference,
+                ]);
             },
             printMarkdown: `\
 # Inline collections no comma
@@ -989,8 +994,10 @@ list of collection links and nothing else after that (e.g.
 - Collections: [Engineering](/task-collection/engineering) and [Roadmap](/task-collection/roadmap)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
-                await createAgentWebPageStoredLinkPathname(storage, roadmapReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    engineeringReference,
+                    roadmapReference,
+                ]);
             },
             printMarkdown: `\
 # Inline collections and
@@ -1021,8 +1028,10 @@ list of collection links and nothing else after that (e.g.
 - Collections: [Engineering](/task-collection/engineering)[Roadmap](/task-collection/roadmap)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
-                await createAgentWebPageStoredLinkPathname(storage, roadmapReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    engineeringReference,
+                    roadmapReference,
+                ]);
             },
             printMarkdown: `\
 # Adjacent inline collections
@@ -1055,8 +1064,7 @@ list of collection links and nothing else after that (e.g.
   - [Alice](/human/alice)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
-                await createAgentWebPageStoredLinkPathname(storage, bobReference);
+                await storeAgentWebPageLinkForTest(storage, [aliceReference, bobReference]);
             },
             parseError: markdown`
 Error: Unexpected task collection link \u201CAlice\u201D on line 6. Try again with a link to a task
@@ -1073,7 +1081,7 @@ collection you\u2019ve seen before (e.g. \`[My Collection](/task-collection/my-c
 - Collections: [Engineering](/task-collection/engineering), and 2 more
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, engineeringReference);
             },
             parseError: markdown`
 Error: Can\u2019t use \u201Cand 2 more\u201D in the \u201CCollections\u201D task field on line 4
@@ -1173,7 +1181,7 @@ subtasks).
   - Assignee: [Alice](/human/alice)
 `,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+                await storeAgentWebPageLinkForTest(storage, aliceReference);
             },
             page: {
                 type: "Task",

@@ -6,8 +6,8 @@ import {
 import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
     ApiTaskResponse,
     ApiTaskWithNotesResponse,
@@ -48,13 +48,7 @@ function withoutNotes(task: ApiTaskResponse | ApiTaskWithNotesResponse): ApiTask
 
 beforeEach(async () => {
     await storage.deleteAll();
-    await createAgentWebPageStoredLinkPathname(storage, context.botAccount);
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "Task",
-        id: parentTask.id,
-        title: parentTask.title,
-        status: parentTask.status,
-    });
+    await storeAgentWebPageLinkForTest(storage, [context.botAccount, parentTask]);
 });
 
 test("reads task subtasks with the parent task preamble", async () => {

@@ -4,8 +4,8 @@ import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_
 import {mockApiGetTaskMessages} from "~/server/agents/api/test_helpers/mock_api_get_task_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -51,13 +51,13 @@ const context: AgentWebContext = {
 };
 
 beforeEach(async () => {
-    const actualBotAccountPathname = await createAgentWebPageStoredLinkPathname(
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
         storage,
         context.botAccount,
     );
     assert(actualBotAccountPathname === context.botAccount.pathname);
 
-    const actualTaskPathname = await createAgentWebPageStoredLinkPathname(storage, taskReference);
+    const actualTaskPathname = await storeAgentWebPageLinkForTest(storage, taskReference);
     assert(actualTaskPathname === taskPath);
 });
 

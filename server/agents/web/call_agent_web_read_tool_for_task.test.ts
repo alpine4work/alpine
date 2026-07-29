@@ -5,8 +5,8 @@ import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {createAgentWebTaskQueryCursorHash} from "~/server/agents/web/agent_web_task_query_cursor_hash.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
     ApiContentResponseWithoutKeys,
@@ -77,7 +77,7 @@ test("reads full task page", async () => {
     const roadmapCollectionId = generateId<TaskCollectionId>();
     const aliceAccount = createApiAccountMock({name: "Alice"});
 
-    await createAgentWebPageStoredLinkPathname(storage, {
+    await storeAgentWebPageLinkForTest(storage, {
         type: "Task",
         id: taskId,
         title: "Ship task page",
@@ -151,7 +151,7 @@ Ship behind a flag.`);
 test("reads task page with hidden optional fields", async () => {
     const taskId = generateId<TaskId>();
 
-    await createAgentWebPageStoredLinkPathname(storage, {
+    await storeAgentWebPageLinkForTest(storage, {
         type: "Task",
         id: taskId,
         title: "Bare task",
@@ -192,7 +192,7 @@ test("reads task subtasks beneath notes and ignores task page URL filters and so
         parent: {id: taskId, title: "Task with subtasks", status: taskStatus},
     });
 
-    await createAgentWebPageStoredLinkPathname(storage, {
+    await storeAgentWebPageLinkForTest(storage, {
         type: "Task",
         id: taskId,
         title: "Task with subtasks",
@@ -285,7 +285,7 @@ test("prints exactly 50 subtasks and a See more link when more remain", async ()
     );
     await storage.taskQueryCursorByHash.put(`Task:${taskId}-abc`, afterCursor);
 
-    await createAgentWebPageStoredLinkPathname(storage, {
+    await storeAgentWebPageLinkForTest(storage, {
         type: "Task",
         id: taskId,
         title: "Large parent task",

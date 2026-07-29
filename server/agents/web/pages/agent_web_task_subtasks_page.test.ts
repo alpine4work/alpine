@@ -1,5 +1,4 @@
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {AgentWebTaskQueryPageTask} from "~/server/agents/web/pages/agent_web_task_query_page.js";
 import {
     AgentWebTaskSubtasksPage,
@@ -8,6 +7,7 @@ import {
     printAgentWebTaskSubtasksPage,
 } from "~/server/agents/web/pages/agent_web_task_subtasks_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
     ApiAccountReferenceResponse,
     ApiTaskCollectionReferenceResponse,
@@ -84,7 +84,7 @@ async function storeTaskReference(
     storage: AgentWebSessionStorage,
     task: ApiTaskReferenceResponse,
 ): Promise<void> {
-    await createAgentWebPageStoredLinkPathname(storage, task);
+    await storeAgentWebPageLinkForTest(storage, task);
 }
 
 runAgentWebPageTests<TaskId, AgentWebTaskSubtasksPage>({

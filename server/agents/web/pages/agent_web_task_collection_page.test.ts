@@ -1,4 +1,3 @@
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebTaskCollectionPage,
     normalizeAgentWebTaskCollectionPage,
@@ -7,6 +6,7 @@ import {
 } from "~/server/agents/web/pages/agent_web_task_collection_page.js";
 import {AgentWebTaskQueryPageTask} from "~/server/agents/web/pages/agent_web_task_query_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
     ApiAccountReferenceResponse,
     ApiTaskCollectionReferenceResponse,
@@ -841,7 +841,7 @@ collection. Try again with a name.
             name: "tail page preamble with a next page link without an after cursor",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, {
+                await storeAgentWebPageLinkForTest(storage, {
                     type: "TaskCollection",
                     id: collectionId,
                     title: "Roadmap",
@@ -863,7 +863,7 @@ collection. Try again with a name.
             name: "next page link without an after cursor",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, {
+                await storeAgentWebPageLinkForTest(storage, {
                     type: "TaskCollection",
                     id: collectionId,
                     title: "Roadmap",
@@ -883,7 +883,7 @@ Try again with a valid task collection pagination link.
             name: "next page link to another entity type",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+                await storeAgentWebPageLinkForTest(storage, aliceReference);
             },
             markdown: `\
 # Roadmap
@@ -912,7 +912,7 @@ Try again with a valid task collection pagination link.
             name: "unexpected color field after the next page link",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, {
+                await storeAgentWebPageLinkForTest(storage, {
                     type: "TaskCollection",
                     id: collectionId,
                     title: "Roadmap",
@@ -934,7 +934,7 @@ a task list (an unordered list where every item is a task link) after the task c
             name: "unexpected second next page link",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, {
+                await storeAgentWebPageLinkForTest(storage, {
                     type: "TaskCollection",
                     id: collectionId,
                     title: "Roadmap",
@@ -956,12 +956,14 @@ a task list (an unordered list where every item is a task link) after the task c
             name: "unexpected next page link after the task list",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
-                await createAgentWebPageStoredLinkPathname(storage, {
-                    type: "TaskCollection",
-                    id: collectionId,
-                    title: "Roadmap",
-                });
+                await storeAgentWebPageLinkForTest(storage, [
+                    writeSpecTaskReference,
+                    {
+                        type: "TaskCollection",
+                        id: collectionId,
+                        title: "Roadmap",
+                    },
+                ]);
             },
             markdown: `\
 # Roadmap
@@ -1440,7 +1442,7 @@ collection. Try again with a name.
             name: "unexpected defaults block after the next page link",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, {
+                await storeAgentWebPageLinkForTest(storage, {
                     type: "TaskCollection",
                     id: collectionId,
                     title: "Roadmap",
@@ -1568,7 +1570,7 @@ of task fields (e.g. \`- Priority: Medium\`).
             name: "task link label without a status",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1585,7 +1587,7 @@ like \u201CMy Task (Open)\u201D.
             name: "task link label with an unexpected status",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1617,7 +1619,7 @@ existing task you want to add to the collection.
             name: "task link to another entity type",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+                await storeAgentWebPageLinkForTest(storage, aliceReference);
             },
             markdown: `\
 # Roadmap
@@ -1635,7 +1637,7 @@ task you want to add to the collection.
             name: "status task field isn\u2019t allowed in a task collection",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1653,8 +1655,10 @@ Error: Unknown task field \u201CStatus\u201D on line 4. Try again with one of \u
             name: "task collection link to another entity type in a task list item",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    writeSpecTaskReference,
+                    aliceReference,
+                ]);
             },
             markdown: `\
 # Roadmap
@@ -1671,7 +1675,7 @@ collection you\u2019ve seen before (e.g. \`[My Collection](/task-collection/my-c
             name: "collections more count without any collection links",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1689,8 +1693,10 @@ comma separated list of collection links before the \u201Cand 3 more\u201D count
             name: "collections more count must be a number",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    writeSpecTaskReference,
+                    engineeringReference,
+                ]);
             },
             markdown: `\
 # Roadmap
@@ -1708,8 +1714,10 @@ list of collection links (e.g.
             name: "collections more count before the collection links",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    writeSpecTaskReference,
+                    engineeringReference,
+                ]);
             },
             markdown: `\
 # Roadmap
@@ -1727,7 +1735,7 @@ list of collection links (e.g.
             name: "unknown task field in a task list item",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1745,7 +1753,7 @@ Error: Unknown task field \u201CChecklist\u201D on line 4. Try again with one of
             name: "duplicate task field in a task list item",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1763,7 +1771,7 @@ present once in the field list.
             name: "duplicate task field with a due date alias",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1781,7 +1789,7 @@ present once in the field list.
             name: "task field without a colon",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1799,7 +1807,7 @@ where the field name is followed by the field value with a colon in between (e.g
             name: "unexpected markdown nested in a task field",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1818,7 +1826,7 @@ colon in between (e.g. \`- Priority: Medium\`).
             name: "unexpected markdown nested in a task Subtasks field",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1837,7 +1845,7 @@ colon in between (e.g. \`- Priority: Medium\`).
             name: "invalid task priority in a task list item",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
             },
             markdown: `\
 # Roadmap
@@ -1854,8 +1862,10 @@ Error: Unexpected task priority \u201CImmediate\u201D on line 4. Try again with 
             name: "task parent link to another entity type",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    writeSpecTaskReference,
+                    aliceReference,
+                ]);
             },
             markdown: `\
 # Roadmap
@@ -1872,8 +1882,10 @@ you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
             name: "task assignee link to another entity type",
             pageLink: collectionId,
             setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
-                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await storeAgentWebPageLinkForTest(storage, [
+                    writeSpecTaskReference,
+                    engineeringReference,
+                ]);
             },
             markdown: `\
 # Roadmap

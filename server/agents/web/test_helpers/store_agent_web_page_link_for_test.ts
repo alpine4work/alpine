@@ -5,6 +5,7 @@ import {intoApiAccountReference} from "~/shared/api/specification/into_api_accou
 import {
     ApiAccountResponse,
     ApiMentionReferenceResponse,
+    ApiTaskCollectionPreviewResponse,
     ApiTaskCollectionResponse,
     ApiTaskResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -17,13 +18,9 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {MaybeReadonlyArray} from "~/shared/helpers/types/maybe_array.js";
 
-// NOCOMMIT: Look at all calls of `createAgentWebPageStoredLinkPathname()` in tests
-// and try to replace with this helper.
-//
-// Maybe we'll need to return the pathname for that to happen?
-
 export type StoreAgentWebPageLinkForTestTarget =
     | ApiAccountResponse
+    | ApiTaskCollectionPreviewResponse
     | ApiTaskCollectionResponse
     | ApiTaskResponse
     | ApiMentionReferenceResponse;
@@ -33,10 +30,30 @@ export type StoreAgentWebPageLinkForTestTarget =
  * `read` and `update` on them later. We use duck typing to determine the type of
  * each target and then convert them into `AgentWebPageStoredLink` objects.
  */
+export function storeAgentWebPageLinkForTest(
+    storage: AgentWebSessionStorage,
+    target: StoreAgentWebPageLinkForTestTarget,
+): Promise<string>;
+export function storeAgentWebPageLinkForTest<
+    const Targets extends ReadonlyArray<StoreAgentWebPageLinkForTestTarget>,
+>(
+    storage: AgentWebSessionStorage,
+    targets: Targets,
+): Promise<{readonly [Index in keyof Targets]: string}>;
+export function storeAgentWebPageLinkForTest<
+    const Targets extends [
+        StoreAgentWebPageLinkForTestTarget,
+        StoreAgentWebPageLinkForTestTarget,
+        ReadonlyArray<StoreAgentWebPageLinkForTestTarget>,
+    ],
+>(
+    storage: AgentWebSessionStorage,
+    ...targets: Targets
+): Promise<{readonly [Index in keyof Targets]: string}>;
 export async function storeAgentWebPageLinkForTest(
     storage: AgentWebSessionStorage,
     ...targets: NonEmptyReadonlyArray<MaybeReadonlyArray<StoreAgentWebPageLinkForTestTarget>>
-) {
+): Promise<string | ReadonlyArray<string>> {
     assert(process.env.NODE_ENV === "test");
 
     const pageLinks = mapIterable(
@@ -59,7 +76,7 @@ export async function storeAgentWebPageLinkForTest(
                 };
             }
 
-            if ("defaults" in target) {
+            if ("name" in target) {
                 return {
                     type: "TaskCollection",
                     id: target.id,
@@ -73,7 +90,9 @@ export async function storeAgentWebPageLinkForTest(
         },
     );
 
-    await runAllPromises(
+    const pathnames = await runAllPromises(
         mapIterable(pageLinks, pageLink => createAgentWebPageStoredLinkPathname(storage, pageLink)),
     );
+
+    return targets.length === 1 && !isReadonlyArray(targets[0]) ? pathnames[0]! : pathnames;
 }
