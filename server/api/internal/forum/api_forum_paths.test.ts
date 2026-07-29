@@ -21,6 +21,16 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, DocumentId, PostId} from "~/shared/id/types/id_types.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+
+const searchMentionEntityById = new Map<
+    string,
+    {isPrivate: false; entity: SearchEntityModel}
+>();
+
+beforeEach(() => {
+    searchMentionEntityById.clear();
+});
 
 const context = createTestContext({
     documentsInjection,
@@ -28,10 +38,11 @@ const context = createTestContext({
     notificationsInjection: {
         archiveInboxPostCommentsEntryAfterSetPostCommentReaction: async () => {},
     },
-    // Preview file elements resolve their titles through the search index. Returning
-    // `null` makes every preview render with an "Unknown" title.
+    // Most references in this suite are intentionally missing. Individual tests can
+    // register a reference when they need to exercise successful resolution.
     searchInjection: {
-        getSearchMentionEntityIfPossible: async () => null,
+        getSearchMentionEntityIfPossible: async (_context, _spaceId, entityId) =>
+            searchMentionEntityById.get(entityId) ?? null,
     },
 });
 
@@ -390,9 +401,9 @@ describe("/channels/{id}-reference", () => {
 });
 
 describe("/channels/{id}/posts", () => {
-    test("can read channel post previews with pagination", async () => {
+    test("channel post preview titles include their authors, channels, and previews", async () => {
         const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Post Author", role: "Admin"});
+        const session = await space.createSession({name: "Alice Example", role: "Admin"});
 
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
@@ -423,7 +434,7 @@ describe("/channels/{id}/posts", () => {
                         id: post3.id,
                         author: expect.objectContaining({
                             id: session.account.id,
-                            name: "Post Author",
+                            name: "Alice Example",
                         }),
                         createdTime: expect.any(String),
                         createdTimeZone: defaultTimeZone,
@@ -440,13 +451,13 @@ describe("/channels/{id}/posts", () => {
                                 },
                             ],
                         },
-                        reference: {title: "in Test Channel: Third post content"},
+                        reference: {title: "Alice in Test Channel: Third post content"},
                     },
                     {
                         id: post2.id,
                         author: expect.objectContaining({
                             id: session.account.id,
-                            name: "Post Author",
+                            name: "Alice Example",
                         }),
                         createdTime: expect.any(String),
                         createdTimeZone: defaultTimeZone,
@@ -463,7 +474,7 @@ describe("/channels/{id}/posts", () => {
                                 },
                             ],
                         },
-                        reference: {title: "in Test Channel: Second post content"},
+                        reference: {title: "Alice in Test Channel: Second post content"},
                     },
                 ],
                 nextCursor: expect.any(String),
@@ -497,7 +508,7 @@ describe("/channels/{id}/posts", () => {
                         id: post1.id,
                         author: expect.objectContaining({
                             id: session.account.id,
-                            name: "Post Author",
+                            name: "Alice Example",
                         }),
                         createdTime: expect.any(String),
                         createdTimeZone: defaultTimeZone,
@@ -514,7 +525,7 @@ describe("/channels/{id}/posts", () => {
                                 },
                             ],
                         },
-                        reference: {title: "in Test Channel: First post content"},
+                        reference: {title: "Alice in Test Channel: First post content"},
                     },
                 ],
                 nextCursor: null,
@@ -576,9 +587,9 @@ describe("/channels/{id}/posts", () => {
 });
 
 describe("/posts/{id}-preview", () => {
-    test("can read a post preview", async () => {
+    test("post preview title includes its author, channel, and preview", async () => {
         const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Post Author", role: "Admin"});
+        const session = await space.createSession({name: "Alice Example", role: "Admin"});
 
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
@@ -602,7 +613,7 @@ describe("/posts/{id}-preview", () => {
                     id: post.id,
                     author: expect.objectContaining({
                         id: session.account.id,
-                        name: "Post Author",
+                        name: "Alice Example",
                     }),
                     createdTime: expect.any(String),
                     createdTimeZone: defaultTimeZone,
@@ -613,7 +624,7 @@ describe("/posts/{id}-preview", () => {
                     contentSnippet: createApiParagraphContent("This is a test post preview."),
                     commentCount: 0,
                     reference: {
-                        title: "in Test Channel: This is a test post preview",
+                        title: "Alice in Test Channel: This is a test post preview",
                     },
                 },
             },
@@ -744,9 +755,9 @@ describe("/posts/{id}-preview", () => {
     });
 });
 
-test("can read post information", async () => {
+test("post title includes its author, channel, and preview", async () => {
     const space = await TestSpace.create(context);
-    const session = await space.createSession({name: "Post Author", role: "Admin"});
+    const session = await space.createSession({name: "Alice Example", role: "Admin"});
 
     const bot = await TestBot.createAndInstantiate(session);
     const apiKey = await bot.createApiKey(session);
@@ -770,7 +781,7 @@ test("can read post information", async () => {
                 id: post.id,
                 author: expect.objectContaining({
                     id: session.account.id,
-                    name: "Post Author",
+                    name: "Alice Example",
                 }),
                 channel: expect.objectContaining({
                     id: channel.id,
@@ -790,7 +801,7 @@ test("can read post information", async () => {
                     ]),
                 }),
                 reference: {
-                    title: "in Test Channel: This is a test post content",
+                    title: "Alice in Test Channel: This is a test post content",
                 },
             }),
         }),
@@ -888,7 +899,7 @@ test("can\u2019t read post information for non-existent post", async () => {
 });
 
 describe("/posts/{id}-reference", () => {
-    test("can read post mention", async () => {
+    test("post reference title includes its author, channel, and preview", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Bob", role: "Admin"});
 
@@ -1034,7 +1045,7 @@ test("can read post information with post scope", async () => {
 });
 
 describe("post creation", () => {
-    test("can create a post", async () => {
+    test("created post title includes its author, channel, and preview", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Post Author", role: "Admin"});
 
@@ -1102,7 +1113,93 @@ describe("post creation", () => {
                             ],
                         }).elements,
                     },
-                    reference: {title: "in Test Channel: This is my new post!"},
+                    reference: {title: "Test in Test Channel: This is my new post!"},
+                },
+            },
+        });
+    });
+
+    test("post mention content includes the post author, channel, and preview in its title", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({
+            name: "Referenced Author",
+            role: "Admin",
+        });
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Reference Channel",
+            access: "Public",
+        });
+        const referencedPost = await channel.createPost(
+            session,
+            "Referenced post content.",
+        );
+
+        searchMentionEntityById.set(`Post:${referencedPost.id}`, {
+            isPrivate: false,
+            entity: new SearchEntityModel({
+                type: "Post",
+                title: "in Reference Channel: Referenced post content",
+                post: {
+                    id: referencedPost.id,
+                    version: 0,
+                    channelVersion: 0,
+                    author: await session.get(),
+                },
+            }),
+        });
+
+        const response = await server.POST("/posts", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                post: {
+                    channel: {id: channel.id},
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Mention",
+                                        reference: {
+                                            type: "Post",
+                                            id: referencedPost.id,
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                post: {
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Mention",
+                                        reference: {
+                                            type: "Post",
+                                            id: referencedPost.id,
+                                            title:
+                                                "Referenced in Reference Channel: Referenced post content",
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
                 },
             },
         });
@@ -1205,7 +1302,9 @@ describe("post creation", () => {
                             ],
                         }).elements,
                     },
-                    reference: {title: "in Rich Content Channel: Important Announcement"},
+                    reference: {
+                        title: "Test in Rich Content Channel: Important Announcement",
+                    },
                 },
             },
         });
@@ -1435,7 +1534,7 @@ describe("post creation", () => {
                             ],
                         }).elements,
                     },
-                    reference: {title: "in Test Channel:"},
+                    reference: {title: "Test in Test Channel:"},
                     createdTime: expect.any(String),
                     createdTimeZone: defaultTimeZone,
                 },

@@ -2,6 +2,7 @@ import {apiSpacesPaths} from "~/server/api/internal/spaces/api_spaces_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,
@@ -55,6 +56,39 @@ test("space search returns bot account title, short name, and bot id", async () 
                     shortName: "Zephyr",
                     bot: {id: bot.bot.id},
                 },
+            ],
+        },
+    });
+});
+
+test("space search post title includes its author, channel, and preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Example", role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session, {
+        name: "Search Channel",
+        access: "Public",
+    });
+    const post = await channel.createPost(session, "Quokka post preview content.");
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await server.GET(`/spaces/${space.id}/search?query=quokka`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toMatchObject({
+        status: 200,
+        body: {
+            results: [
+                expect.objectContaining({
+                    type: "Post",
+                    id: post.id,
+                    title: "Alice in Search Channel: Quokka post preview content",
+                }),
             ],
         },
     });
