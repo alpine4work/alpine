@@ -721,8 +721,6 @@ export async function parseAgentWebTaskPage(
                 if ("children" in childNode) traverse(childNode);
 
                 if (childNode.type === "heading") {
-                    // NOCOMMIT: Throw error if depth is less than 2.
-
                     childNode.depth = Math.max(childNode.depth - 1, 1) as 1 | 2 | 3 | 4 | 5 | 6;
                 }
             }
