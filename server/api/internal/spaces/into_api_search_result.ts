@@ -112,8 +112,12 @@ export function intoApiSearchResult({
             return {
                 type: "Post",
                 id: entity.post.id,
-                // NOCOMMIT: Add author name to title?
-                title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
+                // Posts start with "in ${channelName}: " and expect client rendering code to add
+                // the post author name to the start of the title.
+                title:
+                    model.initialData.title !== null
+                        ? `${getAccountShortNameWithoutFullNameTooltip(entity.post.author.initialData)} ${model.initialData.title}`
+                        : getMissingSearchEntityTitle(entity),
                 bodyMatch,
                 parsedFilter,
                 author: intoApiAccount(entity.post.author.initialData),

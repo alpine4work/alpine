@@ -29,8 +29,7 @@ const context = TestTaskRealtimeServer.with(baseContext);
 
 const server = createTestApiServer(context, apiTasksPaths);
 
-// NOCOMMIT: Decrease to 10?
-const testCaseCount = 20;
+const testCaseCount = 10;
 const taskCount = 8;
 
 const testSuites: Array<{

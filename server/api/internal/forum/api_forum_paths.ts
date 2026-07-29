@@ -227,12 +227,13 @@ export const apiForumPaths: Pick<
                         contentSnippet,
                         commentCount: post.commentCount,
                         reference: {
-                            // NOCOMMIT: Title should include account name?
-                            title: createPostSearchEntityTitle(
+                            // Posts start with "in ${channelName}: " and expect client rendering code to add
+                            // the post author name to the start of the title.
+                            title: `${author.shortName} ${createPostSearchEntityTitle(
                                 postsResult.channelName,
                                 post.content,
                                 getContentReferencesForServerPrintSingleLineTextSnippet(references),
-                            ),
+                            )}`,
                         },
                     };
                 }),
@@ -357,12 +358,13 @@ export const apiForumPaths: Pick<
                         },
                         content: contentWithReferences,
                         reference: {
-                            // NOCOMMIT: Title should include account name?
-                            title: createPostSearchEntityTitle(
+                            // Posts start with "in ${channelName}: " and expect client rendering code to add
+                            // the post author name to the start of the title.
+                            title: `${author.shortName} ${createPostSearchEntityTitle(
                                 post.channelName,
                                 content,
                                 getContentReferencesForServerPrintSingleLineTextSnippet(references),
-                            ),
+                            )}`,
                         },
                     },
                 },
@@ -418,14 +420,15 @@ export const apiForumPaths: Pick<
                         },
                         content: post.content.content,
                         reference: {
-                            // NOCOMMIT: Title should include account name?
-                            title: createPostSearchEntityTitle(
+                            // Posts start with "in ${channelName}: " and expect client rendering code to add
+                            // the post author name to the start of the title.
+                            title: `${post.content.author.shortName} ${createPostSearchEntityTitle(
                                 post.channel.name,
                                 post.content.originalContent,
                                 getContentReferencesForServerPrintSingleLineTextSnippet(
                                     post.content.references,
                                 ),
-                            ),
+                            )}`,
                         },
                     },
                 },
@@ -484,14 +487,15 @@ export const apiForumPaths: Pick<
                         contentSnippet: post.content.contentSnippet,
                         commentCount: post.commentCount,
                         reference: {
-                            // NOCOMMIT: Title should include account name?
-                            title: createPostSearchEntityTitle(
+                            // Posts start with "in ${channelName}: " and expect client rendering code to add
+                            // the post author name to the start of the title.
+                            title: `${post.content.author.shortName} ${createPostSearchEntityTitle(
                                 post.channel.name,
                                 post.content.originalContent,
                                 getContentReferencesForServerPrintSingleLineTextSnippet(
                                     post.content.references,
                                 ),
-                            ),
+                            )}`,
                         },
                     },
                 },
