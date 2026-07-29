@@ -3216,9 +3216,6 @@ async function fallbackGetSearchEntityBaseIfPossible(
                 ),
             ]);
 
-            // NOCOMMIT: Post mention titles returned by the API should include the author name
-            // I think. Since that's how post mention will render in the UI. That means putting
-            // the author name in the search result title too?
             const title = createPostSearchEntityTitleWithAlreadySnippedContent(
                 post.channel.name,
                 postContentTitleSnippet,
