@@ -2611,6 +2611,104 @@ test("adds a task with its existing fields", async () => {
     ]);
 });
 
+test("rejects setting an additional collection count while adding an existing task", async () => {
+    const otherCollection = {
+        id: generateId<TaskCollectionId>(),
+        name: "Other collection",
+        defaults: {filters: [], sorts: []},
+    };
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 2,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const {task} = mockApiGetTask(api, {
+        spaceId,
+        index: 2,
+        collections: [otherCollection],
+    });
+
+    await storeAgentWebPageLinkForTest(storage, [collection, task, otherCollection]);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    const response = await callAgentWebUpdateTool(context, {
+        path: "/task-collection/test-task-collection",
+        updates: [
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                    "- [Test Task 2 (Open)](/task/test-task-2)\n" +
+                    "  - Collections: [Other collection](/task-collection/other-collection), and 2 more",
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({response, patchRequests: getApiPatchTasksRequestHistory()}).toEqual({
+        response:
+            "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            "You can\u2019t change the task \u201CTest Task 2\u201D\u2019s title or fields while adding it to " +
+            "task collection markdown. Add the task with its current title and fields, then " +
+            "call the `update` tool again if you want to change its title or fields. Try again " +
+            "with this exact markdown for the task: `- [Test Task 2 " +
+            "(Open)](/task/test-task-2)\\\\n  - Collections: [Other " +
+            "collection](/task-collection/other-collection)`",
+        patchRequests: [],
+    });
+});
+
+test("rejects setting subtask counts while adding an existing task", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 2,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const {task} = mockApiGetTask(api, {
+        spaceId,
+        index: 2,
+        subtasks: {openTaskCount: 1, closedTaskCount: 2},
+    });
+
+    await storeAgentWebPageLinkForTest(storage, [collection, task]);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    const response = await callAgentWebUpdateTool(context, {
+        path: "/task-collection/test-task-collection",
+        updates: [
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                    "- [Test Task 2 (Open)](/task/test-task-2)\n" +
+                    "  - Subtasks: 2 open, 2 closed",
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({response, patchRequests: getApiPatchTasksRequestHistory()}).toEqual({
+        response:
+            "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            "You can\u2019t change the task \u201CTest Task 2\u201D\u2019s title or fields while adding it to " +
+            "task collection markdown. Add the task with its current title and fields, then " +
+            "call the `update` tool again if you want to change its title or fields. Try again " +
+            "with this exact markdown for the task: `- [Test Task 2 " +
+            "(Open)](/task/test-task-2)\\\\n  - Subtasks: 1 open, 2 closed`",
+        patchRequests: [],
+    });
+});
+
 test("rejects adding a task without its existing fields", async () => {
     const parentTask = createApiTaskMock({index: 3, title: "Parent task"});
     const alice = createApiAccountMock({name: "Alice"});
