@@ -16,7 +16,6 @@ import {
     ApiContentParagraphBlockElementResponseWithOptionalKeys,
     ApiContentPreviewBlockElementResponseWithOptionalKeys,
     ApiContentResponseWithOptionalKeys,
-    ApiContentResponseWithoutKeys,
     ApiContentTableBlockElementCellResponseWithOptionalKeys,
     ApiContentTableBlockElementRowResponseWithOptionalKeys,
 } from "~/shared/api/specification/types/api_content_response_with_optional_keys.js";
@@ -624,7 +623,6 @@ function intoApiContentBlockElement(
         }
         case "fileFloat": {
             const fileChild = assertExists(node.content.content[0]);
-            // NOCOMMIT: Test `findApiContentRanges()` with this
             const element = intoApiContentFileOrPreviewElement(context, fileChild, nodePos + 1);
             const direction = node.attrs.direction;
             assert(typeof direction === "string");
@@ -636,7 +634,6 @@ function intoApiContentBlockElement(
         }
         case "fileRowTable": {
             const fileChild = assertExists(node.content.content[0]);
-            // NOCOMMIT: Test `findApiContentRanges()` with this
             return intoApiContentFileOrPreviewElement(context, fileChild, nodePos + 1);
         }
         default:
@@ -797,7 +794,6 @@ function intoApiContentFileOrPreviewElement(
         // need to make a change there too.
         return {
             type: "File",
-            // NOCOMMIT: Test with unknown file id?
             ...(key !== undefined ? {key} : {}),
             file: {
                 id: unknownFileId,

@@ -380,7 +380,15 @@ function createProsemirrorAttrArbitrary(attr: string): fc.Arbitrary<unknown> {
             return fc.integer({min: 1, max: 3});
         }
         case "fileId": {
-            return createChronologicalIdArbitrary<FileId>();
+            return fc.oneof(
+                {weight: 100, arbitrary: createChronologicalIdArbitrary<FileId>()},
+                {
+                    weight: 100,
+                    arbitrary: createIdArbitrary<DocumentId>().map(id => `Document:${id}`),
+                },
+                // Ocassionally set the `null` value to make sure that round trips properly.
+                {weight: 1, arbitrary: fc.constant(null)},
+            );
         }
         case "columnWidths": {
             return fc.constant([]);

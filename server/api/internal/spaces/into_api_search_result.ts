@@ -36,11 +36,6 @@ export function intoApiSearchResult({
             title: model.initialData.name,
             bodyMatch: null,
             parsedFilter,
-            // NOCOMMIT: Test that `shortName` and `botId` is returned from:
-            //
-            // 1. `/accounts/{id}-reference`
-            // 2. Search for an account
-            // 3. In content reference
             shortName: getAccountShortNameWithoutFullNameTooltip(model.initialData),
             bot: model.botId !== undefined ? {id: model.botId} : undefined,
         };
