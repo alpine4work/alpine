@@ -58,13 +58,11 @@
 #   then most of the time `thread: {id: }` is better. Since it'll let us add
 #   other properties to `thread` in the future.
 
-# NOCOMMIT: Require version header
-
 openapi: 3.0.0
 info:
     title: Alpine API
     description: The Alpine REST API.
-    version: 1.0.0
+    version: 2026-07-12
 
 servers:
     - url: https://api.alpine.inc

@@ -4,7 +4,7 @@ openapi: 3.0.0
 info:
     title: Alpine API
     description: The Alpine REST API.
-    version: 1.0.0
+    version: 2026-07-12
 servers:
     - url: https://api.alpine.inc
 paths:
