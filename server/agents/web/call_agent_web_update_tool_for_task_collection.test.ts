@@ -1157,11 +1157,7 @@ test("updates task fields", async () => {
                     patch: {
                         type: "AddCollection",
                         item: {
-                            collection: {
-                                type: "TaskCollection",
-                                id: otherCollection.id,
-                                title: "Other collection",
-                            },
+                            collection: {id: otherCollection.id},
                         },
                     },
                 },
@@ -1557,11 +1553,7 @@ test("updates only task collections while leaving its other fields unchanged", a
                     patch: {
                         type: "AddCollection",
                         item: {
-                            collection: {
-                                type: "TaskCollection",
-                                id: designCollection.id,
-                                title: "Design",
-                            },
+                            collection: {id: designCollection.id},
                         },
                     },
                 },

@@ -19,7 +19,7 @@ import {
 import {assert} from "~/shared/helpers/control/assert.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -419,6 +419,31 @@ test("creates comment without author on a document thread", async () => {
         {
             content: createTextContent("First bot comment."),
             createdTimeZone: defaultTimeZone,
+        },
+    ]);
+});
+
+test("creates a document comment with an explicit timezone", async () => {
+    await readDocumentThread({totalCommentCount: 0});
+    mockCreateComments({count: 1});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: documentThreadPath,
+            updates: [
+                {
+                    old: "</blockquote>",
+                    new: '</blockquote>\n\n<comment timezone="UTC">\n\nTimezone is explicit.\n\n</comment>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.");
+
+    expect(getCreateCommentRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("Timezone is explicit."),
+            createdTimeZone: assertTimeZone("UTC"),
         },
     ]);
 });

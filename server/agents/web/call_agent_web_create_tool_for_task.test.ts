@@ -125,7 +125,7 @@ test("creates a minimal task with default open status", async () => {
             collections: [],
             priority: undefined,
             due: undefined,
-            content: undefined,
+            notes: undefined,
         },
     });
 });
@@ -158,7 +158,7 @@ test("creates a task with explicit inactive open status", async () => {
             collections: [],
             priority: undefined,
             due: undefined,
-            content: undefined,
+            notes: undefined,
         },
     });
 });
@@ -202,7 +202,7 @@ test("creates a task with every supported field", async () => {
             ],
             priority: {type: "High"},
             due: {date: "2027-07-12"},
-            content: undefined,
+            notes: undefined,
         },
     });
 });
@@ -365,7 +365,7 @@ Also created the following task: [Draft launch brief (Open, active)](/task/draft
                         collections: [],
                         priority: undefined,
                         due: undefined,
-                        content: undefined,
+                        notes: undefined,
                     },
                 },
             },
@@ -508,22 +508,24 @@ Use beta data.`,
             collections: [],
             priority: {type: "Low"},
             due: undefined,
-            content: {
-                elements: [
-                    {
-                        type: "Paragraph",
-                        elements: [{type: "Text", text: "Create notes body."}],
-                    },
-                    {
-                        type: "Heading",
-                        level: 1,
-                        elements: [{type: "Text", text: "Context"}],
-                    },
-                    {
-                        type: "Paragraph",
-                        elements: [{type: "Text", text: "Use beta data."}],
-                    },
-                ],
+            notes: {
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Create notes body."}],
+                        },
+                        {
+                            type: "Heading",
+                            level: 1,
+                            elements: [{type: "Text", text: "Context"}],
+                        },
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Use beta data."}],
+                        },
+                    ],
+                },
             },
         },
     });
@@ -559,7 +561,7 @@ test("creates a task with empty notes section without sending notes content", as
             collections: [],
             priority: undefined,
             due: undefined,
-            content: undefined,
+            notes: undefined,
         },
     });
 });
@@ -593,7 +595,7 @@ test("creates a task with assignee and priority", async () => {
             collections: [],
             priority: {type: "Medium"},
             due: undefined,
-            content: undefined,
+            notes: undefined,
         },
     });
 });
@@ -630,7 +632,7 @@ test("creates a task with status and inline collections", async () => {
             ],
             priority: undefined,
             due: undefined,
-            content: undefined,
+            notes: undefined,
         },
     });
 });
@@ -670,7 +672,7 @@ test("creates a task with yearless due date using context year", async () => {
             collections: [],
             priority: undefined,
             due: {date: "2031-07-12"},
-            content: undefined,
+            notes: undefined,
         },
     });
 });
@@ -745,7 +747,7 @@ test("rejects an unknown assignee link without calling the API", async () => {
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create task. " +
-            "Unexpected task assignee link \u201CMissing\u201D on line 4. Try again with a link to a human or bot you\u2019ve seen before (e.g. `[John](/human/john-doe)`).",
+            "Unexpected task assignee link \u201CMissing\u201D on line 4. Try again with a single link to a human or bot you\u2019ve seen before (e.g. `[John](/human/john-doe)`) and nothing else.",
     );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
@@ -762,7 +764,7 @@ test("rejects an unknown parent link without calling the API", async () => {
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create task. " +
-            "Unexpected task parent link \u201CMissing\u201D on line 3. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+            "Unexpected task parent link \u201CMissing\u201D on line 3. Try again with a single link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`) and nothing else.",
     );
 
     expect(getCreateTaskRequests()).toHaveLength(0);
@@ -779,7 +781,7 @@ test("rejects a parent link to another entity type without calling the API", asy
         }),
     ).resolves.toEqual(
         "Error: Couldn\u2019t create task. " +
-            "Unexpected task parent link \u201CEngineering\u201D on line 3. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+            "Unexpected task parent link \u201CEngineering\u201D on line 3. Try again with a single link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`) and nothing else.",
     );
 
     expect(getCreateTaskRequests()).toHaveLength(0);

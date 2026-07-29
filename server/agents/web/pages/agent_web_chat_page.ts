@@ -211,7 +211,9 @@ export async function createAgentWebChatPage(
                     newPage.preamble.type === "Direct"
                         ? {
                               type: "Direct",
-                              members: newPage.preamble.members.map(account => ({account})),
+                              members: newPage.preamble.members.map(account => ({
+                                  account: {id: account.id},
+                              })),
                           }
                         : {type: "Room", name: newPage.preamble.name},
             },

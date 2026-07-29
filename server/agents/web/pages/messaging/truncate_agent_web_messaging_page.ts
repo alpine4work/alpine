@@ -46,6 +46,7 @@ export async function truncateAgentWebMessagingPage<
     {
         messageNouns,
         limitLength,
+        additionalTruncateLength = 0,
         roomMetadataPageLink,
         direction,
         isStartOfMessages,
@@ -59,6 +60,7 @@ export async function truncateAgentWebMessagingPage<
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         limitLength: number;
+        additionalTruncateLength?: number;
         roomMetadataPageLink: AgentWebMessagingPagePaginationPageLink;
         direction: "Start" | "End";
         isStartOfMessages: boolean;
@@ -290,7 +292,7 @@ export async function truncateAgentWebMessagingPage<
             let truncateMessageBlockOrCustomBlockStartOffset: number | null = null;
             let truncateMessageBlockOrCustomBlockCount = 0;
 
-            let truncateLength = limitLengthDifference;
+            let truncateLength = limitLengthDifference + additionalTruncateLength;
 
             // Edge case: when truncating from the start of the list we may need to update
             // `?before` to a later index. For example 12 instead of 4. In that case "12" is
@@ -438,8 +440,6 @@ export async function truncateAgentWebMessagingPage<
             const truncatedMessages = page.metadata.messages.slice(truncateMessageCount);
 
             // There should always be at least one message block left after we truncate.
-            //
-            // NOCOMMIT: Might not be the case anymore!
             assert(truncatedMessages.length > 0);
 
             let truncatedResponse =
@@ -563,6 +563,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     {
         messageNouns,
         limitLength,
+        additionalTruncateLength = 0,
         roomMetadataPageLink,
         around,
         isStartOfMessages,
@@ -576,6 +577,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         limitLength: number;
+        additionalTruncateLength?: number;
         roomMetadataPageLink: AgentWebMessagingPagePaginationPageLink;
         around: AgentWebMessagingPageMessageRange;
         isStartOfMessages: boolean;
@@ -634,7 +636,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     let truncateMessageBlockOrCustomBlockCountFromStart = 0;
     let blockIndexFromStart: number | null = null;
 
-    let truncateLength = limitLengthDifference;
+    let truncateLength = limitLengthDifference + additionalTruncateLength;
 
     // Edge case: when truncating from the start of the list we may need to update
     // `?before` to a later index. For example 12 instead of 4. In that case "12" is

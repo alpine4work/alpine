@@ -320,6 +320,9 @@ export async function readAgentWebPostPage(
     let response: string;
     let metadata: AgentWebMessagingPageMetadata;
 
+    const additionalTruncateLength =
+        "Comments on [post](/post/".length + 50 + ").".length - "Post in [](/channel/).".length;
+
     switch (parsedSearchParams.type) {
         case "Direction": {
             switch (parsedSearchParams.direction) {
@@ -389,6 +392,7 @@ export async function readAgentWebPostPage(
                     startCursor: parsedSearchParams.startCursor,
                     untilCursor: parsedSearchParams.untilCursor,
                     limitLength,
+                    additionalTruncateLength,
                     printPage: page => printPage(buildAgentWebPostPage(page)),
                 }),
             ]);
@@ -428,6 +432,7 @@ export async function readAgentWebPostPage(
                     },
                     around: parsedSearchParams.around,
                     limitLength,
+                    additionalTruncateLength,
                     printPage: page => printPage(buildAgentWebPostPage(page)),
                 }),
             ]);
@@ -442,9 +447,6 @@ export async function readAgentWebPostPage(
     // Kinda hacky but truncate is implemented via string manipulation. So if we see a
     // response that thought it was a head page but the `<post>` was truncated then
     // switch the preamble to a tail page preamble.
-    //
-    // NOCOMMIT: Under what conditions might this trigger a `scroll` should we decrease
-    // the limit length difference or something like that?
     if (!hasPostOpenTag && response.startsWith("Post in ")) {
         const match = assertExists(response.match(/^.*\)\. ([^.]+)\n/));
 

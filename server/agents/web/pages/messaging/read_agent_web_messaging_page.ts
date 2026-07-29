@@ -291,6 +291,7 @@ export async function readAgentWebMessagingPageInDirection<
         startCursor,
         untilCursor,
         limitLength,
+        additionalTruncateLength = 0,
         printPage,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
@@ -312,6 +313,7 @@ export async function readAgentWebMessagingPageInDirection<
         startCursor: number | null;
         untilCursor: number | null;
         limitLength: number;
+        additionalTruncateLength?: number;
         printPage: (page: AgentWebMessagingPage<Preamble, CustomBlock>) => Promise<string>;
     },
 ): Promise<{
@@ -422,6 +424,7 @@ export async function readAgentWebMessagingPageInDirection<
         const result = await truncateAgentWebMessagingPage(context.storage, {
             messageNouns,
             limitLength,
+            additionalTruncateLength,
             roomMetadataPageLink: roomMetadata.pageLink,
             direction,
             isStartOfMessages,
@@ -464,6 +467,7 @@ export async function readAgentWebMessagingPageAroundMessage<
         getRoomMetadata,
         around,
         limitLength,
+        additionalTruncateLength = 0,
         printPage,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
@@ -483,6 +487,7 @@ export async function readAgentWebMessagingPageAroundMessage<
         }>;
         around: AgentWebMessagingPageMessageRange;
         limitLength: number;
+        additionalTruncateLength?: number;
         printPage: (
             page: AgentWebMessagingPageWithMetadata<Preamble, CustomBlock>,
         ) => Promise<string>;
@@ -567,6 +572,7 @@ export async function readAgentWebMessagingPageAroundMessage<
             const result = await truncateAgentWebMessagingPageAroundMessage(context.storage, {
                 messageNouns,
                 limitLength,
+                additionalTruncateLength,
                 roomMetadataPageLink: roomMetadata.pageLink,
                 around,
                 isStartOfMessages,

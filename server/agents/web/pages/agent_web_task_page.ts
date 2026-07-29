@@ -276,7 +276,9 @@ export async function createAgentWebTaskPage(
                 })),
                 priority: newPage.priority ?? undefined,
                 due: due ?? undefined,
-                content: isAgentWebTaskPageNotesEmpty(newPage.notes) ? undefined : newPage.notes,
+                notes: isAgentWebTaskPageNotesEmpty(newPage.notes)
+                    ? undefined
+                    : {content: newPage.notes},
             },
         },
     });
@@ -407,7 +409,10 @@ export async function updateAgentWebTaskPage(
 
     for (const collection of newPage.collections) {
         if (!oldCollectionIds.has(collection.id)) {
-            patches.push({type: "AddCollection", item: {collection}});
+            patches.push({
+                type: "AddCollection",
+                item: {collection: {id: collection.id}},
+            });
         }
     }
 

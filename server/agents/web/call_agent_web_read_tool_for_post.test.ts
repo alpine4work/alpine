@@ -7,6 +7,7 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
     ApiContentResponse,
@@ -55,8 +56,7 @@ const context: AgentWebContext = {
 beforeEach(async () => {
     await storage.deleteAll();
 
-    await createAgentWebPageStoredLinkPathname(storage, context.botAccount);
-    await createAgentWebPageStoredLinkPathname(storage, postReference);
+    await storeAgentWebPageLinkForTest(storage, [context.botAccount, postReference]);
 });
 
 function contentFromText(text: string): ApiContentResponse {
@@ -554,13 +554,49 @@ Comments on [post](/post/launch). [Previous page »](/post/launch?before=0)
 <comment id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest comment 1\n\n</comment>`);
 });
 
-test("does not use scroll truncation after replacing a shorter post preamble", async () => {
+test("does not use scroll truncation around a comment after replacing a shorter post preamble", async () => {
     const title = "A long post title that makes the comments preamble longer";
     const longPostReference = {...postReference, title};
 
     await storage.deleteAll();
-    await createAgentWebPageStoredLinkPathname(storage, context.botAccount);
-    const pathname = await createAgentWebPageStoredLinkPathname(storage, longPostReference);
+    await storeAgentWebPageLinkForTest(storage, context.botAccount);
+    const pathname = await storeAgentWebPageLinkForTest(storage, longPostReference);
+
+    mockGetPost({
+        content: contentFromText("Long post. ".repeat(300)),
+        channelName: "A",
+        title,
+    });
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        cursor: -14,
+        totalMessageCount: 3,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({index, author, content: `Test comment ${index}`}),
+    });
+
+    const response = await callAgentWebReadTool(context, {
+        path: `${pathname}?comment=1`,
+        limit: "420b",
+    });
+
+    expect(response).toEqual(`\
+Comments on [post](/post/a-long-post-title-that-makes-the-comment). [« Previous page](/post/a-long-post-title-that-makes-the-comment?before=1) | [Next page »](/post/a-long-post-title-that-makes-the-comment?after=1)
+
+<time>May 14th at 11:05am EDT</time>
+
+<comment id="1" from="[Bob](/human/bob)">\n\nTest comment 1\n\n</comment>`);
+});
+
+test("does not use scroll truncation before a comment after replacing a shorter post preamble", async () => {
+    const title = "A long post title that makes the comments preamble longer";
+    const longPostReference = {...postReference, title};
+
+    await storage.deleteAll();
+    await storeAgentWebPageLinkForTest(storage, context.botAccount);
+    const pathname = await storeAgentWebPageLinkForTest(storage, longPostReference);
 
     mockGetPost({
         content: contentFromText("Long post. ".repeat(300)),

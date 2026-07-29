@@ -1403,7 +1403,10 @@ export async function updateAgentWebTaskQueryPage(
 
             for (const collection of newPageTask.collections) {
                 if (!oldCollectionIds.has(collection.id)) {
-                    patches.push({type: "AddCollection", item: {collection}});
+                    patches.push({
+                        type: "AddCollection",
+                        item: {collection: {id: collection.id}},
+                    });
                 }
             }
 

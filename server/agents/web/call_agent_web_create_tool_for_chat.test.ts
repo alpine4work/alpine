@@ -6,7 +6,6 @@ import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
-import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import type {ApiAccountResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -175,10 +174,7 @@ End of messages.`,
                 spaceId,
                 chat: {
                     type: "Direct",
-                    members: [
-                        {account: intoApiAccountReference(aliceAccount)},
-                        {account: intoApiAccountReference(bobAccount)},
-                    ],
+                    members: [{account: {id: aliceAccount.id}}, {account: {id: bobAccount.id}}],
                 },
             },
         },
@@ -208,10 +204,7 @@ Chat with [Alice](/human/alice) and [Bob](/human/bob).`,
                 spaceId,
                 chat: {
                     type: "Direct",
-                    members: [
-                        {account: intoApiAccountReference(aliceAccount)},
-                        {account: intoApiAccountReference(bobAccount)},
-                    ],
+                    members: [{account: {id: aliceAccount.id}}, {account: {id: bobAccount.id}}],
                 },
             },
         },
@@ -256,10 +249,7 @@ End of messages.`,
                 spaceId,
                 chat: {
                     type: "Direct",
-                    members: [
-                        {account: intoApiAccountReference(aliceAccount)},
-                        {account: intoApiAccountReference(bobAccount)},
-                    ],
+                    members: [{account: {id: aliceAccount.id}}, {account: {id: bobAccount.id}}],
                 },
             },
         },
@@ -309,10 +299,7 @@ I will summarize the open questions next.
                 spaceId,
                 chat: {
                     type: "Direct",
-                    members: [
-                        {account: intoApiAccountReference(aliceAccount)},
-                        {account: intoApiAccountReference(bobAccount)},
-                    ],
+                    members: [{account: {id: aliceAccount.id}}, {account: {id: bobAccount.id}}],
                 },
             },
         },
@@ -392,10 +379,7 @@ End of messages.`,
                 spaceId,
                 chat: {
                     type: "Direct",
-                    members: [
-                        {account: intoApiAccountReference(aliceAccount)},
-                        {account: intoApiAccountReference(bobAccount)},
-                    ],
+                    members: [{account: {id: aliceAccount.id}}, {account: {id: bobAccount.id}}],
                 },
             },
         },
@@ -786,10 +770,7 @@ This create was a partial success. Try to figure out which parts of the create w
                 spaceId,
                 chat: {
                     type: "Direct",
-                    members: [
-                        {account: intoApiAccountReference(aliceAccount)},
-                        {account: intoApiAccountReference(bobAccount)},
-                    ],
+                    members: [{account: {id: aliceAccount.id}}, {account: {id: bobAccount.id}}],
                 },
             },
         },

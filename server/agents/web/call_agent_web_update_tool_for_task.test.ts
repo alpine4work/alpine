@@ -1110,7 +1110,7 @@ test("rejects an unknown task parent link on update", async () => {
         }),
     ).resolves.toEqual(
         `Error: Couldn\u2019t update \`${path}\`. ` +
-            "Unexpected task parent link \u201CMissing\u201D on line 4. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+            "Unexpected task parent link \u201CMissing\u201D on line 4. Try again with a single link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`) and nothing else.",
     );
 
     expect(getTaskPatchRequests()).toHaveLength(0);
@@ -1132,7 +1132,7 @@ test("rejects task parent link to another entity type on update", async () => {
         }),
     ).resolves.toEqual(
         `Error: Couldn\u2019t update \`${path}\`. ` +
-            "Unexpected task parent link \u201CEngineering\u201D on line 4. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+            "Unexpected task parent link \u201CEngineering\u201D on line 4. Try again with a single link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`) and nothing else.",
     );
 
     expect(getTaskPatchRequests()).toHaveLength(0);
@@ -1523,7 +1523,7 @@ test("adds and removes task collections", async () => {
             patches: [
                 {
                     type: "AddCollection",
-                    item: {collection: engineeringCollectionReference},
+                    item: {collection: {id: engineeringCollectionReference.id}},
                 },
             ],
         },
@@ -1556,7 +1556,7 @@ test("adds task collection after reading task with collection set", async () => 
             patches: [
                 {
                     type: "AddCollection",
-                    item: {collection: roadmapCollectionReference},
+                    item: {collection: {id: roadmapCollectionReference.id}},
                 },
             ],
         },
@@ -1639,7 +1639,7 @@ test("changes task collections after reading task with collection set", async ()
                 {type: "RemoveCollection", collectionId: engineeringCollectionId},
                 {
                     type: "AddCollection",
-                    item: {collection: roadmapCollectionReference},
+                    item: {collection: {id: roadmapCollectionReference.id}},
                 },
             ],
         },
