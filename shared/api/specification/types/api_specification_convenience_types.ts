@@ -899,6 +899,9 @@ export type ApiSearchTaskMessageResult =
 export type ApiSearchTaskCollectionResult =
     ApiSpecification.components["schemas"]["SearchTaskCollectionResult"];
 
+export type ApiSearchResultBodySnippet =
+    ApiSpecification.components["schemas"]["SearchResultBodySnippet"];
+
 export type ApiSearchResultMatch = ApiSpecification.components["schemas"]["SearchResultMatch"];
 
 export type ApiSearchResultParsedFilter =
