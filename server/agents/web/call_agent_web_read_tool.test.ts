@@ -70,6 +70,39 @@ test("throws when the link path has not been seen", async () => {
     );
 });
 
+test.each([
+    {
+        baseUrl: "https://alpine.inc",
+        title: "Production URL Spec",
+        pathname: "/document/production-url-spec",
+    },
+    {
+        baseUrl: "http://localhost:3000",
+        title: "Local URL Spec",
+        pathname: "/document/local-url-spec",
+    },
+])("resolves a $baseUrl URL to a readable path", async ({baseUrl, title, pathname}) => {
+    const documentId = generateId<DocumentId>();
+
+    api.mockGet("/documents/{id}-reference", {
+        params: {path: {id: documentId}},
+        data: {
+            spaceId,
+            reference: {type: "Document", id: documentId, title},
+        },
+    });
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: `${baseUrl}/doc/${documentId}`,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Found path for URL: \`${pathname}\`.
+
+Call the \`read\` tool again with that path to see the document\u2019s content.`);
+});
+
 test("reads the main skill at `/skill` but not `/skill/SKILL`", async () => {
     const response = await callAgentWebReadTool(context, {path: "/skill", limit: "10kb"});
 
