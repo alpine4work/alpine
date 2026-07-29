@@ -283,8 +283,6 @@ export async function loadTaskRealtimeQueries(
                         throw InvalidArgumentError.from(error, undefined, {
                             // Throw an error with a nice display message for API clients.
                             //
-                            // NOCOMMIT: Test that we throw this error message.
-                            //
                             // NOCOMMIT: If sorts are explicitly provided and override the defaults then don't
                             // include the defaults message. Also make it clear in the defaults message that
                             // you can explicitly provide sorts to avoid this error in the future.
@@ -353,8 +351,6 @@ export async function loadTaskRealtimeQueries(
                     } catch (error) {
                         throw InvalidArgumentError.from(error, undefined, {
                             // Throw an error with a nice display message for API clients.
-                            //
-                            // NOCOMMIT: Test that we throw this error message.
                             displayMessage: errorDisplayMessage`Invalid task query cursor for this task. Try again with a task query cursor that matches the requested sorts.`,
                         });
                     }

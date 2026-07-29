@@ -6737,7 +6737,8 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("Invalid task query cursor for this collection"),
+                    message:
+                        "Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts. (You may get this error if you\u2019re paginating through a task collection when the task collection\u2019s default sorts change. In that case try paginating from the start of the collection again and you\u2019ll pick up the new sorts.)",
                 }),
             },
         });
@@ -6843,7 +6844,8 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("Invalid task query cursor for this collection"),
+                    message:
+                        "Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts. (You may get this error if you\u2019re paginating through a task collection when the task collection\u2019s default sorts change. In that case try paginating from the start of the collection again and you\u2019ll pick up the new sorts.)",
                 }),
             },
         });
@@ -7754,6 +7756,34 @@ describe("/tasks/{id}/subtasks", () => {
         });
     });
 
+    test("GET rejects a malformed cursor with the task-specific message", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const parentTask = await TestTask.create(session, {title: "Parent Task"});
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(
+            `/tasks/${parentTask.id}/subtasks?cursor=not-a-task-cursor`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(response).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message:
+                        "Invalid task query cursor for this task. Try again with a task query cursor that matches the requested sorts.",
+                }),
+            },
+        });
+    });
+
     test("POST applies custom filters and sorts to direct subtasks", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -7819,6 +7849,63 @@ describe("/tasks/{id}/subtasks", () => {
             parentTaskIds: [parentTask.id, parentTask.id],
             taskIdsByPage: [[closedUrgentSubtask.id], [highSubtask.id]],
             nextCursors: [expect.any(String), null],
+        });
+    });
+
+    test("POST rejects a cursor from subtask query sorts that do not match", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const parentTask = await TestTask.create(session, {title: "Parent Task"});
+        await runAllPromises([
+            TestTask.create(session, {
+                title: "First Subtask",
+                priority: "Low",
+                parent: parentTask,
+            }),
+            TestTask.create(session, {
+                title: "Second Subtask",
+                priority: "High",
+                parent: parentTask,
+            }),
+        ]);
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.POST(`/tasks/${parentTask.id}/subtasks-query`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                limit: 1,
+                sorts: [{type: "CreatedTime", direction: "Descending"}],
+            },
+        });
+        const response = await server.POST(`/tasks/${parentTask.id}/subtasks-query`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                limit: 1,
+                cursor: firstPageResponse.body.nextCursor,
+                sorts: [{type: "Priority", direction: "Ascending"}],
+            },
+        });
+
+        expect({
+            firstPageStatus: firstPageResponse.status,
+            firstPageCursor: firstPageResponse.body.nextCursor,
+            response,
+        }).toEqual({
+            firstPageStatus: 200,
+            firstPageCursor: expect.any(String),
+            response: {
+                status: 400,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message:
+                            "Invalid task query cursor for this task. Try again with a task query cursor that matches the requested sorts.",
+                    }),
+                },
+            },
         });
     });
 });
