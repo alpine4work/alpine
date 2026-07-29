@@ -369,7 +369,7 @@ test.each([
     {
         command: "alpine search",
         argName: "query",
-        syntax: "alpine search <query>",
+        syntax: "alpine search <query> [--limit 10]",
     },
 ])("rejects a missing required $argName argument", async ({command, argName, syntax}) => {
     await expect(cli.run(command)).resolves.toEqual(
@@ -388,7 +388,7 @@ test.each([
     },
 ])("rejects $countMessage", async ({command, countMessage}) => {
     await expect(cli.run(command)).resolves.toEqual(
-        `Error: Couldn\u2019t run command. Unexpected args. Try again but remove the ${countMessage}. Expected syntax: \`alpine search <query>\`.\n`,
+        `Error: Couldn\u2019t run command. Unexpected args. Try again but remove the ${countMessage}. Expected syntax: \`alpine search <query> [--limit 10]\`.\n`,
     );
 });
 
