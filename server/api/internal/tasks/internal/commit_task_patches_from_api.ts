@@ -26,7 +26,7 @@ import {
     ApiTaskPatch,
     ApiTaskPatchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -37,6 +37,7 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {diff} from "~/shared/helpers/diff/diff.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -48,6 +49,7 @@ import {
     generateOrderKeyBetween,
     initialOrderKey,
 } from "~/shared/helpers/sort/order_key.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
@@ -68,6 +70,9 @@ import {
     emptyTaskTitleModel,
     randomlyGenerateTaskTitleClientId,
 } from "~/shared/tasks/title/task_title.js";
+
+export const commitTaskPatchesFromApiBeforeLoadNewReferencesTestCheckpoint =
+    new TestCheckpoint<AccountId>();
 
 /**
  * The single write path for API task endpoints. Applies creates and updates in
@@ -892,6 +897,9 @@ export async function commitTaskPatchesFromApi(
         }),
     );
 
+    const hasNewParentTasks = newParentTaskIds.size > 0;
+    const hasNewCollections = newCollectionIds.size > 0;
+
     const [{extraActions}, taskSortableAccountById, newReferencesResult, newAssigneeAccounts] =
         await runAllPromises([
             commitTaskActionTransaction(context, spaceId, actions, {
@@ -909,18 +917,28 @@ export async function commitTaskPatchesFromApi(
                 initialTasks,
                 actions,
             }),
-            newParentTaskIds.size > 0 || newCollectionIds.size > 0
-                ? context.dynamo.unexpectStrongReadConsistency().tasks.loadQueries(
-                      // NOCOMMIT: What happens if task exists but in a different space? We should throw
-                      // some kind of error.
-                      spaceId,
-                      {
-                          queries: [],
-                          taskIds: Array.from(newParentTaskIds),
-                          // NOCOMMIT: Test what happens if you don't have access to the parent task or
-                          // collections?
-                          collectionIds: Array.from(newCollectionIds),
-                      },
+            hasNewParentTasks || hasNewCollections
+                ? captureResultPromise(
+                      (async () => {
+                          // The transaction and this load normally run concurrently. The checkpoint lets
+                          // tests delay only the load so access can change after the transaction commits.
+                          await commitTaskPatchesFromApiBeforeLoadNewReferencesTestCheckpoint.waitForTest(
+                              botAccountId,
+                          );
+
+                          return await context.dynamo
+                              .unexpectStrongReadConsistency()
+                              .tasks.loadQueries(
+                                  // NOCOMMIT: What happens if task exists but in a different space? We should throw
+                                  // some kind of error.
+                                  spaceId,
+                                  {
+                                      queries: [],
+                                      taskIds: Array.from(newParentTaskIds),
+                                      collectionIds: Array.from(newCollectionIds),
+                                  },
+                              );
+                      })(),
                   )
                 : null,
             runAllPromises(
@@ -962,6 +980,27 @@ export async function commitTaskPatchesFromApi(
         return task;
     });
 
+    let referencesUpdateEvent: TaskRealtimeUpdateEvent | null = null;
+
+    if (newReferencesResult) {
+        if (newReferencesResult.ok) {
+            referencesUpdateEvent = newReferencesResult.value.updateEvent;
+        } else {
+            const displayMessage =
+                hasNewParentTasks && hasNewCollections
+                    ? errorDisplayMessage`Update was successful, but we couldn\u2019t load the referenced parent task or a referenced collection. This was probably due to a race condition. Try reading the updated task again.`
+                    : hasNewParentTasks
+                      ? errorDisplayMessage`Update was successful, but we couldn\u2019t load the referenced parent task. This was probably due to a race condition. Try reading the updated task again.`
+                      : errorDisplayMessage`Update was successful, but we couldn\u2019t load a referenced collection. This was probably due to a race condition. Try reading the updated task again.`;
+
+            throw FailedPreconditionError.from(
+                newReferencesResult.error,
+                "Task update committed but newly referenced tasks or collections couldn\u2019t be loaded",
+                {displayMessage},
+            );
+        }
+    }
+
     let updateEvent: Pick<
         TaskRealtimeUpdateEvent,
         "backfillTasks" | "backfillCollections" | "referencedAccounts"
@@ -974,24 +1013,24 @@ export async function commitTaskPatchesFromApi(
     updateEvent = {
         backfillTasks: [
             ...updateEvent.backfillTasks,
-            ...(newReferencesResult?.updateEvent.backfillTasks ?? []),
+            ...(referencesUpdateEvent?.backfillTasks ?? []),
             ...tasks.map(task => ({type: "Authorized" as const, task})),
         ],
 
         backfillCollections:
-            newReferencesResult === null
+            referencesUpdateEvent === null
                 ? updateEvent.backfillCollections
                 : [
                       ...updateEvent.backfillCollections,
-                      ...newReferencesResult.updateEvent.backfillCollections,
+                      ...referencesUpdateEvent.backfillCollections,
                   ],
 
         referencedAccounts:
-            newReferencesResult === null && newAssigneeAccounts.length === 0
+            referencesUpdateEvent === null && newAssigneeAccounts.length === 0
                 ? updateEvent.referencedAccounts
                 : [
                       ...updateEvent.referencedAccounts,
-                      ...(newReferencesResult?.updateEvent.referencedAccounts ?? []),
+                      ...(referencesUpdateEvent?.referencedAccounts ?? []),
                       ...newAssigneeAccounts,
                   ],
     };

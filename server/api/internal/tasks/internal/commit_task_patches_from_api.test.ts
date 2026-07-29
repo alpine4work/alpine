@@ -1,18 +1,26 @@
 import {CalendarDate} from "@internationalized/date";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
-import {commitTaskPatchesFromApi} from "~/server/api/internal/tasks/internal/commit_task_patches_from_api.js";
+import {
+    commitTaskPatchesFromApi,
+    commitTaskPatchesFromApiBeforeLoadNewReferencesTestCheckpoint,
+} from "~/server/api/internal/tasks/internal/commit_task_patches_from_api.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {commitTaskActionTransactionBeforeExecuteTestCheckpoint} from "~/server/tasks/data/commit_task_action_transaction_before_execute_test_checkpoint.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
 const context = TestTaskRealtimeServer.with(
     createTestContext({
@@ -223,6 +231,162 @@ test("applies an AddCollection patch", async () => {
             .getArray()
             .map(({collectionId}) => collectionId),
     ).toEqual([collection.id]);
+});
+
+test("reports when access to a parent task is lost after the task update commits", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const session2 = await space.createSession({name: "Bob Johnson", role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session1);
+
+    const task = await TestTask.create(session1, {title: "Task"});
+    const parent = await TestTask.create(session2, {title: "Parent"});
+    await parent.access.grant(session2, session1, "Edit");
+
+    await ProcessContextModule.waitForTestTasks();
+    await context.getTaskRealtimeServer().waitForApplyActionTransactions();
+
+    const pausePromise = commitTaskPatchesFromApiBeforeLoadNewReferencesTestCheckpoint.pauseForTest(
+        bot.id,
+    );
+    const updatePromise = updateTaskForTest(
+        context.getTaskRealtimeServer().botAction(bot, session1),
+        space.id,
+        task.id,
+        [{type: "SetParent", parent: {task: {id: parent.id}}}],
+    );
+    const {unpause} = await pausePromise;
+
+    await waitForExpect(async () => {
+        expect((await task.getItem()).parentTaskId.value).toBe(parent.id);
+    });
+    await parent.access.revoke(session2, session1);
+    await ProcessContextModule.waitForTestTasks();
+    await context.getTaskRealtimeServer().waitForApplyActionTransactions();
+
+    unpause();
+
+    const error = await updatePromise.catch((error: unknown) => error);
+    const taskItem = await task.getItem();
+
+    expect({
+        isFailedPreconditionError: error instanceof FailedPreconditionError,
+        displayMessage: error instanceof FailedPreconditionError ? error.displayMessage : undefined,
+        parentTaskId: taskItem.parentTaskId.value,
+    }).toEqual({
+        isFailedPreconditionError: true,
+        displayMessage: errorDisplayMessage`Update was successful, but we couldn\u2019t load the referenced parent task. This was probably due to a race condition. Try reading the updated task again.`,
+        parentTaskId: parent.id,
+    });
+});
+
+test("reports when access to a collection is lost after the task update commits", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const session2 = await space.createSession({name: "Bob Johnson", role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session1);
+
+    const task = await TestTask.create(session1, {title: "Task"});
+    const collection = await TestTaskCollection.create(session2, {name: "Collection"});
+    await collection.access.grant(session2, session1, "Edit");
+
+    await ProcessContextModule.waitForTestTasks();
+    await context.getTaskRealtimeServer().waitForApplyActionTransactions();
+
+    const pausePromise = commitTaskPatchesFromApiBeforeLoadNewReferencesTestCheckpoint.pauseForTest(
+        bot.id,
+    );
+    const updatePromise = updateTaskForTest(
+        context.getTaskRealtimeServer().botAction(bot, session1),
+        space.id,
+        task.id,
+        [{type: "AddCollection", item: {collection: {id: collection.id}}}],
+    );
+    const {unpause} = await pausePromise;
+
+    await waitForExpect(async () => {
+        expect((await task.getItem()).collections.has(collection.id)).toBe(true);
+    });
+    await collection.access.revoke(session2, session1);
+    await ProcessContextModule.waitForTestTasks();
+    await context.getTaskRealtimeServer().waitForApplyActionTransactions();
+
+    unpause();
+
+    const error = await updatePromise.catch((error: unknown) => error);
+    const taskItem = await task.getItem();
+
+    expect({
+        isFailedPreconditionError: error instanceof FailedPreconditionError,
+        displayMessage: error instanceof FailedPreconditionError ? error.displayMessage : undefined,
+        hasCollection: taskItem.collections.has(collection.id),
+    }).toEqual({
+        isFailedPreconditionError: true,
+        displayMessage: errorDisplayMessage`Update was successful, but we couldn\u2019t load a referenced collection. This was probably due to a race condition. Try reading the updated task again.`,
+        hasCollection: true,
+    });
+});
+
+test("reports when access to both new task references is lost after commit", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const session2 = await space.createSession({name: "Bob Johnson", role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session1);
+
+    const task = await TestTask.create(session1, {title: "Task"});
+    const parent = await TestTask.create(session2, {title: "Parent"});
+    const collection = await TestTaskCollection.create(session2, {name: "Collection"});
+    await parent.access.grant(session2, session1, "Edit");
+    await collection.access.grant(session2, session1, "Edit");
+
+    await ProcessContextModule.waitForTestTasks();
+    await context.getTaskRealtimeServer().waitForApplyActionTransactions();
+
+    const pausePromise = commitTaskPatchesFromApiBeforeLoadNewReferencesTestCheckpoint.pauseForTest(
+        bot.id,
+    );
+    const updatePromise = updateTaskForTest(
+        context.getTaskRealtimeServer().botAction(bot, session1),
+        space.id,
+        task.id,
+        [
+            {type: "SetParent", parent: {task: {id: parent.id}}},
+            {type: "AddCollection", item: {collection: {id: collection.id}}},
+        ],
+    );
+    const {unpause} = await pausePromise;
+
+    await waitForExpect(async () => {
+        const taskItem = await task.getItem();
+        expect({
+            parentTaskId: taskItem.parentTaskId.value,
+            hasCollection: taskItem.collections.has(collection.id),
+        }).toEqual({
+            parentTaskId: parent.id,
+            hasCollection: true,
+        });
+    });
+    await parent.access.revoke(session2, session1);
+    await collection.access.revoke(session2, session1);
+    await ProcessContextModule.waitForTestTasks();
+    await context.getTaskRealtimeServer().waitForApplyActionTransactions();
+
+    unpause();
+
+    const error = await updatePromise.catch((error: unknown) => error);
+    const taskItem = await task.getItem();
+
+    expect({
+        isFailedPreconditionError: error instanceof FailedPreconditionError,
+        displayMessage: error instanceof FailedPreconditionError ? error.displayMessage : undefined,
+        parentTaskId: taskItem.parentTaskId.value,
+        hasCollection: taskItem.collections.has(collection.id),
+    }).toEqual({
+        isFailedPreconditionError: true,
+        displayMessage: errorDisplayMessage`Update was successful, but we couldn\u2019t load the referenced parent task or a referenced collection. This was probably due to a race condition. Try reading the updated task again.`,
+        parentTaskId: parent.id,
+        hasCollection: true,
+    });
 });
 
 test("applies a RemoveCollection patch", async () => {
