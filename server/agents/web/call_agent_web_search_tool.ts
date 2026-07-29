@@ -11,9 +11,9 @@ import {
     splitApiSearchMessageResultBodyMatch,
 } from "~/server/agents/web/internal/split_api_search_message_result_body_match.js";
 import {
-    ApiSearchResultZippedMatch,
-    zipApiSearchResultMatch,
-} from "~/server/agents/web/internal/zip_api_search_result_match.js";
+    ZippedApiSearchResultMatches,
+    zipApiSearchResultMatches,
+} from "~/server/agents/web/internal/zip_api_search_result_matches.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -194,7 +194,7 @@ async function createAgentWebSearchEntityResultListItem(
         type: "link",
         url: resultLinkPathname,
         children: [
-            ...intoPhrasingContent(zipApiSearchResultMatch(result.title, result.titleMatches)),
+            ...intoPhrasingContent(zipApiSearchResultMatches(result.title, result.titleMatches)),
             ...(resultLinkLabel.length > result.title.length
                 ? [{type: "text" as const, value: resultLinkLabel.slice(result.title.length)}]
                 : []),
@@ -203,7 +203,7 @@ async function createAgentWebSearchEntityResultListItem(
 
     const bodyMatchContent = result.bodySnippet
         ? intoPhrasingContent(
-              zipApiSearchResultMatch(result.bodySnippet.text, result.bodySnippet.matches),
+              zipApiSearchResultMatches(result.bodySnippet.text, result.bodySnippet.matches),
           )
         : [];
 
@@ -297,34 +297,21 @@ async function createAgentWebSearchMessageResultListItem(
     };
 }
 
-function intoPhrasingContent(
-    match: ReadonlyArray<ApiSearchResultZippedMatch>,
-): Array<PhrasingContent> {
+function intoPhrasingContent(match: ZippedApiSearchResultMatches): Array<PhrasingContent> {
     const content: Array<PhrasingContent> = [];
 
-    for (let index = 0; index < match.length; index++) {
-        const segment = match[index]!;
-        if (!segment.isMatch) {
-            content.push({type: "text", value: segment.text});
-            continue;
-        }
-
-        let text = segment.text;
-        while (/^\s+$/u.test(match[index + 1]?.text ?? "") && match[index + 2]?.isMatch) {
-            text += match[index + 1]!.text + match[index + 2]!.text;
-            index += 2;
-        }
-
-        content.push({
-            type: "strong",
-            children: [{type: "text", value: text}],
-        });
+    for (const {text, isMatch} of match) {
+        content.push(
+            isMatch
+                ? {type: "strong", children: [{type: "text", value: text}]}
+                : {type: "text", value: text},
+        );
     }
 
     return content;
 }
 
-function flatBodyMatch(bodyMatch: ReadonlyArray<{text: string}>): string {
+function flatBodyMatch(bodyMatch: ZippedApiSearchResultMatches): string {
     let bodySnippet = "";
     for (const {text} of bodyMatch) bodySnippet += text;
     return bodySnippet;

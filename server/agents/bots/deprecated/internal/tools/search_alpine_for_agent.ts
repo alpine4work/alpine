@@ -7,9 +7,9 @@ import {
     printAgentPlainTextLabel,
 } from "~/server/agents/bots/deprecated/internal/link_references/print_agent_link_path.js";
 import {
-    ApiSearchResultZippedMatch,
+    ZippedApiSearchResultMatches,
     getSearchResultContentSnippetAndReturnBodyMatch,
-    zipApiSearchResultMatch,
+    zipApiSearchResultMatches,
 } from "~/server/agents/bots/deprecated/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
@@ -346,7 +346,7 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult): Li
 
     const bodyMatchContent: Array<PhrasingContent> = result.bodySnippet
         ? intoPhrasingContent(
-              zipApiSearchResultMatch(result.bodySnippet.text, result.bodySnippet.matches),
+              zipApiSearchResultMatches(result.bodySnippet.text, result.bodySnippet.matches),
           )
         : [];
 
@@ -391,9 +391,7 @@ function isApiSearchResultInConversationState(
     }
 }
 
-function intoPhrasingContent(
-    bodyMatch: ReadonlyArray<ApiSearchResultZippedMatch>,
-): Array<PhrasingContent> {
+function intoPhrasingContent(bodyMatch: ZippedApiSearchResultMatches): Array<PhrasingContent> {
     return bodyMatch.map(({text, isMatch}) => {
         const textContent: PhrasingContent = {type: "text", value: text};
         if (!isMatch) return textContent;

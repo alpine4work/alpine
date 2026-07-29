@@ -42,6 +42,11 @@ export function intoApiSearchResult(
 
             bodyIndex += text.length;
         }
+
+        bodySnippet.matches = mergeApiSearchResultMatchesSeparatedByWhitespace(
+            bodySnippet.text,
+            bodySnippet.matches,
+        );
     }
 
     const parsedFilter = resultParsedFilter ?? undefined;
@@ -254,7 +259,36 @@ function createApiSearchResultTitleMatches(
         });
     }
 
-    return titleMatches;
+    return mergeApiSearchResultMatchesSeparatedByWhitespace(title, titleMatches);
+}
+
+function mergeApiSearchResultMatchesSeparatedByWhitespace(
+    text: string,
+    matches: Array<ApiSearchResultMatch>,
+): Array<ApiSearchResultMatch> {
+    const mergedMatches: Array<ApiSearchResultMatch> = [];
+
+    for (const match of matches) {
+        const previousMatch = mergedMatches.at(-1);
+        if (previousMatch === undefined) {
+            mergedMatches.push(match);
+            continue;
+        }
+
+        const previousMatchEndIndex = previousMatch.index + previousMatch.length;
+        const textBetweenMatches = text.slice(previousMatchEndIndex, match.index);
+
+        if (/^\p{White_Space}*$/u.test(textBetweenMatches)) {
+            mergedMatches[mergedMatches.length - 1] = {
+                index: previousMatch.index,
+                length: match.index + match.length - previousMatch.index,
+            };
+        } else {
+            mergedMatches.push(match);
+        }
+    }
+
+    return mergedMatches;
 }
 
 function getMissingSearchEntityTitle(entity: {type: SearchDynamicEntityType}): string {

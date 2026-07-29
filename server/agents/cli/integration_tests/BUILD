@@ -18,6 +18,7 @@ ts_project(
         "//admin/environment/test/integration",
         "//server/agents/cli",
         "//server/bots/test_helpers",
+        "//server/chat/data",
         "//server/chat/test_helpers",
         "//server/documents/test_helpers",
         "//server/files/test_helpers",

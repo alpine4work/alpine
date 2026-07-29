@@ -1,16 +1,16 @@
 import {ApiSearchResultMatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-export type ApiSearchResultZippedMatch = {
-    readonly text: string;
-    readonly isMatch: boolean;
-};
+export type ZippedApiSearchResultMatches = Array<{
+    text: string;
+    isMatch: boolean;
+}>;
 
-export function zipApiSearchResultMatch(
+export function zipApiSearchResultMatches(
     text: string,
     matches: ReadonlyArray<ApiSearchResultMatch>,
-): Array<ApiSearchResultZippedMatch> {
-    const segments: Array<ApiSearchResultZippedMatch> = [];
+): ZippedApiSearchResultMatches {
+    const segments: ZippedApiSearchResultMatches = [];
     let startIndex = 0;
 
     for (const match of matches) {

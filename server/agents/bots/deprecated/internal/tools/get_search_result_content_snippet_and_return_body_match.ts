@@ -19,10 +19,10 @@ type ApiSearchMessageResult =
     | ApiSearchPostMessageResult
     | ApiSearchDocumentMessageResult;
 
-export type ApiSearchResultZippedMatch = {
-    readonly text: string;
-    readonly isMatch: boolean;
-};
+export type ZippedApiSearchResultMatches = Array<{
+    text: string;
+    isMatch: boolean;
+}>;
 
 /**
  * The number of [graphemes][1] (aka characters) to include in a link label.
@@ -73,10 +73,13 @@ const maxGraphemeCount = 50;
 export function getSearchResultContentSnippetAndReturnBodyMatch(
     result: Pick<ApiSearchMessageResult, "bodySnippet" | "author" | "type">,
 ): {
-    preview: Array<ApiSearchResultZippedMatch>;
-    newBodyMatch: Array<ApiSearchResultZippedMatch>;
+    preview: ZippedApiSearchResultMatches;
+    newBodyMatch: ZippedApiSearchResultMatches;
 } {
-    const bodyMatch = zipApiSearchResultMatch(result.bodySnippet.text, result.bodySnippet.matches);
+    const bodyMatch = zipApiSearchResultMatches(
+        result.bodySnippet.text,
+        result.bodySnippet.matches,
+    );
     const previewMessagePrefix = {
         text: `${result.author.shortName}: `,
         isMatch: false,
@@ -99,8 +102,8 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
 
     let totalGraphemeCount = 0;
     let segmentIndex = 0;
-    const preview: Array<ApiSearchResultZippedMatch> = [previewMessagePrefix];
-    const newBodyMatch: Array<ApiSearchResultZippedMatch> = [];
+    const preview: ZippedApiSearchResultMatches = [previewMessagePrefix];
+    const newBodyMatch: ZippedApiSearchResultMatches = [];
 
     for (const segment of bodyMatch) {
         const text = segment.text;
@@ -185,11 +188,11 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
     return {preview, newBodyMatch};
 }
 
-export function zipApiSearchResultMatch(
+export function zipApiSearchResultMatches(
     text: string,
     matches: ReadonlyArray<ApiSearchResultMatch>,
-): Array<ApiSearchResultZippedMatch> {
-    const segments: Array<ApiSearchResultZippedMatch> = [];
+): ZippedApiSearchResultMatches {
+    const segments: ZippedApiSearchResultMatches = [];
     let startIndex = 0;
 
     for (const match of matches) {

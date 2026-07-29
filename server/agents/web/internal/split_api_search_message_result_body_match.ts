@@ -1,7 +1,7 @@
 import {
-    ApiSearchResultZippedMatch,
-    zipApiSearchResultMatch,
-} from "~/server/agents/web/internal/zip_api_search_result_match.js";
+    ZippedApiSearchResultMatches,
+    zipApiSearchResultMatches,
+} from "~/server/agents/web/internal/zip_api_search_result_matches.js";
 import {
     ApiSearchChatMessageResultResponse,
     ApiSearchDocumentMessageResultResponse,
@@ -52,10 +52,13 @@ const hardMaxGraphemeCount = softMaxGraphemeCount + maxReasonableEnglishWordGrap
 export function splitApiSearchMessageResultBodyMatch(
     result: Pick<ApiSearchMessageResultResponse, "bodySnippet" | "type">,
 ): {
-    preview: Array<ApiSearchResultZippedMatch>;
-    newBodyMatch: Array<ApiSearchResultZippedMatch>;
+    preview: ZippedApiSearchResultMatches;
+    newBodyMatch: ZippedApiSearchResultMatches;
 } {
-    const bodyMatch = zipApiSearchResultMatch(result.bodySnippet.text, result.bodySnippet.matches);
+    const bodyMatch = zipApiSearchResultMatches(
+        result.bodySnippet.text,
+        result.bodySnippet.matches,
+    );
 
     // If there's no body match, use the missing search entity title.
     if (bodyMatch.length === 0) {
@@ -72,8 +75,8 @@ export function splitApiSearchMessageResultBodyMatch(
 
     let totalGraphemeCount = 0;
     let segmentIndex = 0;
-    const preview: Array<ApiSearchResultZippedMatch> = [];
-    const newBodyMatch: Array<ApiSearchResultZippedMatch> = [];
+    const preview: ZippedApiSearchResultMatches = [];
+    const newBodyMatch: ZippedApiSearchResultMatches = [];
 
     for (const segment of bodyMatch) {
         let length = 0;

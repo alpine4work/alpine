@@ -282,11 +282,10 @@ export async function loadTaskRealtimeQueries(
                     } catch (error) {
                         throw InvalidArgumentError.from(error, undefined, {
                             // Throw an error with a nice display message for API clients.
-                            //
-                            // NOCOMMIT: If sorts are explicitly provided and override the defaults then don't
-                            // include the defaults message. Also make it clear in the defaults message that
-                            // you can explicitly provide sorts to avoid this error in the future.
-                            displayMessage: errorDisplayMessage`Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts. (You may get this error if you\u2019re paginating through a task collection when the task collection\u2019s default sorts change. In that case try paginating from the start of the collection again and you\u2019ll pick up the new sorts.)`,
+                            displayMessage:
+                                inputFilters.length === 0 && inputSorts.length === 0
+                                    ? errorDisplayMessage`Invalid task query cursor for this collection. You may get this error if you\u2019re paginating through a task collection when the task collection\u2019s default sorts change. In that case try paginating from the start of the collection again and you\u2019ll pick up the new sorts, or try overriding the default sorts so if the default sorts change you\u2019ll be able to continue paginating.`
+                                    : errorDisplayMessage`Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts.`,
                         });
                     }
                 }

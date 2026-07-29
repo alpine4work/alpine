@@ -178,17 +178,13 @@ test("prints entity results as links", async () => {
 11. [Test Site](/site/test-site)`);
 });
 
-test("prints title matches and merges matches separated only by whitespace", async () => {
+test("prints an API-merged title match", async () => {
     mockSearch("Direct chat setup", [
         {
             type: "Chat",
             id: generateId<ChatId>(),
             title: "Direct chat setup",
-            titleMatches: [
-                {index: 0, length: 6},
-                {index: 7, length: 4},
-                {index: 12, length: 5},
-            ],
+            titleMatches: [{index: 0, length: 17}],
             bodySnippet: null,
         },
     ]);
@@ -231,10 +227,7 @@ test("prints body matches under entity results", async () => {
             titleMatches: [],
             bodySnippet: {
                 text: "Test Task hello world test task",
-                matches: [
-                    {index: 0, length: 9},
-                    {index: 10, length: 11},
-                ],
+                matches: [{index: 0, length: 21}],
             },
             status: {type: "Open", isActive: true},
         },
