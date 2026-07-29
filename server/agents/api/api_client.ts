@@ -98,7 +98,8 @@ export function createApiClient({
     const apiClient: Client<ApiSpecification.paths> = createClient({
         baseUrl,
         headers: {
-            authorization: `bearer ${apiKey}${accessToken === undefined ? "" : `~${accessToken}`}`,
+            "Alpine-Version": "2026-07-29",
+            Authorization: `bearer ${apiKey}${accessToken === undefined ? "" : `~${accessToken}`}`,
         },
     });
 

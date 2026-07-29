@@ -1022,8 +1022,6 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     );
 
     // There should always be at least one message block left after we truncate.
-    //
-    // NOCOMMIT: Might not be the case anymore!
     assert(truncatedMessages.length > 0);
 
     let truncatedResponse = didTruncateFromStart

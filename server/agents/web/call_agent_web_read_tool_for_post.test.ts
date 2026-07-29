@@ -5,7 +5,6 @@ import {mockApiGetPostMessages} from "~/server/agents/api/test_helpers/mock_api_
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
@@ -376,6 +375,28 @@ Comments on [post](/post/launch). [Previous page »](/post/launch?before=0)
 <comment id="0" from="[Bob](/human/bob)">\n\nNear the start.\n\n</comment>
 
 End of comments.`);
+});
+
+test("returns not found around a comment index before the first comment", async () => {
+    mockGetPost({content: contentFromText("Long post. ".repeat(300))});
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        cursor: -16,
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({index, author: bobAccount, content: "Near the start."}),
+    });
+
+    const response = await callAgentWebReadTool(context, {
+        path: "/post/launch?comment=-1",
+        limit: "900b",
+    });
+
+    expect(response).toEqual(
+        "Error: Couldn\u2019t read `/post/launch?comment=-1`. Couldn\u2019t find any comments in the requested range `-1`. Try again with a comment index or range from an `id` attribute you\u2019ve seen before.",
+    );
 });
 
 test("paginates forward from the post and truncates comments", async () => {

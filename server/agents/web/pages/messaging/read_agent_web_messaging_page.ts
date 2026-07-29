@@ -33,7 +33,7 @@ import {
     ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
-import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -534,6 +534,22 @@ export async function readAgentWebMessagingPageAroundMessage<
             }),
             metadata,
         };
+    }
+
+    if (
+        !initialMessages.some(
+            message =>
+                message.index >= around.startMessageIndex && message.index < around.endMessageIndex,
+        )
+    ) {
+        const aroundMessageIndexRange =
+            around.startMessageIndex === around.endMessageIndex - 1
+                ? String(around.startMessageIndex)
+                : `${around.startMessageIndex}-${around.endMessageIndex - 1}`;
+
+        throw new NotFoundError("No messages found in around range", {
+            displayMessage: errorDisplayMessage`Couldn\u2019t find any ${messageNouns.pluralNoun} in the requested range ${quote(aroundMessageIndexRange)}. Try again with a \`<${messageNouns.noun}>\` \`id\` attribute you\u2019ve seen before.`,
+        });
     }
 
     let beforeCursor = initialMessages[0]!.index !== 0 ? initialMessages[0]!.index : null;
