@@ -1,5 +1,6 @@
 import {addHours} from "date-fns";
 import {Root} from "mdast";
+import {getApiReference} from "~/server/agents/api/api_client.js";
 import {parseAgentWebBytes} from "~/server/agents/web/agent_web_bytes.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPage, AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
@@ -8,6 +9,7 @@ import {AgentWebPageRoutedLink} from "~/server/agents/web/agent_web_page_routed_
 import {AgentWebPageStoredLinkKeyObject} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {agentWebBytesDefaultLimit} from "~/server/agents/web/default_agent_web_bytes_limit.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
@@ -76,11 +78,14 @@ import {
 } from "~/server/agents/web/pages/agent_web_task_subtasks_page.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
+import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible} from "~/shared/api/content/parse_api_content_from_markdown_url_if_possible.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
     FailedPreconditionError,
     InternalError,
+    InvalidArgumentError,
     NotFoundError,
     UnimplementedError,
 } from "~/shared/error/error.js";
@@ -88,6 +93,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
@@ -121,6 +127,42 @@ async function actuallyCallAgentWebReadTool(
         limit?: string;
     },
 ) {
+    // Allow passing in an Alpine URL to the `read` tool. This will help users who copy
+    // an Alpine URL from their browser and paste it into their agent. The agent can
+    // then take the URL and turn it into a human-readable path and operate on that.
+    if (/^https?:/.test(originalPath)) {
+        let url: URL;
+        try {
+            url = new URL(originalPath);
+        } catch (error) {
+            throw InvalidArgumentError.from(error, "Failed to parse path as URL", {
+                displayMessage: errorDisplayMessage`Expected ${quote(originalPath)} to be a valid URL. Try again with a valid URL, a path you\u2019ve seen before (e.g. \`/document/hello-world\`), or use the \`search\` tool to try and find what you\u2019re looking for.`,
+            });
+        }
+
+        const pathnameSegments = url.pathname.slice(1).split("/");
+
+        const reference =
+            parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible(pathnameSegments);
+
+        if (!reference) {
+            throw new InvalidArgumentError("Unrecognized URL reference", {
+                displayMessage: errorDisplayMessage`Unrecognized URL path ${quote(url.pathname)}. Can only call the \`read\` tool with an Alpine URL. Try again with a valid URL, a path you\u2019ve seen before (e.g. \`/document/hello-world\`), or use the \`search\` tool to try and find what you\u2019re looking for.`,
+            });
+        }
+
+        const {
+            data: {reference: referenceResponse},
+        } = await getApiReference(context.span, context.api, reference);
+
+        const pathname = await createAgentWebPageStoredLinkPathname(
+            context.storage,
+            referenceResponse,
+        );
+
+        return `Found path for URL: ${quote(pathname)}.\n\nCall the \`read\` tool again with that path to see the ${getApiMentionReferenceNoun(reference.type)}\u2019s content.`;
+    }
+
     const {path, pathname, searchParams} = normalizeAgentWebPath(originalPath);
 
     // The agent gives us a limit in bytes (which conventionally is understood as UTF-8

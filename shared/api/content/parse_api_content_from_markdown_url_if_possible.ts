@@ -87,7 +87,7 @@ export function parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossibl
     return null;
 }
 
-function parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible(
+export function parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible(
     pathnameSegments: Array<string>,
 ): Exclude<ApiMentionReference, {type: "Account"}> | null {
     if (pathnameSegments.length !== 2) return null;

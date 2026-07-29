@@ -44,10 +44,13 @@ There are some additional tools you may need:
 That's it! You're ready to use all of Alpine.
 
 As you explore Alpine, you'll find links like `[Hello, world!](/document/hello-world)`. To open the
-link you call the `read` tool with the path (`/document/hello-world` in this case). While the
-markdown you get from the `read` tool should be intuitive, if you need help understanding it refer
-to the documentation linked in the table below. If you're going to update the markdown with the
-`update` tool or create a new page with the `create` tool then we recommend reading any relevant
+link you call the `read` tool with the path (`/document/hello-world` in this case). You can also
+call the `read` tool with an Alpine URL like `https://alpine.inc/doc/{id}` (contains internal IDs)
+which a user may copy from their browser and give to you.
+
+While the markdown you get from the `read` tool should be intuitive, if you need help understanding
+it refer to the documentation linked in the table below. If you're going to update the markdown with
+the `update` tool or create a new page with the `create` tool then we recommend reading any relevant
 documentation linked in the table below first.
 
 | Area                               | Related paths                         | Related `create` tool types             |

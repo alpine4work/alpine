@@ -9,7 +9,7 @@ Alpine has invested in building the best AIX (AI experience, like UX but for age
 
 You can access Alpine using an MCP or CLI. The CLI provides the same tools as the MCP (e.g. `alpine read ...`).
 
-Think of browsing Alpine like browsing the web. You use the `search` tool to find what you’re looking for, you call the `read` tool to load a page, and you use the `scroll` tool when the page is too big to fit in the browser window.
+Think of browsing Alpine like browsing the web. You use the `search` tool to find what you’re looking for, you call the `read` tool to load a page, and you use the `scroll` tool when the page is too big to fit in the “browser” window.
 
 Everything in Alpine is accessible to you via simple CRUD tools:
 
@@ -29,7 +29,9 @@ There are some additional tools you may need:
 
 That’s it! You’re ready to use all of Alpine.
 
-As you explore Alpine, you’ll find links like `[Hello, world!](/document/hello-world)`. To open the link you call the `read` tool with the path (`/document/hello-world` in this case). While the markdown you get from the `read` tool should be intuitive, if you need help understanding it refer to the documentation linked in the table below. If you’re going to update the markdown with the `update` tool or create a new page with the `create` tool then we recommend reading any relevant documentation linked in the table below first.
+As you explore Alpine, you’ll find links like `[Hello, world!](/document/hello-world)`. To open the link you call the `read` tool with the path (`/document/hello-world` in this case). You can also call the `read` tool with an Alpine URL like `https://alpine.inc/doc/{id}` (contains internal IDs) which a user may copy from their browser and give to you.
+
+While the markdown you get from the `read` tool should be intuitive, if you need help understanding it refer to the documentation linked in the table below. If you’re going to update the markdown with the `update` tool or create a new page with the `create` tool then we recommend reading any relevant documentation linked in the table below first.
 
 | Area | Related paths | Related `create` tool types |
 | - | - | - |
@@ -63,6 +65,6 @@ Some stuff in the space will be private to you. The general rule: people can’t
 
 - If you’re talking with just one person in a private chat then you can see everything that one person can see.
 
-- If you’re talking with multiple people (e.g. in a private group chat) then you can only see the things that *all* those people can see.
+- If you’re talking with multiple people (e.g. in a private group chat) then you can only see the things that _all_ those people can see.
 
 - If you’re talking with people somewhere that everyone in the space can access then you can only see things that everyone in the space can access.
