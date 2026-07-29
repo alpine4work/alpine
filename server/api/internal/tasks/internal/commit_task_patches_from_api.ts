@@ -263,9 +263,6 @@ export async function commitTaskPatchesFromApi(
 
     // If the task is not found or you don't have permission to access the task then
     // `loadQueries()` will throw an error.
-    //
-    // NOCOMMIT: Test not found and permission denied errors from the task update
-    // endpoint
     const backfillAuthorizedTaskById = new Map<TaskId, TaskModel>();
 
     if (result) {
