@@ -1,4 +1,4 @@
-import {BlockContent, DefinitionContent} from "mdast";
+import {BlockContent, DefinitionContent, Node, RootContent} from "mdast";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
@@ -63,7 +63,21 @@ export function printAgentWebError(title: string, error: unknown): string {
             errorMessage = `Internal error: ${errorMessage}`;
 
             const errorMessageChildren = parseMarkdownTree(errorMessage).children.map(
-                (node): BlockContent | DefinitionContent => {
+                (
+                    node:
+                        | RootContent
+                        // Make TypeScript happy. `inlineMath` is valid `PhrasingContent` when we run
+                        // TypeScript on the entire codebase since it's used in
+                        // `parseApiContentFromMarkdown()` but it's not available when we run TypeScript
+                        // just on this Bazel package. Make the two environments consistent by adding a
+                        // stub type here.
+                        | {type: "inlineMath"}
+                        | (Node & {type: "mdxFlowExpression"})
+                        | (Node & {type: "mdxJsxFlowElement"})
+                        | (Node & {type: "mdxJsxTextElement"})
+                        | (Node & {type: "mdxTextExpression"})
+                        | (Node & {type: "mdxjsEsm"}),
+                ): BlockContent | DefinitionContent => {
                     switch (node.type) {
                         case "break":
                         case "delete":
@@ -74,11 +88,16 @@ export function printAgentWebError(title: string, error: unknown): string {
                         case "link":
                         case "linkReference":
                         case "strong":
-                        case "text":
-                        case "inlineMath": {
+                        case "text": {
                             return {
                                 type: "paragraph",
                                 children: [node],
+                            };
+                        }
+                        case "inlineMath": {
+                            return {
+                                type: "paragraph",
+                                children: [node as any],
                             };
                         }
                         case "mdxFlowExpression":
