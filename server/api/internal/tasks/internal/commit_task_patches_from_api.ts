@@ -926,16 +926,11 @@ export async function commitTaskPatchesFromApi(
 
                           return await context.dynamo
                               .unexpectStrongReadConsistency()
-                              .tasks.loadQueries(
-                                  // NOCOMMIT: What happens if task exists but in a different space? We should throw
-                                  // some kind of error.
-                                  spaceId,
-                                  {
-                                      queries: [],
-                                      taskIds: Array.from(newParentTaskIds),
-                                      collectionIds: Array.from(newCollectionIds),
-                                  },
-                              );
+                              .tasks.loadQueries(spaceId, {
+                                  queries: [],
+                                  taskIds: Array.from(newParentTaskIds),
+                                  collectionIds: Array.from(newCollectionIds),
+                              });
                       })(),
                   )
                 : null,

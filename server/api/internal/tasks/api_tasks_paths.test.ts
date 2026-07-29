@@ -1757,6 +1757,47 @@ test("can update and clear parent task", async () => {
     expect(clearResponse.body.task.parent).toBeUndefined();
 });
 
+test("rejects setting a parent task from a different space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const otherSession = await otherSpace.createSession({
+        name: "Mallory Example",
+        role: "Admin",
+    });
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "Child task"});
+    const otherSpaceParentTask = await TestTask.create(otherSession, {
+        title: "Other space parent",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [
+                {
+                    type: "SetParent",
+                    parent: {task: {id: otherSpaceParentTask.id}},
+                },
+            ],
+        },
+    });
+    const taskItem = await task.getItem();
+
+    expect({
+        response,
+        parentTaskId: taskItem.parentTaskId.value,
+    }).toEqual({
+        response: expectedApiErrorResponse(403, "You don\u2019t have access to this space"),
+        parentTaskId: null,
+    });
+});
+
 test("returns a private parent placeholder when reading a task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -2208,6 +2249,47 @@ test("adding collections through repeated patch requests appends them to the end
             .getArray()
             .map(({collectionId}) => collectionId),
     ).toEqual([initialCollection.id, ...appendedCollections.map(collection => collection.id)]);
+});
+
+test("rejects adding a collection from a different space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const otherSession = await otherSpace.createSession({
+        name: "Mallory Example",
+        role: "Admin",
+    });
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "Task"});
+    const otherSpaceCollection = await TestTaskCollection.create(otherSession, {
+        name: "Other space collection",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [
+                {
+                    type: "AddCollection",
+                    item: {collection: {id: otherSpaceCollection.id}},
+                },
+            ],
+        },
+    });
+    const taskItem = await task.getItem();
+
+    expect({
+        response,
+        hasCollection: taskItem.collections.has(otherSpaceCollection.id),
+    }).toEqual({
+        response: expectedApiErrorResponse(403, "You don\u2019t have access to this space"),
+        hasCollection: false,
+    });
 });
 
 describe("PATCH /tasks", () => {
