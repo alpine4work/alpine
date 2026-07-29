@@ -1,3 +1,4 @@
+import {parseDate, today} from "@internationalized/date";
 import {Ajv, ErrorObject} from "ajv";
 import _addAjvFormats from "ajv-formats";
 import {parse as parseCookieHeader} from "cookie";
@@ -47,6 +48,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -593,6 +595,63 @@ export async function createApiServiceRequestListener(
             });
 
             try {
+                /* ========================================================================== *\
+                 *                                 Versioning                                 *
+                \* ========================================================================== */
+
+                const currentDate = today(defaultTimeZone);
+
+                const versionHeader = request.headers.get("Version");
+                if (versionHeader === null) {
+                    return createApiErrorResponse({
+                        status: 400,
+                        message: `Missing \`Version\` header. When starting a new project, you should set the \`Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Version\` header from today\u2019s date or your code may break from backwards incompatible API changes.`,
+                        isRetryable: false,
+                    });
+                }
+
+                const version = parseDate(versionHeader);
+
+                if (version.compare(currentDate.add({days: 1})) > 0) {
+                    return createApiErrorResponse({
+                        status: 400,
+                        message: `Can\u2019t set the \`Version\` header to a future date. When starting a new project, you should set the \`Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Version\` header from today\u2019s date or your code may break from backwards incompatible API changes.`,
+                        isRetryable: false,
+                    });
+                }
+
+                // TODO(calebmer): Eventually we'll have more than one API version. At that point,
+                // my rough idea is we'll have multiple `api_specification.yaml`s and we'll have
+                // translation middleware. The translation middleware will be responsible for
+                // making a request to the new version of the API and translating it back to an
+                // older version of the API. (My understanding is this is how Stripe implements API
+                // versioning on their backend.)
+                //
+                // My concept here is we'll have a single file like
+                // `api_middleware_2027_04_30_to_2026_07_12.ts` which looks like:
+                //
+                // ```ts
+                // export const middleware = {
+                //     // For all paths:
+                //     "/documents/{id}": {
+                //         get: async (context, request, next) => {
+                //             // Manipulate `request`...
+                //
+                //             const response = await next.get("/documents/{id}", request);
+                //
+                //             // Manipulate `response`...
+                //
+                //             return response;
+                //         },
+                //     },
+                // };
+                // ```
+                //
+                // `next` is a way to make a request against against the _next_ version of the API.
+                // So we only ever need to write middleware between two versions. From there we
+                // should be able to safely implement an old request shape by sending a request
+                // through multiple layers of middleware.
+
                 /* ========================================================================== *\
                  *                               Authorization                                *
                 \* ========================================================================== */
