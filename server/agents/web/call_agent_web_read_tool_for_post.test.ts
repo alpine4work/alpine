@@ -74,10 +74,14 @@ function mockGetPost({
     content,
     createdTime = new Date("2026-05-14T15:00:00.000Z"),
     createdTimeZone = defaultTimeZone,
+    channelName = "Announcements",
+    title = postReference.title,
 }: {
     content?: ApiContentResponse;
     createdTime?: Date;
     createdTimeZone?: TimeZone;
+    channelName?: string;
+    title?: string;
 } = {}) {
     api.mockGet("/posts/{id}", {
         params: {path: {id: postId}},
@@ -88,9 +92,9 @@ function mockGetPost({
                 author: aliceAccount,
                 createdTime: serializeDateString(createdTime),
                 createdTimeZone,
-                channel: {id: channelId, name: "Announcements"},
+                channel: {id: channelId, name: channelName},
                 content: content ?? contentFromText("Post body."),
-                reference: {title: postReference.title},
+                reference: {title},
             },
         },
     });
@@ -548,6 +552,43 @@ Comments on [post](/post/launch). [Previous page »](/post/launch?before=0)
 
 <comment id="0" from="[Alice](/human/alice)">\n\nTest comment 0\n\n</comment>\n
 <comment id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest comment 1\n\n</comment>`);
+});
+
+test("does not use scroll truncation after replacing a shorter post preamble", async () => {
+    const title = "A long post title that makes the comments preamble longer";
+    const longPostReference = {...postReference, title};
+
+    await storage.deleteAll();
+    await createAgentWebPageStoredLinkPathname(storage, context.botAccount);
+    const pathname = await createAgentWebPageStoredLinkPathname(storage, longPostReference);
+
+    mockGetPost({
+        content: contentFromText("Long post. ".repeat(300)),
+        channelName: "A",
+        title,
+    });
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        from: "End",
+        cursor: 2,
+        totalMessageCount: 60,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({index, author, content: `Test comment ${index}`}),
+    });
+
+    const response = await callAgentWebReadTool(context, {
+        path: `${pathname}?before=2`,
+        limit: "345b",
+    });
+
+    expect(response).toEqual(`\
+Comments on [post](/post/a-long-post-title-that-makes-the-comment). [Previous page »](/post/a-long-post-title-that-makes-the-comment?before=1)
+
+<time>May 14th at 11:05am EDT</time>
+
+<comment id="1" from="[Bob](/human/bob)">\n\nTest comment 1\n\n</comment>`);
 });
 
 test("paginates backward near the post without truncating the post", async () => {
