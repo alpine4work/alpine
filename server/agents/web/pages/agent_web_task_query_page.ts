@@ -1450,7 +1450,7 @@ export async function updateAgentWebTaskQueryPage(
                                 originalPageLink.task.id === pageLink.task.id),
                     );
 
-                    isCreate = originalPageLink.id === null;
+                    isCreate = originalPageLink.task.id === null;
                     break;
                 }
                 default:

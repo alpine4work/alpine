@@ -358,7 +358,7 @@ test("creates a task collection with a new task and all its fields", async () =>
         result: `\
 Create was successful. New task collection: [Release plan](/task-collection/release-plan).
 
-Created the following task: [Draft launch plan (Open, active)](/task/draft-launch-plan)`,
+Also created the following task: [Draft launch plan (Open, active)](/task/draft-launch-plan).`,
         requestOrder: ["POST /task-collections", "PATCH /tasks"],
         taskPatches: [
             {

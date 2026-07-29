@@ -1880,7 +1880,7 @@ End of tasks.`,
     ).resolves.toEqual(`\
 Update was successful.
 
-Created the following task: [New task (Closed)](/task/new-task)`);
+Created the following task: [New task (Closed)](/task/new-task).`);
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -1987,7 +1987,7 @@ test("moves a task and creates a task immediately after it at the same position"
     ).resolves.toEqual(`\
 Update was successful.
 
-Created the following task: [New task (Open)](/task/new-task)`);
+Created the following task: [New task (Open)](/task/new-task).`);
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {
@@ -2109,7 +2109,7 @@ test("creates a task immediately before a moved task at the same position", asyn
     ).resolves.toEqual(`\
 Update was successful.
 
-Created the following task: [New task (Open)](/task/new-task)`);
+Created the following task: [New task (Open)](/task/new-task).`);
 
     expect(getApiPatchTasksRequestHistory()).toEqual([
         {

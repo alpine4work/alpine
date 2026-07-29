@@ -355,7 +355,7 @@ alpine update /task-collection/move-and-add-roadmap \\
     ).toEqual(`\
 Update was successful.
 
-Created the following task: [Move add new task (Open)](/task/move-add-new-task)
+Created the following task: [Move add new task (Open)](/task/move-add-new-task).
 `);
 
     expect(await cli.run("alpine read /task-collection/move-and-add-roadmap")).toEqual(`\
@@ -399,7 +399,7 @@ alpine update /task-collection/adjacent-move-roadmap \\
     ).toEqual(`\
 Update was successful.
 
-Created the following task: [Adjacent new task (Open)](/task/adjacent-new-task)
+Created the following task: [Adjacent new task (Open)](/task/adjacent-new-task).
 `);
 
     expect(await cli.run("alpine read /task-collection/adjacent-move-roadmap")).toEqual(`\
