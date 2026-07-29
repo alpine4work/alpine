@@ -127,7 +127,7 @@ describe("intoApiSearchResult", () => {
             });
         });
 
-        test("converts bodyTextSnippet with highlighted text", () => {
+        test("merges body matches separated by Unicode whitespace", () => {
             const documentId = generateId<DocumentId>();
             const model = new SearchEntityModel({
                 type: "Document",
@@ -143,7 +143,9 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [
-                        {text: "This is ", isHighlighted: false},
+                        {text: "This ", isHighlighted: false},
+                        {text: "is", isHighlighted: true},
+                        {text: "\u2003", isHighlighted: false},
                         {text: "highlighted", isHighlighted: true},
                         {text: " text", isHighlighted: false},
                     ],
@@ -158,8 +160,8 @@ describe("intoApiSearchResult", () => {
                 title: "Test Document",
                 titleMatches: [],
                 bodySnippet: {
-                    text: "This is highlighted text",
-                    matches: [{index: 8, length: 11}],
+                    text: "This is\u2003highlighted text",
+                    matches: [{index: 5, length: 14}],
                 },
             });
         });
@@ -226,11 +228,7 @@ describe("intoApiSearchResult", () => {
                 type: "Chat",
                 id: chatId,
                 title: "Direct chat setup",
-                titleMatches: [
-                    {index: 0, length: 6},
-                    {index: 7, length: 4},
-                    {index: 12, length: 5},
-                ],
+                titleMatches: [{index: 0, length: 17}],
                 bodySnippet: null,
             });
         });
