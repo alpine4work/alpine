@@ -100,3 +100,5 @@ to more stuff than they themselves have access to.
 
 - If you're talking with people somewhere that everyone in the space can access then you can only
   see things that everyone in the space can access.
+
+<!-- TODO(#agents-web): Should we add some tips on how to use `search`? -->
