@@ -57,6 +57,7 @@ import {FileId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 
 export const apiTasksPaths: Pick<
     ApiPaths,
@@ -65,7 +66,16 @@ export const apiTasksPaths: Pick<
 > = {
     "/tasks": {
         patch: async (context, {requestBody}) => {
-            const {spaceId, patches} = requestBody;
+            const spaceId = context.actor.getSpaceId();
+            const {patches} = requestBody;
+
+            if (spaceId !== requestBody.spaceId) {
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    spaceId,
+                    context.actor.getPossiblyBotAccountId(),
+                    "Member",
+                );
+            }
 
             const {tasks, updateEvent, results} = await commitTaskPatchesFromApi(context, {
                 spaceId,
@@ -85,6 +95,14 @@ export const apiTasksPaths: Pick<
 
         post: async (context, {requestBody}) => {
             const spaceId = context.actor.getSpaceId();
+
+            if (spaceId !== requestBody.spaceId) {
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    spaceId,
+                    context.actor.getPossiblyBotAccountId(),
+                    "Member",
+                );
+            }
 
             const {tasks, updateEvent} = await commitTaskPatchesFromApi(context, {
                 spaceId,
@@ -170,8 +188,6 @@ export const apiTasksPaths: Pick<
                 // `TaskRealtimeService` then we could leverage `ContextCache` to only load the bot
                 // authorization data once.
                 context.tasks.loadQueries(
-                    // NOCOMMIT: What happens if task exists but in a different space? We should throw
-                    // some kind of error.
                     context.actor.getSpaceId(),
                     {
                         queries: [],
