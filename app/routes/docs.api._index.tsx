@@ -1,5 +1,9 @@
 import {json} from "@remix-run/node";
 import {useLoaderData} from "@remix-run/react";
+import {
+    documentationRouteHeaders,
+    getDocumentationResponseHeaders,
+} from "~/app/docs/documentation_response_headers.server.js";
 import {loadGeneratedDocumentationApiHomePage} from "~/app/docs/load_generated_docs.server.js";
 import {createDocumentationMetaFunction} from "~/app/docs/opengraph/create_documentation_meta.js";
 import {DocumentationApiReferenceView} from "~/client/web/docs/documentation_api_reference_view.js";
@@ -17,12 +21,15 @@ export const meta = createDocumentationMetaFunction<{page: DocumentationApiPageD
     pageUrl: data.page.url,
 }));
 
+/** Load the generated API reference landing page. */
 export async function loader() {
     const routeData = await loadGeneratedDocumentationApiHomePage();
     if (routeData === null) throw new NotFoundError("API page not found");
 
-    return json(routeData);
+    return json(routeData, {headers: getDocumentationResponseHeaders()});
 }
+
+export const headers = documentationRouteHeaders;
 
 export default function DocumentationApiIndexRoute() {
     const {model, apiNav, page, searchIndex} = useLoaderData<typeof loader>();

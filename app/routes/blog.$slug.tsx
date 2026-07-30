@@ -1,5 +1,9 @@
 import {json} from "@remix-run/node";
 import {useLoaderData} from "@remix-run/react";
+import {
+    documentationRouteHeaders,
+    getDocumentationResponseHeaders,
+} from "~/app/docs/documentation_response_headers.server.js";
 import {loadGeneratedBlogPost} from "~/app/docs/load_generated_blog.server.js";
 import {createDocumentationMetaFunction} from "~/app/docs/opengraph/create_documentation_meta.js";
 import {
@@ -26,6 +30,7 @@ export const meta = createDocumentationMetaFunction<BlogPostRouteMetaData>(data 
         pageUrl: createBlogPostUrl(data.post.slug),
         authorName: author.name,
         publishDate: data.post.publishDate,
+        modifiedDate: data.post.modifiedDate,
         tags: data.post.tags,
         twitterCreator: xHandle === null ? null : `@${xHandle}`,
     };
@@ -41,8 +46,10 @@ export async function loader({params}: LoaderArgs) {
     const routeData = await loadGeneratedBlogPost(slug);
     if (routeData === null) throw notFoundResponse();
 
-    return json(routeData);
+    return json(routeData, {headers: getDocumentationResponseHeaders()});
 }
+
+export const headers = documentationRouteHeaders;
 
 /**
  * Render an individual blog post route from generated loader data.

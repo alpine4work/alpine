@@ -13,12 +13,12 @@ ts_project(
     ),
     deps = [
         "//:node_modules/pretty-bytes",
+        "//app/static:static_cache_control",
         "//app/static:static_manifest",
         "//server/cloudflare",
         "//server/helpers",
         "//server/tracer",
         "//shared/avatar",
-        "//shared/docs",
         "//shared/files",
         "//shared/helpers",
         "//shared/tracer/dev",

@@ -1,5 +1,9 @@
 import {json} from "@remix-run/node";
 import {useLoaderData} from "@remix-run/react";
+import {
+    documentationRouteHeaders,
+    getDocumentationResponseHeaders,
+} from "~/app/docs/documentation_response_headers.server.js";
 import {loadGeneratedBlogHomePage} from "~/app/docs/load_generated_blog.server.js";
 import {createDocumentationMeta} from "~/app/docs/opengraph/create_documentation_meta.js";
 import {BlogHomePage, blogHomeUrl} from "~/client/web/docs/blog.js";
@@ -21,8 +25,10 @@ export function meta() {
  * Load generated data for the blog home route.
  */
 export async function loader() {
-    return json(await loadGeneratedBlogHomePage());
+    return json(await loadGeneratedBlogHomePage(), {headers: getDocumentationResponseHeaders()});
 }
+
+export const headers = documentationRouteHeaders;
 
 /**
  * Render the blog home route from generated loader data.

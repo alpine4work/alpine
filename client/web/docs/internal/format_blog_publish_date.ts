@@ -3,7 +3,7 @@
  */
 export function formatBlogPublishDate(publishDate: string): string {
     return new Intl.DateTimeFormat("en", {
-        month: "short",
+        month: "long",
         day: "numeric",
         year: "numeric",
         timeZone: "UTC",

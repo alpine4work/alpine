@@ -1,6 +1,7 @@
 import {
     DocumentationSearchEntry,
     buildDocumentationSearchIndex,
+    createDocumentationSearchTags,
     getApiMethodSearchTags,
     parseDocumentationSearchIndex,
     searchDocumentationEntries,
@@ -77,5 +78,19 @@ test("maps HTTP methods to intent tags", () => {
         post: ["create", "add", "new", "send", "post"],
         patch: ["update", "edit", "modify", "patch"],
         del: ["delete", "remove", "destroy"],
+    });
+});
+
+test("adds automatic API, blog, and author search tags without duplicates", () => {
+    expect({
+        api: createDocumentationSearchTags({type: "api", tags: ["API", "authentication"]}),
+        blog: createDocumentationSearchTags({
+            type: "blog",
+            authorName: "Caleb Meredith",
+            tags: ["Blog", "Product"],
+        }),
+    }).toEqual({
+        api: ["api", "authentication"],
+        blog: ["blog", "Caleb Meredith", "Product"],
     });
 });

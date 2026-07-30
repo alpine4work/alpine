@@ -30,6 +30,7 @@ js_run_binary(
     ],
     srcs = [
         ":docs_content",
+        "//app/static:responsive_documentation_image_manifest.json",
         "//shared/api/specification:api_specification_final",
     ],
     tool = "//client/web/docs/internal/codegen:generate_documentation_site",

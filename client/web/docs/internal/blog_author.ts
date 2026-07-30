@@ -1,3 +1,5 @@
+import {DocumentationImageData} from "~/client/web/docs/documentation_image_data.js";
+
 export type BlogAuthorId = "josh" | "caleb" | "rachel" | "ian";
 
 export type BlogAuthorSocials = {
@@ -12,6 +14,7 @@ export type BlogAuthor = {
     name: string;
     socials: BlogAuthorSocials;
     avatarUrl: string;
+    avatarImage: DocumentationImageData;
 };
 
 export type BlogAuthorById = Record<BlogAuthorId, BlogAuthor>;

@@ -26,6 +26,7 @@ ts_project(
         "//:node_modules/serve-static",
         "//:node_modules/vite",
         "//:node_modules/ws",
+        "//app/static:static_cache_control",
         "//app/static:static_manifest",
         "//server/helpers/node",
         "//server/node",
@@ -49,9 +50,10 @@ ts_project(
             "**/*.test.tsx",
         ],
     ),
-    # Generated docs data and rendered markdown are read from runfiles at request
-    # time.
+    # The committed production sitemap, generated docs data, and rendered markdown
+    # are read from runfiles at request time.
     data = [
+        "//app/sitemap:production_sitemap",
         "//client/web/docs:docs_generated",
         "//client/web/docs/internal/codegen:docs_markdown",
     ],
@@ -60,6 +62,7 @@ ts_project(
         "//app/integration_tests:__pkg__",
         "//app/routes_test:__pkg__",
     ],
+    test_deps = ["//:node_modules/@jest/globals"],
     deps = [
         ":app_wrapper_lib",
         "//:node_modules/@react-email/components",
@@ -82,6 +85,8 @@ ts_project(
         "//:node_modules/pretty-ms",
         "//:node_modules/react",
         "//:node_modules/react-router",
+        "//app/sitemap",
+        "//app/static:static_cache_control",
         "//client/web/auth",
         "//client/web/avatar",
         "//client/web/blobs",
@@ -137,6 +142,7 @@ ts_project(
         "//server/language_models",
         "//server/language_models/all_mini_lm_l6_v2",
         "//server/language_models/cohere_embed_english_v3",
+        "//server/helpers/node",
         "//server/node",
         "//server/notifications/data",
         "//server/remix",

@@ -86,8 +86,18 @@ import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_trace
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
-export function meta() {
-    return [{title: "Alpine"}];
+/**
+ * Build root metadata while allowing public content to own its robots policy.
+ */
+export function meta({location}: {location: {pathname: string}}) {
+    const isDocumentationRoute = /^(?:\/blog|\/docs)(?:\/|$)/.test(location.pathname);
+    return [
+        {title: "Alpine"},
+        // Docs and blog routes own their temporary `noindex` directive. Keeping it out of
+        // the root means removing TODO(#public-api) there will actually make those routes
+        // indexable without exposing private product routes.
+        ...(isDocumentationRoute ? [] : [{name: "robots", content: "noindex"}]),
+    ];
 }
 
 // The loader returns constants. We don't need to reload on page change.
@@ -139,15 +149,6 @@ const constantRootHead = (
             // [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag
             // [2]: https://webkit.org/blog/7929/designing-websites-for-iphone-x/
             content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-        />
-        <meta
-            // Ask Google to not index any of our routes.
-            // https://developers.google.com/search/docs/crawling-indexing/block-indexing
-            //
-            // TODO(calebmer): This should be decided on a route-by-route basis instead of
-            // global configuration that can't be configured.
-            name="robots"
-            content="noindex"
         />
         <meta
             // Don't automatically detect format of various text bits on iOS. If we want format

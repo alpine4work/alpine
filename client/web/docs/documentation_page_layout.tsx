@@ -140,6 +140,7 @@ export function DocumentationPageLayout({
                     paddingTop="10"
                     paddingBottom="28"
                     width="full"
+                    userSelect="text"
                     style={contentStyle}
                 >
                     {children}

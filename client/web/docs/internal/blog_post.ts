@@ -1,3 +1,4 @@
+import {DocumentationImageData} from "~/client/web/docs/documentation_image_data.js";
 import {BlogAuthorId} from "~/client/web/docs/internal/blog_author.js";
 
 export type BlogPostListItem = {
@@ -8,7 +9,9 @@ export type BlogPostListItem = {
     authorId: BlogAuthorId;
     tags: Array<string>;
     previewImage: string | null;
+    previewImageData: DocumentationImageData | null;
     previewImageAlt: string | null;
+    modifiedDate: string;
 };
 
 export type BlogPostAdjacentArticle = {

@@ -1,6 +1,10 @@
 import {json, redirect} from "@remix-run/node";
 import {useLoaderData} from "@remix-run/react";
 import {
+    documentationRouteHeaders,
+    getDocumentationResponseHeaders,
+} from "~/app/docs/documentation_response_headers.server.js";
+import {
     loadGeneratedDocumentationApiMdxPage,
     loadGeneratedDocumentationApiOperationRouteData,
 } from "~/app/docs/load_generated_docs.server.js";
@@ -47,37 +51,50 @@ export const meta = createDocumentationMetaFunction<DocumentationApiRouteMetaDat
     };
 });
 
+/** Resolve an API splat URL to generated operation or authored page data. */
 export async function loader({params}: LoaderArgs) {
     // The more specific `docs.api.schemas.$name` route wins for schema pages. This
     // splat serves both authored API pages and generated operation pages.
     const slug = params["*"] ?? "";
     const operationRouteData = await loadGeneratedDocumentationApiOperationRouteData(slug);
     if (operationRouteData !== null) {
-        return json({
-            type: "operation" as const,
-            ...operationRouteData,
-            samples: buildDocumentationApiCodeSamples(
-                operationRouteData.model,
-                operationRouteData.operation,
-            ),
-        });
+        return json(
+            {
+                type: "operation" as const,
+                ...operationRouteData,
+                samples: buildDocumentationApiCodeSamples(
+                    operationRouteData.model,
+                    operationRouteData.operation,
+                ),
+            },
+            {headers: getDocumentationResponseHeaders()},
+        );
     }
     const canonicalOperationSlug = slug.replaceAll(/[{}]/g, "");
     if (canonicalOperationSlug !== slug) {
         const canonicalOperationRouteData =
             await loadGeneratedDocumentationApiOperationRouteData(canonicalOperationSlug);
         if (canonicalOperationRouteData !== null) {
-            return redirect(createDocumentationApiOperationUrl(canonicalOperationSlug));
+            return redirect(createDocumentationApiOperationUrl(canonicalOperationSlug), {
+                headers: getDocumentationResponseHeaders(),
+            });
         }
     }
 
     const pageRouteData = await loadGeneratedDocumentationApiMdxPage(
         createDocumentationApiPageUrl(slug),
     );
-    if (pageRouteData !== null) return json({type: "page" as const, ...pageRouteData});
+    if (pageRouteData !== null) {
+        return json(
+            {type: "page" as const, ...pageRouteData},
+            {headers: getDocumentationResponseHeaders()},
+        );
+    }
 
     throw notFoundResponse();
 }
+
+export const headers = documentationRouteHeaders;
 
 function documentationApiEndpointToc({
     operation,

@@ -12,6 +12,7 @@ type DocumentationMetaBlogPostPage = DocumentationMetaPageBase & {
     type: "Blog";
     authorName: string;
     publishDate: string;
+    modifiedDate: string;
     tags: Array<string>;
     twitterCreator: string | null;
 };
@@ -22,6 +23,7 @@ export type DocumentationMetaPage =
           type: "Blog";
           authorName?: never;
           publishDate?: never;
+          modifiedDate?: never;
           tags?: never;
           twitterCreator?: never;
       })
@@ -105,6 +107,10 @@ export function createDocumentationMeta(
             {
                 property: "article:published_time",
                 content: `${page.publishDate}T00:00:00.000Z`,
+            },
+            {
+                property: "article:modified_time",
+                content: page.modifiedDate,
             },
             ...page.tags.map(tag => ({property: "article:tag" as const, content: tag})),
             ...(page.tags.length === 0

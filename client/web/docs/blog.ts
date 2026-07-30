@@ -3,7 +3,7 @@ export type {
     BlogAuthorById,
     BlogAuthorId,
 } from "~/client/web/docs/internal/blog_author.js";
-export {BlogHomePage, BlogPostMeta} from "~/client/web/docs/internal/blog_home_page.js";
+export {BlogHomePage} from "~/client/web/docs/internal/blog_home_page.js";
 export {blogHomeUrl} from "~/client/web/docs/internal/blog_home_url.js";
 export type {
     BlogPostAdjacentArticle,

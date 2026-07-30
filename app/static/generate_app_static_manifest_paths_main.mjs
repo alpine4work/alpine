@@ -2,6 +2,9 @@ import fs from "fs/promises";
 // eslint-disable-next-line cyberworlds/sort-imports-by-source
 import {appStaticManifestPaths as oldAppStaticManifestPaths} from "./app_static_manifest_paths.js";
 
+/**
+ * Expand static roots and regenerate the sorted application static manifest.
+ */
 async function main() {
     const [outputPath, ...appStaticManifestInputs] = process.argv.slice(2);
 
@@ -11,7 +14,12 @@ async function main() {
 
     for (const path of appStaticManifestInputs) {
         if (path.startsWith(newAppStaticManifestPathPrefix)) {
-            newAppStaticManifestPaths.push(path.slice(newAppStaticManifestPathPrefix.length - 1));
+            const stat = await fs.stat(path);
+            if (stat.isDirectory()) {
+                await addDirectoryPaths(path);
+            } else {
+                addStaticFilePath(path);
+            }
             continue;
         }
 
@@ -35,6 +43,27 @@ async function main() {
         }
 
         throw new Error(`Unexpected app static manifest input \`${path}\``);
+    }
+
+    /** Recursively add every file beneath a generated static directory. */
+    async function addDirectoryPaths(directoryPath) {
+        const entries = await fs.readdir(directoryPath, {withFileTypes: true});
+        for (const entry of entries) {
+            const path = `${directoryPath}/${entry.name}`;
+            if (entry.isDirectory()) {
+                await addDirectoryPaths(path);
+            } else {
+                addStaticFilePath(path);
+            }
+        }
+    }
+
+    /** Convert one static-file exec path into its public URL path. */
+    function addStaticFilePath(path) {
+        if (!path.startsWith(newAppStaticManifestPathPrefix)) {
+            throw new Error(`Expected \`${path}\` to be in \`${newAppStaticManifestPathPrefix}\``);
+        }
+        newAppStaticManifestPaths.push(path.slice(newAppStaticManifestPathPrefix.length - 1));
     }
 
     const appStaticManifestPaths = Array.from(

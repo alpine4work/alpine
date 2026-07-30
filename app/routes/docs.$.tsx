@@ -1,5 +1,9 @@
 import {json} from "@remix-run/node";
 import {useLoaderData, useParams} from "@remix-run/react";
+import {
+    documentationRouteHeaders,
+    getDocumentationResponseHeaders,
+} from "~/app/docs/documentation_response_headers.server.js";
 import {loadGeneratedDocumentationPage} from "~/app/docs/load_generated_docs.server.js";
 import {createDocumentationMetaFunction} from "~/app/docs/opengraph/create_documentation_meta.js";
 import {DocumentationContentSidebar} from "~/client/web/docs/documentation_content_sidebar.js";
@@ -22,6 +26,7 @@ export const meta = createDocumentationMetaFunction<{page: GeneratedDocumentatio
     }),
 );
 
+/** Load a generated guide page with the shared documentation cache policy. */
 export async function loader({params}: LoaderArgs) {
     const slug = params["*"] ?? "";
     const routeData = await loadGeneratedDocumentationPage(slug);
@@ -29,8 +34,10 @@ export async function loader({params}: LoaderArgs) {
         throw notFoundResponse();
     }
 
-    return json(routeData);
+    return json(routeData, {headers: getDocumentationResponseHeaders()});
 }
+
+export const headers = documentationRouteHeaders;
 
 export default function DocumentationContentRoute() {
     const {navTree, page, searchIndex} = useLoaderData<typeof loader>();

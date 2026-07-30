@@ -41,6 +41,8 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//app/integration_tests:integration_tests_lib",
     "//app/routes_test:routes_test",
     "//app/service_worker:service_worker_lib",
+    "//app/sitemap:sitemap",
+    "//app/static:static_cache_control",
     "//app/static:static_lib",
     "//client/web/access:access",
     "//client/web/accounts:accounts",

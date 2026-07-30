@@ -1,11 +1,14 @@
 import {parse as parseCookieHeader} from "cookie";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
+import {getAppStaticCacheControlHeaders} from "~/app/static/get_app_static_cache_control_headers.js";
 import {
     WorkerRpcContextBatcher,
     WorkerRpcContextModule,
 } from "~/server/cloudflare/context/worker_rpc_context_module.js";
+import {fetchCachedR2Object} from "~/server/cloudflare/fetch_cached_r2_object.js";
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
 import {EdgeServiceEnv} from "~/server/edge/edge_service_env.js";
+import {fetchAppServiceWithDocumentationCache} from "~/server/edge/fetch_app_service_with_documentation_cache.js";
 import {fetchFile} from "~/server/edge/fetch_file.js";
 import {
     completeFileMultipartUpload,
@@ -40,10 +43,6 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {
-    getDocumentationCacheControl,
-    getDocumentationStaticCachePolicy,
-} from "~/shared/docs/documentation_cache_strategy.js";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isTransientError} from "~/shared/error/is_transient_error.js";
@@ -94,6 +93,7 @@ type EdgeServiceRoute =
     | {type: "UploadAvatar"; avatarEntityPath: AvatarEntityPath}
     | {type: "MeetCaleb"};
 
+/** Route an edge request through static fast paths and application services. */
 async function handleFetch(
     request: Request,
     env: EdgeServiceEnv,
@@ -169,98 +169,23 @@ async function handleFetch(
             return await fetch(request);
         }
 
-        const cache: Cache =
-            // @ts-expect-error: `@cloudflare/workers-types` doesn't seem to be providing
-            // the correct types for us.
-            caches.default;
-        const documentationCachePolicy = getDocumentationStaticCachePolicy(url.pathname);
-        const documentationCacheControl =
-            documentationCachePolicy === null
-                ? null
-                : getDocumentationCacheControl(documentationCachePolicy);
-
-        // We follow R2's "[Use the Cache API][1]" example for caching R2 objects in
-        // Cloudflare's global cache.
-        //
-        // [1]: https://developers.cloudflare.com/r2/examples/cache-api/
-        const cachedResponse = await cache.match(request);
-        if (cachedResponse) {
-            if (documentationCacheControl === null) return cachedResponse;
-            const cachedResponseHeaders = new Headers(cachedResponse.headers);
-            cachedResponseHeaders.set(
-                "cache-control",
-                documentationCacheControl.clientCacheControl,
-            );
-            return new Response(cachedResponse.body, {
-                status: cachedResponse.status,
-                headers: cachedResponseHeaders,
-            });
-        }
-
-        const object = await env.AppStaticBucket.get(`files${url.pathname}`);
-        if (object === null) {
+        const {clientCacheControl, edgeCacheControl} = getAppStaticCacheControlHeaders(
+            url.pathname,
+        );
+        const response = await fetchCachedR2Object({
+            request,
+            bucket: env.AppStaticBucket,
+            objectKey: `files${url.pathname}`,
+            executionContext,
+            clientCacheControl,
+            edgeCacheControl,
+        });
+        if (response === null) {
             return new Response("404 Not Found", {
                 status: 404,
                 headers: {"content-type": "text/plain"},
             });
         }
-
-        const headers = new Headers();
-        object.writeHttpMetadata(headers);
-        headers.set("etag", object.httpEtag);
-
-        // Remix fingerprints its assets so we can cache them forever. Other assets (like
-        // `favicon.ico`) are cached for a day then can be updated.
-        //
-        // We manually version our font assets so fonts can be cached forever too. If we
-        // need to update a font the file name will change.
-        if (
-            url.pathname.startsWith("/fonts/") ||
-            url.pathname.startsWith("/assets/") ||
-            // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we used
-            // Vite for compilation. Can remove once clients that expect static assets under
-            // `/build` no longer exist.
-            url.pathname.startsWith("/build/")
-        ) {
-            // - `public`: Means we can store the asset in a shared cache since they don't
-            //   depend on authorization.
-            // - `max-age=31536000`: The asset lives for one year.
-            // - `immutable`: Indicates the response will never update.
-            headers.set("cache-control", "public, max-age=31536000, immutable");
-        } else {
-            // - `public`: Means we can store the asset in a shared cache since they don't
-            //   depend on authorization.
-            // - `max-age=86400`: The asset lives for one day.
-            // - `stale-while-revalidate=31536000`: When the asset is stale, the cache is
-            //   allowed to continue using it for a year as long as the cache revalidates the
-            //   asset in the background.
-            headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=31536000");
-        }
-        if (documentationCacheControl !== null) {
-            headers.set("cache-control", documentationCacheControl.clientCacheControl);
-        }
-
-        const response = new Response(object.body, {headers});
-
-        // Put the R2 object in Cloudflare's cache to speed up future requests.
-        const cacheResponse = response.clone();
-        const edgeCacheControl = documentationCacheControl?.edgeCacheControl ?? null;
-        if (edgeCacheControl !== null) {
-            const cacheResponseHeaders = new Headers(cacheResponse.headers);
-            cacheResponseHeaders.set("cache-control", edgeCacheControl);
-            executionContext.waitUntil(
-                cache.put(
-                    request,
-                    new Response(cacheResponse.body, {
-                        status: cacheResponse.status,
-                        headers: cacheResponseHeaders,
-                    }),
-                ),
-            );
-        } else {
-            executionContext.waitUntil(cache.put(request, cacheResponse));
-        }
-
         return response;
     }
 
@@ -1108,11 +1033,13 @@ async function actuallyHandleFetch(
         const appServiceStartTime = span.clock.now();
 
         // This forwards the request from `EdgeService` to `AppService` completely
-        // untouched. To `AppService` it will look like the request is coming from a
-        // web browser.
-        //
-        // eslint-disable-next-line cyberworlds/no-global-fetch
-        response = await fetch(request, {headers});
+        // untouched. To `AppService` it will look like the request is coming from a web
+        // browser.
+        response = await fetchAppServiceWithDocumentationCache({
+            request,
+            headers,
+            executionContext,
+        });
 
         const appServiceEndTime = span.clock.now();
 

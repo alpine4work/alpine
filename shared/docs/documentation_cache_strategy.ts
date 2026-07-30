@@ -33,6 +33,12 @@ export type DocumentationCachePolicy =
     | "StableMedia"
     | "ImmutableMedia";
 
+export type DocumentationSharedCachePolicy = Exclude<DocumentationCachePolicy, "UserDocument">;
+export type DocumentationStaticCachePolicy = Extract<
+    DocumentationCachePolicy,
+    "StableMedia" | "ImmutableMedia"
+>;
+
 export type DocumentationCacheControl = {
     clientCacheControl: string;
     edgeCacheControl: string | null;
@@ -50,10 +56,9 @@ export const documentationCacheName = "documentation_v1";
  */
 export const documentationCachePolicyResponseHeader = "cyberworlds-documentation-cache-policy";
 
-const documentationCacheControlByPolicy: Record<
-    DocumentationCachePolicy,
-    DocumentationCacheControl
-> = {
+const fingerprintedDocumentationImagePathPattern = /\.[0-9a-f]{16}(?:\.\d+w\.webp|\.[a-z0-9]+)$/i;
+
+const documentationCacheControlByPolicy = {
     UserDocument: {
         clientCacheControl: "private, no-store",
         edgeCacheControl: null,
@@ -71,9 +76,18 @@ const documentationCacheControlByPolicy: Record<
         clientCacheControl: "public, max-age=31536000, immutable",
         edgeCacheControl: "public, max-age=31536000, immutable",
     },
-};
+} satisfies Record<DocumentationCachePolicy, DocumentationCacheControl>;
 
 /** Return the browser and effective Cloudflare policy for one response kind. */
+export function getDocumentationCacheControl(
+    policy: "UserDocument",
+): DocumentationCacheControl & {edgeCacheControl: null};
+export function getDocumentationCacheControl(
+    policy: DocumentationSharedCachePolicy,
+): DocumentationCacheControl & {edgeCacheControl: string};
+export function getDocumentationCacheControl(
+    policy: DocumentationCachePolicy,
+): DocumentationCacheControl;
 export function getDocumentationCacheControl(
     policy: DocumentationCachePolicy,
 ): DocumentationCacheControl {
@@ -111,19 +125,24 @@ export function parseDocumentationCachePolicy(value: string): DocumentationCache
 }
 
 /**
- * Classify stable documentation media that exists in the app static manifest.
- *
- * Additional content-addressed image and maintained-alias cases are added by the
- * branches that introduce those outputs.
+ * Classify documentation media that exists in the app static manifest.
  */
 export function getDocumentationStaticCachePolicy(
     pathname: string,
-): DocumentationCachePolicy | null {
+): DocumentationStaticCachePolicy | null {
+    const isDocumentationPath =
+        pathname.startsWith("/api/") ||
+        pathname.startsWith("/blog/") ||
+        pathname.startsWith("/docs/");
+    if (isDocumentationPath && fingerprintedDocumentationImagePathPattern.test(pathname)) {
+        return "ImmutableMedia";
+    }
     if (
         (pathname.startsWith("/docs/") || pathname.startsWith("/blog/")) &&
         pathname.endsWith("/og.png")
     ) {
         return "StableMedia";
     }
+    if (pathname.startsWith("/blog/")) return "StableMedia";
     return null;
 }

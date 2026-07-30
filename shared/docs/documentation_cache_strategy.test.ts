@@ -33,6 +33,21 @@ test.each(["/docs/guides/documents/og.png", "/blog/example/og.png"])(
     },
 );
 
+test.each(["api", "blog", "docs"])(
+    "classifies fingerprinted %s documentation media as immutable",
+    directory => {
+        expect(
+            getDocumentationStaticCachePolicy(
+                `/${directory}/example/image.0123456789abcdef.640w.webp`,
+            ),
+        ).toBe("ImmutableMedia");
+    },
+);
+
+test("classifies stable authored blog media separately from hashed output", () => {
+    expect(getDocumentationStaticCachePolicy("/blog/example/image.png")).toBe("StableMedia");
+});
+
 test("rejects unknown internal cache policy headers", () => {
     expect(() => parseDocumentationCachePolicy("private")).toThrow(
         "Unrecognized `DocumentationCachePolicy` type `private`",

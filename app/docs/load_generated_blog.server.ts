@@ -181,6 +181,7 @@ function isBlogPostListItem(value: unknown): value is BlogPostListItem {
         typeof value.title === "string" &&
         typeof value.summary === "string" &&
         typeof value.publishDate === "string" &&
+        typeof value.modifiedDate === "string" &&
         (value.authorId === "josh" ||
             value.authorId === "caleb" ||
             value.authorId === "rachel" ||
@@ -188,7 +189,19 @@ function isBlogPostListItem(value: unknown): value is BlogPostListItem {
         Array.isArray(value.tags) &&
         value.tags.every(tag => typeof tag === "string") &&
         (typeof value.previewImage === "string" || value.previewImage === null) &&
+        (isDocumentationImageData(value.previewImageData) || value.previewImageData === null) &&
         (typeof value.previewImageAlt === "string" || value.previewImageAlt === null)
+    );
+}
+
+/** Check generated intrinsic dimensions and responsive image candidates. */
+function isDocumentationImageData(value: unknown): boolean {
+    return (
+        isPlainObject(value) &&
+        typeof value.src === "string" &&
+        typeof value.srcSet === "string" &&
+        typeof value.width === "number" &&
+        typeof value.height === "number"
     );
 }
 
