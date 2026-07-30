@@ -32,6 +32,22 @@ copy_to_bin(
     ),
 )
 
+js_library(
+    name = "documentation_open_graph_image_assets",
+    srcs = [
+        "fonts/commit-mono.woff2",
+        "fonts/inter.woff2",
+        "files/blog/authors/caleb.avif",
+        "files/blog/authors/ian.avif",
+        "files/blog/authors/josh.avif",
+        "files/blog/authors/rachel.avif",
+    ],
+    visibility = [
+        "//app/docs:__subpackages__",
+        "//client/web/docs:__subpackages__",
+    ],
+)
+
 js_binary(
     name = "generate_manifest_paths",
     data = [
@@ -43,11 +59,21 @@ js_binary(
 
 js_run_binary(
     name = "manifest_paths",
-    srcs = [":static"],
+    srcs = [
+        ":static",
+        "//client/web/docs:open_graph_images_api.json",
+        "//client/web/docs:open_graph_images_blog.json",
+        "//client/web/docs:open_graph_images_guides.json",
+        "//client/web/docs:open_graph_images_schemas.json",
+    ],
     outs = ["app_static_manifest_paths_output.ts"],
     args = [
         "$(rootpath app_static_manifest_paths_output.ts)",
         "$(rootpaths :static)",
+        "$(rootpath //client/web/docs:open_graph_images_api.json)",
+        "$(rootpath //client/web/docs:open_graph_images_blog.json)",
+        "$(rootpath //client/web/docs:open_graph_images_guides.json)",
+        "$(rootpath //client/web/docs:open_graph_images_schemas.json)",
     ],
     tool = ":generate_manifest_paths",
 )

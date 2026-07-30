@@ -18,6 +18,7 @@ ts_project(
         "//server/helpers",
         "//server/tracer",
         "//shared/avatar",
+        "//shared/docs",
         "//shared/files",
         "//shared/helpers",
         "//shared/tracer/dev",

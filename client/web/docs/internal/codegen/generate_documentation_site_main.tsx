@@ -11,6 +11,7 @@ import {documentationApiHomeUrl} from "~/client/web/docs/documentation_api_home_
 import {
     DocumentationApiModel,
     createDocumentationApiOperationUrl,
+    createDocumentationApiSchemaUrl,
 } from "~/client/web/docs/documentation_api_model.js";
 import type {
     DocumentationApiPageData,
@@ -23,8 +24,12 @@ import {
     parseDocumentationNavTree,
     parseDocumentationOrderPrefix,
 } from "~/client/web/docs/documentation_nav.js";
-import {GeneratedDocumentationApiNav} from "~/client/web/docs/generated_documentation.js";
+import {
+    GeneratedDocumentationApiNav,
+    GeneratedDocumentationOpenGraphImage,
+} from "~/client/web/docs/generated_documentation.js";
 import {BlogAuthorById, BlogAuthorId} from "~/client/web/docs/internal/blog_author.js";
+import {blogHomeUrl} from "~/client/web/docs/internal/blog_home_url.js";
 import {
     BlogPostAdjacentArticle,
     BlogPostListItem,
@@ -57,6 +62,10 @@ const specificationPath = join(
 
 // The output TreeArtifact declared by `//client/web/docs:docs_generated`.
 const outputDirectoryPath = "client/web/docs/generated";
+const openGraphImageApiManifestPath = "client/web/docs/open_graph_images_api.json";
+const openGraphImageBlogManifestPath = "client/web/docs/open_graph_images_blog.json";
+const openGraphImageGuidesManifestPath = "client/web/docs/open_graph_images_guides.json";
+const openGraphImageSchemasManifestPath = "client/web/docs/open_graph_images_schemas.json";
 
 type DocumentationContentSourceFile = {
     relativePath: string;
@@ -100,6 +109,13 @@ async function main() {
         writeApiArtifacts(model, apiFiles),
         writeBlogArtifacts(blogAuthors, blogPosts),
         writeSearchMetadataArtifact({model, guideFiles, apiFiles, blogPosts}),
+        writeOpenGraphImageManifestArtifact({
+            model,
+            guideFiles,
+            apiFiles,
+            blogAuthors,
+            blogPosts,
+        }),
     ]);
 }
 
@@ -200,6 +216,107 @@ async function writeBlogArtifacts(
 }
 
 /**
+ * Write lightweight image inputs for the production-only Open Graph image build.
+ */
+async function writeOpenGraphImageManifestArtifact({
+    model,
+    guideFiles,
+    apiFiles,
+    blogAuthors,
+    blogPosts,
+}: {
+    model: DocumentationApiModel;
+    guideFiles: Array<DocumentationContentSourceFile>;
+    apiFiles: Array<DocumentationContentSourceFile>;
+    blogAuthors: BlogAuthorById;
+    blogPosts: Array<BlogPostContentData>;
+}): Promise<void> {
+    const guideNavTree = parseDocumentationNavTree(
+        guideFiles.map(file => ({relativePath: file.relativePath, title: navTitleForFile(file)})),
+    );
+    const guideFileByRelativePath = new Map(
+        guideFiles.map(file => [file.relativePath, file] as const),
+    );
+    const guideImages: Array<GeneratedDocumentationOpenGraphImage> = [];
+    const apiImages: Array<GeneratedDocumentationOpenGraphImage> = [];
+    const schemaImages: Array<GeneratedDocumentationOpenGraphImage> = [];
+    const blogImages: Array<GeneratedDocumentationOpenGraphImage> = [];
+
+    for (const [slug, relativePath] of Object.entries(guideNavTree.filePathBySlug)) {
+        const file = assertExists(guideFileByRelativePath.get(relativePath));
+        const description = descriptionForFile(file);
+        guideImages.push({
+            pageUrl: createDocumentationDocUrl(slug),
+            document: {
+                type: "Documentation",
+                title: titleForFile(file),
+                ...(description === null ? {} : {description}),
+            },
+        });
+    }
+
+    for (const [index, file] of apiFiles.entries()) {
+        const description = descriptionForFile(file);
+        apiImages.push({
+            pageUrl:
+                index === 0 ? documentationApiHomeUrl : createDocumentationApiPageUrl(file.name),
+            document: {
+                type: "APIReference",
+                title: titleForFile(file),
+                ...(description === null ? {} : {description}),
+            },
+        });
+    }
+
+    for (const operation of Object.values(model.operationsBySlug)) {
+        apiImages.push({
+            pageUrl: createDocumentationApiOperationUrl(operation.slug),
+            document: {
+                type: "APIReference",
+                title: operation.title,
+                method: operation.method,
+                ...(operation.description === null ? {} : {description: operation.description}),
+            },
+        });
+    }
+
+    for (const name of model.schemaNames) {
+        const description = assertExists(model.schemas[name]).description;
+        schemaImages.push({
+            pageUrl: createDocumentationApiSchemaUrl(name),
+            document: {
+                type: "APIReference",
+                title: name,
+                ...(description === undefined ? {} : {description}),
+            },
+        });
+    }
+
+    blogImages.push({
+        pageUrl: blogHomeUrl,
+        document: {type: "BlogHome", title: "Alpine Blog"},
+    });
+    for (const post of blogPosts) {
+        const author = blogAuthors[post.authorId];
+        blogImages.push({
+            pageUrl: createBlogPostUrl(post.slug),
+            document: {
+                type: "Blog",
+                title: post.title,
+                author: {name: author.name, avatarUrl: author.avatarUrl},
+            },
+        });
+    }
+
+    await runAllPromises([
+        writeStandaloneJsonFile(openGraphImageGuidesManifestPath, guideImages),
+        writeStandaloneJsonFile(openGraphImageApiManifestPath, apiImages),
+        writeStandaloneJsonFile(openGraphImageSchemasManifestPath, schemaImages),
+        writeStandaloneJsonFile(openGraphImageBlogManifestPath, blogImages),
+    ]);
+}
+
+/**
  * Write the prebuilt Fuse search index used by the docs search dialog.
  */
 async function writeSearchMetadataArtifact({
@@ -290,6 +407,14 @@ async function writePageJson(url: string, value: unknown): Promise<void> {
 async function writeJsonFile(path: string, value: unknown): Promise<void> {
     await fs.mkdir(dirname(join(outputDirectoryPath, path)), {recursive: true});
     await fs.writeFile(join(outputDirectoryPath, path), `${JSON.stringify(value, null, 2)}\n`);
+}
+
+/**
+ * Write one declared output outside the generated documentation TreeArtifact.
+ */
+async function writeStandaloneJsonFile(path: string, value: unknown): Promise<void> {
+    await fs.mkdir(dirname(path), {recursive: true});
+    await fs.writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 /**

@@ -22,6 +22,12 @@ js_run_binary(
     name = "docs_generated",
     copy_srcs_to_bin = False,
     out_dirs = ["generated"],
+    outs = [
+        "open_graph_images_api.json",
+        "open_graph_images_blog.json",
+        "open_graph_images_guides.json",
+        "open_graph_images_schemas.json",
+    ],
     srcs = [
         ":docs_content",
         "//shared/api/specification:api_specification_final",

@@ -65,6 +65,7 @@ ts_project(
         "//shared/auth",
         "//shared/avatar",
         "//shared/avatar/protocol",
+        "//shared/docs",
         "//shared/files",
         "//shared/helpers",
         "//shared/schema",

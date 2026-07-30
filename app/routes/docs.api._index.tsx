@@ -1,19 +1,21 @@
 import {json} from "@remix-run/node";
 import {useLoaderData} from "@remix-run/react";
 import {loadGeneratedDocumentationApiHomePage} from "~/app/docs/load_generated_docs.server.js";
+import {createDocumentationMetaFunction} from "~/app/docs/opengraph/create_documentation_meta.js";
 import {DocumentationApiReferenceView} from "~/client/web/docs/documentation_api_reference_view.js";
-import {DocumentationMdxPage} from "~/client/web/docs/documentation_mdx_page.js";
+import {
+    DocumentationApiPageData,
+    DocumentationMdxPage,
+} from "~/client/web/docs/documentation_mdx_page.js";
 import {DocumentationOnThisPage} from "~/client/web/docs/documentation_on_this_page.js";
-import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {NotFoundError} from "~/shared/error/error.js";
 
-export function meta() {
-    return [
-        {title: `Alpine API Reference${metaTitlePostfix}`},
-        // TODO(#public-api): Remove this robots restriction when the public API is ready.
-        {name: "robots", content: "noindex,nofollow"},
-    ];
-}
+export const meta = createDocumentationMetaFunction<{page: DocumentationApiPageData}>(data => ({
+    type: "APIReference",
+    title: data.page.title,
+    ...(data.page.description === null ? {} : {description: data.page.description}),
+    pageUrl: data.page.url,
+}));
 
 export async function loader() {
     const routeData = await loadGeneratedDocumentationApiHomePage();

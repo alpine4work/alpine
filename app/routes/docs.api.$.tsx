@@ -4,6 +4,7 @@ import {
     loadGeneratedDocumentationApiMdxPage,
     loadGeneratedDocumentationApiOperationRouteData,
 } from "~/app/docs/load_generated_docs.server.js";
+import {createDocumentationMetaFunction} from "~/app/docs/opengraph/create_documentation_meta.js";
 import {buildDocumentationApiCodeSamples} from "~/client/web/docs/build_api_documentation_code_samples.js";
 import {createDocumentationApiPageUrl} from "~/client/web/docs/create_documentation_api_page_url.js";
 import {DocumentationApiEndpointPage} from "~/client/web/docs/documentation_api_endpoint_page.js";
@@ -12,22 +13,39 @@ import {
     createDocumentationApiOperationUrl,
 } from "~/client/web/docs/documentation_api_model.js";
 import {DocumentationApiReferenceView} from "~/client/web/docs/documentation_api_reference_view.js";
-import {DocumentationMdxPage} from "~/client/web/docs/documentation_mdx_page.js";
+import {
+    DocumentationApiPageData,
+    DocumentationMdxPage,
+} from "~/client/web/docs/documentation_mdx_page.js";
 import {
     DocumentationOnThisPage,
     DocumentationOnThisPageItem,
 } from "~/client/web/docs/documentation_on_this_page.js";
-import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {notFoundResponse} from "~/server/remix/not_found_response.js";
 
-export function meta() {
-    return [
-        {title: `Alpine API Reference${metaTitlePostfix}`},
-        // TODO(#public-api): Remove this robots restriction when the public API is ready.
-        {name: "robots", content: "noindex,nofollow"},
-    ];
-}
+type DocumentationApiRouteMetaData =
+    | {type: "operation"; operation: DocumentationApiOperation}
+    | {type: "page"; page: DocumentationApiPageData};
+
+export const meta = createDocumentationMetaFunction<DocumentationApiRouteMetaData>(data => {
+    if (data.type === "operation") {
+        return {
+            type: "APIReference",
+            title: data.operation.title,
+            ...(data.operation.description === null
+                ? {}
+                : {description: data.operation.description}),
+            pageUrl: createDocumentationApiOperationUrl(data.operation.slug),
+        };
+    }
+    return {
+        type: "APIReference",
+        title: data.page.title,
+        ...(data.page.description === null ? {} : {description: data.page.description}),
+        pageUrl: data.page.url,
+    };
+});
 
 export async function loader({params}: LoaderArgs) {
     // The more specific `docs.api.schemas.$name` route wins for schema pages. This

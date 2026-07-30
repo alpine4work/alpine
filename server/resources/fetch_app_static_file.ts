@@ -1,4 +1,8 @@
 import {ResourceServiceEnv} from "~/server/resources/resource_service_env.js";
+import {
+    getDocumentationCacheControl,
+    getDocumentationStaticCachePolicy,
+} from "~/shared/docs/documentation_cache_strategy.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export async function fetchAppStaticFile(
@@ -19,13 +23,26 @@ export async function fetchAppStaticFile(
         // @ts-expect-error: `@cloudflare/workers-types` doesn't seem to be providing
         // the correct types for us.
         caches.default;
+    const documentationCachePolicy = getDocumentationStaticCachePolicy(url.pathname);
+    const documentationCacheControl =
+        documentationCachePolicy === null
+            ? null
+            : getDocumentationCacheControl(documentationCachePolicy);
 
     // We follow R2's "[Use the Cache API][1]" example for caching R2 objects in
     // Cloudflare's global cache.
     //
     // [1]: https://developers.cloudflare.com/r2/examples/cache-api/
     const cachedResponse = await cache.match(request);
-    if (cachedResponse) return cachedResponse;
+    if (cachedResponse) {
+        if (documentationCacheControl === null) return cachedResponse;
+        const cachedResponseHeaders = new Headers(cachedResponse.headers);
+        cachedResponseHeaders.set("cache-control", documentationCacheControl.clientCacheControl);
+        return new Response(cachedResponse.body, {
+            status: cachedResponse.status,
+            headers: cachedResponseHeaders,
+        });
+    }
 
     const object = await env.AppStaticBucket.get(`files${url.pathname}`);
     if (object === null) {
@@ -66,6 +83,9 @@ export async function fetchAppStaticFile(
         //   asset in the background.
         headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=31536000");
     }
+    if (documentationCacheControl !== null) {
+        headers.set("cache-control", documentationCacheControl.clientCacheControl);
+    }
 
     // Add CORS headers to the response for trusted domains. Only origins that are in
     // the trusted domains can access static files via CORS mode. if there is no origin
@@ -88,7 +108,23 @@ export async function fetchAppStaticFile(
     const response = new Response(object.body, {headers});
 
     // Put the R2 object in Cloudflare's cache to speed up future requests.
-    executionContext.waitUntil(cache.put(request, response.clone()));
+    const cacheResponse = response.clone();
+    const edgeCacheControl = documentationCacheControl?.edgeCacheControl ?? null;
+    if (edgeCacheControl !== null) {
+        const cacheResponseHeaders = new Headers(cacheResponse.headers);
+        cacheResponseHeaders.set("cache-control", edgeCacheControl);
+        executionContext.waitUntil(
+            cache.put(
+                request,
+                new Response(cacheResponse.body, {
+                    status: cacheResponse.status,
+                    headers: cacheResponseHeaders,
+                }),
+            ),
+        );
+    } else {
+        executionContext.waitUntil(cache.put(request, cacheResponse));
+    }
 
     return response;
 }

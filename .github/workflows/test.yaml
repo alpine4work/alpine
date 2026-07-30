@@ -3,6 +3,7 @@ on:
     push:
         branches-ignore:
             - admin/analysis
+            - "graphite-base/**"
     workflow_dispatch:
         branches:
             - main
@@ -140,8 +141,7 @@ jobs:
               shell: bash
               env:
                   newCi: ${{ steps.ci_flags.outputs.new_ci }}
-                  unitTestBucketCount:
-                      ${{ steps.ami_cache.outputs.cache-hit == 'true' && 6 || 2 }}
+                  unitTestBucketCount: ${{ steps.ami_cache.outputs.cache-hit == 'true' && 6 || 2 }}
                   integrationTestBucketCount:
                       ${{ steps.ami_cache.outputs.cache-hit == 'true' && 10 || 3 }}
                   screenshotTestBucketCount:

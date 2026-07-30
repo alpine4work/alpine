@@ -1,20 +1,30 @@
 import {json} from "@remix-run/node";
 import {useLoaderData} from "@remix-run/react";
 import {loadGeneratedDocumentationApiSchemaRouteData} from "~/app/docs/load_generated_docs.server.js";
+import {createDocumentationMetaFunction} from "~/app/docs/opengraph/create_documentation_meta.js";
+import {
+    DocumentationApiModel,
+    createDocumentationApiSchemaUrl,
+} from "~/client/web/docs/documentation_api_model.js";
 import {DocumentationApiReferenceView} from "~/client/web/docs/documentation_api_reference_view.js";
 import {DocumentationApiSchemaPage} from "~/client/web/docs/documentation_api_schema_page.js";
 import {DocumentationOnThisPage} from "~/client/web/docs/documentation_on_this_page.js";
-import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {notFoundResponse} from "~/server/remix/not_found_response.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-export function meta() {
-    return [
-        {title: `Alpine API Reference${metaTitlePostfix}`},
-        // TODO(#public-api): Remove this robots restriction when the public API is ready.
-        {name: "robots", content: "noindex,nofollow"},
-    ];
-}
+export const meta = createDocumentationMetaFunction<{
+    name: string;
+    model: DocumentationApiModel;
+}>(data => {
+    const description = assertExists(data.model.schemas[data.name]).description;
+    return {
+        type: "APIReference",
+        title: data.name,
+        ...(description === undefined ? {} : {description}),
+        pageUrl: createDocumentationApiSchemaUrl(data.name),
+    };
+});
 
 export async function loader({params}: LoaderArgs) {
     const name = params.name ?? "";

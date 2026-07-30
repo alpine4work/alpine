@@ -159,12 +159,19 @@ export async function run({
     let requestListener = (await module?.getAppService(constants)) ?? null;
 
     const actualRequestListener = (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => {
+        const requestPath = req.url!.replace(/\?.*$/, "");
+        const isDocumentationOpenGraphImagePath =
+            (requestPath.startsWith("/docs/") || requestPath.startsWith("/blog/")) &&
+            requestPath.endsWith("/og.png");
+
         // In development, static assets are served by `serve-static` middleware in
-        // `AppService`. In production we serve static assets from Cloudflare R2.
+        // `AppService`. Generated Open Graph images remain on their explicit-build Remix
+        // fallback because they are intentionally not Vite inputs. In production
+        // EdgeService serves their manifest paths from Cloudflare R2.
         if (
             process.env.NODE_ENV !== "production" &&
             (req.url!.startsWith("/assets/") ||
-                appStaticManifestPaths.has(req.url!.replace(/\?.*$/, "")))
+                (appStaticManifestPaths.has(requestPath) && !isDocumentationOpenGraphImagePath))
         ) {
             if (serveStaticMiddleware === null) {
                 res.writeHead(404, {"content-type": "text/plain"});

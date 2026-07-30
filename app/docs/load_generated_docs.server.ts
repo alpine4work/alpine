@@ -20,6 +20,7 @@ import {
     parseDocumentationSearchIndex,
 } from "~/client/web/docs/search_documentation_entries.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
@@ -30,6 +31,41 @@ const generatedDocumentationDirectoryPath = join(
 );
 
 const generatedPagesDirectoryPath = join(generatedDocumentationDirectoryPath, "pages");
+const generatedOpenGraphImageDirectoryNames = [
+    "generated_api",
+    "generated_blog",
+    "generated_guides",
+    "generated_schemas",
+];
+const generatedOpenGraphImagesDirectoryPaths = generatedOpenGraphImageDirectoryNames.map(name =>
+    process.env.NODE_ENV === "development"
+        ? join(getWorkspacePath(), "bazel-bin/app/docs/opengraph", name)
+        : join(runfilesPath, "cyberworlds/app/docs/opengraph", name),
+);
+
+/** Load a code-generated Open Graph PNG for its public page path. */
+export async function loadGeneratedDocumentationOpenGraphImage(
+    pagePath: string,
+): Promise<Buffer | null> {
+    const decoded = decodeGeneratedDocumentationUrl(pagePath);
+    if (decoded === null) return null;
+    const imagePath = join(decoded.replace(/^\/+/, ""), "og.png");
+
+    for (const directoryPath of generatedOpenGraphImagesDirectoryPaths) {
+        const normalized = normalize(join(directoryPath, imagePath));
+        if (normalized === directoryPath || !normalized.startsWith(`${directoryPath}/`)) {
+            return null;
+        }
+
+        try {
+            return await fs.readFile(normalized);
+        } catch (error) {
+            if (!isMissingFileError(error)) throw error;
+        }
+    }
+
+    return null;
+}
 
 /**
  * Load the generated guide navigation tree from Bazel runfiles.

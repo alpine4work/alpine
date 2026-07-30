@@ -13,6 +13,7 @@ import {
     AppServiceSystemActionContextModules,
 } from "~/app/app_service_context.js";
 import {AppService, AppServiceConstants} from "~/app/app_service_types.js";
+import {handleDocumentationOpenGraphImageRoute} from "~/app/docs/handle_documentation_open_graph_image_route.js";
 import {authenticateActorContextModule} from "~/app/helpers/authenticate_actor_context_module.js";
 import {createAppServerRoutes} from "~/app/router/app_server_routes.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
@@ -722,6 +723,14 @@ async function createAppService({
         tracer,
         url => {
             if (url.pathname === "/api/internal/healthcheck") return [url.pathname, "HealthCheck"];
+
+            const documentationOpenGraphImageRoute = handleDocumentationOpenGraphImageRoute(
+                url,
+                routeUrl => handleRequest.matchServerRoutes(routeUrl),
+            );
+            if (documentationOpenGraphImageRoute !== null) {
+                return documentationOpenGraphImageRoute;
+            }
 
             // React Router splats can't match a suffix like `/docs/*.md` or `/blog/*.md`, so
             // route nested markdown requests through Remix resource routes with internal URLs.

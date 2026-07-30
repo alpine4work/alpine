@@ -56,6 +56,7 @@ ts_project(
         "//client/web/docs/internal/codegen:docs_markdown",
     ],
     visibility = [
+        "//app/documentation_meta_tests:__pkg__",
         "//app/integration_tests:__pkg__",
         "//app/routes_test:__pkg__",
     ],
@@ -93,6 +94,7 @@ ts_project(
         "//client/web/debug/chat_gpt",
         "//client/web/design",
         "//client/web/docs",
+        "//app/docs/opengraph",
         "//client/web/documents",
         "//client/web/feed",
         "//client/web/forum",
@@ -150,6 +152,7 @@ ts_project(
         "//shared/context",
         "//shared/debug/chat_gpt",
         "//shared/design",
+        "//shared/docs",
         "//shared/documents",
         "//shared/error",
         "//shared/helpers",
@@ -252,10 +255,12 @@ genrule(
     visibility = ["//shared/remix:__pkg__"],
 )
 
-# Files the Vite dev server watches. Our dev process manager will keep this
-# target up-to-date in Bazel's output directory then the Vite dev server
-# watches Bazel's output directory and hot reloads the browser if it detects
-# a relevant file change.
+# Files and generated artifacts used by the local app. Our dev process manager
+# keeps this target up-to-date in Bazel's output directory, then the Vite dev
+# server watches that directory and hot reloads the browser when relevant files
+# change. Open Graph images are deliberately excluded because regenerating the
+# complete tree on every documentation edit is expensive. Build
+# `//app/docs/opengraph:generate_open_graph_images` explicitly to refresh them.
 filegroup(
     name = "app",
     # It's important that we use `data` instead of `srcs`! `data` puts our files in
@@ -352,9 +357,12 @@ filegroup(
     visibility = ["//admin/analysis:__pkg__"],
 )
 
-alias(
+filegroup(
     name = "app_static",
-    actual = ":app_build_client",
+    srcs = [
+        ":app_build_client",
+        "//app/docs/opengraph:generate_open_graph_images",
+    ],
     visibility = ["//visibility:public"],
 )
 
@@ -372,6 +380,7 @@ js_binary(
     data = [
         ":app_build",
         ":app_runfiles",
+        "//app/docs/opengraph:generate_open_graph_images",
     ],
     entry_point = "build/server/app_service_main.js",
     no_copy_to_bin = [":app_runfiles"],
