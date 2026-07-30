@@ -209,8 +209,7 @@ describe("space search removes post title overlap from body snippets", () => {
         ],
         [
             "check list with only a title match",
-            "- [ ] Checklisttern title item\n" +
-                "- [x] A second checklist item has no match.",
+            "- [ ] Checklisttern title item\n" + "- [x] A second checklist item has no match.",
         ],
         [
             "table",
@@ -285,8 +284,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         title: "Alice in Search Channel: Startquokka appears in the opening title sentence",
                         titleMatches: [{index: 25, length: 11}],
                         bodySnippet: {
-                            text: ". A later sentence repeats startquokka in body context.",
-                            matches: [{index: 27, length: 11}],
+                            text: "A later sentence repeats startquokka in body context.",
+                            matches: [{index: 25, length: 11}],
                         },
                     }),
                 ],
@@ -335,8 +334,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         title: "Alice in Search Channel: Unorderedyak title item",
                         titleMatches: [{index: 25, length: 12}],
                         bodySnippet: {
-                            text: ". A second unordered item contains unorderedyak.",
-                            matches: [{index: 35, length: 12}],
+                            text: "A second unordered item contains unorderedyak.",
+                            matches: [{index: 33, length: 12}],
                         },
                     }),
                 ],
@@ -344,7 +343,7 @@ describe("space search removes post title overlap from body snippets", () => {
         });
     });
 
-    test("nulls an unordered-list body snippet with only a title match", async () => {
+    test("unordered-list body snippet with only a title match", async () => {
         expect(
             await server.GET(`/spaces/${spaceId}/search?query=unorderedkoala`, {
                 headers: {authorization: `bearer ${apiKey}`},
@@ -359,7 +358,10 @@ describe("space search removes post title overlap from body snippets", () => {
                         id: postIdByCase.get("unordered list with only a title match"),
                         title: "Alice in Search Channel: Unorderedkoala title item",
                         titleMatches: [{index: 25, length: 14}],
-                        bodySnippet: null,
+                        bodySnippet: {
+                            text: "A second unordered item has no match.",
+                            matches: [],
+                        },
                     }),
                 ],
             },
@@ -382,8 +384,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         title: "Alice in Search Channel: 1. Orderedlynx title item",
                         titleMatches: [{index: 28, length: 11}],
                         bodySnippet: {
-                            text: "A second ordered item contains orderedlynx.",
-                            matches: [{index: 31, length: 11}],
+                            text: "2. A second ordered item contains orderedlynx.",
+                            matches: [{index: 34, length: 11}],
                         },
                     }),
                 ],
@@ -391,7 +393,7 @@ describe("space search removes post title overlap from body snippets", () => {
         });
     });
 
-    test("nulls an ordered-list body snippet with only a title match", async () => {
+    test("ordered-list body snippet with only a title match", async () => {
         expect(
             await server.GET(`/spaces/${spaceId}/search?query=orderedpanda`, {
                 headers: {authorization: `bearer ${apiKey}`},
@@ -406,7 +408,10 @@ describe("space search removes post title overlap from body snippets", () => {
                         id: postIdByCase.get("ordered list with only a title match"),
                         title: "Alice in Search Channel: 1. Orderedpanda title item",
                         titleMatches: [{index: 28, length: 12}],
-                        bodySnippet: null,
+                        bodySnippet: {
+                            text: "2. A second ordered item has no match.",
+                            matches: [],
+                        },
                     }),
                 ],
             },
@@ -429,8 +434,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         title: "Alice in Search Channel: Checklistibis title item",
                         titleMatches: [{index: 25, length: 13}],
                         bodySnippet: {
-                            text: ". A second checklist item contains checklistibis.",
-                            matches: [{index: 35, length: 13}],
+                            text: "A second checklist item contains checklistibis.",
+                            matches: [{index: 33, length: 13}],
                         },
                     }),
                 ],
@@ -438,7 +443,7 @@ describe("space search removes post title overlap from body snippets", () => {
         });
     });
 
-    test("nulls a check-list body snippet with only a title match", async () => {
+    test("check-list body snippet with only a title match", async () => {
         expect(
             await server.GET(`/spaces/${spaceId}/search?query=checklisttern`, {
                 headers: {authorization: `bearer ${apiKey}`},
@@ -453,7 +458,10 @@ describe("space search removes post title overlap from body snippets", () => {
                         id: postIdByCase.get("check list with only a title match"),
                         title: "Alice in Search Channel: Checklisttern title item",
                         titleMatches: [{index: 25, length: 13}],
-                        bodySnippet: null,
+                        bodySnippet: {
+                            text: "A second checklist item has no match.",
+                            matches: [],
+                        },
                     }),
                 ],
             },
@@ -476,8 +484,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         title: "Alice in Search Channel: Tableorca title",
                         titleMatches: [{index: 25, length: 9}],
                         bodySnippet: {
-                            text: ". First row. A second cell. Last row contains tableorca",
-                            matches: [{index: 46, length: 9}],
+                            text: "First row. A second cell. Last row contains tableorca",
+                            matches: [{index: 44, length: 9}],
                         },
                     }),
                 ],
@@ -485,7 +493,7 @@ describe("space search removes post title overlap from body snippets", () => {
         });
     });
 
-    test("nulls a table body snippet with only a title match", async () => {
+    test("table body snippet with only a title match", async () => {
         expect(
             await server.GET(`/spaces/${spaceId}/search?query=tablebadger`, {
                 headers: {authorization: `bearer ${apiKey}`},
@@ -500,7 +508,10 @@ describe("space search removes post title overlap from body snippets", () => {
                         id: postIdByCase.get("table with only a title match"),
                         title: "Alice in Search Channel: Tablebadger title",
                         titleMatches: [{index: 25, length: 11}],
-                        bodySnippet: null,
+                        bodySnippet: {
+                            text: "First row. A second cell. Last row has no match",
+                            matches: [],
+                        },
                     }),
                 ],
             },
@@ -538,7 +549,7 @@ describe("space search removes post title overlap from body snippets", () => {
         });
     });
 
-    test("nulls a truncated-title body snippet with only a title match", async () => {
+    test("truncated-title body snippet with only a title match", async () => {
         expect(
             await server.GET(`/spaces/${spaceId}/search?query=truncatedotter`, {
                 headers: {authorization: `bearer ${apiKey}`},
@@ -556,7 +567,10 @@ describe("space search removes post title overlap from body snippets", () => {
                             "that contains word word word" +
                             contentMentionTextTruncatedSuffix,
                         titleMatches: [{index: 25, length: 14}],
-                        bodySnippet: null,
+                        bodySnippet: {
+                            text: "word word word word word word word word word word word word word word word word word word word word word word word word word word word ending.",
+                            matches: [],
+                        },
                     }),
                 ],
             },

@@ -230,6 +230,23 @@ export function intoApiSearchResult(
                 }
 
                 if (dropLength > 0) {
+                    // Skip over whitespace and non-alphanumeric characters. The regex used here was
+                    // taken from
+                    // `approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer()`
+                    // which is in turn based on our OpenSearch analyzer.
+                    while (dropLength < bodySnippet.text.length) {
+                        if (
+                            // eslint-disable-next-line no-control-regex
+                            /^[\u000D\u000A\u000B\u000C\u0085\u2028\u2029]|\p{Zs}|[^\p{Ll}\p{Lm}\p{Lo}\p{Lt}\p{Lu}\p{Nd}|\p{Nl}|\p{No}]$/u.test(
+                                bodySnippet.text[dropLength]!,
+                            )
+                        ) {
+                            dropLength++;
+                        } else {
+                            break;
+                        }
+                    }
+
                     const titleIndexOffset = title.length - postTitle.length + titleDropIndex;
                     const bodyTitleMatches = filterMapArray(bodySnippet.matches, match => {
                         const length = Math.min(match.length, dropLength - match.index);
