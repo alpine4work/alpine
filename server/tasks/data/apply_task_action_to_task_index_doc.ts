@@ -11,7 +11,7 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
-import {TaskCreatorFrom} from "~/shared/tasks/task_creator.js";
+import {TaskActorFrom} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
 import {
@@ -426,7 +426,7 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
     }
 }
 
-function areTaskCreatorFromsEqual(from1: TaskCreatorFrom | null, from2: TaskCreatorFrom | null) {
+function areTaskCreatorFromsEqual(from1: TaskActorFrom | null, from2: TaskActorFrom | null) {
     if (from1 === from2) return true;
     if (from1 === null || from2 === null) return false;
 

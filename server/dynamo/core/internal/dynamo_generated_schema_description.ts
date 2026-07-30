@@ -14869,32 +14869,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 },
                                                                 "optional": false
                                                             },
-                                                            "actor": {
-                                                                "valueSchema": {
-                                                                    "type": "Object",
-                                                                    "propertySchemaByKey": {
-                                                                        "accountId": {
-                                                                            "valueSchema": {
-                                                                                "type": "Id"
-                                                                            },
-                                                                            "optional": false
-                                                                        },
-                                                                        "from": {
-                                                                            "valueSchema": {
-                                                                                "type": "Nullable",
-                                                                                "schema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "07a4a621"
-                                                                                },
-                                                                                "referenceId": "eedf6346"
-                                                                            },
-                                                                            "optional": true
-                                                                        }
-                                                                    },
-                                                                    "referenceId": "1d759d7e"
-                                                                },
-                                                                "optional": true
-                                                            },
                                                             "taskId": {
                                                                 "valueSchema": {
                                                                     "type": "Id"
@@ -14928,8 +14902,11 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "propertySchemaByKey": {
                                                                                             "from": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Reference",
-                                                                                                    "reuseReferenceId": "eedf6346"
+                                                                                                    "type": "Nullable",
+                                                                                                    "schema": {
+                                                                                                        "type": "Reference",
+                                                                                                        "reuseReferenceId": "07a4a621"
+                                                                                                    }
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }
@@ -15548,13 +15525,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 },
                                                                 "optional": false
                                                             },
-                                                            "actor": {
-                                                                "valueSchema": {
-                                                                    "type": "Reference",
-                                                                    "reuseReferenceId": "1d759d7e"
-                                                                },
-                                                                "optional": true
-                                                            },
                                                             "collectionId": {
                                                                 "valueSchema": {
                                                                     "type": "Id"
@@ -15824,6 +15794,24 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Nullable",
                                             "schema": {
                                                 "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "actor": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "from": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "Reference",
+                                                            "reuseReferenceId": "07a4a621"
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                }
                                             }
                                         },
                                         "optional": true

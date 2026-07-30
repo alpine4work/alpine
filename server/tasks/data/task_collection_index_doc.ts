@@ -28,7 +28,7 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
-import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+import {TaskActorFromSchema} from "~/shared/tasks/task_creator.js";
 import {
     TaskQueryDefaultsRegister,
     TaskQueryDefaultsSchema,
@@ -131,7 +131,7 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
             .validate<AccountId>(isId)
             .nullable()
             .default(null),
-        creatorFrom: new OpensearchIndexIgnoredObjectType(TaskCreatorFromSchema)
+        creatorFrom: new OpensearchIndexIgnoredObjectType(TaskActorFromSchema)
             .nullable()
             .default(null),
 

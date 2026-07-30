@@ -35,7 +35,7 @@ import {
     TaskAssigneeStatusRegister,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+import {TaskActorFromSchema} from "~/shared/tasks/task_creator.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskLayout, TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
@@ -88,7 +88,7 @@ const TaskModelDataSchema = Schema.object({
 
     creator: TaskSortableAccountSchema.merge(
         Schema.object({
-            from: TaskCreatorFromSchema.nullable().default(null),
+            from: TaskActorFromSchema.nullable().default(null),
         }),
     ),
     createdTime: TaskFilterableTime.schema,

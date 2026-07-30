@@ -3,7 +3,7 @@ import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {TaskCreator, TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+import {TaskActorFromSchema, TaskCreator} from "~/shared/tasks/task_creator.js";
 import {TaskQueryDefaultsSchema} from "~/shared/tasks/task_query_defaults.js";
 
 export type TaskCollectionAction = SchemaType<typeof TaskCollectionActionSchema>;
@@ -22,16 +22,15 @@ export type TaskCollectionCreateAction = SchemaType<typeof TaskCollectionCreateA
 
 const TaskCollectionCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
-    // NOTE(calebmer): We didn't keep track of collection creators until 2024-01-02.
     creator: Schema.object({
-        accountId: Schema.id<AccountId>().nullable().default(null),
-        from: TaskCreatorFromSchema.nullable().default(null),
+        accountId: Schema.id<AccountId>(),
+        from: TaskActorFromSchema.nullable(),
     })
-        .wrapOriginalPropertyInObject("accountId", {
-            from: null,
-        })
-        .originalPropertyKey("creatorId")
-        .nullable(),
+        .wrapOriginalPropertyInObject("accountId", {from: null})
+        .nullable()
+        // NOTE(calebmer): We didn't keep track of collection creators until 2024-01-02.
+        .default(null)
+        .originalPropertyKey("creatorId"),
     name: LabelStringSchema,
     accessPolicy: CreateOrUpdateAccessPolicySchema,
 });

@@ -12,7 +12,6 @@ import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
 import {ApiTaskConverter} from "~/server/api/internal/tasks/internal/api_task_converter.js";
 import {commitTaskPatchesFromApi} from "~/server/api/internal/tasks/internal/commit_task_patches_from_api.js";
-import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
 import {getApiTaskNotes} from "~/server/api/internal/tasks/internal/get_api_task_notes.js";
 import {intoApiTaskCollection} from "~/server/api/internal/tasks/internal/into_api_task_collection.js";
@@ -692,7 +691,6 @@ export const apiTasksPaths: Pick<
             const clock = new HybridLogicalClock(unsynchronizedSystemClock);
             const botAccountId = context.actor.getBotAccountId();
             const creatorId = collection.creator?.id ?? botAccountId;
-            const actor = createApiTaskActor({actorId: creatorId, botAccountId});
 
             const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
                 consistency: "StrongWithinCache",
@@ -708,7 +706,13 @@ export const apiTasksPaths: Pick<
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creator: actor,
+                            creator: {
+                                accountId: creatorId,
+                                from:
+                                    creatorId !== botAccountId
+                                        ? {type: "Bot", accountId: botAccountId}
+                                        : null,
+                            },
                             name: collection.name,
                             accessPolicy,
                         },
@@ -718,7 +722,6 @@ export const apiTasksPaths: Pick<
                               {
                                   type: "UpdateCollection" as const,
                                   time: clock.now(),
-                                  actor,
                                   collectionId,
                                   collectionAction: {
                                       type: "UpdateColor" as const,
@@ -730,7 +733,13 @@ export const apiTasksPaths: Pick<
                           ]
                         : []),
                 ],
-                {waitForProcessing: true},
+                {
+                    actorId: creatorId,
+                    // Very important! For the API to have read-after-write consistency we need to wait
+                    // until our actions have been sent to every `TaskRealtimeService`. Then future
+                    // reads against `TaskRealtimeService` will return the data we wrote.
+                    waitForProcessing: true,
+                },
             );
 
             return {

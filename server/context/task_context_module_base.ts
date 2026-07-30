@@ -17,7 +17,6 @@ import {Result} from "~/shared/helpers/control/result.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {PartialBy} from "~/shared/helpers/types/partial_by.js";
 import {
-    AccountId,
     SpaceId,
     TaskActionTransactionId,
     TaskCollectionId,
@@ -41,7 +40,6 @@ export type TaskContextModuleActionTransaction = {
     readonly committedTime: Date;
     readonly actionTransactionId: TaskActionTransactionId;
     readonly actions: ReadonlyArray<TaskAction>;
-    readonly actorId: AccountId | null;
     readonly clientId: TaskRealtimeClientId | null;
 };
 

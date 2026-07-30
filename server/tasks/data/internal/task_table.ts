@@ -40,7 +40,7 @@ import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+import {TaskActorFromSchema} from "~/shared/tasks/task_creator.js";
 import {createTaskNotFoundError} from "~/shared/tasks/task_error_messages.js";
 import {
     TaskGridViewExpansionState,
@@ -122,7 +122,16 @@ const TaskActionTable = DynamoTableSchema.new({
                          *
                          * Nullable since action transactions before 2023-01-02 did not save the `actorId`.
                          */
-                        actorId: Schema.id<AccountId>().nullable().default(null),
+                        actor: Schema.object({
+                            // The ID of the account that created this document
+                            accountId: Schema.id<AccountId>(),
+                            // If this document was created by something else, on behalf of the account ID.
+                            from: TaskActorFromSchema.nullable(),
+                        })
+                            .wrapOriginalPropertyInObject("id", {from: null})
+                            .originalPropertyKey("actorId")
+                            .nullable()
+                            .default(null),
 
                         /**
                          * An optional identifier provided by the client who committed this action.
@@ -296,7 +305,7 @@ const TaskTable = DynamoTableSchema.new({
                          * collection creator may lose access if they are removed from the `accessPolicy`.
                          */
                         creatorId: Schema.id<AccountId>().nullable().default(null),
-                        creatorFrom: TaskCreatorFromSchema.nullable().default(null),
+                        creatorFrom: TaskActorFromSchema.nullable().default(null),
 
                         // We keep track of both `rawDeletedTime` and `rawUndeletedTime` for our collection
                         // in DynamoDB so we can create a full `TaskCollectionModel`. The collection is
@@ -394,7 +403,7 @@ const TaskTable = DynamoTableSchema.new({
                          * access if removed from the access policy.
                          */
                         creatorId: Schema.id<AccountId>(),
-                        creatorFrom: TaskCreatorFromSchema.nullable().default(null),
+                        creatorFrom: TaskActorFromSchema.nullable().default(null),
 
                         /**
                          * The time this task was created.

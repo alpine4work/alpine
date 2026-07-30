@@ -2,7 +2,6 @@ import {parseDate} from "@internationalized/date";
 import {findSpans} from "unicode-default-word-boundary";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
-import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {createApiTaskMovePatchResultCursor} from "~/server/api/internal/tasks/internal/create_api_task_move_patch_result_cursor.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {resolveApiTaskMovesInCollection} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_collection.js";
@@ -56,7 +55,6 @@ import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {
     TaskNotesContentProsemirrorSchema,
@@ -109,13 +107,11 @@ export async function commitTaskPatchesFromApi(
     results: ReadonlyArray<ApiTaskBatchPatchResult>;
 }> {
     const botAccountId = context.actor.getBotAccountId();
+    actorId ??= botAccountId;
+
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const timeZone = defaultTimeZone;
     const currentTime = new Date();
-
-    // The actor update patches are attributed to. Each create patch has its own actor
-    // built from the create request's `creator`.
-    const updateActor = createApiTaskActor({actorId, botAccountId});
 
     const orderedTaskIds: Array<TaskId> = [];
     const updateTaskIds: Array<TaskId> = [];
@@ -135,18 +131,13 @@ export async function commitTaskPatchesFromApi(
             case "Create": {
                 hasCreates = true;
                 const taskId = generateId<TaskId>();
-                const creator = createApiTaskActor({
-                    actorId: patch.task.creator?.id,
-                    botAccountId,
-                });
 
-                steps.push({type: "CreateTask", taskId, actor: creator});
+                steps.push({type: "CreateTask", taskId});
 
                 for (const fieldPatch of createApiTaskPatchesFromCreateRequest(patch.task)) {
                     steps.push({
                         type: "ApplyPatch",
                         taskId,
-                        actor: creator,
                         patch: fieldPatch,
                         resultSlot: null,
                     });
@@ -164,7 +155,6 @@ export async function commitTaskPatchesFromApi(
                     steps.push({
                         type: "ApplyPatch",
                         taskId,
-                        actor: creator,
                         patch: taskPatch,
                         resultSlot: {results: patchResults, index: taskPatchIndex},
                     });
@@ -215,7 +205,6 @@ export async function commitTaskPatchesFromApi(
                 steps.push({
                     type: "ApplyPatch",
                     taskId: patch.id,
-                    actor: updateActor,
                     patch: patch.patch,
                     resultSlot: {results: patchResults, index: 0},
                 });
@@ -433,7 +422,10 @@ export async function commitTaskPatchesFromApi(
 
             const taskAction: TaskCreateAction = {
                 type: "Create",
-                creator: step.actor,
+                creator: {
+                    accountId: actorId,
+                    from: actorId !== botAccountId ? {type: "Bot", accountId: botAccountId} : null,
+                },
                 creatorTimeZone: timeZone,
                 accessPolicy: assertExists(createAccessPolicy),
             };
@@ -445,7 +437,7 @@ export async function commitTaskPatchesFromApi(
             continue;
         }
 
-        const {taskId, actor, patch, resultSlot} = step;
+        const {taskId, patch, resultSlot} = step;
         const state = assertExists(stateByTaskId.get(taskId));
 
         switch (patch.type) {
@@ -530,7 +522,6 @@ export async function commitTaskPatchesFromApi(
                 actions.push({
                     type: "UpdateTask",
                     time: clock.now(),
-                    actor,
                     taskId,
                     taskAction: {type: "UpdateTitle", titleUpdate: titleUpdate.raw},
                 });
@@ -547,7 +538,6 @@ export async function commitTaskPatchesFromApi(
                 actions.push({
                     type: "UpdateTask",
                     time,
-                    actor,
                     taskId,
                     taskAction: {
                         type: "UpdateAssignee",
@@ -582,7 +572,6 @@ export async function commitTaskPatchesFromApi(
                         actions.push({
                             type: "UpdateTask",
                             time,
-                            actor,
                             taskId,
                             taskAction: {
                                 type: "UpdateStatus",
@@ -605,7 +594,6 @@ export async function commitTaskPatchesFromApi(
                             actions.push({
                                 type: "UpdateTask",
                                 time,
-                                actor,
                                 taskId,
                                 taskAction: {
                                     type: "UpdateStatus",
@@ -622,7 +610,6 @@ export async function commitTaskPatchesFromApi(
                                 actions.push({
                                     type: "UpdateTask",
                                     time: time1,
-                                    actor,
                                     taskId,
                                     taskAction: {
                                         type: "UpdateAssignee",
@@ -645,7 +632,6 @@ export async function commitTaskPatchesFromApi(
                             actions.push({
                                 type: "UpdateTask",
                                 time: time2,
-                                actor,
                                 taskId,
                                 taskAction: {
                                     type: "UpdateStatus",
@@ -675,7 +661,6 @@ export async function commitTaskPatchesFromApi(
                 actions.push({
                     type: "UpdateTask",
                     time: clock.now(),
-                    actor,
                     taskId,
                     taskAction: {type: "UpdateDueDate", dueDate},
                 });
@@ -689,7 +674,6 @@ export async function commitTaskPatchesFromApi(
                 actions.push({
                     type: "UpdateTask",
                     time: clock.now(),
-                    actor,
                     taskId,
                     taskAction: {type: "UpdatePriority", priority},
                 });
@@ -703,7 +687,6 @@ export async function commitTaskPatchesFromApi(
                 actions.push({
                     type: "UpdateTask",
                     time: clock.now(),
-                    actor,
                     taskId,
                     taskAction: {type: "UpdateLayout", layout},
                 });
@@ -717,7 +700,6 @@ export async function commitTaskPatchesFromApi(
                 actions.push({
                     type: "UpdateTask",
                     time: clock.now(),
-                    actor,
                     taskId,
                     taskAction: {type: "UpdateParentTaskId", parentTaskId},
                 });
@@ -734,7 +716,6 @@ export async function commitTaskPatchesFromApi(
                 actions.push({
                     type: "UpdateTask",
                     time: clock.now(),
-                    actor,
                     taskId,
                     taskAction: {type: "AddCollection", collectionId, orderKey},
                 });
@@ -751,7 +732,6 @@ export async function commitTaskPatchesFromApi(
                 actions.push({
                     type: "UpdateTask",
                     time: clock.now(),
-                    actor,
                     taskId,
                     taskAction: {type: "RemoveCollection", collectionId},
                 });
@@ -793,7 +773,6 @@ export async function commitTaskPatchesFromApi(
                     actions.push({
                         type: "UpdateTask",
                         time: update.time,
-                        actor,
                         taskId: update.taskId,
                         taskAction: {
                             type: "UpdateCollectionPosition",
@@ -833,7 +812,6 @@ export async function commitTaskPatchesFromApi(
                     actions.push({
                         type: "UpdateTask",
                         time: update.time,
-                        actor,
                         taskId: update.taskId,
                         taskAction: {
                             type: "UpdateParentPosition",
@@ -901,6 +879,7 @@ export async function commitTaskPatchesFromApi(
     const [{extraActions}, taskSortableAccountById, newReferencesResult, newAssigneeAccounts] =
         await runAllPromises([
             commitTaskActionTransaction(context, spaceId, actions, {
+                actorId,
                 consistency: "StrongWithinCache",
                 // Very important! For the API to have read-after-write consistency we need to wait
                 // until our actions have been sent to every `TaskRealtimeService`. Then future
@@ -1042,11 +1021,10 @@ export async function commitTaskPatchesFromApi(
  * step. This lets creates and updates share one action generation path.
  */
 type ApiTaskCommitStep =
-    | {type: "CreateTask"; taskId: TaskId; actor: TaskActor}
+    | {type: "CreateTask"; taskId: TaskId}
     | {
           type: "ApplyPatch";
           taskId: TaskId;
-          actor: TaskActor;
           patch: ApiTaskPatch;
 
           // Where this step's patch result is recorded, or `null` for the field steps
