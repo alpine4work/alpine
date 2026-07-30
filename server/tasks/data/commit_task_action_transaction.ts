@@ -90,6 +90,7 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 import {
     TaskAction,
     TaskActionSchema,
@@ -949,8 +950,13 @@ class TaskActionTransactionCommitState {
             );
             if (!taskItem) return null;
 
-            if (taskItem.spaceId !== this._spaceId)
-                throw new FailedPreconditionError("Space mismatch");
+            if (taskItem.spaceId !== this._spaceId) {
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    taskItem.spaceId,
+                    this._context.actor.getPossiblyBotAccountId(),
+                    "Member",
+                );
+            }
 
             return taskItem;
         });
@@ -1116,8 +1122,13 @@ class TaskActionTransactionCommitState {
             );
             if (!collectionItem) return null;
 
-            if (collectionItem.spaceId !== this._spaceId)
-                throw new FailedPreconditionError("Space mismatch");
+            if (collectionItem.spaceId !== this._spaceId) {
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    collectionItem.spaceId,
+                    this._context.actor.getPossiblyBotAccountId(),
+                    "Member",
+                );
+            }
 
             // If we have an atomic update transaction entry, we need to apply it when the
             // collection is loaded. Since we can't put an entry in `collectionItemById` when
