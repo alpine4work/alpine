@@ -54,7 +54,7 @@ export class DataBuilderView implements DataViewInterface {
     }
 
     getUint8(byteOffset: number): number {
-        const byteIndex = Math.trunc(byteOffset);
+        const byteIndex = Number.isNaN(byteOffset) ? 0 : Math.trunc(byteOffset);
 
         if (!Number.isSafeInteger(byteIndex) || byteIndex < 0 || byteIndex >= this.#bytes.length) {
             throw new RangeError("Offset is outside the bounds of the DataView");
@@ -64,7 +64,7 @@ export class DataBuilderView implements DataViewInterface {
     }
 
     setUint8(byteOffset: number, value: number): void {
-        const byteIndex = Math.trunc(byteOffset);
+        const byteIndex = Number.isNaN(byteOffset) ? 0 : Math.trunc(byteOffset);
 
         if (!Number.isSafeInteger(byteIndex) || byteIndex < 0) {
             throw new RangeError("Offset is outside the bounds of the DataView");
@@ -88,7 +88,7 @@ export class DataBuilderView implements DataViewInterface {
     }
 
     getBigUint64(byteOffset: number, littleEndian?: boolean): bigint {
-        const byteIndex = Math.trunc(byteOffset);
+        const byteIndex = Number.isNaN(byteOffset) ? 0 : Math.trunc(byteOffset);
 
         if (
             !Number.isSafeInteger(byteIndex) ||
@@ -107,7 +107,7 @@ export class DataBuilderView implements DataViewInterface {
     }
 
     setBigUint64(byteOffset: number, value: bigint, littleEndian?: boolean): void {
-        const byteIndex = Math.trunc(byteOffset);
+        const byteIndex = Number.isNaN(byteOffset) ? 0 : Math.trunc(byteOffset);
 
         if (!Number.isSafeInteger(byteIndex) || byteIndex < 0) {
             throw new RangeError("Offset is outside the bounds of the DataView");
