@@ -10,10 +10,13 @@ import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
 import {authorizeTaskAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_access_if_possible.js";
-import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/backfill_task_action_transaction_history.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {commitTaskActionTransactionBeforeExecuteTestCheckpoint} from "~/server/tasks/data/commit_task_action_transaction_before_execute_test_checkpoint.js";
 import {deleteTaskAndAllChildren} from "~/server/tasks/data/delete_task_and_all_children.js";
+import {
+    TaskActionTable,
+    TaskActionTransactionItem,
+} from "~/server/tasks/data/internal/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {getTaskCollectionItemForTest} from "~/server/tasks/data/test_helpers/get_task_collection_item_for_test.js";
 import {getTaskItemForTest} from "~/server/tasks/data/test_helpers/get_task_item_for_test.js";
@@ -35,9 +38,11 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, getMinId} from "~/shared/id/id.js";
 import {
     ContentEditorClientId,
+    SpaceId,
+    TaskActionTransactionId,
     TaskActionTransactionLeaseId,
     TaskCollectionId,
     TaskId,
@@ -66,6 +71,28 @@ const context = createTestContext({
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
     return new Slice(Fragment.from(schema.text(text)), 0, 0);
+}
+
+async function getTaskActionTransactionItemsForTest(spaceId: SpaceId, startCommittedTime: Date) {
+    const actionTransactionItems: Array<TaskActionTransactionItem> = [];
+
+    for await (const item of TaskActionTable.query(context, {
+        partitionKey: {
+            partitionType: "TaskActions",
+            spaceId,
+        },
+        startSortKey: {
+            sortRangeType: "ActionTransaction",
+            committedTime: startCommittedTime,
+            actionTransactionId: getMinId<TaskActionTransactionId>(),
+        },
+        limit: "All",
+        consistency: "Strong",
+    })) {
+        actionTransactionItems.push(item);
+    }
+
+    return actionTransactionItems;
 }
 
 describe("commitTaskActionTransaction()", () => {
@@ -3006,9 +3033,7 @@ describe("task action transaction actor tracking", () => {
             ],
         );
 
-        expect(
-            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
-        ).toEqual([
+        expect(await getTaskActionTransactionItemsForTest(space.id, startTime)).toEqual([
             expect.objectContaining({
                 actor: {
                     accountId: session.account.id,
@@ -3050,9 +3075,7 @@ describe("task action transaction actor tracking", () => {
             ],
         );
 
-        expect(
-            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
-        ).toEqual([
+        expect(await getTaskActionTransactionItemsForTest(space.id, startTime)).toEqual([
             expect.objectContaining({
                 actor: {
                     accountId: session.account.id,
@@ -3093,9 +3116,7 @@ describe("task action transaction actor tracking", () => {
             },
         ]);
 
-        expect(
-            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
-        ).toEqual([
+        expect(await getTaskActionTransactionItemsForTest(space.id, startTime)).toEqual([
             expect.objectContaining({
                 actor: {
                     accountId: session.account.id,
@@ -3204,9 +3225,7 @@ describe("bot task creation authorization", () => {
             {actorId: session.account.id},
         );
 
-        expect(
-            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
-        ).toEqual([
+        expect(await getTaskActionTransactionItemsForTest(space.id, startTime)).toEqual([
             expect.objectContaining({
                 actor: {
                     accountId: session.account.id,
@@ -3651,9 +3670,7 @@ describe("bot task collection creation authorization", () => {
             {actorId: session.account.id},
         );
 
-        expect(
-            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
-        ).toEqual([
+        expect(await getTaskActionTransactionItemsForTest(space.id, startTime)).toEqual([
             expect.objectContaining({
                 actor: {
                     accountId: session.account.id,
