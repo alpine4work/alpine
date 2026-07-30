@@ -257,6 +257,8 @@ export function intoApiSearchResult(
                             if (index >= 0) return {index, length: match.length};
 
                             const length = match.length + index;
+                            if (length <= 0) return;
+
                             return {index: 0, length};
                         });
                     }
