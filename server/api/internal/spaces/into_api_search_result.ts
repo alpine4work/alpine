@@ -1,3 +1,4 @@
+import {findSpans} from "unicode-default-word-boundary";
 import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
@@ -5,6 +6,7 @@ import {
     ApiSearchResultMatch,
     ApiSearchResultResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {contentMentionTextTruncatedSuffix} from "~/shared/content/truncate_content_mention_text.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -146,10 +148,14 @@ export function intoApiSearchResult(
             };
         }
         case "Post": {
+            const postTitle = model.initialData.title;
+
             const title =
-                model.initialData.title !== null
-                    ? `${getAccountShortNameWithoutFullNameTooltip(entity.post.author.initialData)} ${model.initialData.title}`
+                postTitle !== null
+                    ? `${getAccountShortNameWithoutFullNameTooltip(entity.post.author.initialData)} ${postTitle}`
                     : getMissingSearchEntityTitle(entity);
+
+            let titleMatches = createApiSearchResultTitleMatches(title, queryText);
 
             // HACK: Posts uniquely generate the post title from the post's body. This leads to
             // an awkward situation for our search API where if left alone `title` and
@@ -196,11 +202,17 @@ export function intoApiSearchResult(
             //     printing the title. We accept this hack not working in that case, the body
             //     match will already be shifted forward a bit so it won't start at the same
             //     place as the post title anyway. _shrug_
-            if (model.initialData.title !== null && bodySnippet !== null) {
+            if (postTitle !== null && bodySnippet !== null) {
+                const postTitleForBodyOverlap = postTitle.endsWith(
+                    contentMentionTextTruncatedSuffix,
+                )
+                    ? postTitle.slice(0, -contentMentionTextTruncatedSuffix.length)
+                    : postTitle;
+
                 let dropLength = 0;
 
-                for (let i1 = 0; i1 < model.initialData.title.length; i1++) {
-                    const c1 = model.initialData.title[i1]!;
+                for (let i1 = 0; i1 < postTitleForBodyOverlap.length; i1++) {
+                    const c1 = postTitleForBodyOverlap[i1]!;
 
                     if (!(dropLength < bodySnippet.text.length)) break;
 
@@ -238,7 +250,7 @@ export function intoApiSearchResult(
                 // Posts start with "in ${channelName}: " and expect client rendering code to add
                 // the post author name to the start of the title.
                 title,
-                titleMatches: createApiSearchResultTitleMatches(title, queryText),
+                titleMatches,
                 bodySnippet,
                 parsedFilter,
                 author: intoApiAccount(entity.post.author.initialData),
