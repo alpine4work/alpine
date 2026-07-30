@@ -6820,7 +6820,7 @@ describe("/task-collections/{id}/tasks", () => {
             body: {
                 error: expect.objectContaining({
                     message:
-                        "Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts. (You may get this error if you\u2019re paginating through a task collection when the task collection\u2019s default sorts change. In that case try paginating from the start of the collection again and you\u2019ll pick up the new sorts.)",
+                        "Invalid task query cursor for this collection. You may get this error if you\u2019re paginating through a task collection when the task collection\u2019s default sorts change. In that case try paginating from the start of the collection again and you\u2019ll pick up the new sorts, or try overriding the default sorts so if the default sorts change you\u2019ll be able to continue paginating.",
                 }),
             },
         });
@@ -6927,7 +6927,7 @@ describe("/task-collections/{id}/tasks", () => {
             body: {
                 error: expect.objectContaining({
                     message:
-                        "Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts. (You may get this error if you\u2019re paginating through a task collection when the task collection\u2019s default sorts change. In that case try paginating from the start of the collection again and you\u2019ll pick up the new sorts.)",
+                        "Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts.",
                 }),
             },
         });

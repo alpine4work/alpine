@@ -684,6 +684,23 @@ End of messages.'
     });
 });
 
+test("rejects creating a message with a deleted attribute", async () => {
+    await TestChat.createRoom(cli.session, {name: "Deleted create room"});
+
+    await cli.run("alpine search 'Deleted create room'");
+    await cli.run("alpine read /chat/deleted-create-room");
+
+    expect(
+        await cli.run(`\
+alpine update /chat/deleted-create-room --old 'End of messages.' --new '<message deleted></message>
+
+End of messages.'
+`),
+    ).toEqual(`\
+Error: Couldn’t update \`/chat/deleted-create-room\`. You can’t create a deleted message. Try again without the \`deleted\` attribute.
+`);
+});
+
 test("only merges adjacent message blocks with the same deletion state", async () => {
     const aliceSession = await cli.session.space.createSession({name: "Alice"});
     const chat = await TestChat.createRoom(cli.session, {name: "Deleted merge room"});
@@ -715,7 +732,7 @@ Message 0
 
 </message>
 
-<message id="1-2" deleted></message>
+<message id="1-2" from="[Alice](/human/alice)" deleted></message>
 
 <message id="3" from="[Alice](/human/alice)">
 
@@ -747,14 +764,41 @@ test("rejects updating a deleted bot message", async () => {
 
     expect(
         await cli.run(`\
-alpine update /chat/deleted-update-room --old '<message id="0" deleted></message>' --new '<message id="0" deleted>
+alpine update /chat/deleted-update-room --old ' deleted></message>' --new ' deleted>
 
 Replacement content
 
 </message>'
 `),
     ).toEqual(`\
-Error: Couldn’t update \`/chat/deleted-update-room\`. You can’t update a deleted message. \`<message id="0">\` was deleted. Try again without changing the deleted message.
+Error: Couldn’t update \`/chat/deleted-update-room\`. You can’t update the deleted \`<message id="0">\`. Try again without changing a deleted message.
+`);
+});
+
+test("rejects removing the deleted attribute from a deleted bot message", async () => {
+    const chat = await TestChat.createRoom(cli.session, {name: "Deleted attribute room"});
+    const botAccount = await TestBot.createAndInstantiate(cli.session, {
+        name: "Deleted Attribute Bot",
+    });
+    const message = await chat.sendMessage(botAccount, "Original bot message", {
+        overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z"),
+    });
+    await deleteChatMessage(botAccount.action(), {
+        chatId: chat.id,
+        messageIndex: message.index,
+    });
+
+    const apiKey = await botAccount.createApiKey({type: "Chat", chatId: chat.id});
+    await writeFile(`${cli.dataDirectoryPath}/auth.json`, JSON.stringify({apiKey}));
+    await cli.run("alpine search 'Deleted attribute room'");
+    await cli.run("alpine read /chat/deleted-attribute-room");
+
+    expect(
+        await cli.run(`\
+alpine update /chat/deleted-attribute-room --old ' deleted' --new ''
+`),
+    ).toEqual(`\
+Error: Couldn’t update \`/chat/deleted-attribute-room\`. You can’t update the deleted \`<message id="0">\`. Try again without changing a deleted message.
 `);
 });
 
@@ -834,7 +878,7 @@ Replying to the deleted message.
 End of messages.'
 `),
     ).toEqual(`\
-Error: Couldn’t update \`/chat/deleted-reply-room\`. You can’t quote a deleted message. \`<message id="0">\` was deleted. Try again without the \`<blockquote>\` or quote a message that hasn’t been deleted.
+Error: Couldn’t update \`/chat/deleted-reply-room\`. You can’t quote the deleted \`<message id="0">\`. Try again without the \`<blockquote>\` or quote a message that hasn’t been deleted.
 `);
 });
 

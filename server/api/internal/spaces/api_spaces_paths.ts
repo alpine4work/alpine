@@ -195,8 +195,8 @@ export const apiSpacesPaths: Pick<
                         loudNotificationCount: inbox.model.loudNotificationCount,
                         newEntryCount: inbox.model.entryCount,
                     },
-                    entries: entriesResult.items.map(({model}) => intoApiInboxEntry(model)),
                     nextCursor,
+                    entries: entriesResult.items.map(({model}) => intoApiInboxEntry(model)),
                 },
             };
         },

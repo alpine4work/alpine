@@ -23,10 +23,7 @@ import {generateId} from "~/shared/id/id.js";
 import {ChannelId, DocumentId, PostId} from "~/shared/id/types/id_types.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
-const searchMentionEntityById = new Map<
-    string,
-    {isPrivate: false; entity: SearchEntityModel}
->();
+const searchMentionEntityById = new Map<string, {isPrivate: false; entity: SearchEntityModel}>();
 
 beforeEach(() => {
     searchMentionEntityById.clear();
@@ -1133,10 +1130,7 @@ describe("post creation", () => {
             name: "Reference Channel",
             access: "Public",
         });
-        const referencedPost = await channel.createPost(
-            session,
-            "Referenced post content.",
-        );
+        const referencedPost = await channel.createPost(session, "Referenced post content.");
 
         searchMentionEntityById.set(`Post:${referencedPost.id}`, {
             isPrivate: false,
@@ -1192,8 +1186,7 @@ describe("post creation", () => {
                                         reference: {
                                             type: "Post",
                                             id: referencedPost.id,
-                                            title:
-                                                "Referenced in Reference Channel: Referenced post content",
+                                            title: "Referenced in Reference Channel: Referenced post content",
                                         },
                                     },
                                 ],

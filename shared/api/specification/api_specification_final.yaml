@@ -1109,6 +1109,7 @@ paths:
                                     $ref: "#/components/schemas/SpaceId"
                                 post:
                                     type: object
+                                    additionalProperties: false
                                     required:
                                         - channel
                                         - content
@@ -1121,6 +1122,7 @@ paths:
                                             type: object
                                             required:
                                                 - id
+                                            additionalProperties: false
                                             properties:
                                                 id:
                                                     $ref: "#/components/schemas/ChannelId"
@@ -2962,6 +2964,26 @@ components:
                     $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
+        DocumentThreadReference:
+            type: object
+            required:
+                - type
+                - id
+                - document
+            additionalProperties: false
+            properties:
+                type:
+                    const: DocumentThread
+                id:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                document:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentId"
         PostReference:
             type: object
             required:
@@ -4904,6 +4926,7 @@ components:
                         - author
                         - createdTime
                         - createdTimeZone
+                    additionalProperties: false
                     properties:
                         author:
                             $ref: "#/components/schemas/Account"
@@ -4959,6 +4982,7 @@ components:
                         - author
                         - createdTime
                         - createdTimeZone
+                    additionalProperties: false
                     properties:
                         author:
                             $ref: "#/components/schemas/Account"
@@ -7547,64 +7571,17 @@ components:
                     Code: "#/components/schemas/ContentCodeMark"
         MessageRoomReference:
             oneOf:
-                - $ref: "#/components/schemas/ChatMessageRoomReference"
-                - $ref: "#/components/schemas/DocumentThreadMessageRoomReference"
-                - $ref: "#/components/schemas/PostMessageRoomReference"
-                - $ref: "#/components/schemas/TaskMessageRoomReference"
+                - $ref: "#/components/schemas/ChatReference"
+                - $ref: "#/components/schemas/DocumentThreadReference"
+                - $ref: "#/components/schemas/PostReference"
+                - $ref: "#/components/schemas/TaskReference"
             discriminator:
                 propertyName: type
                 mapping:
-                    Chat: "#/components/schemas/ChatMessageRoomReference"
-                    DocumentThread: "#/components/schemas/DocumentThreadMessageRoomReference"
-                    Post: "#/components/schemas/PostMessageRoomReference"
-                    Task: "#/components/schemas/TaskMessageRoomReference"
-        ChatMessageRoomReference:
-            type: object
-            required:
-                - type
-                - id
-            additionalProperties: false
-            properties:
-                type:
-                    const: Chat
-                id:
-                    $ref: "#/components/schemas/ChatId"
-        DocumentThreadMessageRoomReference:
-            type: object
-            required:
-                - type
-                - id
-                - threadId
-            additionalProperties: false
-            properties:
-                type:
-                    const: DocumentThread
-                id:
-                    $ref: "#/components/schemas/DocumentId"
-                threadId:
-                    $ref: "#/components/schemas/DocumentThreadId"
-        PostMessageRoomReference:
-            type: object
-            required:
-                - type
-                - id
-            additionalProperties: false
-            properties:
-                type:
-                    const: Post
-                id:
-                    $ref: "#/components/schemas/PostId"
-        TaskMessageRoomReference:
-            type: object
-            required:
-                - type
-                - id
-            additionalProperties: false
-            properties:
-                type:
-                    const: Task
-                id:
-                    $ref: "#/components/schemas/TaskId"
+                    Chat: "#/components/schemas/ChatReference"
+                    DocumentThread: "#/components/schemas/DocumentThreadReference"
+                    Post: "#/components/schemas/PostReference"
+                    Task: "#/components/schemas/TaskReference"
         SearchResult:
             oneOf:
                 - $ref: "#/components/schemas/SearchAccountResult"
@@ -8074,6 +8051,7 @@ components:
                         - author
                         - createdTime
                         - createdTimeZone
+                    additionalProperties: false
                     properties:
                         author:
                             $ref: "#/components/schemas/Account_Response"
@@ -8104,6 +8082,7 @@ components:
                         - author
                         - createdTime
                         - createdTimeZone
+                    additionalProperties: false
                     properties:
                         author:
                             $ref: "#/components/schemas/Account_Response"
@@ -9132,6 +9111,19 @@ components:
                         mapping:
                             File: "#/components/schemas/ContentFileBlockElement_Response"
                             Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        MessageRoomReference_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ChatReference_Response"
+                - $ref: "#/components/schemas/DocumentThreadReference"
+                - $ref: "#/components/schemas/PostReference_Response"
+                - $ref: "#/components/schemas/TaskReference_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Chat: "#/components/schemas/ChatReference_Response"
+                    DocumentThread: "#/components/schemas/DocumentThreadReference"
+                    Post: "#/components/schemas/PostReference_Response"
+                    Task: "#/components/schemas/TaskReference_Response"
         MentionReference_Response:
             oneOf:
                 - $ref: "#/components/schemas/AccountReference_Response"
@@ -9676,7 +9668,7 @@ components:
                 type:
                     const: CreatedMessage
                 room:
-                    $ref: "#/components/schemas/MessageRoomReference"
+                    $ref: "#/components/schemas/MessageRoomReference_Response"
                 index:
                     type: integer
                     minimum: 0
@@ -9702,6 +9694,37 @@ components:
                     properties:
                         reference:
                             $ref: "#/components/schemas/MentionReference_Response"
+        BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent_Response:
+            type: object
+            required:
+                - type
+                - room
+                - messageIndex
+                - approvals
+            additionalProperties: false
+            properties:
+                type:
+                    const: UpdatedMessageStreamExperimentalApprovalsPart
+                room:
+                    $ref: "#/components/schemas/MessageRoomReference_Response"
+                messageIndex:
+                    type: integer
+                    minimum: 0
+                approvals:
+                    type: array
+                    items:
+                        type: object
+                        required:
+                            - decision
+                        additionalProperties: false
+                        properties:
+                            decision:
+                                type: object
+                                required: []
+                                additionalProperties: false
+                                properties:
+                                    value:
+                                        $ref: "#/components/schemas/MessageExperimentalApprovalDecisionValue_Response"
         MessageExperimentalApprovalDecision_Response:
             type: object
             required:
@@ -10044,14 +10067,15 @@ components:
                 - $ref: "#/components/schemas/BotWebhookCreatedMessageEvent_Response"
                 - $ref: "#/components/schemas/BotWebhookCreatedPostEvent"
                 - $ref: "#/components/schemas/BotWebhookUpdatedMessageStreamExperimentalApprovals\
-                      PartEvent"
+                      PartEvent_Response"
             discriminator:
                 propertyName: type
                 mapping:
                     CreatedMessage: "#/components/schemas/BotWebhookCreatedMessageEvent_Response"
                     CreatedPost: "#/components/schemas/BotWebhookCreatedPostEvent"
                     UpdatedMessageStreamExperimentalApprovalsPart: "#/components/schemas/BotWebhook\
-                        UpdatedMessageStreamExperimentalApprovalsPartEvent"
+                        UpdatedMessageStreamExperimentalApprovalsPartEvent_Resp\
+                        onse"
         Channel_Response:
             type: object
             required:

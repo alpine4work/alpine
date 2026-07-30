@@ -53,12 +53,14 @@ export function normalizeAgentWebMessagingPage<
 
                         if (block.author) normalizer.normalizeReference(block.author);
 
-                        if (block.parent) {
-                            normalizer.normalizeReference(block.parent.author);
-                            normalizer.normalize(block.parent.previewContent);
-                        }
+                        if (block.deletedAttribute === null) {
+                            if (block.parent) {
+                                normalizer.normalizeReference(block.parent.author);
+                                normalizer.normalize(block.parent.previewContent);
+                            }
 
-                        normalizer.normalize(block.content);
+                            normalizer.normalize(block.content);
+                        }
                         break;
                     }
                     case "Custom": {

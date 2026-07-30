@@ -26,47 +26,65 @@ export const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagin
         timeContent: ApiContentTextArbitrary,
     });
 
+const agentWebMessagingPageMessageBlockBaseArbitraries = {
+    type: fc.constant("Message" as const),
+    idAttribute: fc.oneof(
+        {weight: 10, arbitrary: fc.constant(null)},
+        {
+            weight: 1,
+            arbitrary: fc
+                .tuple(fc.integer({min: 0}), fc.integer({min: 1, max: 10}))
+                .map(([startMessageIndex, length]) => ({
+                    startMessageIndex,
+                    endMessageIndex: startMessageIndex + length,
+                })),
+        },
+    ),
+    author: ApiAccountReferenceArbitrary,
+    timeAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
+    timeZoneAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
+};
+
 export const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPageMessageBlock> =
-    fc.record({
-        type: fc.constant("Message"),
-        idAttribute: fc.oneof(
-            {weight: 10, arbitrary: fc.constant(null)},
-            {
-                weight: 1,
-                arbitrary: fc
-                    .tuple(fc.integer({min: 0}), fc.integer({min: 1, max: 10}))
-                    .map(([startMessageIndex, length]) => ({
-                        startMessageIndex,
-                        endMessageIndex: startMessageIndex + length,
-                    })),
-            },
-        ),
-        author: ApiAccountReferenceArbitrary,
-        deletedAttribute: fc.constant(null),
-        timeAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
-        timeZoneAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
-        parent: fc.oneof(
-            {weight: 10, arbitrary: fc.constant(null)},
-            {
-                weight: 1,
-                arbitrary: fc.record({
-                    citeAttribute: fc
-                        .tuple(fc.integer({min: 0}), fc.integer({min: 1, max: 10}))
-                        .map(([startMessageIndex, length]) => ({
-                            startMessageIndex,
-                            endMessageIndex: startMessageIndex + length,
-                        })),
-                    matchAttribute: fc.oneof(
-                        {weight: 10, arbitrary: fc.constant(null)},
-                        {weight: 1, arbitrary: fc.integer({min: 1, max: 10})},
-                    ),
-                    author: ApiAccountReferenceArbitrary,
-                    previewContent: ApiContentWithoutCommentMarkArbitrary,
-                }),
-            },
-        ),
-        content: ApiContentWithoutCommentMarkArbitrary,
-    });
+    fc.oneof(
+        {
+            weight: 99,
+            arbitrary: fc.record({
+                ...agentWebMessagingPageMessageBlockBaseArbitraries,
+                deletedAttribute: fc.constant(null),
+                parent: fc.oneof(
+                    {weight: 10, arbitrary: fc.constant(null)},
+                    {
+                        weight: 1,
+                        arbitrary: fc.record({
+                            citeAttribute: fc
+                                .tuple(fc.integer({min: 0}), fc.integer({min: 1, max: 10}))
+                                .map(([startMessageIndex, length]) => ({
+                                    startMessageIndex,
+                                    endMessageIndex: startMessageIndex + length,
+                                })),
+                            matchAttribute: fc.oneof(
+                                {weight: 10, arbitrary: fc.constant(null)},
+                                {weight: 1, arbitrary: fc.integer({min: 1, max: 10})},
+                            ),
+                            author: ApiAccountReferenceArbitrary,
+                            previewContent: ApiContentWithoutCommentMarkArbitrary,
+                        }),
+                    },
+                ),
+                content: ApiContentWithoutCommentMarkArbitrary,
+            }),
+        },
+        {
+            weight: 1,
+            arbitrary: fc.record({
+                ...agentWebMessagingPageMessageBlockBaseArbitraries,
+                deletedAttribute: fc.constant(true),
+                parent: fc.constant(null),
+                content: fc.constant({elements: [] as const}),
+            }),
+        },
+    );
 
 export const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<
     AgentWebMessagingPageBlock<never>

@@ -982,6 +982,28 @@ test("rejects creating messages from another account", async () => {
     );
 });
 
+test("rejects creating a message with a deleted attribute", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => createMessage({index, content: "Existing message"}),
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message from="[ChatGPT](/bot/chatgpt)" deleted></message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/chat/incident-response`. You can\u2019t create a deleted message. Try again without the `deleted` attribute.",
+    );
+});
+
 test("rejects creating messages with an incorrect id", async () => {
     await readChat({
         totalMessageCount: 1,
@@ -1272,13 +1294,13 @@ test("rejects updating a deleted bot message", async () => {
             updates: [
                 {
                     old: '<message id="0" from="[ChatGPT](/bot/chatgpt)" deleted></message>',
-                    new: '<message id="0" from="[ChatGPT](/bot/chatgpt)" deleted>\n\nReplacement content\n\n</message>',
+                    new: '<message id="0" from="[ChatGPT](/bot/chatgpt)" deleted time="1 minute later"></message>',
                     replaceAll: false,
                 },
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can\u2019t update a deleted message. `<message id="0">` was deleted. Try again without changing the deleted message.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can\u2019t update the deleted `<message id="0">`. Try again without changing the deleted message.',
     );
 });
 
@@ -1453,7 +1475,7 @@ test("rejects creating a reply that quotes a deleted message", async () => {
             ],
         }),
     ).resolves.toEqual(
-        'Error: Couldn\u2019t update `/chat/incident-response`. You can\u2019t quote a deleted message. `<message id="0">` was deleted. Try again without the `<blockquote>` or quote a message that hasn\u2019t been deleted.',
+        'Error: Couldn\u2019t update `/chat/incident-response`. You can\u2019t quote the deleted `<message id="0">`. Try again without the `<blockquote>` or quote a message that hasn\u2019t been deleted.',
     );
 });
 

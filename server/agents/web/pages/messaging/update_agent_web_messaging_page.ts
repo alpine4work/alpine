@@ -215,6 +215,7 @@ export async function updateAgentWebMessagingPage<
                 type: "Message",
                 idAttribute: block.idAttribute,
                 author: {id: block.author?.id ?? context.botAccount.id},
+                deletedAttribute: block.deletedAttribute,
                 timeAttribute: block.timeAttribute,
                 timeZoneAttribute: block.timeZoneAttribute,
                 parent: block.parent
@@ -241,7 +242,7 @@ export async function updateAgentWebMessagingPage<
             const idAttributeString = printAgentWebMessagingPageMessageIndexRange(idAttribute);
 
             throw new InvalidArgumentError("Can\u2019t update a deleted message", {
-                displayMessage: errorDisplayMessage`You can\u2019t update the deleted ${quote(`<${messageNouns.noun} id="${idAttributeString}">`)}. Try again without changing a deleted ${messageNouns.noun}.`,
+                displayMessage: errorDisplayMessage`You can\u2019t update the deleted ${quote(`<${messageNouns.noun} id="${idAttributeString}">`)}. Try again without changing the deleted ${messageNouns.noun}.`,
             });
         }
 

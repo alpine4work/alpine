@@ -181,6 +181,7 @@ Hello there.
                         type: "Message",
                         idAttribute: null,
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -208,6 +209,7 @@ Hello from the implicit author.
                         type: "Message",
                         idAttribute: null,
                         author: null,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -253,6 +255,7 @@ Hello there.
                         type: "Message",
                         idAttribute: null,
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -286,6 +289,7 @@ Merged message block.
                         type: "Message",
                         idAttribute: {startMessageIndex: 42, endMessageIndex: 43},
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -295,6 +299,7 @@ Merged message block.
                         type: "Message",
                         idAttribute: {startMessageIndex: 4, endMessageIndex: 8},
                         author: bobReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -317,15 +322,49 @@ Merged message block.
                     {
                         type: "Message",
                         idAttribute: {startMessageIndex: 1, endMessageIndex: 2},
-                        deleted: true,
                         author: null,
+                        deletedAttribute: true,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
-                        content: content([]),
+                        content: {elements: []},
                     },
                 ],
             },
+        },
+        {
+            name: "deleted message with content",
+            pageLink: true,
+            markdown: `\
+<message id="1" deleted>
+
+Deleted messages must not contain content.
+
+</message>
+`,
+            parseError: markdown`
+Error: Deleted \`<message>\` on line 1 can’t contain content. Remove everything between the open and
+close tags and try again.
+            `,
+        },
+        {
+            name: "deleted message with parent",
+            pageLink: true,
+            markdown: `\
+<message id="1" deleted>
+
+<blockquote cite="?message=0">
+
+[Alice](/human/alice): Deleted messages must not contain parents.
+
+</blockquote>
+
+</message>
+`,
+            parseError: markdown`
+Error: Deleted \`<message>\` on line 1 can’t contain a \`<blockquote>\`. Remove the \`<blockquote>\`
+and try again.
+            `,
         },
         {
             name: "message log at end of messages",
@@ -348,6 +387,7 @@ End of messages.
                         type: "Message",
                         idAttribute: null,
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -385,6 +425,7 @@ Hello there.
                         type: "Message",
                         idAttribute: null,
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -422,6 +463,7 @@ Hello there.
                         type: "Message",
                         idAttribute: null,
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -587,6 +629,7 @@ const done = true;
                         type: "Message",
                         idAttribute: null,
                         author: assistantReference,
+                        deletedAttribute: null,
                         timeAttribute: "12 minutes later",
                         timeZoneAttribute: null,
                         parent: {
@@ -655,6 +698,7 @@ Replying to a list item.
                         type: "Message",
                         idAttribute: null,
                         author: assistantReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: {
@@ -704,6 +748,7 @@ Replying to a quote block.
                         type: "Message",
                         idAttribute: null,
                         author: assistantReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: {
@@ -753,6 +798,7 @@ Escaped attributes survive.
                         type: "Message",
                         idAttribute: null,
                         author: escapedAliceBobTeamReference,
+                        deletedAttribute: null,
                         timeAttribute: `5 < 10 & ${doubleQuote}later${doubleQuote}`,
                         timeZoneAttribute: "GMT+0 & east",
                         parent: {
@@ -789,6 +835,7 @@ After the empty paragraph.
                         type: "Message",
                         idAttribute: null,
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -908,6 +955,7 @@ Hello.
                         type: "Message",
                         idAttribute: null,
                         author: null,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -1221,6 +1269,7 @@ Hello.
                         type: "Message",
                         idAttribute: null,
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -1295,6 +1344,7 @@ bar&#x20;
                         type: "Message",
                         idAttribute: null,
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -1408,6 +1458,7 @@ Hello there.
                         type: "Message",
                         idAttribute: null,
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: {
@@ -1504,6 +1555,7 @@ Second render:
                         type: "Message",
                         idAttribute: null,
                         author: aliceReference,
+                        deletedAttribute: null,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,

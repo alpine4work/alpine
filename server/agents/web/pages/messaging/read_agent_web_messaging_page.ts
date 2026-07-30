@@ -1005,19 +1005,35 @@ function buildAgentWebMessagingPageFromApiMessages<
             }
         }
 
-        blocks.push({
+        const blockBase = {
             type: "Message",
             idAttribute: {
                 startMessageIndex: firstMessage.index,
                 endMessageIndex: lastMessage.index + 1,
             },
             author: intoApiAccountReference(firstMessage.author),
-            deletedAttribute: currentBlock.isDeleted ? true : null,
             timeAttribute,
             timeZoneAttribute,
-            parent,
-            content: {elements},
-        });
+        } as const;
+
+        if (currentBlock.isDeleted) {
+            assert(parent === null);
+            assert(elements.length === 0);
+
+            blocks.push({
+                ...blockBase,
+                deletedAttribute: true,
+                parent: null,
+                content: {elements: []},
+            });
+        } else {
+            blocks.push({
+                ...blockBase,
+                deletedAttribute: null,
+                parent,
+                content: {elements},
+            });
+        }
 
         currentBlock = null;
     }

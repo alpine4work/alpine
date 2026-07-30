@@ -389,6 +389,24 @@ async function actuallyParseAgentWebMessagingPage<
                                 });
                             }
 
+                            if (state.deletedAttribute !== null && state.parent !== null) {
+                                throw new InvalidArgumentError(
+                                    "Deleted message can\u2019t contain a parent",
+                                    {
+                                        displayMessage: errorDisplayMessage`Deleted ${quote(`<${messageNouns.noun}>`)} on line ${state.openTagPosition?.start.line ?? "unknown"} can\u2019t contain a \`<blockquote>\`. Remove the \`<blockquote>\` and try again.`,
+                                    },
+                                );
+                            }
+
+                            if (state.deletedAttribute !== null && state.children.length !== 0) {
+                                throw new InvalidArgumentError(
+                                    "Deleted message can\u2019t contain content",
+                                    {
+                                        displayMessage: errorDisplayMessage`Deleted ${quote(`<${messageNouns.noun}>`)} on line ${state.openTagPosition?.start.line ?? "unknown"} can\u2019t contain content. Remove everything between the open and close tags and try again (e.g. \`<${messageNouns.noun}></${messageNouns.noun}>\`).`,
+                                    },
+                                );
+                            }
+
                             const parseAccountLink = async (
                                 position: Node["position"],
                                 string: string,
@@ -488,15 +506,8 @@ async function actuallyParseAgentWebMessagingPage<
                                 });
                             }
 
-                            const block: Replace<
-                                AgentWebMessagingPageMessageBlock,
-                                {
-                                    author: Promise<ApiAccountReferenceResponse> | null;
-                                    content: Promise<ApiContentResponseWithoutKeys>;
-                                    parent: Promise<AgentWebMessagingPageMessageBlockParent> | null;
-                                }
-                            > = {
-                                type: "Message",
+                            const blockBase = {
+                                type: "Message" as const,
                                 idAttribute,
                                 author:
                                     state.fromAttribute === null
@@ -505,17 +516,50 @@ async function actuallyParseAgentWebMessagingPage<
                                               state.openTagPosition,
                                               state.fromAttribute,
                                           ),
-                                deletedAttribute: state.deletedAttribute,
                                 timeAttribute: state.timeAttribute,
                                 timeZoneAttribute: state.timeZoneAttribute,
-                                parent,
-                                content: parseApiContentFromAgentWebMarkdownTree(storage, {
-                                    type: "root",
-                                    children: state.children,
-                                }),
                             };
 
-                            blockPromises.push(runAllObjectPromises(block));
+                            if (state.deletedAttribute !== null) {
+                                const block: Replace<
+                                    Extract<
+                                        AgentWebMessagingPageMessageBlock,
+                                        {deletedAttribute: true}
+                                    >,
+                                    {
+                                        author: Promise<ApiAccountReferenceResponse> | null;
+                                    }
+                                > = {
+                                    ...blockBase,
+                                    deletedAttribute: true,
+                                    parent: null,
+                                    content: {elements: []},
+                                };
+
+                                blockPromises.push(runAllObjectPromises(block));
+                            } else {
+                                const block: Replace<
+                                    Extract<
+                                        AgentWebMessagingPageMessageBlock,
+                                        {deletedAttribute: null}
+                                    >,
+                                    {
+                                        author: Promise<ApiAccountReferenceResponse> | null;
+                                        content: Promise<ApiContentResponseWithoutKeys>;
+                                        parent: Promise<AgentWebMessagingPageMessageBlockParent> | null;
+                                    }
+                                > = {
+                                    ...blockBase,
+                                    deletedAttribute: null,
+                                    parent,
+                                    content: parseApiContentFromAgentWebMarkdownTree(storage, {
+                                        type: "root",
+                                        children: state.children,
+                                    }),
+                                };
+
+                                blockPromises.push(runAllObjectPromises(block));
+                            }
 
                             state = null;
                             handledHtml ??= {tagName, tagType: "close", blockType: "Message"};

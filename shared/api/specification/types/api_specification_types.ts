@@ -3428,6 +3428,17 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["DocumentId"];
                 readonly title: string;
             };
+            readonly DocumentThreadReference: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "DocumentThread";
+                readonly id: components["schemas"]["DocumentThreadId"];
+                readonly document: {
+                    readonly id: components["schemas"]["DocumentId"];
+                };
+            };
             readonly PostReference: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -5774,43 +5785,10 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentStrikeMark"]
                 | components["schemas"]["ContentCodeMark"];
             readonly MessageRoomReference:
-                | components["schemas"]["ChatMessageRoomReference"]
-                | components["schemas"]["DocumentThreadMessageRoomReference"]
-                | components["schemas"]["PostMessageRoomReference"]
-                | components["schemas"]["TaskMessageRoomReference"];
-            readonly ChatMessageRoomReference: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Chat";
-                readonly id: components["schemas"]["ChatId"];
-            };
-            readonly DocumentThreadMessageRoomReference: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "DocumentThread";
-                readonly id: components["schemas"]["DocumentId"];
-                readonly threadId: components["schemas"]["DocumentThreadId"];
-            };
-            readonly PostMessageRoomReference: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Post";
-                readonly id: components["schemas"]["PostId"];
-            };
-            readonly TaskMessageRoomReference: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Task";
-                readonly id: components["schemas"]["TaskId"];
-            };
+                | components["schemas"]["ChatReference"]
+                | components["schemas"]["DocumentThreadReference"]
+                | components["schemas"]["PostReference"]
+                | components["schemas"]["TaskReference"];
             readonly SearchResult:
                 | components["schemas"]["SearchAccountResult"]
                 | components["schemas"]["SearchChannelResult"]
@@ -6484,6 +6462,11 @@ export namespace ApiSpecification {
                     | components["schemas"]["ContentFileBlockElement_Response"]
                     | components["schemas"]["ContentPreviewBlockElement_Response"];
             };
+            readonly MessageRoomReference_Response:
+                | components["schemas"]["ChatReference_Response"]
+                | components["schemas"]["DocumentThreadReference"]
+                | components["schemas"]["PostReference_Response"]
+                | components["schemas"]["TaskReference_Response"];
             readonly MentionReference_Response:
                 | components["schemas"]["AccountReference_Response"]
                 | components["schemas"]["ChannelReference_Response"]
@@ -6735,7 +6718,7 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "CreatedMessage";
-                readonly room: components["schemas"]["MessageRoomReference"];
+                readonly room: components["schemas"]["MessageRoomReference_Response"];
                 readonly index: number;
                 readonly author: {
                     readonly id: components["schemas"]["AccountId"];
@@ -6746,6 +6729,20 @@ export namespace ApiSpecification {
                 readonly viewing?: {
                     readonly reference: components["schemas"]["MentionReference_Response"];
                 };
+            };
+            readonly BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "UpdatedMessageStreamExperimentalApprovalsPart";
+                readonly room: components["schemas"]["MessageRoomReference_Response"];
+                readonly messageIndex: number;
+                readonly approvals: readonly {
+                    readonly decision: {
+                        readonly value?: components["schemas"]["MessageExperimentalApprovalDecisionValue_Response"];
+                    };
+                }[];
             };
             readonly MessageExperimentalApprovalDecision_Response: {
                 readonly schema: components["schemas"]["MessageExperimentalApprovalDecisionSchema_Response"];
@@ -6904,7 +6901,7 @@ export namespace ApiSpecification {
             readonly BotWebhookEvent_Response:
                 | components["schemas"]["BotWebhookCreatedMessageEvent_Response"]
                 | components["schemas"]["BotWebhookCreatedPostEvent"]
-                | components["schemas"]["BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent"];
+                | components["schemas"]["BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent_Response"];
             readonly Channel_Response: {
                 readonly id: components["schemas"]["ChannelId"];
                 readonly name: components["schemas"]["LabelString"];
