@@ -11342,7 +11342,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new PermissionDeniedError("Space mismatch"));
+        ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
         await commitTaskActionTransaction(context.action(sharedSession), space.id, [
             {
@@ -11390,7 +11390,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new PermissionDeniedError("Space mismatch"));
+        ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
         await commitTaskActionTransaction(context.action(sharedSession), space.id, [
             {

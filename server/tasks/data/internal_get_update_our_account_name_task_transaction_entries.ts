@@ -39,7 +39,10 @@ export function internalGetUpdateOurAccountNameTaskTransactionEntries(
                 },
             ],
             wasProcessed: false,
-            actorId: context.actor.getAccountId(),
+            actor: {
+                accountId: context.actor.getAccountId(),
+                from: null,
+            },
             clientId: null,
         };
 
