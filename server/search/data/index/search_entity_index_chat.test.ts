@@ -1,7 +1,7 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {
     pingChatMessageStream,
-    putChatMessageStreamPart,
+    putChatMessageStreamPartAndBroadcastEvent,
     sendChatMessage,
 } from "~/server/chat/data/chat_messaging.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
@@ -1093,7 +1093,7 @@ test("will index streaming chat message after delay", async () => {
         createdTimeZone: defaultTimeZone,
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 0,
@@ -1103,7 +1103,7 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 1,
@@ -1113,7 +1113,7 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 1,
@@ -1123,7 +1123,7 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 2,
@@ -1207,7 +1207,7 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 2,
@@ -1217,7 +1217,7 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 3,
@@ -1320,7 +1320,7 @@ test("will complete streaming chat message with error if not updated after delay
         createdTimeZone: defaultTimeZone,
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 0,
@@ -1330,7 +1330,7 @@ test("will complete streaming chat message with error if not updated after delay
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 1,
@@ -1340,7 +1340,7 @@ test("will complete streaming chat message with error if not updated after delay
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 1,
@@ -1350,7 +1350,7 @@ test("will complete streaming chat message with error if not updated after delay
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 2,
@@ -1420,7 +1420,7 @@ test("will complete streaming chat message with error if not updated after delay
     });
 
     await expect(
-        putChatMessageStreamPart(botAccount.action(session), {
+        putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
             chatId: chat.id,
             messageIndex: message.index,
             partIndex: 2,

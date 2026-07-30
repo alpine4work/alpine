@@ -42,7 +42,7 @@ export function computeDeleteMessageReaction({
         return {...message.payload, filesReactions: new ReactionSet(newFilesReactions)};
     }
 
-    const {payload, pos} = unwrapResult(
+    const {payload, pos, range} = unwrapResult(
         findMessageReactionPosIfPossible({
             message,
             contentVersion: clientContentVersion,
@@ -57,6 +57,7 @@ export function computeDeleteMessageReaction({
     // The client needs a correct `pos` calculation implementation to know if the user
     // has already reacted to an arbitrary range of text in the message.
     if (
+        message.stream === null &&
         (payload.contentUpdate?.mappings.length ?? 0) === clientContentVersion &&
         pos !== clientPos
     ) {
@@ -66,14 +67,30 @@ export function computeDeleteMessageReaction({
     }
 
     const newReactionsByPos = new Map(payload.reactionsByPos);
-    const newReactions = new Map(newReactionsByPos.get(pos)?.get());
-    newReactions.delete(actorAccountId);
 
-    // If there are no reactions left then remove the full `ReactionSet` itself.
-    if (newReactions.size === 0) {
-        newReactionsByPos.delete(pos);
+    if (message.stream !== null) {
+        for (const [existingPos, existingReactions] of newReactionsByPos) {
+            if (existingPos <= range.from || existingPos > range.to) continue;
+
+            const newExistingReactions = new Map(existingReactions.get());
+            newExistingReactions.delete(actorAccountId);
+
+            if (newExistingReactions.size === 0) {
+                newReactionsByPos.delete(existingPos);
+            } else {
+                newReactionsByPos.set(existingPos, new ReactionSet(newExistingReactions));
+            }
+        }
     } else {
-        newReactionsByPos.set(pos, new ReactionSet(newReactions));
+        const newReactions = new Map(newReactionsByPos.get(pos)?.get());
+        newReactions.delete(actorAccountId);
+
+        // If there are no reactions left then remove the full `ReactionSet` itself.
+        if (newReactions.size === 0) {
+            newReactionsByPos.delete(pos);
+        } else {
+            newReactionsByPos.set(pos, new ReactionSet(newReactions));
+        }
     }
 
     return {...payload, reactionsByPos: newReactionsByPos};

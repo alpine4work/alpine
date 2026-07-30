@@ -19,7 +19,7 @@ import {
     getChatMessagePayloadsFromStart,
     pingChatMessageStream,
     putChatMessageApprovalDecisions,
-    putChatMessageStreamPart,
+    putChatMessageStreamPartAndBroadcastEvent,
     sendChatMessage,
 } from "~/server/chat/data/chat_messaging.js";
 import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
@@ -521,7 +521,7 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
         post: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putChatMessageStreamPart(context, {
+            const {spaceId} = await putChatMessageStreamPartAndBroadcastEvent(context, {
                 chatId: pathParameters.id,
                 messageIndex: pathParameters.index,
                 partIndex: "Create",
@@ -537,7 +537,7 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putChatMessageStreamPart(context, {
+            const {spaceId} = await putChatMessageStreamPartAndBroadcastEvent(context, {
                 chatId: pathParameters.id,
                 messageIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,

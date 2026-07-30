@@ -32,7 +32,7 @@ import {
     getPostCommentPayloadsFromStart,
     pingPostCommentStream,
     putPostCommentMessageApprovalDecisions,
-    putPostCommentStreamPart,
+    putPostCommentStreamPartAndBroadcastEvent,
 } from "~/server/forum/data/post_messaging.js";
 import {updateChannelDescription} from "~/server/forum/data/update_channel_description.js";
 import {updateChannelName} from "~/server/forum/data/update_channel_name.js";
@@ -780,7 +780,7 @@ export const apiForumPaths: Pick<
         post: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putPostCommentStreamPart(context, {
+            const {spaceId} = await putPostCommentStreamPartAndBroadcastEvent(context, {
                 postId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: "Create",
@@ -796,7 +796,7 @@ export const apiForumPaths: Pick<
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putPostCommentStreamPart(context, {
+            const {spaceId} = await putPostCommentStreamPartAndBroadcastEvent(context, {
                 postId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,

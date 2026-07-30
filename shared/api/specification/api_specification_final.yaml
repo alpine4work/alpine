@@ -623,6 +623,70 @@ paths:
                                         $ref: "#/components/schemas/DocumentReference_Response"
                 default:
                     $ref: "#/components/responses/Error"
+    /documents/{id}/threads:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - thread
+                            additionalProperties: false
+                            properties:
+                                thread:
+                                    type: object
+                                    required:
+                                        - range
+                                        - firstMessage
+                                    additionalProperties: false
+                                    properties:
+                                        firstMessage:
+                                            type: object
+                                            required:
+                                                - content
+                                            additionalProperties: false
+                                            properties:
+                                                createdTimeZone:
+                                                    $ref: "#/components/schemas/TimeZone"
+                                                content:
+                                                    $ref: "#/components/schemas/Content"
+                                                files:
+                                                    type: array
+                                                    items:
+                                                        $ref: "#/components/schemas/MessageContentPayloadFile"
+                                        range:
+                                            $ref: "#/components/schemas/ContentRange"
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - document
+                                    - thread
+                                    - message
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    message:
+                                        $ref: "#/components/schemas/Message_Response"
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentThreadWithPreview_Response"
+                                    document:
+                                        $ref: "#/components/schemas/Document_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}:
         parameters:
             - name: id
@@ -2831,6 +2895,65 @@ components:
         ContentKey:
             type: string
             minLength: 1
+        ContentPosition:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlinePosition"
+                - $ref: "#/components/schemas/ContentBeforePosition"
+                - $ref: "#/components/schemas/ContentAfterPosition"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Inline: "#/components/schemas/ContentInlinePosition"
+                    Before: "#/components/schemas/ContentBeforePosition"
+                    After: "#/components/schemas/ContentAfterPosition"
+        ContentInlinePosition:
+            type: object
+            required:
+                - type
+                - key
+                - index
+            additionalProperties: false
+            properties:
+                type:
+                    const: Inline
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                index:
+                    type: integer
+                    minimum: 0
+        ContentBeforePosition:
+            type: object
+            required:
+                - type
+                - key
+            additionalProperties: false
+            properties:
+                type:
+                    const: Before
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+        ContentAfterPosition:
+            type: object
+            required:
+                - type
+                - key
+            additionalProperties: false
+            properties:
+                type:
+                    const: After
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+        ContentRange:
+            type: object
+            required:
+                - start
+                - end
+            additionalProperties: false
+            properties:
+                start:
+                    $ref: "#/components/schemas/ContentPosition"
+                end:
+                    $ref: "#/components/schemas/ContentPosition"
         TaskCollectionColor:
             type: string
             enum:
@@ -7012,40 +7135,6 @@ components:
                         mapping:
                             File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
                             Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
-        MessageContentPayloadPreviewElement:
-            type: object
-            required:
-                - type
-                - reference
-            additionalProperties: false
-            properties:
-                type:
-                    const: Preview
-                reference:
-                    $ref: "#/components/schemas/PreviewReference"
-                key:
-                    $ref: "#/components/schemas/ContentKey"
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentCommentMark"
-        MessageContentPayloadPreviewElement_Response:
-            type: object
-            required:
-                - type
-                - reference
-            additionalProperties: false
-            properties:
-                type:
-                    const: Preview
-                reference:
-                    $ref: "#/components/schemas/PreviewReference_Response"
-                key:
-                    $ref: "#/components/schemas/ContentKey"
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentCommentMark"
         MessageContentPayloadParent:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
@@ -8129,36 +8218,27 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/AccountId"
-        DocumentThread_Response:
+        Message_Response:
             type: object
             required:
-                - id
-                - isResolved
-                - totalMessageCount
-                - firstMessage
+                - index
+                - author
+                - createdTime
+                - createdTimeZone
+                - payload
             additionalProperties: false
             properties:
-                id:
-                    $ref: "#/components/schemas/DocumentThreadId"
-                isResolved:
-                    type: boolean
-                totalMessageCount:
+                index:
                     type: integer
                     minimum: 0
-                firstMessage:
-                    type: object
-                    required:
-                        - author
-                        - createdTime
-                        - createdTimeZone
-                    additionalProperties: false
-                    properties:
-                        author:
-                            $ref: "#/components/schemas/Account_Response"
-                        createdTime:
-                            $ref: "#/components/schemas/DateTime"
-                        createdTimeZone:
-                            $ref: "#/components/schemas/TimeZone"
+                author:
+                    $ref: "#/components/schemas/Account_Response"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                payload:
+                    $ref: "#/components/schemas/MessagePayload_Response"
         DocumentThreadWithPreview_Response:
             type: object
             required:
@@ -8201,6 +8281,36 @@ components:
                             type: integer
                         contentSnippet:
                             $ref: "#/components/schemas/Content_Response_WithoutKeys"
+        DocumentThread_Response:
+            type: object
+            required:
+                - id
+                - isResolved
+                - totalMessageCount
+                - firstMessage
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                isResolved:
+                    type: boolean
+                totalMessageCount:
+                    type: integer
+                    minimum: 0
+                firstMessage:
+                    type: object
+                    required:
+                        - author
+                        - createdTime
+                        - createdTimeZone
+                    additionalProperties: false
+                    properties:
+                        author:
+                            $ref: "#/components/schemas/Account_Response"
+                        createdTime:
+                            $ref: "#/components/schemas/DateTime"
+                        createdTimeZone:
+                            $ref: "#/components/schemas/TimeZone"
         PostPreview_Response:
             type: object
             required:
@@ -8386,27 +8496,6 @@ components:
                         e_Response"
                     ApprovedForSession: "#/components/schemas/MessageExperimentalApprovalDecisionAp\
                         provedForSessionValue_Response"
-        Message_Response:
-            type: object
-            required:
-                - index
-                - author
-                - createdTime
-                - createdTimeZone
-                - payload
-            additionalProperties: false
-            properties:
-                index:
-                    type: integer
-                    minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account_Response"
-                createdTime:
-                    $ref: "#/components/schemas/DateTime"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
-                payload:
-                    $ref: "#/components/schemas/MessagePayload_Response"
         Post_Response:
             type: object
             required:
@@ -8905,6 +8994,15 @@ components:
                     FileGallery: "#/components/schemas/ContentFileGalleryBlockElement_Response"
                     FileFloat: "#/components/schemas/ContentFileFloatBlockElement_Response"
                     Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        MessagePayload_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayload_Response"
+                - $ref: "#/components/schemas/MessageDeletedPayload"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageContentPayload_Response"
+                    Deleted: "#/components/schemas/MessageDeletedPayload"
         SearchChatMessageResult_Response:
             type: object
             required:
@@ -9118,15 +9216,6 @@ components:
                     properties:
                         title:
                             type: string
-        MessagePayload_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageContentPayload_Response"
-                - $ref: "#/components/schemas/MessageDeletedPayload"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Content: "#/components/schemas/MessageContentPayload_Response"
-                    Deleted: "#/components/schemas/MessageDeletedPayload"
         InboxEntryAccountFeatured_Response:
             type: object
             required:

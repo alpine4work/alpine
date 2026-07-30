@@ -1,0 +1,83 @@
+---
+slug: announcing-the-first-coding-agent-in-alpine-cursor
+title: "Announcing the first coding agent in Alpine: Cursor"
+publishDate: 2026-01-28
+author: caleb
+tags:
+  - Product
+  - AI
+  - Engineering
+summary: Work with Cursor Cloud Agents from your Alpine tasks, documents, chats, and posts.
+previewImage: /blog/announcing-cursor/preview.png
+previewImageAlt: The Cursor logo and wordmark.
+---
+
+<YouTubeEmbed
+  url="https://youtu.be/exge3t8eI48"
+  title="Cursor coding agent in Alpine"
+/>
+
+The IDE used to be where software engineers (ideally) spent their entire day. However, with the rise
+of coding agents writing code yourself isn’t required anymore. A software engineer (or anyone else
+for that matter) can do the same work, but faster, by giving the work to a coding agent like
+[Cursor Cloud Agents](https://cursor.com/docs/cloud-agent).
+
+[Alpine is an all-in-one suite](https://www.alpine.inc) for your docs, tasks, chat, and more. This
+makes Alpine perfect for agents. The agent only needs one search tool to find stuff and one read tool
+to browse the fully connected Alpine Markdown web. Alpine launched with a ChatGPT powered agent
+who’s helpful as a general purpose assistant:
+
+![ChatGPT summarizes feedback on an Alpine technical specification and creates follow-up tasks.](/blog/announcing-cursor/chatgpt-agent.png)
+
+Today, we’re launching Alpine’s first coding agent: Cursor. You work with Cursor just like you would
+a coworker.
+
+- Have a task you want Cursor to complete? Mention Cursor on the task.
+- Have a doc containing a tech spec that needs building? Copy the link and send it to Cursor via
+  Alpine chat or create a new comment on the document and mention Cursor there.
+- Discussing some user feedback with your team? Mention Cursor and it’ll have the full context of
+  your conversation as it makes changes.
+
+![Cursor completes a coding task after being mentioned in Alpine chat.](/blog/announcing-cursor/mention-cursor.png)
+
+## Getting started
+
+1. Go to the “Bots” settings page in Alpine and select Cursor.
+2. Install the Cursor bot and set your API key + GitHub repository URL.
+3. Make sure you’re on a paid Cursor plan (Cursor Cloud Agents are only available on paid plans).
+4. Press “Open chat” to start using Cursor in Alpine!
+
+![The Alpine bot settings page lists ChatGPT and Cursor.](/blog/announcing-cursor/cursor-bot-settings.png)
+
+![Cursor’s Alpine settings include its Cloud Agents API key and GitHub repository URL.](/blog/announcing-cursor/cursor-bot-configuration.png)
+
+## How it works
+
+Cursor will respond when you mention it from *anywhere* in Alpine. If you reply to a message from
+Cursor that will add a followup to the Cursor Cloud Agent.
+
+Before launching the agent, we collect as much useful context as we can. That includes:
+
+- The history of the conversation you mentioned Cursor in.
+- Any documents, tasks, or any other Alpine content you linked in your message to cursor (type `@`
+  to quickly link a document).
+
+You can see the prompt we generate in Cursor’s Cloud Agent interface. For example:
+
+![The prompt sent from Alpine to a Cursor Cloud Agent includes conversation history and linked context.](/blog/announcing-cursor/cursor-cloud-agent-prompt.png)
+
+Cursor Cloud Agents can’t call Alpine tools right now (e.g. the Alpine search tool). So we recommend
+linking any important context. Or you can ask ChatGPT to search your Alpine space for any relevant
+context and write a spec for you.
+
+---
+
+It’s hard to make predictions when everything is changing so fast, but it’s possible the software
+industry is moving to a future where software engineers don’t write code anymore, they just review
+it. In that world, Alpine becomes the “IDE.” It has all your specs, tasks, chats, coding agents, and
+we’re building a GitHub integration so your code review may happen in Alpine too. We think that’s a
+neat idea.
+
+Happy coding!
+
+[Sign up](https://alpine.inc/auth/sign-up) | [Sign in](https://alpine.inc/auth/sign-in)

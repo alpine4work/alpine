@@ -29,7 +29,7 @@ import {
     deleteTaskComment,
     deleteTaskCommentReaction,
     getTaskComment,
-    putTaskCommentStreamPart,
+    putTaskCommentStreamPartAndBroadcastEvent,
     setTaskCommentReaction,
     updateTaskCommentContent,
 } from "~/server/tasks/data/task_messaging.js";
@@ -427,7 +427,7 @@ export class TestTask extends TestCommentRoomBase {
             payload: MessageStreamPartPayload;
         },
     ) {
-        await putTaskCommentStreamPart(context, {
+        await putTaskCommentStreamPartAndBroadcastEvent(context, {
             taskId: this.id,
             commentIndex: messageIndex,
             partIndex,

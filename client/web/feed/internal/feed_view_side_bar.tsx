@@ -17,6 +17,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
+import {isDeletedSearchEntityResult} from "~/client/web/search/core/is_deleted_search_entity_result.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {
     useSearchEntityModel,
@@ -93,10 +94,18 @@ export function FeedViewSideBar({
         {initialOutput: initialAffinitySearch},
     );
 
-    const hasFavorites =
-        output && (output.hasMoreFavoriteResults || output.favoriteResults.length > 0);
+    const unfilteredFavoriteResults = output ? output.favoriteResults : emptyArray;
+    const favoriteResults = useStore(
+        useMemo(() => {
+            return computeStore(get => {
+                return unfilteredFavoriteResults.filter(
+                    result => !isDeletedSearchEntityResult(get, searchEntityRegistry, result),
+                );
+            });
+        }, [searchEntityRegistry, unfilteredFavoriteResults]),
+    );
+    const hasFavorites = output && (output.hasMoreFavoriteResults || favoriteResults.length > 0);
     const hasMoreFavoriteResults = hasFavorites && output.hasMoreFavoriteResults;
-    const favoriteResults = hasFavorites ? output.favoriteResults : emptyArray;
 
     const sectionHeaderHeight = convertRemLengthToPx(
         addRemLengths(searchEntityHeaderPaddingTop, searchEntityHeaderLineHeight),
@@ -138,7 +147,10 @@ export function FeedViewSideBar({
 
                 if (output) {
                     for (const result of sliceIterable(
-                        output.results,
+                        output.results.filter(
+                            result =>
+                                !isDeletedSearchEntityResult(get, searchEntityRegistry, result),
+                        ),
                         0,
                         estimatedVisibleResultCount - favoriteResults.length,
                     )) {

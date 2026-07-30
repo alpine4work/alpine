@@ -113,7 +113,6 @@ export function PostCommentInput(props: {
     onPostRealtimeEvents: Memo<(events: ReadonlyArray<RynamoEvent<PostModel>>) => void>;
     restoreStateRef?: RefObject<MessageInputRestoreState | null>;
     messageDraft?: MessageDraft;
-    onMessageDraftChange?: (draft: MessageDraft) => void;
 }) {
     const {currentAccount} = useSpaceContext();
     const siteRegistry = useSiteRegistry();
@@ -260,7 +259,6 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         onPostRealtimeEvents,
         restoreStateRef,
         messageDraft,
-        onMessageDraftChange,
     } = props;
 
     const context = useAppContext();
@@ -398,7 +396,6 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
             }}
             messageDraftSurface={draftSurface}
             messageDraft={messageDraft}
-            onMessageDraftChange={onMessageDraftChange}
             shouldFlushDraftOnUnmount={true}
             restoreStateRef={restoreStateRef}
         />

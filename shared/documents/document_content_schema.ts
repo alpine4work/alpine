@@ -341,6 +341,20 @@ const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                     schema: DocumentContentCoverSchema.nullable(),
                     default: null,
                 },
+
+                /**
+                 * When set, the document has been soft-deleted. The value is the time at which the
+                 * document was deleted. Connected clients receive the deletion in realtime via
+                 * ProseMirror steps.
+                 *
+                 * Like `accessPolicy`, this attribute must not be modified by normal ProseMirror
+                 * operations (copy/paste, select all, undo). It must only be changed through
+                 * explicit `setDocAttribute` calls.
+                 */
+                deletedTime: {
+                    schema: Schema.date.nullable(),
+                    default: null,
+                },
             },
         },
 

@@ -12,9 +12,7 @@ export const DocumentationOrderedList = documentationComponent({
             marginY="4"
             marginX="0"
             paddingLeft="6"
-            display="flex"
-            flexDirection="column"
-            gap="1.5"
+            style={{listStylePosition: "outside", listStyleType: "decimal"}}
         >
             {children}
         </Box>

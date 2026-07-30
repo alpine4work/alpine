@@ -422,7 +422,13 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
             ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
-        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+        {
+            consistency = "Eventual",
+            dangerouslyAllowDeleted = false,
+        }: {
+            consistency?: DynamoCacheReadConsistency;
+            dangerouslyAllowDeleted?: boolean;
+        } = emptyObject,
     ): Promise<Result<TaskModel> | null> {
         const {taskResult} = await getTaskWithoutDependenciesForRealtime(this._context, {
             server: this._getServer().server,
@@ -430,6 +436,7 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
             spaceId,
             taskId,
             consistency,
+            dangerouslyAllowDeleted,
         });
 
         return taskResult;
@@ -440,7 +447,13 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
             ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+        {
+            consistency = "Eventual",
+            dangerouslyAllowDeleted = false,
+        }: {
+            consistency?: DynamoCacheReadConsistency;
+            dangerouslyAllowDeleted?: boolean;
+        } = emptyObject,
     ): Promise<Result<TaskCollectionModel> | null> {
         const {collectionResult} = await getTaskCollectionForRealtime(this._context, {
             server: this._getServer().server,
@@ -448,6 +461,7 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
             spaceId,
             collectionId,
             consistency,
+            dangerouslyAllowDeleted,
         });
 
         return collectionResult;

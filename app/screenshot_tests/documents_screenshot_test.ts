@@ -478,6 +478,69 @@ the page so future us doesn\u2019t have to go through this debate again.
     await runner.getByText("Turn into check list").waitFor();
     await runner.screenshot("a01", "list-conversion-menu");
 
+    // Right clicking a heading offers "copy heading link" and "collapse heading"
+    // actions.
+    await runner.goto(accounts.cassCade, `/doc/${document.id}`);
+    const prioritiesHeading = runner.getByRole("heading", {name: "Priorities"});
+    const prioritiesHeadingBox = await prioritiesHeading.boundingBox();
+    assert(prioritiesHeadingBox !== null);
+    await runner.mouse.click(
+        prioritiesHeadingBox.x + 60,
+        prioritiesHeadingBox.y + prioritiesHeadingBox.height / 2,
+        {button: "right"},
+    );
+    await runner.getByText("Copy heading link").waitFor();
+    await runner.screenshot("a02", "heading-context-menu");
+
+    // Collapsed sections at every heading level: the expand chevron centers on the
+    // first line of each heading, including a level 1 heading long enough to wrap onto
+    // two lines. Lower levels come first so no section nests inside another and all
+    // three chevrons are visible at once.
+    const collapsedSectionsDocument = await TestDocument.create(accounts.cassCade, {
+        id: unsafelyGenerateStableId<DocumentId>(runner.stableRandom, "collapsedSectionsDocument"),
+        title: "Collapsed sections",
+        access: "Public",
+        body: markdown`
+### Lorem ipsum dolor sit amet
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore
+et dolore magna aliqua.
+
+## Ut enim ad minim veniam quis nostrud
+
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+consequat.
+
+# Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat
+
+Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id
+est laborum.
+        `,
+    });
+
+    await runner.goto(accounts.cassCade, `/doc/${collapsedSectionsDocument.id}`);
+    for (const headingName of [
+        "Lorem ipsum dolor sit amet",
+        "Ut enim ad minim veniam quis nostrud",
+        "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat",
+    ]) {
+        const collapsedSectionsHeading = runner.getByRole("heading", {name: headingName});
+        const collapsedSectionsHeadingBox = await collapsedSectionsHeading.boundingBox();
+        assert(collapsedSectionsHeadingBox !== null);
+        await runner.mouse.click(
+            collapsedSectionsHeadingBox.x + 60,
+            collapsedSectionsHeadingBox.y + 10,
+            {button: "right"},
+        );
+        await runner.getByText("Collapse heading").click();
+        await collapsedSectionsHeading.getByLabel("Expand heading").waitFor();
+    }
+    // Right clicking selected the word under the cursor; clear the selection and blur
+    // so the screenshot only shows the collapsed state.
+    await runner.evaluate("dev.contentEditor.setTextSelection(1); document.activeElement?.blur()");
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a04", "collapsed-headings");
+
     await runner.goto(accounts.cassCade, `/doc/${document.id}`);
     await runner.getByRole("button", {name: "More"}).click();
     await runner.screenshot("a1", "more-menu");

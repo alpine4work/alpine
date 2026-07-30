@@ -23,7 +23,7 @@ import {
     getTaskNotesContentAndOptionalInitialCommentsIfExists,
     pingTaskCommentStream,
     putTaskCommentMessageApprovalDecisions,
-    putTaskCommentStreamPart,
+    putTaskCommentStreamPartAndBroadcastEvent,
     setTaskCommentReaction,
     updateTaskCommentContent,
 } from "~/server/tasks/data/task_messaging.js";
@@ -1488,7 +1488,7 @@ describe("taskMessagingImplementation()", () => {
                 isTimeoutErrorCompletion,
             },
         ) {
-            return await putTaskCommentStreamPart(context, {
+            return await putTaskCommentStreamPartAndBroadcastEvent(context, {
                 taskId,
                 commentIndex,
                 partIndex,

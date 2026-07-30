@@ -9,6 +9,7 @@ import {InboxTaskEntryModel} from "~/shared/notifications/inbox_model.js";
 export function expectInboxTaskEntryModel({
     session,
     task,
+    isTaskDeleted = false,
     isArchived = false,
     loudNotificationCount = 0,
     latestComment,
@@ -18,6 +19,7 @@ export function expectInboxTaskEntryModel({
     task:
         | {task: TestTask; taskOwner: TestSpaceSession; isPrivate?: false}
         | {isPrivate: true; taskId: TaskId};
+    isTaskDeleted?: boolean;
     isArchived?: boolean;
     loudNotificationCount?: number;
     latestComment: {
@@ -32,7 +34,7 @@ export function expectInboxTaskEntryModel({
         spaceId: latestComment.comment.space.id,
         accountId: session.account.id,
         task: task.isPrivate
-            ? {isPrivate: true, taskId: task.taskId}
+            ? {isPrivate: true, isDeleted: isTaskDeleted, taskId: task.taskId}
             : {
                   isPrivate: false,
                   taskId: task.task.id,

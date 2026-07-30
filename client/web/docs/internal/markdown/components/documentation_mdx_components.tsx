@@ -40,6 +40,7 @@ import {DocumentationTableHeaderCell} from "~/client/web/docs/internal/markdown/
 import {DocumentationTableRow} from "~/client/web/docs/internal/markdown/components/documentation_table_row.js";
 import {DocumentationTabs} from "~/client/web/docs/internal/markdown/components/documentation_tabs.js";
 import {DocumentationUnorderedList} from "~/client/web/docs/internal/markdown/components/documentation_unordered_list.js";
+import {DocumentationYoutubeEmbed} from "~/client/web/docs/internal/markdown/components/documentation_youtube_embed.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
 import {DocumentationMarkdownComponent} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
 
@@ -91,6 +92,7 @@ export function createDocumentationMdxComponents(model: DocumentationApiModel | 
         CardGrid: DocumentationCardGrid,
         Card: DocumentationCard,
         Kbd: DocumentationKbd,
+        YouTubeEmbed: DocumentationYoutubeEmbed,
         TypeLink: documentationComponent({
             react: DocumentationApiTypeLink,
             markdown: documentationApiTypeLinkToMarkdown,

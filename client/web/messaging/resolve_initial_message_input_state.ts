@@ -1,7 +1,6 @@
 import {RefObject} from "react";
 import {MessageInputFile} from "~/client/web/content/messaging/add_message_input_files.js";
 import {createMessageInputFilesFromMessageDraft} from "~/client/web/content/messaging/create_message_input_files_from_message_draft.js";
-import {getMessageInputFileIds} from "~/client/web/content/messaging/get_message_input_file_ids.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {createInitialMessageInputState} from "~/client/web/messaging/create_initial_message_input_state.js";
 import {hasMessageInputContent} from "~/client/web/messaging/has_message_input_content.js";
@@ -39,29 +38,22 @@ export function resolveInitialMessageInputState({
 } {
     const restoreState = restoreStateRef?.current;
     if (restoreState) {
-        const restoreFileIds = getMessageInputFileIds(restoreState.files);
-        const hasRestoreStashContent = hasMessageInputContent({
-            contentDoc: restoreState.state.getDoc(),
-            parent: null,
-            fileIds: restoreFileIds,
-        });
-
-        if (hasRestoreStashContent) {
-            return {
-                state: restoreState.state,
-                files: restoreState.files,
-                draftSyncState: {
-                    lastDraftSent: null,
-                    hasRemoteDraftContent: draft
-                        ? hasMessageInputContent({
-                              contentDoc: draft.content.doc,
-                              parent: draft.parent,
-                              fileIds: draft.fileIds,
-                          })
-                        : false,
-                },
-            };
-        }
+        return {
+            state: restoreState.state,
+            files: restoreState.files,
+            draftSyncState: {
+                lastDraftSent: null,
+                // `draft` may be stale, but treating a possibly-cleared server row as existing is
+                // safe: at worst the input issues one redundant clear.
+                hasRemoteDraftContent: draft
+                    ? hasMessageInputContent({
+                          contentDoc: draft.content.doc,
+                          parent: draft.parent,
+                          fileIds: draft.fileIds,
+                      })
+                    : false,
+            },
+        };
     }
 
     if (draft) {

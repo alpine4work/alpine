@@ -85,7 +85,7 @@ normally.
 
 Every docs and blog page is also rendered to markdown and served at `<path>.md` (e.g.
 `/docs/guides/tasks.md`, `/docs/api/authentication.md`, `/docs/api/post/tasks.md`,
-`/blog/attention-is-a-product-surface.md`; `/docs.md` aliases the docs overview and `/blog.md`
+`/blog/write-your-own-database-clients.md`; `/docs.md` aliases the docs overview and `/blog.md`
 aliases the blog index). Guides, API MDX pages, and blog posts are rendered through each component's
 **markdown variant** (`render_documentation_mdx_to_markdown.ts` with the shared documentation
 markdown component map; API variants that need the spec are model-bound through

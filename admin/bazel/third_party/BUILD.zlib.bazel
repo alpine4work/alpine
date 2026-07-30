@@ -1,3 +1,5 @@
+load("@//admin/bazel:third_party/zig_target_cpu_flags.bzl", "zig_target_cpu_flags")
+
 genrule(
     name = "zlib",
     srcs = glob(
@@ -20,6 +22,7 @@ export CXX="$$(pwd)/$(location @//:zig) c++"
 export AR="$$(pwd)/$(location @//:zig) ar"
 export LD="$$(pwd)/$(location @//:zig) ld.lld"
 export CFLAGS+=" -O3 -fPIC"
+""" + zig_target_cpu_flags() + """
 
 bazel_sandbox=$$(pwd)
 

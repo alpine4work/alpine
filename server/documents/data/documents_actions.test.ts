@@ -531,9 +531,9 @@ test("can read a created document", async () => {
         version: 0,
         content: content.toJSON(),
     });
-    expect((await getDocumentTitleIfExists(session.action(), documentId))?.title).toEqual(
-        "Foo bar",
-    );
+    expect(await getDocumentTitleIfExists(session.action(), documentId)).toMatchObject({
+        title: "Foo bar",
+    });
     expect((await getDocumentContent(session.action(), documentId)).content.toJSON()).toEqual(
         content.toJSON(),
     );
@@ -544,6 +544,7 @@ test("can read a created document", async () => {
         version: 0,
         titleWithoutFallback: "Foo bar",
         accessPolicy: content.attrs.accessPolicy,
+        isDeleted: false,
     });
 });
 
@@ -2081,6 +2082,7 @@ test("updates the document title whenever it changes", async () => {
         version: 0,
         titleWithoutFallback: "",
         accessPolicy: document.initialAccessPolicy,
+        isDeleted: false,
     });
 
     await updateDocumentContent(session.action(), {
@@ -2106,6 +2108,7 @@ test("updates the document title whenever it changes", async () => {
         version: 1,
         titleWithoutFallback: "",
         accessPolicy: document.initialAccessPolicy,
+        isDeleted: false,
     });
 
     await updateDocumentContent(session.action(), {
@@ -2131,6 +2134,7 @@ test("updates the document title whenever it changes", async () => {
         version: 2,
         titleWithoutFallback: "f",
         accessPolicy: document.initialAccessPolicy,
+        isDeleted: false,
     });
 
     await updateDocumentContent(session.action(), {
@@ -2156,6 +2160,7 @@ test("updates the document title whenever it changes", async () => {
         version: 3,
         titleWithoutFallback: "f",
         accessPolicy: document.initialAccessPolicy,
+        isDeleted: false,
     });
 
     await updateDocumentContent(session.action(), {
@@ -2181,6 +2186,7 @@ test("updates the document title whenever it changes", async () => {
         version: 5,
         titleWithoutFallback: "foo",
         accessPolicy: document.initialAccessPolicy,
+        isDeleted: false,
     });
 
     await updateDocumentContent(session.action(), {
@@ -2206,6 +2212,7 @@ test("updates the document title whenever it changes", async () => {
         version: 6,
         titleWithoutFallback: "foo",
         accessPolicy: document.initialAccessPolicy,
+        isDeleted: false,
     });
 
     await updateDocumentContent(session.action(), {
@@ -2243,6 +2250,7 @@ test("updates the document title whenever it changes", async () => {
         version: 7,
         titleWithoutFallback: "foo",
         accessPolicy: document.initialAccessPolicy,
+        isDeleted: false,
     });
 
     await updateDocumentContent(session.action(), {
@@ -2268,6 +2276,7 @@ test("updates the document title whenever it changes", async () => {
         version: 8,
         titleWithoutFallback: "foobar",
         accessPolicy: document.initialAccessPolicy,
+        isDeleted: false,
     });
 });
 

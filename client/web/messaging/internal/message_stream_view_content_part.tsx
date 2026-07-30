@@ -2,6 +2,7 @@ import {Node} from "prosemirror-model";
 import {Memo, useMemo} from "react";
 import {ContentView} from "~/client/web/content/content_view.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/web/content/has_standalone_margin_by_content_block_node_type_name.js";
+import {ContentViewWithReactionParties} from "~/client/web/reactions/content_view_with_reaction_parties.js";
 import {contentStyles, messagingStyles} from "~/client/web/styles/styles.js";
 import {
     ContentBlockNodeTypeName,
@@ -12,6 +13,8 @@ import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
+import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -38,6 +41,12 @@ export function MessageStreamViewContentPart({
     getClipboardSerializerAuthorPrefix,
     jumpAnimation: originalJumpAnimation,
     previousBlockNodeTypeName,
+    shouldShowQuickReaction,
+    reactionsByPos,
+    isReadOnly,
+    onSetReaction,
+    onDeleteReaction,
+    onPressSeeReactions,
 }: {
     message: MessageModel<string> | OptimisticMessageModel;
     doc: MessageContent;
@@ -48,6 +57,12 @@ export function MessageStreamViewContentPart({
     getClipboardSerializerAuthorPrefix: Memo<() => AccountModel | null> | undefined;
     jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
     previousBlockNodeTypeName: ContentBlockNodeTypeName | null;
+    shouldShowQuickReaction: boolean;
+    reactionsByPos: ReadonlyMap<number, ReactionSet>;
+    isReadOnly: boolean;
+    onSetReaction: (pos: number, reaction: Reaction | "GenericLike") => void;
+    onDeleteReaction: (pos: number) => void;
+    onPressSeeReactions: (pos: number) => Promise<void>;
 }) {
     const jumpAnimation = useMemo(() => {
         if (originalJumpAnimation === null) return null;
@@ -96,12 +111,33 @@ export function MessageStreamViewContentPart({
         return {doc: node, references};
     }, [doc, orderedListItemNumberByNode, references]);
 
+    const partReactionsByPos = useMemo(() => {
+        const partReactionsByPos = new Map<number, ReactionSet>();
+        const partEndPos = posAttributeOffset + doc.content.size;
+
+        for (const [pos, reactions] of reactionsByPos) {
+            // Reaction positions are block-end positions. A reaction at `posAttributeOffset`
+            // belongs to the previous content part, while a reaction at `partEndPos` belongs
+            // to this content part's last block.
+            if (pos <= posAttributeOffset || pos > partEndPos) continue;
+            partReactionsByPos.set(pos - posAttributeOffset, reactions);
+        }
+
+        if (shouldShowQuickReaction && !partReactionsByPos.has(doc.content.size)) {
+            partReactionsByPos.set(doc.content.size, emptyReactionSet);
+        }
+
+        return partReactionsByPos;
+    }, [doc.content.size, posAttributeOffset, reactionsByPos, shouldShowQuickReaction]);
+
     const currentBlockNodeTypeName = doc.firstChild!.type.name as ContentBlockNodeTypeName;
 
     let space: Spacing | null = null;
 
     if (previousBlockNodeTypeName) {
-        if (
+        if (reactionsByPos.has(posAttributeOffset)) {
+            space = contentStyles.standaloneBlockMargin;
+        } else if (
             isContentListItemNodeTypeName(currentBlockNodeTypeName) &&
             isContentListItemNodeTypeName(previousBlockNodeTypeName)
         ) {
@@ -121,10 +157,28 @@ export function MessageStreamViewContentPart({
         }
     }
 
+    if (partReactionsByPos.size === 0) {
+        return (
+            <>
+                {space && <div style={{height: spacing[space]}} />}
+                <ContentView
+                    className={messagingStyles.withPointerToolbarClassName}
+                    data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
+                    data-index={!message.isOptimistic ? message.index : undefined}
+                    content={content}
+                    posAttributeOffset={posAttributeOffset}
+                    withUserSelectNone={withUserSelectNone}
+                    getClipboardSerializerAuthorPrefix={getClipboardSerializerAuthorPrefix}
+                    jumpAnimation={jumpAnimation}
+                />
+            </>
+        );
+    }
+
     return (
         <>
             {space && <div style={{height: spacing[space]}} />}
-            <ContentView
+            <ContentViewWithReactionParties
                 className={messagingStyles.withPointerToolbarClassName}
                 data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
                 data-index={!message.isOptimistic ? message.index : undefined}
@@ -133,6 +187,21 @@ export function MessageStreamViewContentPart({
                 withUserSelectNone={withUserSelectNone}
                 getClipboardSerializerAuthorPrefix={getClipboardSerializerAuthorPrefix}
                 jumpAnimation={jumpAnimation}
+                reactionsByPos={partReactionsByPos}
+                getReactionPartKey={({index}) => `stream-reaction-part:${index}`}
+                isReadOnly={isReadOnly}
+                onSetReaction={(pos, reaction) => {
+                    if (pos === "Files") return;
+                    onSetReaction(posAttributeOffset + pos, reaction);
+                }}
+                onDeleteReaction={pos => {
+                    if (pos === "Files") return;
+                    onDeleteReaction(posAttributeOffset + pos);
+                }}
+                onPressSeeReactions={pos => {
+                    if (pos === "Files") return Promise.resolve();
+                    return onPressSeeReactions(posAttributeOffset + pos);
+                }}
             />
         </>
     );

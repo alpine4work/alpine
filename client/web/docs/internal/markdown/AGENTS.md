@@ -1,14 +1,14 @@
 # Docs markdown
 
 A markdown rendering of every docs and blog page, served at `<path>.md` (for example
-`/docs/guides/tasks.md`, `/docs/api/post/tasks.md`, and `/blog/attention-is-a-product-surface.md`)
+`/docs/guides/tasks.md`, `/docs/api/post/tasks.md`, and `/blog/write-your-own-database-clients.md`)
 so the public content is consumable by tooling and LLMs, not just the HTML site.
 
 ## How it works
 
 `//client/web/docs/internal/codegen:docs_markdown` renders every docs and blog page into the
 `internal/codegen/pages/` TreeArtifact, one file per page mirroring its URL
-(`pages/docs/guides/tasks.md`, `pages/blog/attention-is-a-product-surface.md`, …):
+(`pages/docs/guides/tasks.md`, `pages/blog/write-your-own-database-clients.md`, …):
 
 - **Authored MDX** is rendered through each component's markdown variant
   (`render_documentation_mdx_to_markdown.ts` + the `.markdown` variants on

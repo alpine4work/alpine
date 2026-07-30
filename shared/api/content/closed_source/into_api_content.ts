@@ -727,11 +727,24 @@ function assertApiContentBlockElementHasKeys(
             }
             break;
         }
-        case "Divider":
+        case "Divider": {
+            break;
+        }
         case "File":
-        case "FileGallery":
-        case "FileFloat":
         case "Preview": {
+            assert(element.key !== undefined);
+            break;
+        }
+        case "FileGallery": {
+            for (const row of element.rows) {
+                for (const item of row.items) {
+                    assertApiContentBlockElementHasKeys(item.element);
+                }
+            }
+            break;
+        }
+        case "FileFloat": {
+            assertApiContentBlockElementHasKeys(element.element);
             break;
         }
         default:

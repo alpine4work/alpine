@@ -431,8 +431,9 @@ function PostListView(
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
     const siteRegistry = useSiteRegistry();
-    const {postCommentDraftByPostId, loadPostCommentDraft, setPostCommentDraft} =
-        usePostCommentDraftsForPostList(initialPostCommentDraftByPostId);
+    const {postCommentDraftByPostId, loadPostCommentDraft} = usePostCommentDraftsForPostList(
+        initialPostCommentDraftByPostId,
+    );
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
@@ -1736,7 +1737,6 @@ function PostListView(
                             onPostRealtimeEvents={onPostRealtimeEvents}
                             restoreStateRef={inputRestoreStateRefByPostId.get(item.post.id)}
                             messageDraft={postCommentDraftByPostId.get(item.post.id)}
-                            onMessageDraftChange={draft => setPostCommentDraft(item.post.id, draft)}
                         />
                     );
 
@@ -2120,7 +2120,6 @@ function PostListView(
             inputRestoreStateRefByPostId,
             postCommentDraftByPostId,
             loadPostCommentDraft,
-            setPostCommentDraft,
             onInputParentChangeByPostId,
             onInputParentClearByPostId,
             shouldBeConnectedToChannelRealtime,
@@ -2498,15 +2497,17 @@ function PostListView(
 }
 
 /**
- * Manages an in-memory map of post comment drafts, loading them from the server as
- * needed and updating them as they change.
+ * Manages an in-memory map of post comment drafts, loading them from the server
+ * before a post's comment input first mounts. Drafts here are mount-time hydration
+ * data only: client edits are persisted directly to the server by the input, and
+ * remounts (e.g. collapsing and reopening comments) restore local input state from
+ * the input's restore stash instead of this map.
  */
 function usePostCommentDraftsForPostList(
     initialPostCommentDraftByPostId: ReadonlyMap<PostId, MessageDraft>,
 ): {
     postCommentDraftByPostId: ReadonlyMap<PostId, MessageDraft>;
     loadPostCommentDraft: (postId: PostId) => Promise<void>;
-    setPostCommentDraft: (postId: PostId, draft: MessageDraft) => void;
 } {
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
@@ -2572,22 +2573,9 @@ function usePostCommentDraftsForPostList(
         [context, currentAccount, space.id],
     );
 
-    const setPostCommentDraft = useCallback((postId: PostId, draft: MessageDraft) => {
-        setPostCommentDraftByPostId(oldPostCommentDraftByPostId => {
-            if (oldPostCommentDraftByPostId.get(postId) === draft) {
-                return oldPostCommentDraftByPostId;
-            }
-
-            const newPostCommentDraftByPostId = new Map(oldPostCommentDraftByPostId);
-            newPostCommentDraftByPostId.set(postId, draft);
-            return newPostCommentDraftByPostId;
-        });
-    }, []);
-
     return {
         postCommentDraftByPostId,
         loadPostCommentDraft,
-        setPostCommentDraft,
     };
 }
 

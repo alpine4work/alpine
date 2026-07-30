@@ -4,11 +4,46 @@
  * `//client/web/docs:docs_generated` and is not checked into the repo.
  */
 
-import {DocumentationApiGroup} from "~/client/web/docs/documentation_api_model.js";
+import {
+    DocumentationApiGroup,
+    DocumentationApiMethod,
+} from "~/client/web/docs/documentation_api_model.js";
 import {DocumentationApiPageLink} from "~/client/web/docs/documentation_mdx_page.js";
 
 export type GeneratedDocumentationApiNav = {
     pages: Array<DocumentationApiPageLink>;
     groups: Array<DocumentationApiGroup>;
     schemaNames: Array<string>;
+};
+
+/**
+ * Serializable image input emitted with generated documentation data. The image
+ * build resolves blog avatar URLs to bytes immediately before rendering.
+ */
+export type GeneratedDocumentationOpenGraphImageDocument =
+    | {
+          type: "BlogHome";
+          title: string;
+      }
+    | {
+          type: "Blog";
+          title: string;
+          author: {name: string; avatarUrl: string};
+      }
+    | {
+          type: "Documentation";
+          title: string;
+          description?: string;
+      }
+    | {
+          type: "APIReference";
+          title: string;
+          description?: string;
+          method?: DocumentationApiMethod;
+      };
+
+/** One public page and its build-time Open Graph image input. */
+export type GeneratedDocumentationOpenGraphImage = {
+    pageUrl: string;
+    document: GeneratedDocumentationOpenGraphImageDocument;
 };

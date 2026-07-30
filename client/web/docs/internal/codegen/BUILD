@@ -5,6 +5,7 @@ ts_project(
     name = "documentation_site_generate_lib",
     srcs = glob(["*.ts", "*.tsx"], exclude = ["*.test.ts"]),
     data = [
+        "//app/static:responsive_documentation_image_manifest.json",
         "//client/web/docs:docs_content",
         "//shared/api/specification",
     ],
@@ -27,7 +28,10 @@ ts_project(
 
 js_binary(
     name = "generate_documentation_site",
-    data = [":documentation_site_generate_lib"],
+    data = [
+        ":documentation_site_generate_lib",
+        "//app/static:responsive_documentation_image_manifest.json",
+    ],
     entry_point = "generate_documentation_site_main.js",
     visibility = ["//client/web/docs:__pkg__"],
 )

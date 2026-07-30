@@ -1,5 +1,6 @@
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {evaluateDeletedAccess} from "~/server/access/evaluate_deleted_access.js";
 import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
@@ -262,7 +263,13 @@ export async function authorizeTaskCollectionItemAccessIfPossible(
     context: TaskRealtimeActionContext,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    {
+        consistency,
+        dangerouslyAllowDeleted = false,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted?: boolean;
+    } = {},
 ): Promise<Result<void, ErrorBase>> {
     if (isTaskCollectionItemDeleted(collectionItem)) {
         // If the actor couldn't view the collection then use a "permission denied" error
@@ -271,27 +278,35 @@ export async function authorizeTaskCollectionItemAccessIfPossible(
             context,
             collectionItem,
             "View",
-            options,
+            {consistency},
         );
         if (!result.ok) return result;
 
-        return {
-            ok: false,
-            // NOTE(calebmer): Using `ErrorCode.NotFound` is important here. Consumers of this
-            // error will render not found errors as "Deleted" and `ErrorCode.PermissionDenied`
-            // as "Private".
-            error: new NotFoundError("Task collection was deleted", {
-                aggregateDedupeKey: collectionItem.collectionId,
-                displayMessage: taskCollectionDeletedErrorDisplayMessage,
-            }),
-        };
+        const hasDeletedAccess = await evaluateDeletedAccess(context, {
+            spaceId: collectionItem.spaceId,
+            expectedAccessLevel,
+            dangerouslyAllowDeleted,
+        });
+
+        if (!hasDeletedAccess) {
+            return {
+                ok: false,
+                // NOTE(calebmer): Using `ErrorCode.NotFound` is important here. Consumers of this
+                // error will render not found errors as "Deleted" and `ErrorCode.PermissionDenied`
+                // as "Private".
+                error: new NotFoundError("Task collection was deleted", {
+                    aggregateDedupeKey: collectionItem.collectionId,
+                    displayMessage: taskCollectionDeletedErrorDisplayMessage,
+                }),
+            };
+        }
     }
 
     return await authorizeTaskCollectionItemAccessAllowingDeletedCollectionsIfPossible(
         context,
         collectionItem,
         expectedAccessLevel,
-        options,
+        {consistency},
     );
 }
 
@@ -378,7 +393,13 @@ export async function authorizeTaskItemAccessIfPossible(
             taskId: TaskCollectionId,
         ) => Promise<TaskCollectionEssentialAttributesItemBase>;
     },
-    options?: {consistency?: DynamoCacheReadConsistency},
+    {
+        consistency,
+        dangerouslyAllowDeleted = false,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted?: boolean;
+    } = {},
 ): Promise<Result<void, ErrorBase>> {
     if (taskItem.deletedTime) {
         // If the actor couldn't view the task then use a "permission denied" error to
@@ -388,20 +409,28 @@ export async function authorizeTaskItemAccessIfPossible(
             taskItem,
             "View",
             loaders,
-            options,
+            {consistency},
         );
         if (!result.ok) return result;
 
-        return {
-            ok: false,
-            // NOTE(calebmer): Using `ErrorCode.NotFound` is important here. Consumers of this
-            // error will render not found errors as "Deleted" and `ErrorCode.PermissionDenied`
-            // as "Private".
-            error: new NotFoundError("Task was deleted", {
-                aggregateDedupeKey: taskItem.taskId,
-                displayMessage: taskDeletedErrorDisplayMessage,
-            }),
-        };
+        const hasDeletedAccess = await evaluateDeletedAccess(context, {
+            spaceId: taskItem.spaceId,
+            expectedAccessLevel,
+            dangerouslyAllowDeleted,
+        });
+
+        if (!hasDeletedAccess) {
+            return {
+                ok: false,
+                // NOTE(calebmer): Using `ErrorCode.NotFound` is important here. Consumers of this
+                // error will render not found errors as "Deleted" and `ErrorCode.PermissionDenied`
+                // as "Private".
+                error: new NotFoundError("Task was deleted", {
+                    aggregateDedupeKey: taskItem.taskId,
+                    displayMessage: taskDeletedErrorDisplayMessage,
+                }),
+            };
+        }
     }
 
     return await authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
@@ -409,7 +438,7 @@ export async function authorizeTaskItemAccessIfPossible(
         taskItem,
         expectedAccessLevel,
         loaders,
-        options,
+        {consistency},
     );
 }
 

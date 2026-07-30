@@ -1,0 +1,64 @@
+{
+    "title": "Tea Time: Platform Updates",
+    "meeting_title": "Tea Time: Platform Updates",
+    "meeting_type": "Internal Team Meeting",
+    "recording_id": 910001,
+    "url": "https://fathom.video/calls/tea-time-platform-updates",
+    "meeting_url": "https://meet.google.com/tea-time-platform-updates",
+    "share_url": "https://fathom.video/share/tea-time-platform-updates",
+    "created_at": "2026-07-23T19:01:30Z",
+    "scheduled_start_time": "2026-07-23T18:00:00Z",
+    "scheduled_end_time": "2026-07-23T19:00:00Z",
+    "recording_start_time": "2026-07-23T18:01:12Z",
+    "recording_end_time": "2026-07-23T19:00:55Z",
+    "calendar_invitees_domains_type": "only_internal",
+    "shared_with": "all_teams",
+    "transcript_language": "en",
+    "transcript": [
+        {
+            "speaker": {
+                "display_name": "Josh Johnson",
+                "matched_calendar_invitee_email": "josh@alpine.inc"
+            },
+            "text": "The new document list is ready for the team to try.",
+            "timestamp": "00:02:15"
+        },
+        {
+            "speaker": {
+                "display_name": "Alex Rivera",
+                "matched_calendar_invitee_email": "alex@alpine.inc"
+            },
+            "text": "I will collect feedback after this week's rollout.",
+            "timestamp": "00:02:24"
+        }
+    ],
+    "default_summary": {
+        "template_name": "general",
+        "markdown_formatted": "## Summary\n\nThe team reviewed the document list rollout and agreed to collect feedback this week.\n\n## Next steps\n\n- Alex will collect and summarize rollout feedback.\n"
+    },
+    "action_items": [],
+    "highlights": null,
+    "calendar_invitees": [
+        {
+            "name": "Josh Johnson",
+            "matched_speaker_display_name": "Josh Johnson",
+            "email": "josh@alpine.inc",
+            "is_external": false,
+            "email_domain": "alpine.inc"
+        },
+        {
+            "name": "Alex Rivera",
+            "matched_speaker_display_name": "Alex Rivera",
+            "email": "alex@alpine.inc",
+            "is_external": false,
+            "email_domain": "alpine.inc"
+        }
+    ],
+    "recorded_by": {
+        "name": "Josh Johnson",
+        "email": "josh@alpine.inc",
+        "team": "Product",
+        "email_domain": "alpine.inc"
+    },
+    "crm_matches": null
+}

@@ -137,6 +137,18 @@ export const attachFileFromAttachment = defineRpc({
     },
 });
 
+export const attachFileToTargetAsBot = defineRpc({
+    name: "attachFileToTargetAsBot",
+    isIdempotent: true,
+    input: {
+        fileId: Schema.id<FileId>(),
+        target: FileAttachmentTargetSchema,
+    },
+    output: {
+        file: FileModel.schema,
+    },
+});
+
 export const getFileEntityIfPossible = defineRpc({
     name: "getFileEntityIfPossible",
     isIdempotent: true,

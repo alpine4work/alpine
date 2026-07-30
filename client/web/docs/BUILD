@@ -22,8 +22,15 @@ js_run_binary(
     name = "docs_generated",
     copy_srcs_to_bin = False,
     out_dirs = ["generated"],
+    outs = [
+        "open_graph_images_api.json",
+        "open_graph_images_blog.json",
+        "open_graph_images_guides.json",
+        "open_graph_images_schemas.json",
+    ],
     srcs = [
         ":docs_content",
+        "//app/static:responsive_documentation_image_manifest.json",
         "//shared/api/specification:api_specification_final",
     ],
     tool = "//client/web/docs/internal/codegen:generate_documentation_site",

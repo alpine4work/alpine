@@ -23,6 +23,7 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {getTaskWithoutDependenciesForRealtime} from "~/server/tasks/realtime/get_task_without_dependencies_for_realtime.js";
 import {taskRealtimeStoreBeforeLoadTaskTestCheckpoint} from "~/server/tasks/realtime/task_realtime_store.js";
 import {
     TestTaskRealtimeServer,
@@ -91,6 +92,48 @@ test("loads an empty query when no tasks are in the space", async () => {
         hasMoreTasks: false,
         tasks: [],
     });
+});
+
+test("getTaskWithoutDependenciesForRealtime dangerouslyAllowDeleted does not include deleted collections", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const deletedCollection = await TestTaskCollection.create(session, {
+        access: "Public",
+        name: "Deleted Collection",
+    });
+    const activeCollection = await TestTaskCollection.create(session, {
+        access: "Public",
+        name: "Active Collection",
+    });
+    const task = await TestTask.create(session, {
+        collections: [deletedCollection, activeCollection],
+        title: "Deleted Task",
+    });
+    const server = new TestTaskRealtimeServer(context);
+
+    await runAllPromises([deletedCollection.delete(session), task.delete(session)]);
+    await server.wait();
+
+    const {taskResult} = await getTaskWithoutDependenciesForRealtime(session.action(), {
+        server: server.server,
+        dangerouslyEscalateToSystemContext: context.escalateToSystemContext,
+        spaceId: space.id,
+        taskId: task.id,
+        consistency: "StrongWithinCache",
+        dangerouslyAllowDeleted: true,
+    });
+
+    expect(
+        taskResult?.ok
+            ? {
+                  isDeleted: taskResult.value.isDeleted(),
+                  collectionIds: taskResult.value
+                      .getCollections()
+                      .getArray()
+                      .map(collection => collection.collectionId),
+              }
+            : taskResult,
+    ).toEqual({isDeleted: true, collectionIds: [activeCollection.id]});
 });
 
 test("loads a query with one task", async () => {

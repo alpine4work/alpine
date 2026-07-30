@@ -1,5 +1,5 @@
 import {useNavigate} from "@remix-run/react";
-import {Copy, Eye, EyeSlash} from "phosphor-react";
+import {Copy} from "phosphor-react";
 import {useState} from "react";
 import {accountAvatarClassName} from "~/client/web/accounts/account_avatar_html.js";
 import {AvatarDefault} from "~/client/web/avatar/avatar_default.js";
@@ -9,6 +9,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
+import {SecretTextInputWithoutLabel} from "~/client/web/design/secret_text_input.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInput} from "~/client/web/design/text_input.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
@@ -384,7 +385,6 @@ function BotRow({
 }) {
     const context = useAppContext();
     const navigate = useNavigate();
-    const [visibleApiKeys, setVisibleApiKeys] = useState<Set<number>>(new Set());
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     // NOTE(ifitzsimmons, 2025-12-15): We manage the bot avatar's state locally in this
@@ -394,16 +394,6 @@ function BotRow({
     // `Bot#Avatar`. Keeping track of the bot state here means that the bot's avatar
     // will change as soon as the upload is complete!
     const [botAvatar, setBotAvatar] = useState(bot.avatar);
-
-    const toggleApiKeyVisibility = (index: number) => {
-        const newSet = new Set(visibleApiKeys);
-        if (newSet.has(index)) {
-            newSet.delete(index);
-        } else {
-            newSet.add(index);
-        }
-        setVisibleApiKeys(newSet);
-    };
 
     const iconColor = colorSchemeVars["grey-100"];
 
@@ -534,9 +524,6 @@ function BotRow({
                                     name={name}
                                     spaceId={spaceId}
                                     scope={scope}
-                                    index={index}
-                                    visibleApiKeys={visibleApiKeys}
-                                    onToggleVisibility={toggleApiKeyVisibility}
                                     iconColor={iconColor}
                                 />
                             ))}
@@ -554,18 +541,12 @@ function ApiKeyRow({
     name,
     spaceId,
     scope,
-    index,
-    visibleApiKeys,
-    onToggleVisibility,
     iconColor,
 }: {
     apiKey: string;
     name: string | null;
     spaceId: string | null;
     scope: unknown;
-    index: number;
-    visibleApiKeys: Set<number>;
-    onToggleVisibility: (index: number) => void;
     iconColor: string;
 }) {
     const scopeLabel =
@@ -574,13 +555,7 @@ function ApiKeyRow({
             : `Scoped · ${(scope as {type: string} | null)?.type ?? "Unknown"}`;
 
     return (
-        <Box
-            padding="3"
-            border="grey-5"
-            borderRadius="2"
-            backgroundColor="grey-40"
-            position="relative"
-        >
+        <Box padding="3" border="grey-5" borderRadius="2" backgroundColor="grey-40">
             <Box display="flex" alignItems="center" gap="2" paddingBottom="2">
                 <Box fontSize="75" fontStyle="semi-bold">
                     {name || "Unnamed API Key"}
@@ -598,39 +573,20 @@ function ApiKeyRow({
                     </Box>
                 )}
             </Box>
-            <TextInput
-                label=""
-                inputMode={visibleApiKeys.has(index) ? "text" : "password"}
-                fontSize="75"
-                value={apiKey}
-                isReadOnly={true}
-                onChange={() => {}}
-            />
-            <Box
-                position="absolute"
-                display="flex"
-                alignItems="center"
-                style={{
-                    right: "1rem",
-                    bottom: "0.85rem",
-                }}
-            >
+            <Box display="flex" gap="2" alignItems="flex-end">
+                <Box flexGrow="1" minWidth="flex-fit">
+                    <SecretTextInputWithoutLabel
+                        aria-label="API key"
+                        fontSize="75"
+                        value={apiKey}
+                        isReadOnly={true}
+                        onChange={() => {}}
+                    />
+                </Box>
                 <Button
                     type="button"
-                    height="6"
-                    paddingX="1.5"
-                    onPress={() => onToggleVisibility(index)}
-                >
-                    {visibleApiKeys.has(index) ? (
-                        <EyeSlash color={iconColor} />
-                    ) : (
-                        <Eye color={iconColor} />
-                    )}
-                </Button>
-                <Button
-                    type="button"
-                    height="6"
-                    paddingX="1.5"
+                    height="7"
+                    paddingX="2"
                     onPress={() => writeTextToClipboard(apiKey)}
                     pressErrorTitle="Couldn&#x2019;t copy API key"
                 >

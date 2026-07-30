@@ -329,6 +329,35 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * entry.
                          */
                         hasAddedFeedCandidateEntry: Schema.boolean.default(false),
+
+                        /**
+                         * Information about when this document was soft-deleted and by whom. We keep a
+                         * record of deleted documents so they can still be referenced in search results
+                         * and mentions.
+                         */
+                        deleted: Schema.object({
+                            time: Schema.date,
+                            deletor: Schema.object({
+                                /**
+                                 * The account that soft-deleted this document.
+                                 */
+                                id: Schema.id<AccountId>().nullable().default(null),
+
+                                /**
+                                 * What soft-deleted this document on behalf of the account ID, if anything.
+                                 */
+                                from: Schema.union({
+                                    Bot: Schema.object({
+                                        type: Schema.value("Bot"),
+                                        accountId: Schema.id<AccountId>(),
+                                    }),
+                                })
+                                    .nullable()
+                                    .default(null),
+                            }),
+                        })
+                            .nullable()
+                            .default(null),
                     }),
                 },
 

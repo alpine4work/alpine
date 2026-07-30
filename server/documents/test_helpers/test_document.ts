@@ -233,6 +233,14 @@ export class TestDocument {
         },
     });
 
+    /** Delete this document by setting `deletedTime` via a doc attr step. */
+    public async delete(session: TestSpaceSession) {
+        const deletedTime = new Date();
+        await this.update(session, [new DocAttrStep("deletedTime", deletedTime)], {
+            intentionallyUpdateDeletedTime: {deletedTime},
+        });
+    }
+
     /**
      * Type new text into the document starting from the last updated position in this
      * `TestDocument`'s state. Moves the update position to after the new text.

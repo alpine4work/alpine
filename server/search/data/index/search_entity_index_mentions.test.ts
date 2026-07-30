@@ -1,5 +1,5 @@
 import {Fragment, Slice} from "prosemirror-model";
-import {ReplaceStep} from "prosemirror-transform";
+import {DocAttrStep, ReplaceStep} from "prosemirror-transform";
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
@@ -23,6 +23,7 @@ import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_col
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {MessageContentProsemirrorSchema as messageSchema} from "~/shared/content/message_content_schema.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -139,8 +140,12 @@ const testCaseByEntityType: Record<
                         ),
                     ]);
                 },
-                // TODO: Implement this once documents can be deleted.
-                delete: "Unimplemented",
+                delete: async () => {
+                    const deletedTime = new Date();
+                    await document.update(session, [new DocAttrStep("deletedTime", deletedTime)], {
+                        intentionallyUpdateDeletedTime: {deletedTime},
+                    });
+                },
                 undelete: "Unimplemented",
             };
         },
@@ -3223,6 +3228,148 @@ test("can mention direct chat in a private entity", async () => {
         version: expect.any(Object),
         fields: {
             body: [expect.stringMatching(/^in .*:\n\nMention: .*, and 1 other\.$/)],
+        },
+    });
+});
+
+test("deleted document mention in a chat message", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+
+    const document = await TestDocument.create(session1, {title: "Secret Plans"});
+    await document.access.grantDefault(session1);
+
+    const chat = await TestChat.createRoom(session1, {name: "General"});
+
+    await chat.sendMessage(
+        session1,
+        messageSchema.node("doc", {}, [
+            messageSchema.node("paragraph", {}, [
+                messageSchema.text("See "),
+                messageSchema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${document.id}`,
+                    }),
+                }),
+                messageSchema.text(" for details."),
+            ]),
+        ]),
+    );
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chat.id}-0`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `ChatMessage:${chat.id}-0`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [`See Secret Plans for details.`],
+        },
+    });
+
+    // Delete the document.
+    await document.delete(session1);
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    // The chat message should now show "Deleted document" instead of the title.
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chat.id}-0`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `ChatMessage:${chat.id}-0`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [`See Deleted document for details.`],
+        },
+    });
+});
+
+test("deleted document mention in a post title", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "Important Doc"});
+    await document.access.grantDefault(session);
+
+    const channel = await TestChannel.create(session, {
+        name: "Updates",
+        access: "Public",
+    });
+
+    // Create a post where the mention is in the first line (the title).
+    const post = await channel.createPost(
+        session,
+        schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("Review "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${document.id}`,
+                    }),
+                }),
+                schema.text(" today"),
+            ]),
+        ]),
+    );
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["title", "body"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: [`in Updates: Review Important Doc today`],
+            body: [`in Updates: Review Important Doc today`],
+        },
+    });
+
+    // Delete the mentioned document.
+    await document.delete(session);
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    // Both the title and body should now show "Deleted document".
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["title", "body"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: [`in Updates: Review Deleted document today`],
+            body: [`in Updates: Review Deleted document today`],
         },
     });
 });

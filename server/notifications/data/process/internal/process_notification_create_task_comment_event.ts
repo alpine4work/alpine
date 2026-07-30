@@ -173,7 +173,7 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
             ),
         ]);
 
-        const taskOwner = unwrapResult(taskOwnerResult);
+        const taskOwner = unwrapResult(taskOwnerResult).owner;
 
         let subtitle = "";
 

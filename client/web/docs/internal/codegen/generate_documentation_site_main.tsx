@@ -11,7 +11,13 @@ import {documentationApiHomeUrl} from "~/client/web/docs/documentation_api_home_
 import {
     DocumentationApiModel,
     createDocumentationApiOperationUrl,
+    createDocumentationApiSchemaUrl,
 } from "~/client/web/docs/documentation_api_model.js";
+import {documentationHomeUrl} from "~/client/web/docs/documentation_home_url.js";
+import {
+    DocumentationImageData,
+    parseDocumentationImageDataBySource,
+} from "~/client/web/docs/documentation_image_data.js";
 import type {
     DocumentationApiPageData,
     DocumentationApiPageLink,
@@ -23,19 +29,27 @@ import {
     parseDocumentationNavTree,
     parseDocumentationOrderPrefix,
 } from "~/client/web/docs/documentation_nav.js";
-import {GeneratedDocumentationApiNav} from "~/client/web/docs/generated_documentation.js";
+import {DocumentationSitemapEntry} from "~/client/web/docs/documentation_sitemap.js";
+import {
+    GeneratedDocumentationApiNav,
+    GeneratedDocumentationOpenGraphImage,
+} from "~/client/web/docs/generated_documentation.js";
 import {BlogAuthorById, BlogAuthorId} from "~/client/web/docs/internal/blog_author.js";
+import {blogHomeUrl} from "~/client/web/docs/internal/blog_home_url.js";
 import {
     BlogPostAdjacentArticle,
     BlogPostListItem,
     BlogPostPageData,
     createBlogPostUrl,
 } from "~/client/web/docs/internal/blog_post.js";
+import {createDocumentationImageRehypePlugin} from "~/client/web/docs/internal/codegen/create_documentation_image_rehype_plugin.js";
 import {extractDocumentationMdxToc} from "~/client/web/docs/internal/codegen/extract_documentation_mdx_toc.js";
 import {parseDocumentationApiModel} from "~/client/web/docs/internal/codegen/parse_api_documentation_model.js";
+import {parseBlogPostDate} from "~/client/web/docs/internal/codegen/parse_blog_post_date.js";
 import {
     DocumentationSearchEntry,
     buildDocumentationSearchIndex,
+    createDocumentationSearchTags,
     getApiMethodSearchTags,
 } from "~/client/web/docs/search_documentation_entries.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -50,6 +64,10 @@ const guidesDirectoryPath = join(contentDirectoryPath, "guides");
 const apiDirectoryPath = join(contentDirectoryPath, "api");
 const blogDirectoryPath = join(contentDirectoryPath, "blog");
 const blogAuthorsPath = join(blogDirectoryPath, "blog_authors.json");
+const responsiveDocumentationImageManifestPath = join(
+    runfilesPath,
+    "cyberworlds/app/static/responsive_documentation_image_manifest.json",
+);
 const specificationPath = join(
     runfilesPath,
     "cyberworlds/shared/api/specification/api_specification_final.yaml",
@@ -57,6 +75,10 @@ const specificationPath = join(
 
 // The output TreeArtifact declared by `//client/web/docs:docs_generated`.
 const outputDirectoryPath = "client/web/docs/generated";
+const openGraphImageApiManifestPath = "client/web/docs/open_graph_images_api.json";
+const openGraphImageBlogManifestPath = "client/web/docs/open_graph_images_blog.json";
+const openGraphImageGuidesManifestPath = "client/web/docs/open_graph_images_guides.json";
+const openGraphImageSchemasManifestPath = "client/web/docs/open_graph_images_schemas.json";
 
 type DocumentationContentSourceFile = {
     relativePath: string;
@@ -83,30 +105,51 @@ async function main() {
     await fs.rm(outputDirectoryPath, {recursive: true, force: true});
 
     // Read the expensive source inputs once, then fan out to independent writers so
-    // Bazel sees one deterministic output tree for docs, API data, and search.
-    const [model, guideFiles, apiFiles, blogAuthors, blogFiles] = await runAllPromises([
+    // Bazel sees one output tree for docs, API data, and search.
+    const [model, guideFiles, apiFiles, blogFiles, imageDataBySource] = await runAllPromises([
         fs.readFile(specificationPath, "utf8").then(parseDocumentationApiModel),
         readContentFiles(guidesDirectoryPath, ""),
         readContentFiles(apiDirectoryPath, "").then(orderApiContentFiles),
-        readBlogAuthors(),
         readBlogPostFiles(),
+        readDocumentationImageDataBySource(),
     ]);
-    const blogPosts = await runAllPromises(blogFiles.map(createBlogPostPage));
+    const [blogAuthors, blogPosts] = await runAllPromises([
+        readBlogAuthors(imageDataBySource),
+        runAllPromises(blogFiles.map(file => createBlogPostPage(file, imageDataBySource))),
+    ]);
     blogPosts.sort(compareBlogPosts);
     assertUniqueBlogPostSlugs(blogPosts);
 
     await runAllPromises([
-        writeGuideArtifacts(guideFiles),
-        writeApiArtifacts(model, apiFiles),
+        writeGuideArtifacts(guideFiles, imageDataBySource),
+        writeApiArtifacts(model, apiFiles, imageDataBySource),
         writeBlogArtifacts(blogAuthors, blogPosts),
-        writeSearchMetadataArtifact({model, guideFiles, apiFiles, blogPosts}),
+        writeSearchMetadataArtifact({model, guideFiles, apiFiles, blogAuthors, blogPosts}),
+        writeOpenGraphImageManifestArtifact({
+            model,
+            guideFiles,
+            apiFiles,
+            blogAuthors,
+            blogPosts,
+        }),
+        writeDocumentationSitemapArtifact({
+            model,
+            guideFiles,
+            apiFiles,
+            blogFiles,
+            blogPosts,
+            imageDataBySource,
+        }),
     ]);
 }
 
 /**
  * Write generated guide navigation and compiled guide pages.
  */
-async function writeGuideArtifacts(files: Array<DocumentationContentSourceFile>): Promise<void> {
+async function writeGuideArtifacts(
+    files: Array<DocumentationContentSourceFile>,
+    imageDataBySource: Record<string, DocumentationImageData>,
+): Promise<void> {
     const navTree = parseDocumentationNavTree(
         files.map(file => ({relativePath: file.relativePath, title: navTitleForFile(file)})),
     );
@@ -124,7 +167,11 @@ async function writeGuideArtifacts(files: Array<DocumentationContentSourceFile>)
                 slug,
                 title: titleForFile(file),
                 description: descriptionForFile(file),
-                mdxCode: await compileMdxContent(file.body),
+                mdxCode: await compileMdxContent({
+                    body: file.body,
+                    imageDataBySource,
+                    sizes: "(max-width: 860px) calc(100vw - 48px), 768px",
+                }),
                 toc: extractDocumentationMdxToc(file.body),
             };
             await writePageJson(createDocumentationDocUrl(slug), page);
@@ -138,6 +185,7 @@ async function writeGuideArtifacts(files: Array<DocumentationContentSourceFile>)
 async function writeApiArtifacts(
     model: DocumentationApiModel,
     apiFiles: Array<DocumentationContentSourceFile>,
+    imageDataBySource: Record<string, DocumentationImageData>,
 ): Promise<void> {
     // API support pages are authored as MDX, but endpoint and schema pages come
     // directly from `api_model.json`; the nav ties both sources together.
@@ -150,7 +198,11 @@ async function writeApiArtifacts(
                 description: descriptionForFile(file),
                 url: isHome ? documentationApiHomeUrl : createDocumentationApiPageUrl(file.name),
                 isHome,
-                mdxCode: await compileMdxContent(file.body),
+                mdxCode: await compileMdxContent({
+                    body: file.body,
+                    imageDataBySource,
+                    sizes: "(max-width: 860px) calc(100vw - 48px), 900px",
+                }),
                 toc: extractDocumentationMdxToc(file.body),
             };
         }),
@@ -200,17 +252,120 @@ async function writeBlogArtifacts(
 }
 
 /**
+ * Write lightweight image inputs for the production-only Open Graph image build.
+ */
+async function writeOpenGraphImageManifestArtifact({
+    model,
+    guideFiles,
+    apiFiles,
+    blogAuthors,
+    blogPosts,
+}: {
+    model: DocumentationApiModel;
+    guideFiles: Array<DocumentationContentSourceFile>;
+    apiFiles: Array<DocumentationContentSourceFile>;
+    blogAuthors: BlogAuthorById;
+    blogPosts: Array<BlogPostContentData>;
+}): Promise<void> {
+    const guideNavTree = parseDocumentationNavTree(
+        guideFiles.map(file => ({relativePath: file.relativePath, title: navTitleForFile(file)})),
+    );
+    const guideFileByRelativePath = new Map(
+        guideFiles.map(file => [file.relativePath, file] as const),
+    );
+    const guideImages: Array<GeneratedDocumentationOpenGraphImage> = [];
+    const apiImages: Array<GeneratedDocumentationOpenGraphImage> = [];
+    const schemaImages: Array<GeneratedDocumentationOpenGraphImage> = [];
+    const blogImages: Array<GeneratedDocumentationOpenGraphImage> = [];
+
+    for (const [slug, relativePath] of Object.entries(guideNavTree.filePathBySlug)) {
+        const file = assertExists(guideFileByRelativePath.get(relativePath));
+        const description = descriptionForFile(file);
+        guideImages.push({
+            pageUrl: createDocumentationDocUrl(slug),
+            document: {
+                type: "Documentation",
+                title: titleForFile(file),
+                ...(description === null ? {} : {description}),
+            },
+        });
+    }
+
+    for (const [index, file] of apiFiles.entries()) {
+        const description = descriptionForFile(file);
+        apiImages.push({
+            pageUrl:
+                index === 0 ? documentationApiHomeUrl : createDocumentationApiPageUrl(file.name),
+            document: {
+                type: "APIReference",
+                title: titleForFile(file),
+                ...(description === null ? {} : {description}),
+            },
+        });
+    }
+
+    for (const operation of Object.values(model.operationsBySlug)) {
+        apiImages.push({
+            pageUrl: createDocumentationApiOperationUrl(operation.slug),
+            document: {
+                type: "APIReference",
+                title: operation.title,
+                method: operation.method,
+                ...(operation.description === null ? {} : {description: operation.description}),
+            },
+        });
+    }
+
+    for (const name of model.schemaNames) {
+        const description = assertExists(model.schemas[name]).description;
+        schemaImages.push({
+            pageUrl: createDocumentationApiSchemaUrl(name),
+            document: {
+                type: "APIReference",
+                title: name,
+                ...(description === undefined ? {} : {description}),
+            },
+        });
+    }
+
+    blogImages.push({
+        pageUrl: blogHomeUrl,
+        document: {type: "BlogHome", title: "Alpine Blog"},
+    });
+    for (const post of blogPosts) {
+        const author = blogAuthors[post.authorId];
+        blogImages.push({
+            pageUrl: createBlogPostUrl(post.slug),
+            document: {
+                type: "Blog",
+                title: post.title,
+                author: {name: author.name, avatarUrl: author.avatarUrl},
+            },
+        });
+    }
+
+    await runAllPromises([
+        writeStandaloneJsonFile(openGraphImageGuidesManifestPath, guideImages),
+        writeStandaloneJsonFile(openGraphImageApiManifestPath, apiImages),
+        writeStandaloneJsonFile(openGraphImageSchemasManifestPath, schemaImages),
+        writeStandaloneJsonFile(openGraphImageBlogManifestPath, blogImages),
+    ]);
+}
+
+/**
  * Write the prebuilt Fuse search index used by the docs search dialog.
  */
 async function writeSearchMetadataArtifact({
     model,
     guideFiles,
     apiFiles,
+    blogAuthors,
     blogPosts,
 }: {
     model: DocumentationApiModel;
     guideFiles: Array<DocumentationContentSourceFile>;
     apiFiles: Array<DocumentationContentSourceFile>;
+    blogAuthors: BlogAuthorById;
     blogPosts: Array<BlogPostContentData>;
 }): Promise<void> {
     const navTree = parseDocumentationNavTree(
@@ -241,13 +396,13 @@ async function writeSearchMetadataArtifact({
             type: "api",
             title: titleForFile(file),
             url: index === 0 ? documentationApiHomeUrl : createDocumentationApiPageUrl(file.name),
-            tags: tagsForFile(file),
+            tags: createDocumentationSearchTags({type: "api", tags: tagsForFile(file)}),
             ...(description !== null ? {description} : {}),
         });
     }
 
     for (const post of blogPosts) {
-        entries.push(toBlogSearchEntry(post));
+        entries.push(toBlogSearchEntry(post, blogAuthors));
     }
 
     for (const operation of Object.values(model.operationsBySlug)) {
@@ -255,7 +410,10 @@ async function writeSearchMetadataArtifact({
             type: "api",
             title: operation.title,
             url: createDocumentationApiOperationUrl(operation.slug),
-            tags: [...getApiMethodSearchTags(operation.method), operation.group.toLowerCase()],
+            tags: createDocumentationSearchTags({
+                type: "api",
+                tags: [...getApiMethodSearchTags(operation.method), operation.group.toLowerCase()],
+            }),
             description: operation.description ?? `${operation.method} ${operation.path}`,
         });
     }
@@ -263,14 +421,134 @@ async function writeSearchMetadataArtifact({
     await writeJsonFile("search_metadata.json", buildDocumentationSearchIndex(entries));
 }
 
+/** Write the documentation and blog contribution to Alpine's sitemap. */
+async function writeDocumentationSitemapArtifact({
+    model,
+    guideFiles,
+    apiFiles,
+    blogFiles,
+    blogPosts,
+    imageDataBySource,
+}: {
+    model: DocumentationApiModel;
+    guideFiles: Array<DocumentationContentSourceFile>;
+    apiFiles: Array<DocumentationContentSourceFile>;
+    blogFiles: Array<BlogPostSourceFile>;
+    blogPosts: Array<BlogPostContentData>;
+    imageDataBySource: Record<string, DocumentationImageData>;
+}): Promise<void> {
+    const guideNavTree = parseDocumentationNavTree(
+        guideFiles.map(file => ({relativePath: file.relativePath, title: navTitleForFile(file)})),
+    );
+    const blogFileBySlug = new Map(blogFiles.map(file => [slugForFile(file), file] as const));
+    const entries: Array<DocumentationSitemapEntry> = [];
+
+    // Blog dates come from authored metadata. Other documentation surfaces omit
+    // modification dates until they have an equally truthful authored source.
+    const blogLastModified = blogPosts.reduce(
+        (latest, post) => (post.modifiedDate > latest ? post.modifiedDate : latest),
+        "",
+    );
+
+    // Keep every public content root together immediately after Alpine's app-level
+    // sitemap entries. Deeper content is grouped by surface below.
+    entries.push(
+        {
+            pathname: blogHomeUrl,
+            lastModified: blogLastModified || null,
+            imageUrls: blogPosts
+                .map(post => post.previewImageData?.src ?? post.previewImage)
+                .filter((imageUrl): imageUrl is string => imageUrl !== null),
+        },
+        {
+            pathname: documentationHomeUrl,
+            lastModified: null,
+            imageUrls: [],
+        },
+        {
+            pathname: documentationApiHomeUrl,
+            lastModified: null,
+            imageUrls: [],
+        },
+    );
+
+    // `blogPosts` is already sorted by newest publish date in `main()`.
+    for (const post of blogPosts) {
+        const file = assertExists(blogFileBySlug.get(post.slug));
+        const imageSources = [post.previewImage, ...extractDocumentationImageSources(file.body)];
+        // Prefer cache-busted responsive sources while retaining remote or otherwise
+        // unprocessed image URLs exactly as authored.
+        const imageUrls = Array.from(
+            new Set(
+                imageSources
+                    .map(source =>
+                        source === null ? undefined : (imageDataBySource[source]?.src ?? source),
+                    )
+                    .filter((imageUrl): imageUrl is string => imageUrl !== undefined),
+            ),
+        );
+        entries.push({
+            pathname: createBlogPostUrl(post.slug),
+            lastModified: post.modifiedDate,
+            imageUrls,
+        });
+    }
+
+    for (const slug of Object.keys(guideNavTree.filePathBySlug)) {
+        entries.push({
+            pathname: createDocumentationDocUrl(slug),
+            lastModified: null,
+            imageUrls: [],
+        });
+    }
+    for (const file of apiFiles.slice(1)) {
+        entries.push({
+            pathname: createDocumentationApiPageUrl(file.name),
+            lastModified: null,
+            imageUrls: [],
+        });
+    }
+    for (const operation of Object.values(model.operationsBySlug)) {
+        entries.push({
+            pathname: createDocumentationApiOperationUrl(operation.slug),
+            lastModified: null,
+            imageUrls: [],
+        });
+    }
+    for (const schemaName of model.schemaNames) {
+        entries.push({
+            pathname: createDocumentationApiSchemaUrl(schemaName),
+            lastModified: null,
+            imageUrls: [],
+        });
+    }
+    await writeJsonFile("documentation_sitemap.json", {entries});
+}
+
+/** Extract local image destinations from authored Markdown image syntax. */
+function extractDocumentationImageSources(markdown: string): Array<string> {
+    return Array.from(markdown.matchAll(/!\[[^\]]*\]\(([^\s)]+)(?:\s+[^)]*)?\)/g), match =>
+        assertExists(match[1]),
+    );
+}
+
 /**
  * Compile MDX source into function-body code that Remix can evaluate at runtime.
  */
-async function compileMdxContent(body: string): Promise<string> {
+async function compileMdxContent({
+    body,
+    imageDataBySource,
+    sizes,
+}: {
+    body: string;
+    imageDataBySource: Record<string, DocumentationImageData>;
+    sizes: string;
+}): Promise<string> {
     const compiled = await compile(body, {
         outputFormat: "function-body",
         development: false,
         remarkPlugins: [remarkGfm],
+        rehypePlugins: [createDocumentationImageRehypePlugin({imageDataBySource, sizes})],
     });
     return String(compiled);
 }
@@ -290,6 +568,14 @@ async function writePageJson(url: string, value: unknown): Promise<void> {
 async function writeJsonFile(path: string, value: unknown): Promise<void> {
     await fs.mkdir(dirname(join(outputDirectoryPath, path)), {recursive: true});
     await fs.writeFile(join(outputDirectoryPath, path), `${JSON.stringify(value, null, 2)}\n`);
+}
+
+/**
+ * Write one declared output outside the generated documentation TreeArtifact.
+ */
+async function writeStandaloneJsonFile(path: string, value: unknown): Promise<void> {
+    await fs.mkdir(dirname(path), {recursive: true});
+    await fs.writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 /**
@@ -324,7 +610,8 @@ async function readContentFiles(
         if (entry.isDirectory()) {
             files.push(...(await readContentFiles(join(directoryPath, entry.name), relativePath)));
         } else if (entry.name.endsWith(".mdx")) {
-            const source = await fs.readFile(join(directoryPath, entry.name), "utf8");
+            const filePath = join(directoryPath, entry.name);
+            const source = await fs.readFile(filePath, "utf8");
             const {frontmatter, body} = splitDocumentationFrontmatter(source);
             const {name, order} = parseDocumentationOrderPrefix(entry.name.replace(/\.mdx$/, ""));
             files.push({relativePath, name, order, frontmatter, body});
@@ -337,7 +624,9 @@ async function readContentFiles(
 /**
  * Read and validate blog author configuration.
  */
-async function readBlogAuthors(): Promise<BlogAuthorById> {
+async function readBlogAuthors(
+    imageDataBySource: Record<string, DocumentationImageData>,
+): Promise<BlogAuthorById> {
     const value: unknown = JSON.parse(await fs.readFile(blogAuthorsPath, "utf8"));
     assert(isPlainObject(value), "Expected blog authors JSON object");
 
@@ -348,6 +637,7 @@ async function readBlogAuthors(): Promise<BlogAuthorById> {
         assert(typeof author.name === "string", `Expected blog author ${id} name`);
         assert(isPlainObject(author.socials), `Expected blog author ${id} socials`);
 
+        const avatarUrl = `/blog/authors/${id}.avif`;
         authors[id] = {
             id,
             name: author.name,
@@ -357,7 +647,11 @@ async function readBlogAuthors(): Promise<BlogAuthorById> {
                 linkedin: nullableString(author.socials.linkedin),
                 email: nullableString(author.socials.email),
             },
-            avatarUrl: `/blog/authors/${id}.avif`,
+            avatarUrl,
+            avatarImage: assertExists(
+                imageDataBySource[avatarUrl],
+                `Expected responsive avatar image for ${id}`,
+            ),
         };
     }
 
@@ -375,7 +669,8 @@ async function readBlogPostFiles(): Promise<Array<BlogPostSourceFile>> {
         const extension = extname(entry.name);
         if (extension !== ".md" && extension !== ".mdx") continue;
 
-        const source = await fs.readFile(join(blogDirectoryPath, entry.name), "utf8");
+        const filePath = join(blogDirectoryPath, entry.name);
+        const source = await fs.readFile(filePath, "utf8");
         const {frontmatter, body} = splitDocumentationFrontmatter(source);
         files.push({
             sourceName: entry.name,
@@ -390,21 +685,32 @@ async function readBlogPostFiles(): Promise<Array<BlogPostSourceFile>> {
 /**
  * Compile a blog post from frontmatter and MDX body.
  */
-async function createBlogPostPage(file: BlogPostSourceFile): Promise<BlogPostContentData> {
+async function createBlogPostPage(
+    file: BlogPostSourceFile,
+    imageDataBySource: Record<string, DocumentationImageData>,
+): Promise<BlogPostContentData> {
     const slug = slugForFile(file);
     const authorId = stringFrontmatter(file, "author");
     assert(isBlogAuthorId(authorId), `Expected valid author for ${file.sourceName}`);
 
+    const publishDate = publishDateForFile(file);
+    const previewImage = stringFrontmatter(file, "previewImage");
     return {
         slug,
         title: stringFrontmatter(file, "title") ?? humanizeBlogSlug(slug),
         summary: stringFrontmatter(file, "summary") ?? "",
-        publishDate: publishDateForFile(file),
+        publishDate,
+        modifiedDate: modifiedDateForFile(file, publishDate),
         authorId,
         tags: tagsForFile(file),
-        heroImage: stringFrontmatter(file, "heroImage"),
-        heroImageAlt: stringFrontmatter(file, "heroImageAlt"),
-        mdxCode: await compileMdxContent(file.body),
+        previewImage,
+        previewImageData: previewImage === null ? null : (imageDataBySource[previewImage] ?? null),
+        previewImageAlt: stringFrontmatter(file, "previewImageAlt"),
+        mdxCode: await compileMdxContent({
+            body: file.body,
+            imageDataBySource,
+            sizes: "(max-width: 868px) calc(100vw - 48px), 820px",
+        }),
     };
 }
 
@@ -449,12 +755,23 @@ function tagsForFile(file: {frontmatter: {[key: string]: unknown}}): Array<strin
  * Read and validate a blog post publish date from frontmatter.
  */
 function publishDateForFile(file: BlogPostSourceFile): string {
-    const publishDate = stringFrontmatter(file, "publishDate");
-    assert(
-        publishDate !== null && /^\d{4}-\d{2}-\d{2}$/.test(publishDate),
-        `Expected publishDate YYYY-MM-DD for ${file.sourceName}`,
-    );
-    return publishDate;
+    return parseBlogPostDate({
+        value: file.frontmatter.publishDate,
+        fieldName: "publishDate",
+        sourceName: file.sourceName,
+    });
+}
+
+/**
+ * Read an authored modified date or deterministically fall back to publication.
+ */
+function modifiedDateForFile(file: BlogPostSourceFile, publishDate: string): string {
+    const modifiedDate = parseBlogPostDate({
+        value: file.frontmatter.modifiedDate ?? publishDate,
+        fieldName: "modifiedDate",
+        sourceName: file.sourceName,
+    });
+    return `${modifiedDate}T00:00:00.000Z`;
 }
 
 /**
@@ -479,11 +796,22 @@ function toBlogPostListItem(post: BlogPostContentData): BlogPostListItem {
         title: post.title,
         summary: post.summary,
         publishDate: post.publishDate,
+        modifiedDate: post.modifiedDate,
         authorId: post.authorId,
         tags: post.tags,
-        heroImage: post.heroImage,
-        heroImageAlt: post.heroImageAlt,
+        previewImage: post.previewImage,
+        previewImageData: post.previewImageData,
+        previewImageAlt: post.previewImageAlt,
     };
+}
+
+/** Load the image build's source-to-srcset manifest. */
+async function readDocumentationImageDataBySource(): Promise<
+    Record<string, DocumentationImageData>
+> {
+    return parseDocumentationImageDataBySource(
+        JSON.parse(await fs.readFile(responsiveDocumentationImageManifestPath, "utf8")),
+    );
 }
 
 /**
@@ -524,12 +852,19 @@ function toBlogPostAdjacentArticle(
 /**
  * Convert a blog post into a shared documentation search record.
  */
-function toBlogSearchEntry(post: BlogPostContentData): DocumentationSearchEntry {
+function toBlogSearchEntry(
+    post: BlogPostContentData,
+    authors: BlogAuthorById,
+): DocumentationSearchEntry {
     return {
         type: "blog",
         title: post.title,
         url: createBlogPostUrl(post.slug),
-        tags: post.tags,
+        tags: createDocumentationSearchTags({
+            type: "blog",
+            authorName: authors[post.authorId].name,
+            tags: post.tags,
+        }),
         description: post.summary,
     };
 }

@@ -602,3 +602,32 @@ index f7bffd3fcf98d820e2dcdaa533961b84d524b689..a9a5ba2d3e6f1fb08bbfcf9f03a9200e
  }
  /**
   * Properties for GithubWebhookHandler
+diff --git a/lib/image-builders/aws-image-builder/builder.js b/lib/image-builders/aws-image-builder/builder.js
+index 630f7c7ba426af88390efc153b548283a933680d..c8a5250e967498d921e20e220f1d196f754bcb4a 100644
+--- a/lib/image-builders/aws-image-builder/builder.js
++++ b/lib/image-builders/aws-image-builder/builder.js
+@@ -71,11 +71,19 @@ class ImageBuilderComponent extends common_1.ImageBuilderObjectBase {
+                     throw new Error(`Unknown asset type: ${asset.asset}`);
+                 }
+             }
+-            steps.push({
+-                name: 'Download',
+-                action: 'S3Download',
+-                inputs,
+-            });
++            // PATCH(rmtobin): AWS Image Builder's `awstoe` now rejects an
++            // `S3Download` action with an empty `inputs` block ("Action
++            // S3Download has no inputs; it requires an 'inputs' block"). A
++            // component with no assets (e.g. `requiredPackages`) still enters
++            // this branch because `props.assets` is a truthy empty array, so
++            // only emit the download step when it actually has inputs.
++            if (inputs.length > 0) {
++                steps.push({
++                    name: 'Download',
++                    action: 'S3Download',
++                    inputs,
++                });
++            }
+             if (extractCommands.length > 0) {
+                 steps.push({
+                     name: 'Extract',

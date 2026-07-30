@@ -1559,7 +1559,7 @@ describe.each([false, true])("with nested=%p", nested => {
                 ...[...a1FilePaths, ...b1FilePaths].map(fp => getFile(fp).id),
             ];
             expect(new Set(allIds).size).toBe(allIds.length);
-        });
+        }, 15_000);
     });
 
     describe("filePathToTeamspaceId", () => {

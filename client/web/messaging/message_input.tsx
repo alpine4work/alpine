@@ -66,7 +66,11 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
-import {MessageDraftSurface} from "~/shared/messaging/message_draft_surface.js";
+import {
+    MessageDraftSurface,
+    MessageDraftSurfaceKey,
+    getMessageDraftSurfaceKey,
+} from "~/shared/messaging/message_draft_surface.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -100,7 +104,6 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     parent: MessageContentPayloadParent | null;
     messageDraft?: MessageDraft | MessageDraftWithFiles;
     messageDraftSurface?: MessageDraftSurface;
-    onMessageDraftChange?: (draft: MessageDraft) => void;
     onParentClear: () => void;
     onParentChange?: (parent: MessageContentPayloadParent | null) => void;
     onJumpToMessageRange: (options: JumpToMessageRangeOptions<RoomKey>) => void;
@@ -169,7 +172,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         parent: parentWithoutMessages,
         messageDraft,
         messageDraftSurface,
-        onMessageDraftChange,
         onParentClear,
         onParentChange,
         onJumpToMessageRange,
@@ -288,38 +290,58 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         isDisabled: messageEditingForThisInput !== null,
         shouldFlushOnUnmount: shouldFlushDraftOnUnmount ?? !restoreStateRef,
         draftContentWriteDebounceMs,
-        onDraftChange: onMessageDraftChange,
     });
 
     const lastAppliedServerDraftRef = useRef<MessageDraftWithFiles | null>(
         resolvedServerDraft ?? null,
     );
-    const messageDraftWithSyncedParentRef = useRef<MessageDraft | MessageDraftWithFiles | null>(
-        null,
-    );
 
-    // Restores a server draft's reply target into parent-owned state. Drafts persist
-    // `parent`, but the "Replying to…" UI is driven by the `parent` prop from
-    // `<PostListView>` or `<MessagingView>`. Sync before paint so the reply banner
-    // appears with the restored draft instead of after a flash.
+    const messageDraftSurfaceKey: MessageDraftSurfaceKey | "NoSurface" = messageDraftSurface
+        ? getMessageDraftSurfaceKey(messageDraftSurface)
+        : "NoSurface";
+
+    // A server draft's reply target is initial data for the "Replying to…" UI, which
+    // is driven by parent-owned state (e.g. `inputParentByPostId` in `<PostListView>`
+    // or `inputParent` in `<MessagingView>`). A draft may write its reply target into
+    // that state at most once per draft surface: either on mount the draft hydrates it
+    // below, or a draft applied later (e.g. delivered by a loader revalidation)
+    // carries it through `applyServerMessageDraftToInputState()`. After that one
+    // reconciliation, a draft can never write a reply target again, so a reply target
+    // the user cleared (for example by sending the message) can't resurrect from a
+    // resaved or revalidated draft. A restore stash means the input mounted before and
+    // this surface was already reconciled then.
+    const hasReconciledMountDraftParentRef = useRef(false);
+    const hasReconciledDraftParentForSurfaceRef = useRef<
+        MessageDraftSurfaceKey | "NoSurface" | null
+    >(restoreStateRef?.current ? messageDraftSurfaceKey : null);
+
+    // Restores the initial draft's reply target into parent-owned state. Uses a layout
+    // effect so the reply banner appears with the restored draft instead of after a
+    // flash.
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!messageDraft?.parent) return;
         if (messageEditingForThisInput) return;
+        if (!messageDraft) return;
 
-        if (parentWithoutMessages) {
-            // If the draft's parent and the current parent are the same, we've already
-            // reconciled this draft so don't apply it again.
-            if (isDeepEqual(parentWithoutMessages, messageDraft.parent)) {
-                messageDraftWithSyncedParentRef.current = messageDraft;
-            }
-            return;
-        }
+        if (hasReconciledMountDraftParentRef.current) return;
+        hasReconciledMountDraftParentRef.current = true;
 
-        if (messageDraftWithSyncedParentRef.current === messageDraft) return;
+        if (!messageDraft.parent) return;
 
-        messageDraftWithSyncedParentRef.current = messageDraft;
+        if (hasReconciledDraftParentForSurfaceRef.current === messageDraftSurfaceKey) return;
+        hasReconciledDraftParentForSurfaceRef.current = messageDraftSurfaceKey;
+
+        // Parent-owned state wins when it's already set (for example, a reply target
+        // restored from the route's search params).
+        if (parentWithoutMessages) return;
+
         onParentChange?.(messageDraft.parent);
-    }, [messageDraft, messageEditingForThisInput, onParentChange, parentWithoutMessages]);
+    }, [
+        messageDraft,
+        messageDraftSurfaceKey,
+        messageEditingForThisInput,
+        onParentChange,
+        parentWithoutMessages,
+    ]);
 
     // Applies a server draft to the input once file hydration completes. Uses a layout
     // effect so restored draft content/files paint before the browser draws.
@@ -406,7 +428,13 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     draftSyncState: result.draftSyncState,
                 }));
 
-                if (result.parentToApply) onParentChange?.(result.parentToApply);
+                if (
+                    result.parentToApply &&
+                    hasReconciledDraftParentForSurfaceRef.current !== messageDraftSurfaceKey
+                ) {
+                    hasReconciledDraftParentForSurfaceRef.current = messageDraftSurfaceKey;
+                    onParentChange?.(result.parentToApply);
+                }
                 break;
             default:
                 throw exhaustive(result);
@@ -418,6 +446,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         hasLocalDraftContent,
         inputFileIds,
         inputState,
+        messageDraftSurfaceKey,
         messageEditingForThisInput,
         onParentChange,
         parentWithoutMessages,

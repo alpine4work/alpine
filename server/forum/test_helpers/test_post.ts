@@ -18,7 +18,7 @@ import {
     deletePostComment,
     deletePostCommentReaction,
     getPostComment,
-    putPostCommentStreamPart,
+    putPostCommentStreamPartAndBroadcastEvent,
     setPostCommentReaction,
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
@@ -316,7 +316,7 @@ export class TestPost extends TestCommentRoomBase {
             payload: MessageStreamPartPayload;
         },
     ) {
-        await putPostCommentStreamPart(context, {
+        await putPostCommentStreamPartAndBroadcastEvent(context, {
             postId: this.id,
             commentIndex: messageIndex,
             partIndex,

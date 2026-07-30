@@ -2,6 +2,11 @@ import {Node, ResolvedPos} from "prosemirror-model";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {getContentSnippetPos} from "~/shared/content/get_content_snippet.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {getDocumentCommentThreadSnippetAtPos} from "~/shared/documents/get_document_comment_thread_snippet_at_pos.js";
+import type {
+    DocumentCommentThreadSnippet,
+    DocumentCommentThreadSnippetOptions,
+} from "~/shared/documents/get_document_comment_thread_snippet_at_pos.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -53,13 +58,10 @@ export function createDocumentCommentThreadSnippetCollector(
 
         return new Map(
             mapIterable(resolvedPosByCommentThreadId, ([commentThreadId, resolvedPos]) => {
-                // Enough lines to fill a document comment thread preview component.
-                const snippetPos = getContentSnippetPos(resolvedPos, {
-                    linesAbove: 2,
-                    linesBelow: 8,
-                });
-
-                return [commentThreadId, cutContent(doc, snippetPos.from, snippetPos.to)];
+                return [
+                    commentThreadId,
+                    getDocumentCommentThreadSnippetAtPos(doc, resolvedPos.pos),
+                ];
             }),
         );
     };

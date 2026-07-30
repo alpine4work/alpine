@@ -373,9 +373,9 @@ export class DocumentCollaborationConnection {
             }),
 
         updateContent: (context, input) => {
-            const expectedAccessLevel = getExpectedAccessLevelForUpdateDocumentContentSteps(
-                input.steps,
-            );
+            const expectedAccessLevel: AccessLevel = input.intentionallyUpdateDeletedTime
+                ? "Manage"
+                : getExpectedAccessLevelForUpdateDocumentContentSteps(input.steps);
 
             if (!hasAccessLevel(this.accessLevel, expectedAccessLevel)) {
                 throw new PermissionDeniedError("Can\u2019t update document", {
@@ -412,9 +412,9 @@ export class DocumentCollaborationConnection {
         },
 
         updateContentWithoutOptimisticBroadcast: (context, input) => {
-            const expectedAccessLevel = getExpectedAccessLevelForUpdateDocumentContentSteps(
-                input.steps,
-            );
+            const expectedAccessLevel: AccessLevel = input.intentionallyUpdateDeletedTime
+                ? "Manage"
+                : getExpectedAccessLevelForUpdateDocumentContentSteps(input.steps);
 
             if (!hasAccessLevel(this.accessLevel, expectedAccessLevel)) {
                 throw new PermissionDeniedError("Can\u2019t update document", {
@@ -772,6 +772,7 @@ export class DocumentCollaborationConnection {
                 clientId: generateId(),
                 createCommentThreads: [],
                 intentionallyUpdateAccessPolicy: null,
+                intentionallyUpdateDeletedTime: null,
                 resolveCommentThreadIds: [commentThreadId],
                 updateOurPresenceState: {state: null},
             });
@@ -831,6 +832,7 @@ export class DocumentCollaborationConnection {
                 clientId: generateId(),
                 createCommentThreads: [],
                 intentionallyUpdateAccessPolicy: null,
+                intentionallyUpdateDeletedTime: null,
                 unresolveCommentThreadIds: [commentThreadId],
                 updateOurPresenceState: {state: null},
             });

@@ -162,22 +162,22 @@ export async function createFileAttachmentTarget(
 }
 
 /**
- * Get the uploader account ID for a file, verifying it exists in the given space.
+ * Get a file and its uploader account ID, verifying it exists in the given space.
  * Returns `null` if the file doesn't exist or belongs to a different space. Used
- * by bot file attachment to decide whether the bot uploaded the file or needs to
- * prove access through an existing attachment.
+ * by bot file attachment so the authorization read can also supply the file data
+ * needed by the caller.
  */
-export async function getFileUploaderIdIfExists(
+export async function getFileWithUploaderIdIfExists(
     context: ServerActionContext,
     fileId: FileId,
     spaceId: SpaceId,
-): Promise<AccountId | null> {
+): Promise<{file: FileModel; uploaderId: AccountId} | null> {
     const item = await getFileItemIfExistsWithCache(context, fileId, {
         consistency: "StrongWithinCache",
     });
     if (!item) return null;
     if (item.spaceId !== spaceId) return null;
-    return item.uploaderId;
+    return {file: createFileModelFromItem(item), uploaderId: item.uploaderId};
 }
 
 /**

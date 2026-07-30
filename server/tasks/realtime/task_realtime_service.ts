@@ -404,17 +404,37 @@ export async function run({
                 }
 
                 const consistencySearchParam = url.searchParams.get("consistency");
+                const dangerouslyAllowDeletedSearchParam =
+                    url.searchParams.get("dangerouslyAllowDeleted");
 
                 let consistency: DynamoCacheReadConsistency = "Eventual";
 
                 if (consistencySearchParam !== null) {
                     switch (consistencySearchParam) {
+                        case "Eventual":
                         case "Strong":
                         case "StrongWithinCache":
                             consistency = consistencySearchParam;
                             break;
                         default:
                             throw new InvalidArgumentError("Invalid `consistency` search param");
+                    }
+                }
+
+                let dangerouslyAllowDeleted = false;
+
+                if (dangerouslyAllowDeletedSearchParam !== null) {
+                    switch (dangerouslyAllowDeletedSearchParam) {
+                        case "true":
+                            dangerouslyAllowDeleted = true;
+                            break;
+                        case "false":
+                            dangerouslyAllowDeleted = true;
+                            break;
+                        default:
+                            throw new InvalidArgumentError(
+                                "Invalid `dangerouslyAllowDeleted` search param",
+                            );
                     }
                 }
 
@@ -429,6 +449,7 @@ export async function run({
                             spaceId,
                             taskId: route.taskId,
                             consistency,
+                            dangerouslyAllowDeleted,
                         });
                     },
                 );
@@ -449,17 +470,37 @@ export async function run({
                 }
 
                 const consistencySearchParam = url.searchParams.get("consistency");
+                const dangerouslyAllowDeletedSearchParam =
+                    url.searchParams.get("dangerouslyAllowDeleted");
 
                 let consistency: DynamoCacheReadConsistency = "Eventual";
 
                 if (consistencySearchParam !== null) {
                     switch (consistencySearchParam) {
+                        case "Eventual":
                         case "Strong":
                         case "StrongWithinCache":
                             consistency = consistencySearchParam;
                             break;
                         default:
                             throw new InvalidArgumentError("Invalid `consistency` search param");
+                    }
+                }
+
+                let dangerouslyAllowDeleted = false;
+
+                if (dangerouslyAllowDeletedSearchParam !== null) {
+                    switch (dangerouslyAllowDeletedSearchParam) {
+                        case "true":
+                            dangerouslyAllowDeleted = true;
+                            break;
+                        case "false":
+                            dangerouslyAllowDeleted = true;
+                            break;
+                        default:
+                            throw new InvalidArgumentError(
+                                "Invalid `dangerouslyAllowDeleted` search param",
+                            );
                     }
                 }
 
@@ -472,6 +513,7 @@ export async function run({
                             spaceId,
                             collectionId: route.collectionId,
                             consistency,
+                            dangerouslyAllowDeleted,
                         });
                     },
                 );

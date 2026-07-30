@@ -19,7 +19,7 @@ import {
     pingChatMessageStream,
     processSendShareNotificationJob,
     putChatMessageApprovalDecisions,
-    putChatMessageStreamPart,
+    putChatMessageStreamPartAndBroadcastEvent,
     sendChatMessage,
     setChatMessageReaction,
     updateChatMessageContent,
@@ -4493,7 +4493,7 @@ testMessagingImplementation<ChatId>(context, {
         context,
         {roomKey: chatId, messageIndex, partIndex, payload, isTimeoutErrorCompletion},
     ) {
-        return await putChatMessageStreamPart(context, {
+        return await putChatMessageStreamPartAndBroadcastEvent(context, {
             chatId,
             messageIndex,
             partIndex,

@@ -13,6 +13,7 @@ ts_project(
     ),
     deps = [
         "//:node_modules/pretty-bytes",
+        "//app/static:static_cache_control",
         "//app/static:static_manifest",
         "//server/cloudflare",
         "//server/helpers",

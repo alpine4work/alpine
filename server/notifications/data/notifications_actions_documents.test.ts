@@ -819,6 +819,50 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
+        test("will mark document as deleted in inbox entry when document is soft-deleted", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const document = await TestDocument.create(session1, {title: "foo"});
+            await document.access.grant(session1, session2);
+
+            await document.type(session1, "Hello, ");
+            const {range} = await document.type(session1, "world");
+            await document.type(session1, "!");
+
+            const commentThread = await document.createCommentThread(session2, range, "bar");
+
+            const comment2 = await commentThread.createComment(session1, "baz");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session2,
+                    commentThread,
+                    latestComment: {
+                        comment: comment2,
+                        contentTextSnippet: "baz",
+                    },
+                }),
+            ]);
+
+            await document.delete(session1);
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session2,
+                    isDocumentPrivate: true,
+                    isDocumentDeleted: true,
+                    commentThread,
+                    latestComment: {
+                        comment: comment2,
+                        contentTextSnippet: "",
+                    },
+                }),
+            ]);
+        });
+
         test("will hide document title if account loses access to document when mentioned in comment", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);

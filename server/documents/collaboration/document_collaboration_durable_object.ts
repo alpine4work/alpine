@@ -1,3 +1,4 @@
+import {AddMarkStep, AddNodeMarkStep} from "prosemirror-transform";
 import {
     WorkerActionContext,
     WorkerSessionActionContext,
@@ -20,7 +21,10 @@ import {
     hasAccessLevel,
     isAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {getApiContentRange} from "~/shared/api/content/get_api_content_range.js";
 import {
+    DocumentCollaborationCreateCommentThreadForApiRequestBodySchema,
+    DocumentCollaborationCreateCommentThreadForApiResponseBodySchema,
     DocumentCollaborationProtocol,
     DocumentCollaborationSetCommentThreadResolvedRequestBodySchema,
     DocumentCollaborationSetCommentThreadResolvedResponseBodySchema,
@@ -31,22 +35,27 @@ import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
+import {getDocumentCommentThreadSnippetAtPos} from "~/shared/documents/get_document_comment_thread_snippet_at_pos.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {
     AccountId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {
@@ -55,6 +64,8 @@ import {
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -64,6 +75,7 @@ import {
     getDocumentContentForCollaborationServiceInitialization,
     getResolvedDocumentCommentThreadRanges,
 } from "~/shared/rpc/documents_rpc_definitions.js";
+import {getFileWithoutSignedUrlFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -78,6 +90,7 @@ type DocumentCollaborationDurableObjectRoute =
     | {type: "SetCommentThreadResolved"; commentThreadId: DocumentCommentThreadId}
     | {type: "UpdateContentWithDiff"}
     | {type: "UpdateContentWithoutOptimisticBroadcast"}
+    | {type: "CreateCommentThreadForApi"}
     | {type: "ResetForTest"};
 
 class DocumentCollaborationDurableObject {
@@ -307,6 +320,10 @@ class DocumentCollaborationDurableObject {
                 "/update-content-without-optimistic-broadcast",
                 {type: "UpdateContentWithoutOptimisticBroadcast"},
             ];
+        }
+
+        if (url.pathname === "/create-comment-thread-for-api") {
+            return ["/create-comment-thread-for-api", {type: "CreateCommentThreadForApi"}];
         }
 
         if (url.pathname === "/reset-for-test") {
@@ -639,6 +656,7 @@ class DocumentCollaborationDurableObject {
                                 clientId: generateId(),
                                 createCommentThreads: [],
                                 intentionallyUpdateAccessPolicy: null,
+                                intentionallyUpdateDeletedTime: null,
                                 updateOurPresenceState: {state: null},
                                 validationPromise: authorizationPromise,
                             });
@@ -713,6 +731,228 @@ class DocumentCollaborationDurableObject {
                     ),
                     {status: 200},
                 );
+            }
+            case "CreateCommentThreadForApi": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                try {
+                    const accountContext = context.actor.authorizeAccount();
+
+                    const requestBody =
+                        DocumentCollaborationCreateCommentThreadForApiRequestBodySchema.deserialize(
+                            await request.json(),
+                        );
+
+                    const authorizationPromise = authorizeDocumentAccess(accountContext, {
+                        documentId: this._contentManager.id,
+                        expectedAccessLevel: "Comment",
+                    });
+
+                    const [authorizationResult, apiContentRangeResult] = await runAllPromises([
+                        captureResultPromise(authorizationPromise),
+                        captureResultPromise(
+                            getApiContentRange({
+                                entityId: `Document:${this.id}`,
+                                latestVersion: this._contentManager.getCurrentVersion(),
+                                range: requestBody.range,
+                                getContentAtVersion: version =>
+                                    this._contentManager.getContentAtVersion(
+                                        accountContext,
+                                        version,
+                                    ),
+                            }),
+                        ),
+                    ]);
+                    if (!authorizationResult.ok) throw authorizationResult.error;
+                    if (!apiContentRangeResult.ok) throw apiContentRangeResult.error;
+                    const apiContentRange = apiContentRangeResult.value;
+                    const commentRange = trimSpacesFromProsemirrorRange(
+                        apiContentRange.contentAtVersion,
+                        apiContentRange,
+                    );
+                    const selectedContent = apiContentRange.contentAtVersion.textBetween(
+                        commentRange.from,
+                        commentRange.to,
+                        "",
+                        "\uFFFC",
+                    );
+
+                    if (
+                        commentRange.from >= commentRange.to ||
+                        (!selectedContent.includes("\uFFFC") && !/\S/u.test(selectedContent))
+                    ) {
+                        throw new InvalidArgumentError(
+                            "Item target range must include at least one non-space character",
+                            {
+                                displayMessage: errorDisplayMessage`Item target range must include at least one non-space character.`,
+                            },
+                        );
+                    }
+
+                    const commentThreadId = generateId<DocumentCommentThreadId>();
+                    const commentMark = DocumentContentProsemirrorSchema.marks.comment.create({
+                        commentThreadId,
+                    });
+
+                    // A target range can contain both inline content and markable leaf nodes such as
+                    // files. `AddMarkStep` marks all inline descendants, but ProseMirror requires a
+                    // separate `AddNodeMarkStep` for each leaf node that is completely enclosed by the
+                    // range.
+                    const commentSteps: Array<AddMarkStep | AddNodeMarkStep> = [];
+                    let hasInlineContent = false;
+
+                    apiContentRange.contentAtVersion.nodesBetween(
+                        commentRange.from,
+                        commentRange.to,
+                        (node, pos) => {
+                            if (node.isInline) hasInlineContent = true;
+
+                            if (
+                                !node.isInline &&
+                                node.isLeaf &&
+                                node.type.allowsMarkType(commentMark.type) &&
+                                commentRange.from <= pos &&
+                                pos + node.nodeSize <= commentRange.to
+                            ) {
+                                commentSteps.push(new AddNodeMarkStep(pos, commentMark));
+                            }
+                        },
+                    );
+
+                    if (hasInlineContent) {
+                        // Mark steps do not move document positions, so the inline and node steps can all
+                        // use coordinates from the requested version.
+                        commentSteps.unshift(
+                            new AddMarkStep(commentRange.from, commentRange.to, commentMark),
+                        );
+                    }
+
+                    const {
+                        newVersion,
+                        newContent: newDocumentContent,
+                        steps,
+                        createdCommentThreadTime,
+                        persistencePromise,
+                    } = await this._contentManager.update(accountContext, null, {
+                        version: apiContentRange.version,
+                        steps: commentSteps,
+                        documentContent: apiContentRange.contentAtVersion,
+                        clientId: generateId(),
+                        createCommentThreads: [
+                            {
+                                commentThreadId,
+                                createdTimeZone: requestBody.createdTimeZone,
+                                initialCommentContent: requestBody.content,
+                                initialCommentFileIds: requestBody.fileIds,
+                                attachInitialCommentFilesAsBot: true,
+                            },
+                        ],
+                        intentionallyUpdateAccessPolicy: null,
+                        intentionallyUpdateDeletedTime: null,
+                        updateOurPresenceState: {state: null},
+                        validationPromise: authorizationPromise,
+                    });
+
+                    await persistencePromise;
+                    assert(createdCommentThreadTime !== null);
+
+                    const fileIds = new Set(
+                        requestBody.fileIds.filter((fileId): fileId is FileId => isId(fileId)),
+                    );
+                    const files = await runAllPromises(
+                        Array.from(fileIds, async fileId => {
+                            const {file} = await getFileWithoutSignedUrlFromAttachment(
+                                accountContext,
+                                {
+                                    fileId,
+                                    target: {
+                                        type: "DocumentComments",
+                                        documentId: this.id,
+                                    },
+                                },
+                            );
+                            return file;
+                        }),
+                    );
+
+                    const authorId = accountContext.actor.getPossiblyBotAccountId();
+                    const commentThread = {
+                        spaceId: this.spaceId,
+                        id: commentThreadId,
+                        createdTime: createdCommentThreadTime,
+                        isResolved: false,
+                        commentCount: 1,
+                        firstCommentAuthorId: authorId,
+                        fallbackContentSnippet: null,
+                    };
+                    const message = {
+                        index: 0,
+                        version: 0,
+                        createdTime: createdCommentThreadTime,
+                        createdTimeZone: requestBody.createdTimeZone,
+                        authorId,
+                        payload: {
+                            type: "Content" as const,
+                            parent: null,
+                            content: requestBody.content,
+                            contentUpdate: null,
+                            fileIds: requestBody.fileIds,
+                            reactionsByPos: emptyMap,
+                            filesReactions: emptyReactionSet,
+                        },
+                        stream: null,
+                    };
+                    const appliedCommentStep = steps[0];
+                    assert(appliedCommentStep);
+                    let appliedCommentPos: number;
+                    if (appliedCommentStep instanceof AddNodeMarkStep) {
+                        appliedCommentPos = appliedCommentStep.pos;
+                    } else {
+                        assert(appliedCommentStep instanceof AddMarkStep);
+                        appliedCommentPos = appliedCommentStep.from;
+                    }
+                    const documentContentSnippet = getDocumentCommentThreadSnippetAtPos(
+                        newDocumentContent,
+                        appliedCommentPos,
+                        {wholeTextBlocks: true},
+                    );
+
+                    return new Response(
+                        JSON.stringify(
+                            DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.serialize(
+                                {
+                                    ok: true,
+                                    newVersion,
+                                    commentThreadId,
+                                    commentThread,
+                                    documentContentSnippet,
+                                    files,
+                                    message,
+                                },
+                            ),
+                        ),
+                        {status: 200, headers: {"content-type": "application/json"}},
+                    );
+                } catch (error) {
+                    span.addException(error);
+
+                    return new Response(
+                        JSON.stringify(
+                            DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.serialize(
+                                {ok: false, error},
+                            ),
+                        ),
+                        {
+                            status: isSystemError(error) ? 500 : 200,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                }
             }
             case "ResetForTest": {
                 // Integration tests mutate document content directly in the database (e.g. adding

@@ -18,14 +18,15 @@
  * 2. markdown pages whose only a TAG matched\
  * 3. API docs (always last), title matches before tag matches
  *
- * Page tags come from the `tags:` frontmatter (comma separated). API tags\
- * are codegened from the HTTP method (POST → "create", PATCH → "update",\
- * …) so "create document" finds `POST /documents` even though the title is\
- * "Create document".
+ * Page tags come from the `tags:` frontmatter (comma separated). Blog posts\
+ * automatically include "blog" and their author's name. API entries include\
+ * "api", with endpoint tags also codegened from the HTTP method (POST →\
+ * "create", PATCH → "update", …).
  */
 
 import _Fuse from "fuse.js";
 import {DocumentationApiMethod} from "~/client/web/docs/documentation_api_model.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -38,8 +39,7 @@ export type DocumentationSearchEntry = {
     title: string;
     url: string;
     /**
-     * Extra search terms that match this entry but are never shown in the UI. Page
-     * tags come from `tags:` frontmatter; API tags are codegened from the HTTP method.
+     * Extra search terms that match this entry but are never shown in the UI.
      */
     tags: Array<string>;
     /**
@@ -74,6 +74,39 @@ const documentationSearchFuseOptions = {
     threshold: 0.2,
     keys: documentationSearchFuseKeys,
 };
+
+/**
+ * Add required surface and author tags while preserving authored search tags.
+ */
+export function createDocumentationSearchTags(
+    options:
+        | {type: "api"; tags: ReadonlyArray<string>}
+        | {type: "blog"; authorName: string; tags: ReadonlyArray<string>},
+): Array<string> {
+    let automaticTags;
+    switch (options.type) {
+        case "api":
+            automaticTags = ["api"];
+            break;
+        case "blog":
+            automaticTags = ["blog", options.authorName];
+            break;
+        default:
+            throw exhaustive(options);
+    }
+
+    const normalizedTags = new Set<string>();
+    const tags: Array<string> = [];
+    for (const tag of [...automaticTags, ...options.tags]) {
+        // Preserve the first tag's display casing and ordering while treating
+        // differently-cased authored tags as duplicates.
+        const normalizedTag = tag.toLocaleLowerCase();
+        if (normalizedTags.has(normalizedTag)) continue;
+        normalizedTags.add(normalizedTag);
+        tags.push(tag);
+    }
+    return tags;
+}
 
 /**
  * Build the generated client-side Fuse index for docs search.

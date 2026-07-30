@@ -2,11 +2,12 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
     createFileAttachmentTarget,
-    getFileUploaderIdIfExists,
+    getFileWithUploaderIdIfExists,
 } from "~/server/files/data/files_actions.js";
 import {getFileFromAnyAttachment} from "~/server/files/data/get_file_from_any_attachment.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -23,16 +24,20 @@ export async function attachFileToTargetAsBot(
     context: ServerActionContext,
     fileId: FileId,
     targetAuthorizer: FileAuthorizer,
-): Promise<void> {
+): Promise<FileModel> {
     if (context.actor.type !== "Bot") {
         throw new PermissionDeniedError("Only bot actors can attach files to targets", {
             displayMessage: errorDisplayMessage`Only bots can attach files to targets.`,
         });
     }
 
-    const uploaderId = await getFileUploaderIdIfExists(context, fileId, context.actor.getSpaceId());
+    const fileWithUploaderId = await getFileWithUploaderIdIfExists(
+        context,
+        fileId,
+        context.actor.getSpaceId(),
+    );
 
-    if (uploaderId === null) {
+    if (fileWithUploaderId === null) {
         throw new NotFoundError("File not found", {
             displayMessage: errorDisplayMessage`File not found.`,
         });
@@ -40,9 +45,12 @@ export async function attachFileToTargetAsBot(
 
     // Verify the bot has rights to this file: either they uploaded it or they can
     // access it through an existing attachment target.
-    if (uploaderId !== context.actor.getBotAccountId()) {
-        await getFileFromAnyAttachment(context, fileId);
-    }
+    const file =
+        fileWithUploaderId.uploaderId === context.actor.getBotAccountId()
+            ? fileWithUploaderId.file
+            : await getFileFromAnyAttachment(context, fileId);
 
     await createFileAttachmentTarget(context, fileId, targetAuthorizer.target);
+
+    return file;
 }

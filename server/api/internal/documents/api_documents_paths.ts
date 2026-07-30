@@ -27,7 +27,7 @@ import {
     getDocumentContent,
     pingDocumentCommentStream,
     putDocumentCommentMessageApprovalDecisions,
-    putDocumentCommentStreamPart,
+    putDocumentCommentStreamPartAndBroadcastEvent,
 } from "~/server/documents/data/documents_actions.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
@@ -48,8 +48,9 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
+    DocumentCollaborationCreateCommentThreadForApiRequestBodySchema,
+    DocumentCollaborationCreateCommentThreadForApiResponseBodySchema,
     DocumentCollaborationSetCommentThreadResolvedRequestBodySchema,
     DocumentCollaborationSetCommentThreadResolvedResponseBodySchema,
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
@@ -64,7 +65,7 @@ import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/documen
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert, assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -329,6 +330,63 @@ export const apiDocumentsPaths: Pick<
                         id: pathParameters.id,
                         title,
                     },
+                },
+            };
+        },
+    },
+
+    "/documents/{id}/threads": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const {firstMessage, range} = requestBody.thread;
+            const content = assertMessageContent(
+                fromApiContent(MessageContentProsemirrorSchema, firstMessage.content),
+            );
+
+            const createdTimeZone = firstMessage.createdTimeZone ?? defaultTimeZone;
+            const fileIds = (firstMessage.files ?? []).map(parseFileIdFromApiFileElement);
+
+            const responseBody =
+                DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.deserialize(
+                    await context.edge.sendRequestToDurableObject(
+                        `/api/durable-objects/documents/${pathParameters.id}/create-comment-thread-for-api`,
+                        {
+                            serviceName: "DocumentCollaborationService",
+                            route: "/api/durable-objects/documents/:documentId/create-comment-thread-for-api",
+                            body: DocumentCollaborationCreateCommentThreadForApiRequestBodySchema.serialize(
+                                {range, content, fileIds, createdTimeZone},
+                            ),
+                        },
+                    ),
+                );
+
+            if (!responseBody.ok) throw responseBody.error;
+
+            const {newVersion, commentThread, documentContentSnippet, files, message} =
+                responseBody;
+
+            const spaceId = commentThread.spaceId;
+            const {thread, message: apiMessage} = await intoApiDocumentCommentThreadResponse(
+                context,
+                {
+                    documentId: pathParameters.id,
+                    commentThread,
+                    documentContent: {type: "Snippet", snippet: documentContentSnippet},
+                    documentVersion: newVersion,
+                    message,
+                    fileById: new Map(files.map(file => [file.id, file])),
+                },
+            );
+            assert(apiMessage !== undefined);
+
+            return {
+                content: {
+                    spaceId,
+                    document: {
+                        id: pathParameters.id,
+                        version: newVersion,
+                    },
+                    thread,
+                    message: apiMessage,
                 },
             };
         },
@@ -803,7 +861,7 @@ export const apiDocumentsPaths: Pick<
         post: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putDocumentCommentStreamPart(context, {
+            const {spaceId} = await putDocumentCommentStreamPartAndBroadcastEvent(context, {
                 documentId: pathParameters.id,
                 commentThreadId: pathParameters.threadId,
                 commentIndex: pathParameters.index,
@@ -820,7 +878,7 @@ export const apiDocumentsPaths: Pick<
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putDocumentCommentStreamPart(context, {
+            const {spaceId} = await putDocumentCommentStreamPartAndBroadcastEvent(context, {
                 documentId: pathParameters.id,
                 commentThreadId: pathParameters.threadId,
                 commentIndex: pathParameters.index,

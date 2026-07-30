@@ -69,6 +69,10 @@ const outputs: Record<DocumentationMdxMarkdownComponentName, string> = {
     Tab: firstTab,
     Tabs: md.Tabs!({children: [firstTab, secondTab]}),
     TypeLink: md.TypeLink!({name: "Task"}),
+    YouTubeEmbed: md.YouTubeEmbed!({
+        url: "https://youtu.be/f-5dMvqtXps",
+        title: "Cursor in Alpine",
+    }),
     a: md.a!({href: "/docs/x", children: "X"}),
     blockquote: md.blockquote!({children: "Quoted\n\nAgain"}),
     br: md.br!({}),
@@ -128,6 +132,7 @@ test("renders static documentation markdown component output", () => {
         Tab: "#### Curl\n\ncurl example",
         Tabs: "#### Curl\n\ncurl example\n\n#### Node\n\nnode example\n\n",
         TypeLink: "[Task](/docs/api/schemas/Task.md)",
+        YouTubeEmbed: "[Cursor in Alpine](https://youtu.be/f-5dMvqtXps)\n\n",
         a: "[X](/docs/x.md)",
         blockquote: "> Quoted\n>\n> Again\n\n",
         br: "  \n",

@@ -183,7 +183,7 @@ describe("resolveInitialMessageInputState()", () => {
         ).toEqual(createSimpleMessageContent("restored").toJSON());
     });
 
-    test("falls back to server draft when restore stash is empty", () => {
+    test("prefers an empty restore stash over a server draft", () => {
         const restoreStateRef: RestoreStateRef = {
             current: {
                 state: ContentEditorState.create({
@@ -203,6 +203,6 @@ describe("resolveInitialMessageInputState()", () => {
             })
                 .state.getDoc()
                 .toJSON(),
-        ).toEqual(createSimpleMessageContent("from draft").toJSON());
+        ).toEqual(emptyMessageContent.toJSON());
     });
 });

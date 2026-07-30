@@ -26,6 +26,7 @@ ts_project(
         "//:node_modules/serve-static",
         "//:node_modules/vite",
         "//:node_modules/ws",
+        "//app/static:static_cache_control",
         "//app/static:static_manifest",
         "//server/helpers/node",
         "//server/node",
@@ -49,16 +50,19 @@ ts_project(
             "**/*.test.tsx",
         ],
     ),
-    # Generated docs data and rendered markdown are read from runfiles at request
-    # time.
+    # The committed production sitemap, generated docs data, and rendered markdown
+    # are read from runfiles at request time.
     data = [
+        "//app/sitemap:production_sitemap",
         "//client/web/docs:docs_generated",
         "//client/web/docs/internal/codegen:docs_markdown",
     ],
     visibility = [
+        "//app/documentation_meta_tests:__pkg__",
         "//app/integration_tests:__pkg__",
         "//app/routes_test:__pkg__",
     ],
+    test_deps = ["//:node_modules/@jest/globals"],
     deps = [
         ":app_wrapper_lib",
         "//:node_modules/@react-email/components",
@@ -81,6 +85,8 @@ ts_project(
         "//:node_modules/pretty-ms",
         "//:node_modules/react",
         "//:node_modules/react-router",
+        "//app/sitemap",
+        "//app/static:static_cache_control",
         "//client/web/auth",
         "//client/web/avatar",
         "//client/web/blobs",
@@ -93,6 +99,7 @@ ts_project(
         "//client/web/debug/chat_gpt",
         "//client/web/design",
         "//client/web/docs",
+        "//app/docs/opengraph",
         "//client/web/documents",
         "//client/web/feed",
         "//client/web/forum",
@@ -135,6 +142,7 @@ ts_project(
         "//server/language_models",
         "//server/language_models/all_mini_lm_l6_v2",
         "//server/language_models/cohere_embed_english_v3",
+        "//server/helpers/node",
         "//server/node",
         "//server/notifications/data",
         "//server/remix",
@@ -150,6 +158,7 @@ ts_project(
         "//shared/context",
         "//shared/debug/chat_gpt",
         "//shared/design",
+        "//shared/docs",
         "//shared/documents",
         "//shared/error",
         "//shared/helpers",
@@ -252,10 +261,12 @@ genrule(
     visibility = ["//shared/remix:__pkg__"],
 )
 
-# Files the Vite dev server watches. Our dev process manager will keep this
-# target up-to-date in Bazel's output directory then the Vite dev server
-# watches Bazel's output directory and hot reloads the browser if it detects
-# a relevant file change.
+# Files and generated artifacts used by the local app. Our dev process manager
+# keeps this target up-to-date in Bazel's output directory, then the Vite dev
+# server watches that directory and hot reloads the browser when relevant files
+# change. Open Graph images are deliberately excluded because regenerating the
+# complete tree on every documentation edit is expensive. Build
+# `//app/docs/opengraph:generate_open_graph_images` explicitly to refresh them.
 filegroup(
     name = "app",
     # It's important that we use `data` instead of `srcs`! `data` puts our files in
@@ -340,9 +351,24 @@ esbuild_runfiles_without_sources(
     srcs = [":app_lib"],
 )
 
-alias(
+# The Landing static exporter needs the built client, Remix server bundle, and
+# their generated documentation runfiles as one visibility-safe unit.
+filegroup(
+    name = "app_landing_static_generation",
+    data = [
+        ":app_build",
+        "//client/web/docs:docs_generated",
+        "//client/web/docs/internal/codegen:docs_markdown",
+    ],
+    visibility = ["//admin/analysis:__pkg__"],
+)
+
+filegroup(
     name = "app_static",
-    actual = ":app_build_client",
+    srcs = [
+        ":app_build_client",
+        "//app/docs/opengraph:generate_open_graph_images",
+    ],
     visibility = ["//visibility:public"],
 )
 
@@ -360,6 +386,7 @@ js_binary(
     data = [
         ":app_build",
         ":app_runfiles",
+        "//app/docs/opengraph:generate_open_graph_images",
     ],
     entry_point = "build/server/app_service_main.js",
     no_copy_to_bin = [":app_runfiles"],

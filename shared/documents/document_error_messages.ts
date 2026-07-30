@@ -26,6 +26,8 @@ export function createDocumentNotFoundError(documentId: string | undefined) {
     });
 }
 
+export const documentDeletedErrorDisplayMessage = errorDisplayMessage`Document was deleted.`;
+
 export function createDocumentCommentThreadNotFoundError(
     documentId: DocumentId,
     commentThreadId: string | undefined,

@@ -187,11 +187,15 @@ export const updateDocumentContent = defineRpc({
                 initialCommentFileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
                 createdTimeZone: TimeZoneSchema,
                 createdTime: Schema.date.optional(),
+                attachInitialCommentFilesAsBot: Schema.boolean.optional(),
             }),
         ),
         intentionallyUpdateAccessPolicy: Schema.object({
             accessPolicy: CreateOrUpdateAccessPolicySchema,
             notification: ShareNotificationSchema.nullable(),
+        }).optional(),
+        intentionallyUpdateDeletedTime: Schema.object({
+            deletedTime: Schema.date,
         }).optional(),
         resolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
         unresolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),

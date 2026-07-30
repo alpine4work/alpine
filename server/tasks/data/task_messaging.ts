@@ -1489,7 +1489,14 @@ export async function createTaskCommentModelFromItem(
     });
 }
 
-export function putTaskCommentStreamPart(
+// NOTE(ifitzsimmons, 2026-07-16): This function adds/updates a part of the message
+// stream and broadcasts an event to all connected clients. Stream parts can/should
+// only be added in two scenarios:
+//
+// 1. A bot is sending a message via our API.
+// 2. We've detected that a message stream has timed out and we're completing the
+//    stream with an error message.
+export function putTaskCommentStreamPartAndBroadcastEvent(
     context: ServerActionContext,
     {
         taskId,

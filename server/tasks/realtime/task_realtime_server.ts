@@ -638,7 +638,7 @@ export class TaskRealtimeServer {
         spaceId: SpaceId,
         taskId: TaskId,
         expectedAccessLevel: AccessLevel,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
     ): Promise<Result<void, ErrorBase> | null> {
         const result = await authorizeTaskAccessIfPossible(
             context,
@@ -709,7 +709,7 @@ export class TaskRealtimeServer {
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
     ): Promise<Result<void, ErrorBase> | null> {
         const result = await authorizeTaskCollectionAccessIfPossible(
             context,

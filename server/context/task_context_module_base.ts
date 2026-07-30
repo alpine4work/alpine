@@ -144,7 +144,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {dangerouslyAllowDeleted?: boolean; consistency?: DynamoCacheReadConsistency},
     ): Promise<Result<TaskModel> | null>;
 
     /**
@@ -163,7 +163,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {dangerouslyAllowDeleted?: boolean; consistency?: DynamoCacheReadConsistency},
     ): Promise<TaskModel> {
         const taskResult = await this.getTaskWithoutDependenciesIfPossible(
             spaceId,
@@ -188,7 +188,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {dangerouslyAllowDeleted?: boolean; consistency?: DynamoCacheReadConsistency},
     ): Promise<Result<TaskCollectionModel> | null>;
 
     /**
@@ -204,7 +204,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {dangerouslyAllowDeleted?: boolean; consistency?: DynamoCacheReadConsistency},
     ): Promise<TaskCollectionModel> {
         const collectionResult = await this.getCollectionIfPossible(spaceId, collectionId, options);
         if (!collectionResult) throw createTaskCollectionNotFoundError(collectionId);

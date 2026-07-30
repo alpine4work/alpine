@@ -48,6 +48,7 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {useContentBlockWidth} from "~/client/web/content/content_block_width.js";
+import {contentEditorHeadingSelector} from "~/client/web/content/content_editor_heading_selector.js";
 import {
     ContentFileEntityRenderers,
     ContentFileEntityRenderersContext,
@@ -66,6 +67,7 @@ import {createContentEditorFileNodeViewConstructor} from "~/client/web/content/i
 import {createContentEditorFileRowLikeNodeViewConstructor} from "~/client/web/content/internal/content_editor_file_row_like_node_view.js";
 import {ContentEditorFileToolbarController} from "~/client/web/content/internal/content_editor_file_toolbar.js";
 import {ContentEditorFloater} from "~/client/web/content/internal/content_editor_floater.js";
+import {createContentEditorHeadingNodeView} from "~/client/web/content/internal/content_editor_heading_node_view.js";
 import {
     findInsertedNodeAfterReplaceRangeWith,
     insertContentCheckListItem,
@@ -112,6 +114,11 @@ import {
     ContentEditorDateDecorationMatch,
     getContentEditorDateMatchAtPos,
 } from "~/client/web/content/state/content_editor_date_decoration_plugin.js";
+import {
+    expandContentEditorHeadingSectionsAtPos,
+    getCollapsedContentEditorHeadingPositions,
+    toggleContentEditorHeadingCollapsed,
+} from "~/client/web/content/state/content_editor_heading_collapse_plugin.js";
 import {openContentEditorCommentInputFloaterMetaKey} from "~/client/web/content/state/content_editor_meta_keys.js";
 import {ContentSpellCheckSuggestion} from "~/client/web/content/state/content_editor_spell_checker_configuration.js";
 import {getContentEditorSpellCheckerLints} from "~/client/web/content/state/content_editor_spell_checker_plugin.js";
@@ -158,6 +165,8 @@ import {isVirtualKeyboardEvent} from "~/client/web/helpers/events/is_virtual_key
 import {flushSyncIfNotRendering} from "~/client/web/helpers/flush_sync_if_not_rendering.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
+import {CaretDownUpIcon} from "~/client/web/icons/caret_down_up_icon.js";
+import {CaretUpDownIcon} from "~/client/web/icons/caret_up_down_icon.js";
 
 import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
@@ -346,6 +355,17 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
     nodeDom(pos: number): globalThis.Node | null;
 
     /**
+     * Expand every collapsed heading section hiding `element`, e.g. to reveal a
+     * comment mark inside a collapsed section before measuring or scrolling to it.
+     * Does nothing when the element isn't hidden inside a collapsed section.
+     *
+     * Expanding synchronously redraws the previously hidden blocks, which replaces
+     * their DOM nodes — re-query any element you got from the editor DOM before this
+     * call.
+     */
+    expandHeadingSectionsAtElement(element: Element): void;
+
+    /**
      * Execute the ProseMirror undo command.
      */
     undo(): void;
@@ -511,6 +531,23 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * component that does this.
      */
     withoutMobileKeyboardToolbar?: boolean;
+
+    /**
+     * Let the user collapse the section under a top-level heading (see
+     * `contentEditorHeadingCollapsePlugin()`). Adds a "Collapse/Expand heading" action
+     * when right clicking a heading and shows the expand chevron next to collapsed
+     * headings. The document editor sets this when the margin next to the content
+     * column is wide enough to fit the chevron.
+     */
+    withCollapsibleHeadings?: boolean;
+
+    /**
+     * Extra context menu actions for right clicking the heading at `headingPos`. The
+     * document editor uses this for its copy heading link action. The editor renders
+     * these below its undo/redo actions and above its insert actions, next to its own
+     * collapse/expand heading action (see `withCollapsibleHeadings`).
+     */
+    getHeadingContextMenuActions?: (headingPos: number) => ReadonlyArray<MenuAction> | null;
 
     /**
      * Disable dual modality editing on devices that don't have a primary input that
@@ -875,6 +912,11 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                     "Getting DOM for position in content editor on initial render is not implemented",
                 );
             },
+            expandHeadingSectionsAtElement: () => {
+                throw new UnimplementedError(
+                    "Expanding heading sections in content editor on initial render is not implemented",
+                );
+            },
             undo: unimplementedDispatchCommand,
             redo: unimplementedDispatchCommand,
             insertUnorderedListItem: unimplementedDispatchCommand,
@@ -959,6 +1001,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         style,
         containerClassName: customContainerClassName,
         accessLevel = "Manage",
+        withCollapsibleHeadings,
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
         mentionFloaterSectionOrder = "PeopleSuggestedInsert",
@@ -1186,6 +1229,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 const view = assertExists(viewRef.current);
                 return view.nodeDOM(pos);
             },
+            expandHeadingSectionsAtElement: element => {
+                const view = assertExists(viewRef.current);
+                expandContentEditorHeadingSectionsAtPos(view, view.posAtDOM(element, 0));
+            },
             undo: () => {
                 const view = assertExists(viewRef.current);
                 undo(view.state, view.dispatch, view);
@@ -1400,6 +1447,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         // IMPORTANT: If you have a custom view in `nodeViews` here you should also have a
         // matching custom renderer in `nodeRenderers` in `renderContentToHtml()`.
         viewProps.nodeViews = {
+            heading: createContentEditorHeadingNodeView,
             orderedListItem: createContentEditorOrderedListItemNodeView,
             checkListItem: createContentEditorCheckListItemNodeViewConstructor({
                 getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
@@ -5048,9 +5096,17 @@ function ContentEditor<Content extends ContentWithReferences>(
             const view = assertExists(viewRef.current);
             const {state} = view;
 
+            // The doc position the user right clicked. `contextmenu` events synthesized
+            // without coordinates (e.g. dispatched by tests) have non-finite
+            // `clientX`/`clientY` which make ProseMirror's `posAtCoords()` throw.
+            const eventPosResult =
+                Number.isFinite(event.clientX) && Number.isFinite(event.clientY)
+                    ? view.posAtCoords({left: event.clientX, top: event.clientY})
+                    : null;
+
             const lints = getContentEditorSpellCheckerLints(state);
             if (lints.length > 0) {
-                const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
+                const posResult = eventPosResult;
 
                 // If the user right clicked into a lint then we want to show suggestions for that
                 // lint.
@@ -5241,7 +5297,53 @@ function ContentEditor<Content extends ContentWithReferences>(
                 ],
             ];
 
-            const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
+            // Heading actions, below undo/redo and above insert: extra actions from the
+            // component rendering this editor (e.g. the document editor's copy heading link
+            // action) plus our own collapse/expand action.
+            const contextMenuTarget = event.target;
+            if (contextMenuTarget instanceof Element) {
+                const headingElement = contextMenuTarget.closest(contentEditorHeadingSelector);
+                if (headingElement && view.dom.contains(headingElement)) {
+                    // Only top-level headings have heading sections, so find the right-clicked heading
+                    // by comparing against every top-level heading node's DOM.
+                    let headingPos: number | null = null;
+                    state.doc.forEach((node, offset) => {
+                        if (headingPos === null && view.nodeDOM(offset) === headingElement) {
+                            headingPos = offset;
+                        }
+                    });
+
+                    if (headingPos !== null) {
+                        const headingActions: Array<MenuAction> = [
+                            ...(propsRef.current.getHeadingContextMenuActions?.(headingPos) ??
+                                emptyArray),
+                        ];
+
+                        // Offer "Expand heading" for a collapsed section even when
+                        // `withCollapsibleHeadings` is off, so a section collapsed before the expand
+                        // chevron's margin shrank away can always be expanded from the menu.
+                        const isCollapsed =
+                            getCollapsedContentEditorHeadingPositions(state).has(headingPos);
+                        if (propsRef.current.withCollapsibleHeadings || isCollapsed) {
+                            const toggledHeadingPos = headingPos;
+                            headingActions.push({
+                                label: isCollapsed ? "Expand heading" : "Collapse heading",
+                                icon: isCollapsed ? <CaretUpDownIcon /> : <CaretDownUpIcon />,
+                                iconPlacement: "end",
+                                onPress: () => {
+                                    toggleContentEditorHeadingCollapsed(view, toggledHeadingPos);
+                                },
+                            });
+                        }
+
+                        if (headingActions.length > 0) {
+                            menuActions.push(headingActions);
+                        }
+                    }
+                }
+            }
+
+            const posResult = eventPosResult;
             let currentListItemNode: Node | null = null;
 
             if (posResult) {
@@ -5430,6 +5532,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     ? contentEditorStyles.canNotPrimaryInputHoverContainerClassName
                     : undefined,
                 !hasEditAccessLevel ? contentEditorStyles.hasNoEditAccessClassName : undefined,
+                withCollapsibleHeadings ? contentStyles.headingSectionControlsClassName : undefined,
                 customContainerClassName,
             )}
             onFocus={onFocus}

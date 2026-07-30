@@ -141,6 +141,7 @@ export default implementRpcs(definitions, {
                     clientRequestToken: callId,
                     createCommentThreads: input.createCommentThreads,
                     intentionallyUpdateAccessPolicy: input.intentionallyUpdateAccessPolicy,
+                    intentionallyUpdateDeletedTime: input.intentionallyUpdateDeletedTime,
                     resolveCommentThreadIds: input.resolveCommentThreadIds,
                     unresolveCommentThreadIds: input.unresolveCommentThreadIds,
                 });

@@ -198,6 +198,23 @@ export class DocumentContentEditorWebSocketClient {
         this._dispatch({type: "Edit", editorState});
     }
 
+    /**
+     * Resolve after the collaboration service confirms that `version` has been
+     * persisted.
+     */
+    public waitForPersistedVersion(version: number): Promise<void> {
+        if (this._state.getSnapshot().persistedVersion >= version) return Promise.resolve();
+
+        return new Promise(resolve => {
+            const unsubscribe = this._state.subscribe(() => {
+                if (this._state.getSnapshot().persistedVersion < version) return;
+
+                unsubscribe();
+                resolve();
+            });
+        });
+    }
+
     public clearOurPresenceState() {
         this._dispatch({type: "Extra", extra: {type: "ClearOurPresenceState"}});
     }
@@ -513,6 +530,8 @@ export class DocumentContentEditorWebSocketClient {
                         createCommentThreads: state.extra.pendingCreateCommentThreads ?? [],
                         intentionallyUpdateAccessPolicy:
                             state.extra.pendingIntentionallyUpdateAccessPolicy,
+                        intentionallyUpdateDeletedTime:
+                            state.extra.pendingIntentionallyUpdateDeletedTime,
                         updateOurPresenceState: {
                             state: state.extra.ourPresenceState
                                 ? {

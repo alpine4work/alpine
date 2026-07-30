@@ -617,6 +617,72 @@ paths:
                                     reference:
                                         $ref: "#/components/schemas/DocumentReference"
 
+    /documents/{id}/threads:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [thread]
+                            additionalProperties: false
+                            properties:
+                                thread:
+                                    type: object
+                                    required: [range, firstMessage]
+                                    additionalProperties: false
+                                    properties:
+                                        # TODO(#agent-web): Reuse the create-message
+                                        # input type here after `CreateMessage` is updated to match
+                                        # message output, including nesting content and files in
+                                        # `payload`.
+                                        firstMessage:
+                                            type: object
+                                            required: [content]
+                                            additionalProperties: false
+                                            properties:
+                                                createdTimeZone:
+                                                    $ref: "#/components/schemas/TimeZone"
+                                                content:
+                                                    $ref: "#/components/schemas/Content"
+                                                files:
+                                                    type: array
+                                                    items:
+                                                        $ref: "#/components/schemas/MessageContentPayloadFile"
+                                        # TODO(#agent-web): Revisit representing thread
+                                        # targets as `range: ContentRange | null` and
+                                        # `additionalRanges: Array<ContentRange>` once document
+                                        # thread responses can represent ranges.
+                                        range:
+                                            $ref: "#/components/schemas/ContentRange"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            # TODO(#agents-web): Revisit this response after the
+                            # `agent_web_2` branch merges because it substantially changes the
+                            # document thread response.
+                            schema:
+                                type: object
+                                required: [spaceId, document, thread, message]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    message:
+                                        $ref: "#/components/schemas/Message"
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentThreadWithPreview"
+                                    document:
+                                        $ref: "#/components/schemas/Document"
+
     /documents/{id}/threads/{threadId}:
         parameters:
             - name: id
@@ -2589,6 +2655,61 @@ components:
         ContentKey:
             type: string
             minLength: 1
+
+        ContentPosition:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlinePosition"
+                - $ref: "#/components/schemas/ContentBeforePosition"
+                - $ref: "#/components/schemas/ContentAfterPosition"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Inline: "#/components/schemas/ContentInlinePosition"
+                    Before: "#/components/schemas/ContentBeforePosition"
+                    After: "#/components/schemas/ContentAfterPosition"
+
+        ContentInlinePosition:
+            type: object
+            required: [type, key, index]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Inline
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                index:
+                    type: integer
+                    minimum: 0
+
+        ContentBeforePosition:
+            type: object
+            required: [type, key]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Before
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+
+        ContentAfterPosition:
+            type: object
+            required: [type, key]
+            additionalProperties: false
+            properties:
+                type:
+                    const: After
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+
+        ContentRange:
+            type: object
+            required: [start, end]
+            additionalProperties: false
+            properties:
+                start:
+                    $ref: "#/components/schemas/ContentPosition"
+                end:
+                    $ref: "#/components/schemas/ContentPosition"
 
         TaskCollectionColor:
             type: string
@@ -6174,36 +6295,6 @@ components:
                         mapping:
                             File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
                             Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
-
-        MessageContentPayloadPreviewElement:
-            type: object
-            required: [type, reference]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Preview
-                reference:
-                    $ref: "#/components/schemas/PreviewReference"
-
-        MessageContentPayloadPreviewElement_Response:
-            type: object
-            required: [type, reference]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Preview
-                reference:
-                    $ref: "#/components/schemas/PreviewReference"
-                # NOTE(calebmer): Optional so you can pass a `ContentPreviewBlockElement` into
-                # here. We should document this and mark the field as hidden for the API.
-                key:
-                    $ref: "#/components/schemas/ContentKey"
-                # NOTE(calebmer): Optional so you can pass a `ContentPreviewBlockElement` into
-                # here. We should document this and mark the field as hidden for the API.
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentCommentMark"
 
         MessageContentPayloadParent:
             oneOf:

@@ -2,6 +2,19 @@
 
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 
+export type ApiContentPosition = ApiSpecification.components["schemas"]["ContentPosition"];
+
+export type ApiContentInlinePosition =
+    ApiSpecification.components["schemas"]["ContentInlinePosition"];
+
+export type ApiContentBeforePosition =
+    ApiSpecification.components["schemas"]["ContentBeforePosition"];
+
+export type ApiContentAfterPosition =
+    ApiSpecification.components["schemas"]["ContentAfterPosition"];
+
+export type ApiContentRange = ApiSpecification.components["schemas"]["ContentRange"];
+
 export type ApiTaskCollectionColor = ApiSpecification.components["schemas"]["TaskCollectionColor"];
 
 export type ApiAccountReference = ApiSpecification.components["schemas"]["AccountReference"];
@@ -734,12 +747,6 @@ export type ApiMessageContentPayloadFile =
 export type ApiMessageContentPayloadFileResponse =
     ApiSpecification.components["schemas"]["MessageContentPayloadFile_Response"];
 
-export type ApiMessageContentPayloadPreviewElement =
-    ApiSpecification.components["schemas"]["MessageContentPayloadPreviewElement"];
-
-export type ApiMessageContentPayloadPreviewElementResponse =
-    ApiSpecification.components["schemas"]["MessageContentPayloadPreviewElement_Response"];
-
 export type ApiMessageContentPayloadParent =
     ApiSpecification.components["schemas"]["MessageContentPayloadParent"];
 
@@ -913,11 +920,13 @@ export type ApiActorResponse = ApiSpecification.components["schemas"]["Actor_Res
 
 export type ApiActorBotFrom = ApiSpecification.components["schemas"]["ActorBotFrom"];
 
-export type ApiDocumentThreadResponse =
-    ApiSpecification.components["schemas"]["DocumentThread_Response"];
+export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
 export type ApiDocumentThreadWithPreviewResponse =
     ApiSpecification.components["schemas"]["DocumentThreadWithPreview_Response"];
+
+export type ApiDocumentThreadResponse =
+    ApiSpecification.components["schemas"]["DocumentThread_Response"];
 
 export type ApiPostPreviewResponse = ApiSpecification.components["schemas"]["PostPreview_Response"];
 
@@ -934,8 +943,6 @@ export type ApiMessageContentPayloadParentResponse =
 
 export type ApiMessageExperimentalApprovalDecisionValueResponse =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionValue_Response"];
-
-export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
 export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];
 
@@ -969,6 +976,9 @@ export type ApiDirectChatCreateRequestResponse =
 export type ApiContentBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentBlockElement_Response"];
 
+export type ApiMessagePayloadResponse =
+    ApiSpecification.components["schemas"]["MessagePayload_Response"];
+
 export type ApiSearchChatMessageResultResponse =
     ApiSpecification.components["schemas"]["SearchChatMessageResult_Response"];
 
@@ -994,9 +1004,6 @@ export type ApiTaskSetParentPatchResponse =
     ApiSpecification.components["schemas"]["TaskSetParentPatch_Response"];
 
 export type ApiDirectChatResponse = ApiSpecification.components["schemas"]["DirectChat_Response"];
-
-export type ApiMessagePayloadResponse =
-    ApiSpecification.components["schemas"]["MessagePayload_Response"];
 
 export type ApiInboxEntryAccountFeaturedResponse =
     ApiSpecification.components["schemas"]["InboxEntryAccountFeatured_Response"];

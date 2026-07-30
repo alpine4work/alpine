@@ -1,5 +1,7 @@
 import {
+    ApiContentFileBlockElement,
     ApiContentFileBlockElementResponseWithoutKeys,
+    ApiContentPreviewBlockElement,
     ApiContentPreviewBlockElementResponseWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
@@ -15,6 +17,8 @@ import {FileId} from "~/shared/id/types/id_types.js";
 
 export function computeApiContentFileRowWidths(
     elements: ReadonlyArray<
+        | ApiContentFileBlockElement
+        | ApiContentPreviewBlockElement
         | ApiContentFileBlockElementResponseWithoutKeys
         | ApiContentPreviewBlockElementResponseWithoutKeys
     >,

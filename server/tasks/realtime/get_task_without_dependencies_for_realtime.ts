@@ -23,6 +23,7 @@ export async function getTaskWithoutDependenciesForRealtime(
         spaceId,
         taskId,
         consistency,
+        dangerouslyAllowDeleted,
     }: {
         server: TaskRealtimeServer;
         dangerouslyEscalateToSystemContext: <Value>(
@@ -38,6 +39,7 @@ export async function getTaskWithoutDependenciesForRealtime(
         spaceId: SpaceId;
         taskId: TaskId;
         consistency: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted: boolean;
     },
 ): Promise<TaskRealtimeGetTaskWithoutDependenciesOutput> {
     // If a strong read consistency was requested then expect strong consistency in
@@ -52,7 +54,7 @@ export async function getTaskWithoutDependenciesForRealtime(
         spaceId,
         taskId,
         "View",
-        {consistency},
+        {consistency, dangerouslyAllowDeleted},
     );
     if (!result?.ok) return {ok: true, taskResult: result};
 
