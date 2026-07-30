@@ -17,6 +17,6 @@ for (const {name, filters: filters1} of taskQueryFilterTestCases) {
 
 test("creator filter rejects missing account", () => {
     expect(() => deserializeTaskQueryFilters(new Uint8Array([129, 5, 65, 3]))).toThrow(
-        "Creator filters do not support missing accounts",
+        "Assertion failure: `isTaskQueryFilterCreatorAccountOperation(operation)`",
     );
 });

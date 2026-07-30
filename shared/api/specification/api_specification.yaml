@@ -238,7 +238,7 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [inbox, entries, nextCursor]
+                                required: [inbox, nextCursor, entries]
                                 additionalProperties: false
                                 properties:
                                     inbox:

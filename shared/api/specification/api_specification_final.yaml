@@ -193,8 +193,8 @@ paths:
                                 type: object
                                 required:
                                     - inbox
-                                    - entries
                                     - nextCursor
+                                    - entries
                                 additionalProperties: false
                                 properties:
                                     inbox:

@@ -584,8 +584,6 @@ The source image is available below.
     expect(await cli.run("alpine search 'YouTube attachment review'")).toEqual(`\
 1. [Alice in Evidence Updates: **YouTube attachment review**](/post/alice-in-evidence-updates-youtube-attachmen)
 
-   in Evidence Updates: **YouTube attachment review**
-
 2. [Post **attachment** source](/document/post-attachment-source)
 
    The source image is available below.
