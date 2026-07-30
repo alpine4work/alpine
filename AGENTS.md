@@ -26,18 +26,6 @@ example `shared/documents`, `server/documents`, and `client/documents`. Bazel pa
 of organization, they are folders with a `BUILD` file in them and you can think of them as a Node.js
 package with a `package.json` file.
 
-Files in `internal` directories may only be imported by the parent directory. For example, files in
-`server/spaces/internal` may only be imported by files in `server/spaces`. You can import
-`server/spaces/internal` files from `server/spaces/create`. However, you can’t import files from
-`server/spaces/create/internal` from `server/spaces`, only `server/spaces/create`.
-
-When you need to use a function from an `internal` directory outside its allowed scope, move the
-function file out of `internal/` into the parent directory instead of re-exporting it. The filename
-should match the function name (e.g. `myInternalFunction` moves to `my_internal_function.ts`).
-
-Bazel packages also have `visibility` definitions that only allow certain Bazel packages to use them
-as a dependency.
-
 ## Stack
 
 - Build system: Bazel
@@ -51,92 +39,49 @@ as a dependency.
 - Tests: Jest (unit tests), Playwright (integration tests)
 - Rich text editor: ProseMirror
 
-### Bazel crash course
+## Tips
 
-Everything in Alpine is built with Bazel. It's important to understand how we use Bazel.
+- Everything in Alpine is built with Bazel.
 
-Everything in Bazel is referenced by a label. A label starts with `//` then path to a Bazel package
-(a directory with a `BUILD`) file then a `:` with the label name. For example:
+- Most Bazel packages use the `ts_project()` macro (maintained by us). It automatically sets up
+  Bazel tests for type checking (e.g. `//shared/helpers:helpers_typecheck_test`), linting (e.g.
+  `//shared/helpers:helpers_lint_test`), formatting (e.g. `//shared/helpers:helpers_format_test`),
+  and Jest unit tests (one for each `*.test.ts` file, e.g. `shared/helpers/array/queue.test.ts`
+  creates the test `//shared/helpers:array/queue_test`).
 
-```
-//shared/helpers:array/queue_test
-```
+- To run all tests in a single package use `bazel test //shared/helpers/...`.
 
-`shared/helpers` is a Bazel package (you know because it has a `BUILD` file) which is why the `:` is
-placed there.
+- `dev check` runs type check and lint tests for code affected by changes in the current branch.
+  Generally you should always run this before finishing a turn to make sure your changes are correct.
 
-If a Bazel label doesn’t have a `:` then the last directory name is the label name (e.g.
-`//shared/helpers` is shorthand for `//shared/helpers:helpers`).
+- `dev test` runs Jest unit tests for code affected by changes in the current branch. This command
+  is expensive, only run it if the user has explicitly asked you to run `dev test`. Prefer running
+  individual tests with `bazel test [targets...]` or `dev test [paths...]` (where paths end in
+  `.test.ts`, running `dev test shared/helpers/array/queue.test.ts` will only run that one test file
+  and is much faster).
 
-Most Bazel packages at Alpine use the `ts_project()` rule maintained by us. It automatically
-collects the project’s source files and lets you declare dependencies (`deps`, you aren’t allowed to
-have cyclic dependencies between Bazel packages). This rule sets up Bazel tests for type checking
-(e.g. `//shared/helpers:helpers_typecheck_test`), linting (e.g.
-`//shared/helpers:helpers_lint_test`), formatting (e.g. `//shared/helpers:helpers_format_test`), and
-Jest unit tests.
+- `dev format` runs Prettier on all changed files in the current branch.
 
-When you use `ts_project()` it automatically creates a rule for every `*.test.ts` file in the
-package (formatted as `*_test`). So for our previous example we have a file
-`shared/helpers/array/queue.test.ts`. The `ts_project()` rule created a label with the name
-`array/queue_test`. The label for the file `shared/id/id.test.ts` is `//shared/id:id_test` since
-`shared/id` is the Bazel package.
+- Instead of running type checking for a single package (e.g.
+  `bazel test //shared/helpers:helpers_typecheck_test`) you should run `dev check`. `dev check` will
+  make sure any code that depends on your changes is also type checked.
 
-You can run one or many Bazel tests like this:
+- Prefer `bazel test *_lint_test` or `dev check` to running ESLint directly (e.g. `pnpm eslint`).
+  The Bazel lint tests are configured with the correct plugins and settings.
 
-```bash
-bazel test [...labels]
+- Never run Prettier directly. Use `dev format` to format files, or `bazel test *_format_test` if
+  you just want to check that files are formatted correctly.
 
-# e.g.
-bazel test //shared/helpers:array/queue_test //shared/helpers:helpers_lint_test //shared/id:id_test
-```
+- Files in `internal` directories may only be imported by the parent directory. For example, files
+  in `server/spaces/internal` may only be imported by files in `server/spaces`. You can import
+  `server/spaces/internal` files from `server/spaces/create`. However, you can’t import files from
+  `server/spaces/create/internal` from `server/spaces`, only `server/spaces/create`.
 
-You can run a single Bazel test and pass in options to the underlying Jest runner like this:
+- When you need to use something from an `internal` directory outside its allowed scope, move it out
+  of `internal/` into the parent directory instead of re-exporting it.
 
-```bash
-bazel run <label> -- [...options]
-
-# e.g.
-bazel run //shared/helpers:array/queue_test -- -t="..."
-```
-
-You can run all tests in a package like this:
-
-```bash
-bazel test //shared/helpers/...
-```
-
-We have some scripts available from the `dev` executable for running Bazel tests just on files that
-changed in the current git branch:
-
-```bash
-dev check  # Runs type check and lint tests for packages affected by changes in the current branch
-dev test   # Runs Jest unit tests and coverage for packages affected by changes in the current branch
-dev format # Runs Prettier and on all changed files in the current branch
-dev coverage <path-to-source> --changed-lines-only # Reports uncovered changed lines one by one
-```
-
-Instead of running type checking for a single package (e.g.
-`bazel test //shared/helpers:helpers_typecheck_test`) you should run `dev check`. Because type
-checking a single package with Bazel won’t check types for the _dependencies_ of the package which
-might have been affected if you updated exports. Generally running `dev check` is much better than
-individually running lint, type check, and formatting tests.
-
-`dev test` generates coverage reports for the tests it just ran and writes them to
-`admin/coverage/test`. It may print warnings of uncovered lines of changed files. If the warning is
-truncated with `(X more range(s))` or you need exact line-by-line detail, run
-`dev coverage <path-to-source> --changed-lines-only` for the affected source file. When running
-`dev test` on an explicit adjacent test file, such as `foo.test.ts`, coverage warnings also include
-changed lines in the matching source file, such as `foo.ts`. When coverage warnings identify
-uncovered changed lines, check whether the branch already adds or updates unit tests for that
-behavior. If it does, add the missing coverage to those tests. If it does not, tell the user the
-changed lines should have unit test coverage and ask whether they want you to add it before creating
-new tests or broadening the test scope.
-
-Prefer `bazel test *_lint_test` or `dev check` to running ESLint directly (e.g. `pnpm eslint`). The
-Bazel lint tests are configured with the correct plugins and settings.
-
-Never run Prettier directly. Use `dev format` to format files, or `bazel test *_format_test` if you
-just want to check that files are formatted correctly.
+- `cyberworlds/no-commit-blockers` failures mark issues with code in the current branch to fix
+  before merging. Leave these comments alone unless the user explicitly asks you to remove one.
 
 ## Code style
 
@@ -147,23 +92,21 @@ The full code style ruleset can be found in `admin/docs/code_style.md`, if neede
 - Always use ES Module absolute imports starting with `~/` and ending with the file extension `.js`.
 - Our person type is called "account" instead of "user".
 - Don’t use `SCREAMING_SNAKE_CASE` for constant names, instead use `camelCase`.
-- Use direct coding style - Functions should read naturally; use assertions vs null checks (see
-  `shared/helpers/control/assert.ts`); throw on not found vs returning null.
+- Use direct coding style: functions should read naturally, assertions are preferred to null checks
+  (see `shared/helpers/control/assert.ts`).
 - Don’t use try/catch for control flow. If your code needs to handle an error case return a union
   object with "ok" and "not ok" variants (e.g. `shared/helpers/control/result.ts`).
-- Prefer named arguments after 4 parameters (e.g. `f({a: 1, b: 2})` instead of `f(1, 2)`). Also for
-  functions with 2 parameters of the same type or any boolean parameters.
+- Prefer named arguments after 4 parameters (e.g. `f({a: 1, b: 2})` instead of `f(1, 2)`).
 
 ### Naming
 
 - File names should be `snake_case` and should follow the name of their primary export.
-- File names should be globally unique. Prefix with namespace if needed.
+- File names should be globally unique across the entire codebase. Prefix with namespace if needed.
 - Avoid default exports, prefer named exports.
-- Exported names should be globally unique. Add namespaces if needed.
-- Prefer short function names for the most common case even if it's not the most "primitive" case.
-  Add suffixes like `IfExists` for variants.
-- Prefer long, descriptive names. Include context like `fooForBar` or `fooWithBar`.
-- Recommended type naming convention: `{namespace}{subClass}{superClass}{member}`, for example: a
+- Exported names should be globally unique across the entire codebase. Add namespaces if needed.
+- Prefer long, descriptive names over short, ambiguous names. Include context like `fooForBar` or
+  `fooWithBar`.
+- Type names should follow the pattern `{namespace}{subClass}{superClass}{member}`. For example, a
   type representing text styles in our rich text data might be named `ContentTextElementMark`
   (namespace: `Content`, sub-class: `Text`, super-class: `Element`, member: `Mark`, other related
   type names: `ContentElement`, `ContentTextElement`)
@@ -172,10 +115,9 @@ The full code style ruleset can be found in `admin/docs/code_style.md`, if neede
 
 ### Comments
 
-- Comments wrap at 80 chars not including indentation.
 - Format comments as markdown.
-- JSDoc comments (`/** ... */`) for describing exports so it shows up in TypeScript tooling, inline
-  comments (`// ...`) for implementation details.
+- JSDoc comments (`/** ... */`, without tags like `@params`/`@returns`) for describing exports,
+  inline comments (`// ...`) for implementation details.
 
 ### TypeScript
 
@@ -201,11 +143,10 @@ approval.
 
 ### Testing
 
-- Avoid testing unrelated behavior. Each test should be testing only one thing.
-- Aim for one `expect()` per test. Use `expect().toMatchObject()` and `expect.objectContaining()`
-  for testing multiple properties in an object.
+- Write focused tests using the Arrange, Act, Assert pattern.
+- Keep each test scoped to a single case so failures are easy to understand.
+- Prioritize readable tests so reviewers can be confident the code is behaving as expected from a
+  quick read of a test.
 - Prefer asserting on specific error messages (e.g. `expect().toThrow("...")`) instead of error
   classes (e.g. `expect().toThrow(PermissionDeniedError)`) to ensure the correct error path is
   exercised.
-- When running a single integration test with `bazel test`, prefer disabling flaky retries (set
-  `--flaky_test_attempts=1`) to finish faster since one-at-a-time runs are unlikely to be flaky.
