@@ -3,6 +3,7 @@ import {FileProcessorActionContext} from "~/server/files/data/file_processor_con
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {getFileUploaderAsUploader} from "~/server/files/data/files_actions.js";
 import {getFileProcessorErrors} from "~/server/files/processor/error/file_processor_error.js";
+import {FileProcessTranscriptJson} from "~/server/files/processor/process_file_analysis.js";
 import {createFileCodeProcessor} from "~/server/files/processor/processors/file_code_processor.js";
 import {createFileIcoImageProcessor} from "~/server/files/processor/processors/file_ico_image_processor.js";
 import {createFileMicrosoftOfficeDocumentProcessor} from "~/server/files/processor/processors/file_microsoft_office_document_file_processor.js";
@@ -37,6 +38,7 @@ import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js"
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -344,6 +346,51 @@ export async function processFile(
               })()
             : null;
 
+        const analysisPromise = promises.analysisPromise
+            ? (async () => {
+                  const analysis = await promises.analysisPromise;
+
+                  if (analysis !== null) {
+                      await fileUploader.finishProcessingAnalysis(context, analysis);
+                  }
+
+                  return analysis;
+              })()
+            : null;
+
+        const transcriptPromise = promises.transcriptPromise
+            ? (async () => {
+                  const transcriptResult = await promises.transcriptPromise;
+
+                  if (transcriptResult === null) return transcriptResult;
+                  if (!transcriptResult.ok) throw transcriptResult.error;
+
+                  if ("isUnavailable" in transcriptResult) {
+                      await fileUploader.finishProcessingTranscript(context, {
+                          isUnavailable: true,
+                      });
+                  } else {
+                      await storeFileTranscript(context, {
+                          fileId,
+                          signal,
+                          spaceId,
+                          transcriptJson: transcriptResult.transcriptJson,
+                      });
+                      await fileUploader.finishProcessingTranscript(context);
+                  }
+
+                  return transcriptResult;
+              })()
+            : null;
+
+        const analysisResultPromise = analysisPromise
+            ? captureResultPromise(analysisPromise)
+            : null;
+
+        const transcriptResultPromise = transcriptPromise
+            ? captureResultPromise(transcriptPromise)
+            : null;
+
         const finallyAlternativePromise = async () => {
             const endTime = span.clock.now();
 
@@ -488,13 +535,79 @@ export async function processFile(
                     processorErrors[0] ?? {type: "Unknown"},
                 );
             }),
+            runAllPromises([
+                analysisResultPromise?.finally(() => {
+                    const endTime = span.clock.now();
+
+                    span.addData({
+                        file: {processing: {analysisDurationMs: endTime - startTime}},
+                    });
+                }),
+                transcriptResultPromise?.finally(() => {
+                    const endTime = span.clock.now();
+
+                    span.addData({
+                        file: {processing: {transcriptDurationMs: endTime - startTime}},
+                    });
+                }),
+            ]),
         ]);
+
+        const analysisResult = analysisResultPromise ? await analysisResultPromise : null;
+        const transcriptResult = transcriptResultPromise ? await transcriptResultPromise : null;
+        const analysisErrors = [
+            ...(analysisResult?.ok === false ? [analysisResult.error] : []),
+            ...(transcriptResult?.ok === false ? [transcriptResult.error] : []),
+        ];
+
+        if (analysisErrors.length > 0) {
+            const analysisError = dedupeAggregateError(
+                analysisErrors.length === 1
+                    ? analysisErrors[0]!
+                    : createAggregateError(analysisErrors),
+            );
+
+            // If analysis failed due to a timeout then don't catch the error. Instead we want
+            // to retry the job.
+            if (isDeadlineExceededOrAbortedError(analysisError)) throw analysisError;
+
+            caughtErrors.push(analysisError);
+
+            const analysisProcessorError =
+                analysisResult?.ok === false
+                    ? (getFileProcessorErrors(analysisResult.error)[0] ?? {
+                          type: "Unknown" as const,
+                      })
+                    : null;
+            const transcriptProcessorError =
+                transcriptResult?.ok === false
+                    ? (getFileProcessorErrors(transcriptResult.error)[0] ?? {
+                          type: "Unknown" as const,
+                      })
+                    : null;
+
+            // File analysis shares the file-processing job, but it is not required to make the
+            // preview/alternative usable. For ordinary non-deadline failures, close only the
+            // declared analysis slots with errors so clients stop polling those slots forever.
+            await runAllPromises([
+                analysisProcessorError
+                    ? fileUploader.finishProcessingAnalysisWithError(
+                          context,
+                          analysisProcessorError,
+                      )
+                    : null,
+                transcriptProcessorError
+                    ? fileUploader.finishProcessingTranscriptWithError(
+                          context,
+                          transcriptProcessorError,
+                      )
+                    : null,
+            ]);
+        }
     })();
 
     try {
         await promise;
-
-        abortTimeout.clear();
 
         // If we caught any errors then add them to the span. We don't want to throw an
         // aggregate error since we don't want to retry the job. However, we still want the
@@ -505,8 +618,6 @@ export async function processFile(
     } catch (someError) {
         const error = dedupeAggregateError(someError);
 
-        abortTimeout.clear();
-
         // If our promise failed when we had caught errors then create an `AggregateError`
         // that includes the caught errors and throw that.
         if (caughtErrors.length === 0) {
@@ -514,7 +625,37 @@ export async function processFile(
         } else {
             throw createAggregateError([error, ...caughtErrors]);
         }
+    } finally {
+        abortTimeout.clear();
     }
+}
+
+async function storeFileTranscript(
+    context: FileProcessorActionContext,
+    {
+        fileId,
+        signal,
+        spaceId,
+        transcriptJson,
+    }: {
+        readonly fileId: FileId;
+        readonly signal: AbortSignal;
+        readonly spaceId: SpaceId;
+        readonly transcriptJson: FileProcessTranscriptJson;
+    },
+) {
+    const body = JSON.stringify(transcriptJson);
+
+    await context.r2.PutObject(
+        {
+            Bucket: filesBucketName,
+            Key: `${spaceId}/${fileId}.transcript.json`,
+            Body: body,
+            ContentLength: Buffer.byteLength(body),
+            ContentType: "application/json",
+        },
+        {signal},
+    );
 }
 
 /**
@@ -656,10 +797,23 @@ const fileProcessorByContentType: {
 // declarations in `fileProcessorDeclarationByContentType`.
 assert(
     isDeepEqual(
-        fileProcessorDeclarationByContentType,
+        mapObjectValues(fileProcessorDeclarationByContentType, fileProcessorDeclaration => ({
+            hasAlternative: fileProcessorDeclaration.hasAlternative,
+            hasAnalysis:
+                "hasAnalysis" in fileProcessorDeclaration
+                    ? fileProcessorDeclaration.hasAnalysis
+                    : false,
+            hasPreview: fileProcessorDeclaration.hasPreview,
+            hasTranscript:
+                "hasTranscript" in fileProcessorDeclaration
+                    ? fileProcessorDeclaration.hasTranscript
+                    : false,
+        })),
         mapObjectValues(fileProcessorByContentType, fileProcessor => ({
             hasAlternative: !!fileProcessor.hasAlternative,
+            hasAnalysis: fileProcessor.hasAnalysis,
             hasPreview: fileProcessor.hasPreview,
+            hasTranscript: fileProcessor.hasTranscript,
         })),
     ),
 );

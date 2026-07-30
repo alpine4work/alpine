@@ -11,6 +11,7 @@ import {processFile} from "~/server/files/processor/process_file.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
+import {createLanguageModelsContextModuleForProcess} from "~/server/language_models/create_language_models_context_module_for_process.js";
 import {
     createServerBasicProcessContextModules,
     serverBasicProcessContextOptions,
@@ -23,6 +24,7 @@ import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -33,6 +35,8 @@ type Options = ServiceOptions<typeof options>;
 export const options = {
     port: {type: "string"},
     temporaryDirectoryPath: {type: "string"},
+    // Used to test LLM calls against real AWS Bedrock in development. Optional.
+    awsBedrockTokenForDevelopment: {type: "string", optional: true},
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...omitObject(serviceCloudflareR2Options, ["fileProcessorServiceUrl"]),
@@ -75,6 +79,12 @@ export async function run({
         options,
     });
 
+    assert(
+        options.awsBedrockTokenForDevelopment === undefined ||
+            process.env.NODE_ENV !== "production",
+        "`awsBedrockTokenForDevelopment` must not be set in production",
+    );
+
     const processContext: FileProcessorProcessContext = Context.new({
         ...createServerBasicProcessContextModules({
             tracer,
@@ -92,6 +102,9 @@ export async function run({
                 options.resourceServiceUrl,
                 "`resourceServiceUrl` option is required",
             ),
+        }),
+        languageModels: createLanguageModelsContextModuleForProcess({
+            awsBedrockTokenForDevelopment: options.awsBedrockTokenForDevelopment,
         }),
     });
 

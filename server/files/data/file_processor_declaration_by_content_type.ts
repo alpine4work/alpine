@@ -4,53 +4,73 @@ import {FileHasPreview} from "~/shared/files/file_preview.js";
 /**
  * What the file processor for each content type will generate.
  */
-export const fileProcessorDeclarationByContentType = {
+type FileProcessorDeclaration = {
+    readonly hasAlternative: boolean;
+    readonly hasAnalysis?: boolean;
+    readonly hasPreview: FileHasPreview | null;
+    readonly hasTranscript?: boolean;
+};
+
+export const fileProcessorDeclarationByContentType: Readonly<
+    Record<FileContentType, FileProcessorDeclaration>
+> = {
     "application/octet-stream": {
         hasAlternative: false,
         hasPreview: null,
     },
     "image/apng": {
         hasAlternative: false,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     },
     "image/avif": {
         hasAlternative: false,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     },
     "image/gif": {
         hasAlternative: false,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     },
     "image/jpeg": {
         hasAlternative: false,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     },
     "image/png": {
         hasAlternative: false,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     },
     "image/svg+xml": {
         hasAlternative: false,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     },
     "image/webp": {
         hasAlternative: false,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     },
     "image/bmp": {
         hasAlternative: true,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     },
     "image/ico": {
         hasAlternative: true,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     },
     "image/tiff": {
         hasAlternative: true,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     },
     "image/heif": {
         hasAlternative: true,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     },
     "application/pdf": {
@@ -83,29 +103,64 @@ export const fileProcessorDeclarationByContentType = {
     },
     "video/webm": {
         hasAlternative: false,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
+        hasTranscript: true,
     },
     "video/mp4": {
         hasAlternative: true,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
+        hasTranscript: true,
     },
     "video/quicktime": {
         hasAlternative: true,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
+        hasTranscript: true,
     },
     "video/mpeg": {
         hasAlternative: true,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
+        hasTranscript: true,
     },
     "video/x-matroska": {
         hasAlternative: true,
+        hasAnalysis: true,
         hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
+        hasTranscript: true,
     },
-    "audio/mpeg": {hasAlternative: false, hasPreview: {type: "Audio"}},
-    "audio/wav": {hasAlternative: false, hasPreview: {type: "Audio"}},
-    "audio/webm": {hasAlternative: false, hasPreview: {type: "Audio"}},
-    "audio/mp4": {hasAlternative: true, hasPreview: {type: "Audio"}},
-    "audio/ogg": {hasAlternative: true, hasPreview: {type: "Audio"}},
+    "audio/mpeg": {
+        hasAlternative: false,
+        hasAnalysis: true,
+        hasPreview: {type: "Audio"},
+        hasTranscript: true,
+    },
+    "audio/wav": {
+        hasAlternative: false,
+        hasAnalysis: true,
+        hasPreview: {type: "Audio"},
+        hasTranscript: true,
+    },
+    "audio/webm": {
+        hasAlternative: false,
+        hasAnalysis: true,
+        hasPreview: {type: "Audio"},
+        hasTranscript: true,
+    },
+    "audio/mp4": {
+        hasAlternative: true,
+        hasAnalysis: true,
+        hasPreview: {type: "Audio"},
+        hasTranscript: true,
+    },
+    "audio/ogg": {
+        hasAlternative: true,
+        hasAnalysis: true,
+        hasPreview: {type: "Audio"},
+        hasTranscript: true,
+    },
     "text/plain": {hasAlternative: false, hasPreview: {type: "Code"}},
     "text/javascript": {hasAlternative: false, hasPreview: {type: "Code"}},
     "text/html": {hasAlternative: false, hasPreview: {type: "Code"}},
@@ -143,10 +198,4 @@ export const fileProcessorDeclarationByContentType = {
     "text/x-clojure": {hasAlternative: false, hasPreview: {type: "Code"}},
     "text/x-erlang": {hasAlternative: false, hasPreview: {type: "Code"}},
     "text/x-ocaml": {hasAlternative: false, hasPreview: {type: "Code"}},
-} as const satisfies Record<
-    FileContentType,
-    {
-        readonly hasAlternative: boolean;
-        readonly hasPreview: FileHasPreview | null;
-    }
->;
+};

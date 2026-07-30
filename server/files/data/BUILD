@@ -27,6 +27,7 @@ ts_project(
         "//server/rynamo",
         "//server/helpers",
         "//server/sites/data",
+        "//server/language_models",
         "//server/spaces",
         "//shared/context",
         "//shared/error",

@@ -850,7 +850,7 @@ describe("generation validation edge cases", () => {
         );
     });
 
-    test("can\u2019t add to site if site has manager at lower generation than actor", async () => {
+    test("can add to site if site has manager at lower generation than actor", async () => {
         const siteId = generateId<SiteId>();
         const alice = generateId<AccountId>();
         const carol = generateId<AccountId>();
@@ -881,7 +881,8 @@ describe("generation validation edge cases", () => {
         const aliceSession = await space.createSession({id: alice});
         await space.createSession({id: carol});
 
-        // Should fail - adding to site would add Carol (gen 0) which is <= Alice's gen 0
+        // Alice is the "owner" in the old policy and she is giving up that ownership by
+        // adding to the site.
         await expect(
             validateAccessPolicyUpdateForServer(
                 aliceSession.action(),
@@ -894,9 +895,7 @@ describe("generation validation edge cases", () => {
                     position: testSitePosition,
                 },
             ),
-        ).rejects.toThrow(
-            "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
-        );
+        ).resolves.not.toThrow();
     });
 
     test("generation hierarchy preserved when changing between sites", async () => {

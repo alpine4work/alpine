@@ -22,11 +22,15 @@ import {
 import {
     ApiContent,
     ApiContentParagraphBlockElement,
+    ApiPostResponse,
     ApiSearchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 
 type ApiContentElement = ApiContent["elements"][number];
+type ApiCreatePostMessageRequestBody =
+    ApiSpecification.components["requestBodies"]["CreateMessage"]["content"]["application/json"];
+type ApiPostId = ApiPostResponse["id"];
 
 // You can find the GitHub `workflow_id` with the CLI command `gh workflow list`.
 const deployGithubWorkflowId = 111000643;
@@ -107,7 +111,7 @@ export class GitHubAlertSource extends AlertSource {
             return {ok: true};
         }
 
-        let buildsChannelPostId: string | undefined;
+        let buildsChannelPostId: ApiPostId | undefined;
 
         if (data.workflow_run.conclusion === "failure") {
             const elements: Array<ApiContentElement> = [
@@ -187,7 +191,10 @@ export class GitHubAlertSource extends AlertSource {
                 },
             ];
 
-            const postResult = await this.fetchAlpineApi<{id: string}>("/posts", {
+            const postResult = await this.fetchAlpineApi<{
+                post: ApiPostResponse;
+                spaceId: string;
+            }>("/posts", {
                 method: "POST",
                 body: {
                     channelId: sendAlertAvailableChannels[channel],
@@ -199,7 +206,7 @@ export class GitHubAlertSource extends AlertSource {
                 return postResult;
             }
 
-            buildsChannelPostId = postResult.value.id;
+            buildsChannelPostId = postResult.value.post.id;
             console.log(`Created builds channel post with ID: ${buildsChannelPostId}`);
         }
 
@@ -237,7 +244,7 @@ export class GitHubAlertSource extends AlertSource {
         status: WorkflowRunCommitCommentStatus,
         workflowName: string,
         workflowUrl: string,
-        buildsChannelPostId?: string,
+        buildsChannelPostId?: ApiPostId,
     ): Promise<void> {
         try {
             const shortHash = commitHash.substring(0, 7);
@@ -247,7 +254,7 @@ export class GitHubAlertSource extends AlertSource {
                 return;
             }
 
-            const searchQuery = `${shortHash} in GitHub`;
+            const searchQuery = shortHash;
             const searchResult = await this.fetchAlpineApi<{
                 results: ReadonlyArray<ApiSearchResult>;
             }>(`/spaces/${spaceId}/search?query=${encodeURIComponent(searchQuery)}`, {
@@ -259,12 +266,13 @@ export class GitHubAlertSource extends AlertSource {
                 return;
             }
 
+            // Searching only for the hash intentionally finds every post that mentions the
+            // commit, including any Builds failure posts created for it.
             const posts = searchResult.value.results.filter(
                 result =>
                     result.type === "Post" &&
                     result.bodyMatch &&
-                    (JSON.stringify(result.bodyMatch) ?? "").includes(shortHash) &&
-                    result.author?.botId,
+                    (JSON.stringify(result.bodyMatch) ?? "").includes(shortHash),
             );
 
             if (posts.length === 0) {
@@ -275,7 +283,7 @@ export class GitHubAlertSource extends AlertSource {
             console.log(`Found ${posts.length} post(s) with commit hash ${shortHash}`);
 
             for (const post of posts) {
-                let commentBody;
+                let commentBody: ApiCreatePostMessageRequestBody;
 
                 if (status === "success") {
                     commentBody = {
@@ -315,19 +323,18 @@ export class GitHubAlertSource extends AlertSource {
                     }
 
                     commentBody = {
-                        content: {
-                            elements: [
-                                {
-                                    type: "Paragraph",
-                                    elements: [
-                                        {
-                                            type: "PostPreview",
-                                            postId: buildsChannelPostId,
-                                        },
-                                    ],
+                        content: {elements: []},
+                        files: [
+                            {
+                                element: {
+                                    type: "Preview",
+                                    target: {
+                                        type: "Post",
+                                        id: buildsChannelPostId,
+                                    },
                                 },
-                            ],
-                        },
+                            },
+                        ],
                     };
                 }
 

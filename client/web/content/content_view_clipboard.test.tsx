@@ -94,6 +94,8 @@ const testDocument: DocumentContentWithReferences = {
                         contentLength: 2274056,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -115,6 +117,8 @@ const testDocument: DocumentContentWithReferences = {
                         contentLength: 15353789,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,

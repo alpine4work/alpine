@@ -367,7 +367,7 @@ export class HoneycombAlertSource extends AlertSource {
             patches: [
                 {
                     type: "AddCollection",
-                    collectionId,
+                    item: {collection: {id: collectionId}},
                 },
             ],
         } satisfies ApiUpdateTaskRequestBody;

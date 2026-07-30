@@ -27,6 +27,11 @@ import {
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {LanguageModelsNoopDevelopmentContextModule} from "~/server/language_models/language_models_noop_development_context_module.js";
+import {
+    LanguageModelsGenerateObjectOptions,
+    LanguageModelsGenerateObjectResult,
+} from "~/server/language_models/language_models_types.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -62,6 +67,7 @@ import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR), "files");
+const testFileProcessorAnalysisResult = {tags: ["processor test"]};
 
 export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
     only?: CommitBlocker;
@@ -70,7 +76,9 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
         contentType: FileContentType;
         similarPath?: string;
     };
+    alternativeErrorWhenProcessedConcurrently?: FileProcessorError;
     imagePreviewVideoDuration?: number;
+    additionalImagePreviewVideoDurationsWhenProcessedConcurrently?: NonEmptyReadonlyArray<number>;
     imagePreviewSize?: {
         width: number;
         height: number;
@@ -83,13 +91,31 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
         contentType: FileContentType;
         similarPath: string;
     };
+    imagePreviewErrorWhenProcessedConcurrently?: FileProcessorError;
     audioPreviewDuration?: number;
     audioPreviewMetadata?: {title?: string; artist?: string; album?: string};
+    audioPreviewErrorWhenProcessedConcurrently?: FileProcessorError;
     codePreviewContentLength?: number;
     codePreviewContent?: string;
     previewError?: FileProcessorError;
+    transcriptUnavailable?: true;
     looksSameTolerance?: number;
 }>;
+
+class TestFileProcessorLanguageModelsContextModule extends LanguageModelsNoopDevelopmentContextModule {
+    override async generateObject<ObjectType>(
+        options: LanguageModelsGenerateObjectOptions<ObjectType>,
+    ): Promise<LanguageModelsGenerateObjectResult<ObjectType>> {
+        return {
+            object: options.schema.deserialize(testFileProcessorAnalysisResult as never),
+            text: JSON.stringify(testFileProcessorAnalysisResult),
+        };
+    }
+
+    override fork(): TestFileProcessorLanguageModelsContextModule {
+        return new TestFileProcessorLanguageModelsContextModule();
+    }
+}
 
 export function testFileProcessorContentTypes(
     context: TestActualContext,
@@ -126,7 +152,10 @@ export function testFileProcessorContentTypes(
         ) {
             const process = () =>
                 processFile(
-                    actionContext.clone({r2: new CloudflareR2ContextModule(r2Client)}),
+                    actionContext.clone({
+                        r2: new CloudflareR2ContextModule(r2Client),
+                        languageModels: new TestFileProcessorLanguageModelsContextModule(),
+                    }),
                     span,
                     {
                         spaceId: job.spaceId,
@@ -279,12 +308,20 @@ export function testFileProcessorContentTypes(
                     imagePreviewPlaceholder: expectedImagePreviewPlaceholder,
                     isImagePreviewContentAlternative: expectedIsImagePreviewContentAlternative,
                     imagePreviewContent: expectedImagePreviewContent,
+                    imagePreviewErrorWhenProcessedConcurrently:
+                        expectedImagePreviewErrorWhenProcessedConcurrently,
                     audioPreviewDuration: expectedAudioPreviewDuration,
                     audioPreviewMetadata: expectedAudioPreviewMetadata,
+                    audioPreviewErrorWhenProcessedConcurrently:
+                        expectedAudioPreviewErrorWhenProcessedConcurrently,
                     codePreviewContentLength: expectedCodePreviewContentLength,
                     codePreviewContent: expectedCodePreviewContent,
                     previewError: expectedPreviewError,
+                    transcriptUnavailable: expectedTranscriptUnavailable,
                     looksSameTolerance = 35,
+                    alternativeErrorWhenProcessedConcurrently:
+                        expectedAlternativeErrorWhenProcessedConcurrently,
+                    additionalImagePreviewVideoDurationsWhenProcessedConcurrently,
                 } of contentTypeTestCases) {
                     const testFn = only ? test.only : test;
 
@@ -307,6 +344,72 @@ export function testFileProcessorContentTypes(
                                 body: contents,
                             });
 
+                            const expectedAlternativeResult =
+                                processingType === "TwiceConcurrently" &&
+                                expectedAlternativeErrorWhenProcessedConcurrently
+                                    ? expect.objectContaining({isProcessing: false})
+                                    : expectedAlternative
+                                      ? {
+                                            isProcessing: false,
+                                            ok: true,
+                                            contentType: expectedAlternative.contentType,
+                                            contentLength: expect.any(Number),
+                                            isImagePreviewContent: false,
+                                        }
+                                      : expectedIsImagePreviewContentAlternative
+                                        ? {
+                                              isProcessing: false,
+                                              ok: true,
+                                              contentType: assertExists(expectedImagePreviewContent)
+                                                  .contentType,
+                                              contentLength: expect.any(Number),
+                                              isImagePreviewContent: true,
+                                          }
+                                        : null;
+                            const expectedImagePreviewVideoDurations =
+                                expectedImagePreviewVideoDuration === undefined
+                                    ? []
+                                    : [
+                                          expectedImagePreviewVideoDuration,
+                                          ...(processingType === "TwiceConcurrently"
+                                              ? (additionalImagePreviewVideoDurationsWhenProcessedConcurrently ??
+                                                [])
+                                              : []),
+                                      ];
+                            const expectedImagePreviewVideoDurationResult =
+                                expectedImagePreviewVideoDurations.length > 1
+                                    ? expect.any(Number)
+                                    : expectedImagePreviewVideoDuration;
+                            const expectedImagePreviewError =
+                                processingType === "TwiceConcurrently"
+                                    ? expectedImagePreviewErrorWhenProcessedConcurrently
+                                    : undefined;
+                            const expectedAudioPreviewMetadataResult = {
+                                title: expectedAudioPreviewMetadata?.title ?? null,
+                                artist: expectedAudioPreviewMetadata?.artist ?? null,
+                                album: expectedAudioPreviewMetadata?.album ?? null,
+                            };
+                            const expectedAudioPreviewError =
+                                processingType === "TwiceConcurrently"
+                                    ? expectedAudioPreviewErrorWhenProcessedConcurrently
+                                    : undefined;
+                            const expectedAudioPreviewResult =
+                                expectedAudioPreviewDuration === undefined
+                                    ? undefined
+                                    : expectedAudioPreviewError
+                                      ? expect.objectContaining({
+                                            type: "Audio",
+                                            isProcessing: false,
+                                            metadata: expectedAudioPreviewMetadataResult,
+                                        })
+                                      : {
+                                            type: "Audio",
+                                            isProcessing: false,
+                                            ok: true,
+                                            duration: expectedAudioPreviewDuration,
+                                            metadata: expectedAudioPreviewMetadataResult,
+                                        };
+
                             expect(file).toEqual(
                                 new FileModel({
                                     spaceId: space.id,
@@ -314,25 +417,14 @@ export function testFileProcessorContentTypes(
                                     contentType: contentType as FileContentType,
                                     contentLength: expect.any(Number),
                                     isUploading: false,
-                                    alternative: expectedAlternative
+                                    alternative: expectedAlternativeResult,
+                                    analysis: file.hasAnalysis
                                         ? {
                                               isProcessing: false,
                                               ok: true,
-                                              contentType: expectedAlternative.contentType,
-                                              contentLength: expect.any(Number),
-                                              isImagePreviewContent: false,
+                                              result: testFileProcessorAnalysisResult,
                                           }
-                                        : expectedIsImagePreviewContentAlternative
-                                          ? {
-                                                isProcessing: false,
-                                                ok: true,
-                                                contentType: assertExists(
-                                                    expectedImagePreviewContent,
-                                                ).contentType,
-                                                contentLength: expect.any(Number),
-                                                isImagePreviewContent: true,
-                                            }
-                                          : null,
+                                        : null,
                                     preview: expectedPreviewError
                                         ? {
                                               type: "Image",
@@ -342,52 +434,43 @@ export function testFileProcessorContentTypes(
                                               size: "Error",
                                               placeholder: "Error",
                                               content: "Error",
-                                              videoDuration: expectedImagePreviewVideoDuration
-                                                  ? "Error"
-                                                  : undefined,
+                                              ...(expectedImagePreviewVideoDuration
+                                                  ? {videoDuration: "Error" as const}
+                                                  : {}),
                                           }
                                         : expectedImagePreviewSize
-                                          ? {
-                                                type: "Image",
-                                                isProcessing: false,
-                                                ok: true,
-                                                size: {
-                                                    width: expectedImagePreviewSize.width,
-                                                    height: expectedImagePreviewSize.height,
-                                                    scale: expectedImagePreviewSize.scale ?? 1,
-                                                    hasAlpha:
-                                                        expectedImagePreviewSize.hasAlpha ?? false,
-                                                },
-                                                placeholder: expect.any(
-                                                    FileImagePreviewPlaceholder,
-                                                ),
-                                                content: expectedImagePreviewContent
-                                                    ? {
-                                                          contentType:
-                                                              expectedImagePreviewContent.contentType,
-                                                          contentLength: expect.any(Number),
-                                                      }
-                                                    : undefined,
-                                                videoDuration: expectedImagePreviewVideoDuration,
-                                            }
+                                          ? expectedImagePreviewError
+                                              ? expect.objectContaining({
+                                                    type: "Image",
+                                                    isProcessing: false,
+                                                })
+                                              : {
+                                                    type: "Image",
+                                                    isProcessing: false,
+                                                    ok: true,
+                                                    size: {
+                                                        width: expectedImagePreviewSize.width,
+                                                        height: expectedImagePreviewSize.height,
+                                                        scale: expectedImagePreviewSize.scale ?? 1,
+                                                        hasAlpha:
+                                                            expectedImagePreviewSize.hasAlpha ??
+                                                            false,
+                                                    },
+                                                    placeholder: expect.any(
+                                                        FileImagePreviewPlaceholder,
+                                                    ),
+                                                    content: expectedImagePreviewContent
+                                                        ? {
+                                                              contentType:
+                                                                  expectedImagePreviewContent.contentType,
+                                                              contentLength: expect.any(Number),
+                                                          }
+                                                        : undefined,
+                                                    videoDuration:
+                                                        expectedImagePreviewVideoDurationResult,
+                                                }
                                           : expectedAudioPreviewDuration !== undefined
-                                            ? {
-                                                  type: "Audio",
-                                                  isProcessing: false,
-                                                  ok: true,
-                                                  duration: expectedAudioPreviewDuration,
-                                                  metadata: {
-                                                      title:
-                                                          expectedAudioPreviewMetadata?.title ??
-                                                          null,
-                                                      artist:
-                                                          expectedAudioPreviewMetadata?.artist ??
-                                                          null,
-                                                      album:
-                                                          expectedAudioPreviewMetadata?.album ??
-                                                          null,
-                                                  },
-                                              }
+                                            ? expectedAudioPreviewResult
                                             : expectedCodePreviewContent !== undefined
                                               ? {
                                                     type: "Code",
@@ -396,8 +479,164 @@ export function testFileProcessorContentTypes(
                                                     content: expect.any(FileCodePreviewContent),
                                                 }
                                               : null,
+                                    transcript: file.hasTranscript
+                                        ? // Concurrent processors race to finish the immutable transcript slot. Either a
+                                          // stored transcript or an unavailable terminal state is acceptable, but
+                                          // processing/error states are not.
+                                          processingType === "TwiceConcurrently" &&
+                                          !expectedTranscriptUnavailable
+                                            ? expect.objectContaining({
+                                                  isProcessing: false,
+                                                  ok: true,
+                                              })
+                                            : {
+                                                  isProcessing: false,
+                                                  ok: true,
+                                                  ...(expectedTranscriptUnavailable
+                                                      ? {isUnavailable: true as const}
+                                                      : {}),
+                                              }
+                                        : null,
                                 }),
                             );
+
+                            if (
+                                processingType === "TwiceConcurrently" &&
+                                expectedAlternative &&
+                                expectedAlternativeErrorWhenProcessedConcurrently
+                            ) {
+                                const alternative = assertExists(file.initialData.alternative);
+
+                                assert(!alternative.isProcessing);
+                                if (alternative.ok) {
+                                    expect(alternative).toEqual({
+                                        isProcessing: false,
+                                        ok: true,
+                                        contentType: expectedAlternative.contentType,
+                                        contentLength: expect.any(Number),
+                                        isImagePreviewContent: false,
+                                    });
+                                } else {
+                                    expect(alternative).toEqual({
+                                        isProcessing: false,
+                                        ok: false,
+                                        error: expectedAlternativeErrorWhenProcessedConcurrently,
+                                    });
+                                }
+                            }
+
+                            if (expectedAudioPreviewError) {
+                                const preview = file.initialData.preview;
+
+                                assert(preview?.type === "Audio");
+                                assert(!preview.isProcessing);
+                                if (preview.ok) {
+                                    expect(preview).toEqual({
+                                        type: "Audio",
+                                        isProcessing: false,
+                                        ok: true,
+                                        duration: expectedAudioPreviewDuration,
+                                        metadata: expectedAudioPreviewMetadataResult,
+                                    });
+                                } else {
+                                    expect(preview).toEqual({
+                                        type: "Audio",
+                                        isProcessing: false,
+                                        ok: false,
+                                        duration: "Error",
+                                        metadata: expectedAudioPreviewMetadataResult,
+                                        error: expectedAudioPreviewError,
+                                    });
+                                }
+                            }
+
+                            if (expectedImagePreviewError) {
+                                const preview = file.initialData.preview;
+
+                                assert(preview?.type === "Image");
+                                assert(!preview.isProcessing);
+                                if (preview.ok) {
+                                    const expectedImagePreviewSizeValue =
+                                        assertExists(expectedImagePreviewSize);
+
+                                    expect(preview).toEqual({
+                                        type: "Image",
+                                        isProcessing: false,
+                                        ok: true,
+                                        size: {
+                                            width: expectedImagePreviewSizeValue.width,
+                                            height: expectedImagePreviewSizeValue.height,
+                                            scale: expectedImagePreviewSizeValue.scale ?? 1,
+                                            hasAlpha:
+                                                expectedImagePreviewSizeValue.hasAlpha ?? false,
+                                        },
+                                        placeholder: expect.any(FileImagePreviewPlaceholder),
+                                        content: expectedImagePreviewContent
+                                            ? {
+                                                  contentType:
+                                                      expectedImagePreviewContent.contentType,
+                                                  contentLength: expect.any(Number),
+                                              }
+                                            : undefined,
+                                        videoDuration: expectedImagePreviewVideoDurationResult,
+                                    });
+                                } else {
+                                    expect(preview).toMatchObject({
+                                        type: "Image",
+                                        isProcessing: false,
+                                        ok: false,
+                                        error: expectedImagePreviewError,
+                                    });
+                                }
+                            }
+
+                            if (expectedImagePreviewVideoDurations.length > 1) {
+                                const preview = file.initialData.preview;
+
+                                assert(preview?.type === "Image");
+                                assert(!preview.isProcessing);
+                                assert(preview.ok);
+                                assert(typeof preview.videoDuration === "number");
+                                expect(expectedImagePreviewVideoDurations).toContain(
+                                    preview.videoDuration,
+                                );
+                            }
+
+                            // Miniflare's file-backed R2 can corrupt metadata when two processors write the
+                            // same key concurrently. The file model assertion above still checks transcript
+                            // completion for `TwiceConcurrently`.
+                            if (processingType === "Once") {
+                                const transcriptObject = await r2Bucket.get(
+                                    `${space.id}/${file.id}.transcript.json`,
+                                );
+
+                                if (!file.hasTranscript) {
+                                    expect(transcriptObject).toEqual(null);
+                                } else if (
+                                    file.initialData.transcript?.isProcessing === false &&
+                                    file.initialData.transcript.ok
+                                ) {
+                                    if (file.initialData.transcript.isUnavailable) {
+                                        expect(transcriptObject).toEqual(null);
+                                    } else {
+                                        expect(transcriptObject).not.toEqual(null);
+
+                                        const transcriptJson = JSON.parse(
+                                            Buffer.from(
+                                                await waitForReadableStreamUint8Array(
+                                                    assertExists(transcriptObject)
+                                                        .body as globalThis.ReadableStream<Uint8Array>,
+                                                ),
+                                            ).toString("utf8"),
+                                        );
+
+                                        expect(transcriptJson).toMatchObject({
+                                            text: expect.any(String),
+                                            chunks: expect.any(Array),
+                                        });
+                                    }
+                                }
+                            }
 
                             // Test to make sure the object we stored in Cloudflare R2 is exactly equal to the
                             // input object.

@@ -32,7 +32,7 @@ ts_project(
         "//server/files/data",
         "//server/helpers",
         "//server/helpers/node",
-        "//server/language_models/core",
+        "//server/language_models",
         "//server/messaging/helpers",
         "//server/node",
         # NOTE(calebmer): Design goal for the API Bazel packages was to only depend on

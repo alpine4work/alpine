@@ -13,9 +13,9 @@ import {
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer, FileAuthorizerUnbound} from "~/server/files/data/file_authorizer.js";
 import {
-    FileProcessorAccountActionContext,
-    FileProcessorActionContext,
-    FileProcessorSystemActionContext,
+    FileDataAccountActionContext,
+    FileDataActionContext,
+    FileDataSystemActionContext,
 } from "~/server/files/data/file_processor_context.js";
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {
@@ -54,6 +54,7 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 import {AccountId, DocumentId, FileId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {hasFileAnalysisFeature} from "~/shared/spaces/has_file_analysis_feature.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 /**
@@ -231,10 +232,10 @@ export async function startUploadingFile(
         attachTargetAuthorizer?: FileAuthorizer | null;
     },
 ): Promise<{fileId: FileId}>;
-// FileProcessorAccountActionContext (minimal context type), no
-// attachTargetAuthorizer allowed
+// FileDataAccountActionContext (minimal context type), no attachTargetAuthorizer
+// allowed
 export async function startUploadingFile(
-    context: FileProcessorAccountActionContext,
+    context: FileDataAccountActionContext,
     options: {
         spaceId: SpaceId;
         fileId?: FileId | null;
@@ -244,7 +245,7 @@ export async function startUploadingFile(
     },
 ): Promise<{fileId: FileId}>;
 export async function startUploadingFile(
-    context: ServerAccountActionContext | FileProcessorAccountActionContext,
+    context: ServerAccountActionContext | FileDataAccountActionContext,
     {
         spaceId,
         fileId: providedFileId = null,
@@ -297,7 +298,16 @@ export async function startUploadingFile(
         );
     }
 
-    const {hasAlternative, hasPreview} = fileProcessorDeclarationByContentType[contentType];
+    const fileProcessorDeclaration = fileProcessorDeclarationByContentType[contentType];
+    const {
+        hasAlternative,
+        hasAnalysis: declaresAnalysis = false,
+        hasPreview,
+        hasTranscript: declaresTranscript = false,
+    } = fileProcessorDeclaration;
+    const hasFileAnalysisFeatureEnabled = hasFileAnalysisFeature(spaceId);
+    const hasAnalysis = hasFileAnalysisFeatureEnabled && declaresAnalysis;
+    const hasTranscript = hasFileAnalysisFeatureEnabled && declaresTranscript;
 
     let fileId: FileId;
     if (providedFileId === null) {
@@ -412,7 +422,9 @@ export async function startUploadingFile(
             uploaderId: context.actor.getPossiblyBotAccountId(),
             isUploading: true,
             alternative: hasAlternative ? {isProcessing: true} : null,
+            analysis: hasAnalysis ? {isProcessing: true} : null,
             preview,
+            transcript: hasTranscript ? {isProcessing: true} : null,
         };
 
         await DynamoTableSchema.executeTransaction(context, [
@@ -447,7 +459,7 @@ export async function startUploadingFile(
  * `startUploadingFile()` for more information.
  */
 export async function finishUploadingAndStartProcessingFile(
-    context: FileProcessorAccountActionContext,
+    context: FileDataAccountActionContext,
     {
         spaceId,
         fileId,
@@ -539,7 +551,7 @@ export async function finishUploadingAndStartProcessingFile(
  * an uploader may get an instance of the `FileUploader` class.
  */
 export async function getFileUploaderAsUploader(
-    context: FileProcessorActionContext,
+    context: FileDataActionContext,
     fileId: FileId,
 ): Promise<FileUploader> {
     let fileItem = await getFileItemIfExistsAsUploader(context, fileId, {
@@ -589,7 +601,7 @@ export class FileUploader {
         return this._item.getWithoutLock().contentLength;
     }
 
-    private _authorize(context: FileProcessorActionContext) {
+    private _authorize(context: FileDataActionContext) {
         switch (context.actor.type) {
             case "Session": {
                 if (this.uploaderId !== context.actor.getAccountId()) {
@@ -642,7 +654,7 @@ export class FileUploader {
      * throw an error.
      */
     public async finishProcessingAlternative(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         alternative: {contentType: FileContentType; contentLength: number} | null,
     ) {
         this._authorize(context);
@@ -702,7 +714,7 @@ export class FileUploader {
      * provided as an option.
      */
     public async finishProcessingImagePreviewSize(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         size: FileImagePreviewSize,
         {alsoPreviewVideoDuration}: {alsoPreviewVideoDuration?: number} = {},
     ) {
@@ -806,7 +818,7 @@ export class FileUploader {
      * `preview.isProcessing` to false.
      */
     public async finishProcessingImagePreviewPlaceholder(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         placeholder: FileImagePreviewPlaceholder,
     ) {
         this._authorize(context);
@@ -869,7 +881,7 @@ export class FileUploader {
      * `preview.isProcessing` to false.
      */
     public async finishProcessingImagePreviewContent(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         {
             contentType,
             contentLength,
@@ -972,7 +984,7 @@ export class FileUploader {
      * duration with the preview size.
      */
     public async finishProcessingImagePreviewVideoDurationIfNeeded(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         videoDuration: number,
     ): Promise<void> {
         this._authorize(context);
@@ -1049,7 +1061,7 @@ export class FileUploader {
      * this function is called.
      */
     public async finishProcessingAudioPreviewDuration(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         duration: number,
     ): Promise<void> {
         this._authorize(context);
@@ -1104,7 +1116,7 @@ export class FileUploader {
      * this function is called.
      */
     public async finishProcessingAudioPreviewMetadata(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         metadata: FileAudioPreviewMetadata,
     ): Promise<void> {
         this._authorize(context);
@@ -1161,7 +1173,7 @@ export class FileUploader {
      * called.
      */
     public async finishProcessingCodePreviewContent(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         content: FileCodePreviewContent,
     ): Promise<void> {
         this._authorize(context);
@@ -1202,8 +1214,180 @@ export class FileUploader {
         });
     }
 
+    /**
+     * Save model-produced analysis for the file.
+     */
+    public async finishProcessingAnalysis(
+        context: FileDataActionContext,
+        {
+            caption,
+            description,
+            tags,
+        }: {
+            caption?: string;
+            description?: string;
+            tags: ReadonlyArray<string>;
+        },
+    ): Promise<void> {
+        this._authorize(context);
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.analysis) {
+                        throw new InternalError("File does not have analysis");
+                    }
+
+                    // No-op if we've already finished processing analysis. This makes the function
+                    // idempotent.
+                    if (!item.analysis.isProcessing) return item;
+
+                    return {
+                        ...item,
+                        analysis: {
+                            isProcessing: false,
+                            ok: true,
+                            result: {
+                                ...(caption !== undefined ? {caption} : {}),
+                                ...(description !== undefined ? {description} : {}),
+                                tags: [...tags],
+                            },
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    /**
+     * Save an analysis generation failure for the file.
+     */
+    public async finishProcessingAnalysisWithError(
+        context: FileDataActionContext,
+        error: FileProcessorError,
+    ): Promise<void> {
+        this._authorize(context);
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.analysis) {
+                        throw new InternalError("File does not have analysis");
+                    }
+
+                    // No-op if we've already finished processing analysis. This makes the function
+                    // idempotent.
+                    if (!item.analysis.isProcessing) return item;
+
+                    return {
+                        ...item,
+                        analysis: {
+                            isProcessing: false,
+                            ok: false,
+                            error,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    /**
+     * Mark that a timestamped transcript has been stored for this file.
+     */
+    public async finishProcessingTranscript(
+        context: FileDataActionContext,
+        {
+            isUnavailable,
+        }: {
+            readonly isUnavailable?: true;
+        } = {},
+    ): Promise<void> {
+        this._authorize(context);
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.transcript) return item;
+
+                    // No-op if we've already finished processing the transcript. This makes the
+                    // function idempotent.
+                    if (!item.transcript.isProcessing) return item;
+
+                    return {
+                        ...item,
+                        transcript: {
+                            isProcessing: false,
+                            ok: true,
+                            ...(isUnavailable ? {isUnavailable} : {}),
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    /**
+     * Save a transcript generation failure for the file.
+     */
+    public async finishProcessingTranscriptWithError(
+        context: FileDataActionContext,
+        error: FileProcessorError,
+    ): Promise<void> {
+        this._authorize(context);
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.transcript) return item;
+
+                    // No-op if we've already finished processing the transcript. This makes the
+                    // function idempotent.
+                    if (!item.transcript.isProcessing) return item;
+
+                    return {
+                        ...item,
+                        transcript: {
+                            isProcessing: false,
+                            ok: false,
+                            error,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
     public async finishProcessingAlternativeWithError(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         error: FileProcessorError,
     ) {
         this._authorize(context);
@@ -1244,7 +1428,7 @@ export class FileUploader {
     }
 
     public async finishProcessingPreviewWithError(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         error: FileProcessorError,
     ) {
         this._authorize(context);
@@ -1260,6 +1444,24 @@ export class FileUploader {
                 item => {
                     if (!item.preview) {
                         throw new InternalError("File doesn\u2019t have a preview");
+                    }
+
+                    if (!item.preview.isProcessing && !item.preview.ok) {
+                        // Concurrent file processors can race to save a preview error. For
+                        // password-protected PDFs, sharp may sometimes report an unclassified error before
+                        // another processor reports the real password-protected error. Keep a specific
+                        // error once we have one, but allow a later specific error to replace `Unknown`.
+                        if (item.preview.error.type !== "Unknown" || error.type === "Unknown") {
+                            return item;
+                        }
+
+                        return {
+                            ...item,
+                            preview: {
+                                ...item.preview,
+                                error,
+                            },
+                        };
                     }
 
                     switch (item.preview.type) {
@@ -1353,7 +1555,7 @@ const FileItemContextCache = new DynamoContextCache<FileId, FileItem | null>({
 });
 
 function getFileItemIfExistsWithCache(
-    context: FileProcessorActionContext,
+    context: FileDataActionContext,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<FileItem | null> {
@@ -1371,7 +1573,7 @@ function getFileItemIfExistsWithCache(
 }
 
 async function getFileItemIfExistsAsUploader(
-    context: FileProcessorActionContext,
+    context: FileDataActionContext,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<FileItem | null> {
@@ -1422,7 +1624,7 @@ async function getFileItemIfExistsAsUploader(
  * accounts with access to the file.
  */
 export async function getFileIfExistsAsUploader(
-    context: FileProcessorActionContext,
+    context: FileDataActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<FileModel | null> {
@@ -1440,7 +1642,7 @@ export async function getFileIfExistsAsUploader(
  * with access to the file.
  */
 export async function getFileAsUploader(
-    context: FileProcessorActionContext,
+    context: FileDataActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<FileModel> {
@@ -1450,7 +1652,7 @@ export async function getFileAsUploader(
 }
 
 export function getFileIfExistsAsSystem(
-    context: FileProcessorSystemActionContext,
+    context: FileDataSystemActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ) {
@@ -1462,7 +1664,7 @@ export function getFileIfExistsAsSystem(
 }
 
 export function getFileAsSystem(
-    context: FileProcessorSystemActionContext,
+    context: FileDataSystemActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ) {
@@ -1535,7 +1737,9 @@ function createFileModelFromItem(item: FileItem) {
         contentLength: item.contentLength,
         isUploading: item.isUploading,
         alternative: item.alternative,
+        analysis: item.analysis,
         preview: item.preview,
+        transcript: item.transcript,
     });
 }
 
@@ -1604,7 +1808,7 @@ export async function attachFileAsUploader(
  * attachment is valid.
  */
 export async function attachFileToDocumentAsSystem(
-    context: FileProcessorSystemActionContext,
+    context: FileDataSystemActionContext,
     fileId: FileId,
     documentId: DocumentId,
 ): Promise<void> {

@@ -658,6 +658,7 @@ export class ApiClientMock implements ApiClient {
                         id: taskId,
                         status: responseData.status ?? {type: "Open", isActive: true},
                         title: responseData.title ?? "Test Task",
+                        collections: responseData.collections ?? [],
                         notes: responseData.notes ?? {
                             version: 0,
                             content: addKeysToApiContentForTest(

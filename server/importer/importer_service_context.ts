@@ -16,6 +16,7 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {LanguageModelsContextModuleBase} from "~/server/language_models/language_models_context_module_base.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -36,6 +37,7 @@ export type ImporterServiceProcessContextModules = {
     jobs: JobsContextModule;
     r2: CloudflareR2ContextModule;
     files: FilesContextModuleBase;
+    languageModels: LanguageModelsContextModuleBase;
     constants: ConstantsContextModule;
     chatInjection: ChatInjectionContextModule;
     documentsInjection: DocumentsInjectionContextModule;

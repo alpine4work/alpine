@@ -4,6 +4,8 @@ import {
 } from "~/server/files/data/file_processor_routing_config.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {hasFileAnalysisFeature} from "~/shared/spaces/has_file_analysis_feature.js";
 
 // Sort rules by priority (lower number = higher priority)
 const sortedRules = [...fileProcessorRoutingConfig.rules].sort((a, b) => a.priority - b.priority);
@@ -14,7 +16,11 @@ const sortedRules = [...fileProcessorRoutingConfig.rules].sort((a, b) => a.prior
  * @param contentType The MIME type of the file @param fileSizeBytes The size of
  * the file in bytes @returns The job type and reason for routing
  */
-export function routeFileToProcessor(file: {contentType: FileContentType; contentLength: number}): {
+export function routeFileToProcessor(file: {
+    contentType: FileContentType;
+    contentLength: number;
+    spaceId?: SpaceId;
+}): {
     jobType: Extract<JobDescription["type"], "ProcessFileLight" | "ProcessFileHeavy">;
     reason: string;
 } {
@@ -40,7 +46,7 @@ export function routeFileToProcessor(file: {contentType: FileContentType; conten
  */
 function ruleMatches(
     rule: FileProcessorRoutingRule,
-    file: {contentType: FileContentType; contentLength: number},
+    file: {contentType: FileContentType; contentLength: number; spaceId?: SpaceId},
 ): boolean {
     const {condition} = rule;
 
@@ -55,6 +61,14 @@ function ruleMatches(
     }
 
     if (condition.maxFileSize !== undefined && file.contentLength > condition.maxFileSize) {
+        return false;
+    }
+
+    if (
+        condition.requiresFileAnalysisFeature &&
+        file.spaceId !== undefined &&
+        !hasFileAnalysisFeature(file.spaceId)
+    ) {
         return false;
     }
 

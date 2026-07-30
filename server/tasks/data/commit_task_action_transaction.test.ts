@@ -4,6 +4,7 @@ import {ReplaceStep} from "prosemirror-transform";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {getFeedCandidateEntriesForTest} from "~/server/feed/feed_actions.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -3300,6 +3301,136 @@ describe("bot task creation authorization", () => {
                 },
             },
         ]);
+    });
+
+    test("bot-created task with default access policy does not create feed entry", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        jobs = [];
+
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const botContext = botAccount.action();
+        const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: botAccount.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+        ]);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskItemForTest(context, taskId)).toMatchObject({feed: null});
+        expect(jobs.filter(job => job.type === "AddFeedCandidateEntry")).toEqual([]);
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual(
+            [],
+        );
+    });
+
+    test("bot-created project task with default access policy creates feed entry", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        jobs = [];
+
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const botContext = botAccount.action();
+        const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: botAccount.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout: "Project",
+                },
+            },
+        ]);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskItemForTest(context, taskId)).toMatchObject({
+            feed: "AddedCandidateEntry",
+        });
+        expect(jobs.filter(job => job.type === "AddFeedCandidateEntry")).toEqual([]);
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+            expect.objectContaining({
+                entry: expect.objectContaining({
+                    type: "Task",
+                    taskId,
+                    event: "UpdatedToProjectLayout",
+                }),
+            }),
+        ]);
+    });
+
+    test("bot-created task with non-default access policy records feed candidate state", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        jobs = [];
+
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const botContext = botAccount.action();
+        const accessPolicy = {
+            ...(await createAccessPolicyForContentCreatedByBot(botContext, space.id)),
+            urlGrant: {level: "View" as const},
+        };
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: botAccount.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+        ]);
+
+        expect(await getTaskItemForTest(context, taskId)).toMatchObject({
+            feed: "AddedCandidateEntry",
+        });
     });
 
     test("bot can update a task it just created when access policy is set on create", async () => {

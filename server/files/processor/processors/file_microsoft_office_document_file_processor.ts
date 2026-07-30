@@ -79,11 +79,13 @@ export function createFileMicrosoftOfficeDocumentProcessor(
     return {
         type: "MicrosoftOfficeDocument",
         hasAlternative: true,
+        hasAnalysis: false,
         hasPreview: {
             type: "Image",
             hasContent: true,
             hasVideoDuration: false,
         },
+        hasTranscript: false,
         process: async (
             context,
             {

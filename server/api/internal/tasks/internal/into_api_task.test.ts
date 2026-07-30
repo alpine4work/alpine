@@ -4,6 +4,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
@@ -28,27 +29,31 @@ const notes: ApiSpecification.components["schemas"]["TaskNotes_Response"] = {
         ],
     }),
 };
-
 test("intoApiTask serializes a fully populated task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
     const session2 = await space.createSession({name: "Bob Johnson"});
 
-    const task = await TestTask.create(session1, {title: "Detailed Task"});
+    const collection = await TestTaskCollection.create(session1, {name: "Projects"});
+    const parentTask = await TestTask.create(session1, {title: "Parent Task"});
+    const task = await TestTask.create(session1, {
+        title: "Detailed Task",
+        layout: "Project",
+        parent: parentTask,
+        collections: collection,
+    });
     await task.updateAssignee(session1, session2, {assigneeStatus: "Active"});
     await task.updateDueDate(session1, new CalendarDate(2026, 12, 31));
     await task.updatePriority(session1, "High");
 
     await ProcessContextModule.waitForTestTasks();
 
-    const taskModel = await context
-        .getTaskRealtimeServer()
-        .action(session1)
-        .tasks.getTaskWithoutDependencies(space.id, task.id, {
-            consistency: "StrongWithinCache",
-        });
+    const action = context.getTaskRealtimeServer().action(session1);
+    const taskModel = await action.tasks.getTaskWithoutDependencies(space.id, task.id, {
+        consistency: "StrongWithinCache",
+    });
 
-    expect(await intoApiTask(session1.action(), taskModel, notes)).toEqual({
+    expect(await intoApiTask(action, taskModel, notes)).toEqual({
         id: task.id,
         creator: {id: session1.account.id},
         status: {type: "Open", isActive: true},
@@ -64,6 +69,9 @@ test("intoApiTask serializes a fully populated task", async () => {
         },
         due: {date: "2026-12-31"},
         priority: "High",
+        layout: {type: "Project"},
+        parent: {task: {id: parentTask.id}},
+        collections: [{collection: {id: collection.id}}],
         notes,
     });
 });
@@ -76,14 +84,12 @@ test("intoApiTask omits optional fields for a minimal task", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    const taskModel = await context
-        .getTaskRealtimeServer()
-        .action(session)
-        .tasks.getTaskWithoutDependencies(space.id, task.id, {
-            consistency: "StrongWithinCache",
-        });
+    const action = context.getTaskRealtimeServer().action(session);
+    const taskModel = await action.tasks.getTaskWithoutDependencies(space.id, task.id, {
+        consistency: "StrongWithinCache",
+    });
 
-    expect(await intoApiTask(session.action(), taskModel, notes)).toEqual({
+    expect(await intoApiTask(action, taskModel, notes)).toEqual({
         id: task.id,
         creator: {id: session.account.id},
         status: {type: "Open", isActive: false},
@@ -91,6 +97,9 @@ test("intoApiTask omits optional fields for a minimal task", async () => {
         assignee: undefined,
         due: undefined,
         priority: undefined,
+        layout: undefined,
+        parent: undefined,
+        collections: [],
         notes,
     });
 });

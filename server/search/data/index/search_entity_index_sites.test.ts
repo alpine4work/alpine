@@ -5,7 +5,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {LanguageModelsNoopDevelopmentContextModule} from "~/server/language_models/language_models_noop_development_context_module.js";
 import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityDependentsJob,
@@ -37,6 +37,10 @@ beforeAll(async () => {
     languageModel = await AllMiniLmL6V2LanguageModel.new();
 });
 
+function createLanguageModelsContextModuleForTest(): LanguageModelsNoopDevelopmentContextModule {
+    return new LanguageModelsNoopDevelopmentContextModule({embeddingModel: languageModel});
+}
+
 const context = createTestContext({
     shouldStartOpensearch: true,
     chatInjection,
@@ -58,7 +62,7 @@ const context = createTestContext({
             case "IndexSearchEntityEmbeddingChunks": {
                 await processIndexSearchEntityEmbeddingChunksJob(
                     actionContext.clone({
-                        languageModel: new LanguageModelContextModule(languageModel),
+                        languageModels: createLanguageModelsContextModuleForTest(),
                     }),
                     job,
                     span,

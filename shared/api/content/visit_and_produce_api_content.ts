@@ -1,5 +1,4 @@
 import {Draft, produce} from "immer";
-
 import {
     ApiContentVisitor,
     visitApiContent,
@@ -23,7 +22,13 @@ export type ApiContentDraftVisitor = {
     ) => void;
     readonly visitInlineElement?: (
         element: Draft<ApiContentInlineElement>,
-        context: {elements: Draft<ReadonlyArray<ApiContentInlineElement>>; index: number},
+        context: {
+            elements: Draft<ReadonlyArray<ApiContentInlineElement>>;
+            index: number;
+            // TODO: Replace this ad hoc flag with a `parent` or `parents` array once we have a
+            // better idea of what callers need from this traversal.
+            withinCodeBlockElement: boolean;
+        },
     ) => void;
     readonly visitMark?: (
         mark: Draft<ApiContentInlineElementMark>,

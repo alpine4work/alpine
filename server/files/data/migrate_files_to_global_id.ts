@@ -50,8 +50,10 @@ export async function runMigrateFilesToGlobalPartitionMigration(
                 uploaderId: item.uploaderId,
                 isUploading: item.isUploading,
                 alternative: item.alternative,
+                analysis: null,
                 hasProcessedNullAlternative: item.hasProcessedNullAlternative,
                 preview: item.preview,
+                transcript: null,
             });
         } else if (item.partitionType === "File") {
             // Write to File2 with the same sort range type, dropping spaceId from the

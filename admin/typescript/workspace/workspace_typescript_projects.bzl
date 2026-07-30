@@ -168,6 +168,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/jobs/queue/consumer:consumer",
     "//server/kinesis:kinesis",
     "//server/lambda:lambda",
+    "//server/language_models:language_models",
     "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2",
     "//server/language_models/cohere_embed_english_v3:cohere_embed_english_v3",
     "//server/language_models/core:core",

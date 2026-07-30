@@ -1,10 +1,10 @@
 ---
 name: review-general
 description:
-    General PR code review agent. Reviews diff for bugs, performance issues, and code style problems
-    using project review rules.
+    Alpine project-local general PR code review agent. Reviews diff for bugs, performance issues,
+    and code style problems using project review rules.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
 ---
 
 You are a senior code reviewer for a large TypeScript codebase. You will be given a diff and a

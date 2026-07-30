@@ -69,7 +69,7 @@ import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_con
 import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {createLanguageModelsContextModuleForProcess} from "~/server/language_models/create_language_models_context_module_for_process.js";
 import {createServerBasicProcessContextModules} from "~/server/node/create_server_basic_process_context_modules.js";
 import {
     createServiceTokenAgent,
@@ -161,8 +161,26 @@ async function createAppService({
         throw new InternalError("`cookieNameSuffix` must be alphanumeric characters only");
     }
 
+    const awsSigner = new AwsRequestSigner(defaultProvider());
+    if (!startupSpan) {
+        assert(process.env.NODE_ENV !== "production", "`startupSpan` is required in production");
+    } else {
+        void awsSigner.prefetchState(startupSpan);
+    }
+
+    const basicProcessContext = Context.new(
+        createServerBasicProcessContextModules({
+            tracer,
+            shutdownManager,
+            awsSigner,
+            options,
+        }),
+    );
+
     const [
         tokenAgent,
+        embeddingModel,
+        taskRealtimeServiceRouter,
         apnsCertificate,
         apnsCertificatePrivateKey,
         webPushVapidPublicKey,
@@ -173,6 +191,29 @@ async function createAppService({
             serviceName: "AppService",
             privateSide: TokenAgentAppServicePrivateSide,
             options,
+        }),
+        process.env.NODE_ENV === "production"
+            ? new CohereEmbedEnglishV3LanguageModel({
+                  apiKey: assertExists(
+                      options.cohereApiKey,
+                      "`cohereApiKey` option is required in production",
+                  ),
+              })
+            : AllMiniLmL6V2LanguageModel.new(
+                  assertExists(
+                      options.allMiniLmL6V2LanguageModel,
+                      "`allMiniLmL6V2LanguageModel` option is required in development",
+                  ),
+              ),
+        createServiceTaskRealtimeServiceRouter({
+            options,
+            context: basicProcessContext,
+            registerShutdown: (cleanup: () => void) => {
+                shutdownManager.registerListener(
+                    "Stopping task realtime service route refresh",
+                    async () => cleanup(),
+                );
+            },
         }),
         getServiceTokenAgentKeyFromOption(
             assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
@@ -240,13 +281,6 @@ async function createAppService({
         runAllPromises(contentCodeBlockLanguages.map(language => language.getParser())),
     ]);
 
-    const awsSigner = new AwsRequestSigner(defaultProvider());
-    if (!startupSpan) {
-        assert(process.env.NODE_ENV !== "production", "`startupSpan` is required in production");
-    } else {
-        void awsSigner.prefetchState(startupSpan);
-    }
-
     const edgeServiceUrl = assertExists(
         options.edgeServiceUrl,
         "`edgeServiceUrl` option is required",
@@ -256,21 +290,11 @@ async function createAppService({
         options.resourceServiceUrl,
         "`resourceServiceUrl` option is required",
     );
-
-    const languageModel =
-        process.env.NODE_ENV === "production"
-            ? new CohereEmbedEnglishV3LanguageModel({
-                  apiKey: assertExists(
-                      options.cohereApiKey,
-                      "`cohereApiKey` option is required in production",
-                  ),
-              })
-            : await AllMiniLmL6V2LanguageModel.new(
-                  assertExists(
-                      options.allMiniLmL6V2LanguageModel,
-                      "`allMiniLmL6V2LanguageModel` option is required in development",
-                  ),
-              );
+    assert(
+        options.awsBedrockTokenForDevelopment === undefined ||
+            process.env.NODE_ENV !== "production",
+        "`awsBedrockTokenForDevelopment` must not be set in production",
+    );
 
     const agentServiceUrl = options.agentServiceUrl ?? null;
 
@@ -338,15 +362,6 @@ async function createAppService({
             slackContextModule = new NoopSlackContextModule();
         }
     }
-
-    const basicProcessContext = Context.new(
-        createServerBasicProcessContextModules({
-            tracer,
-            shutdownManager,
-            awsSigner,
-            options,
-        }),
-    );
 
     // In tests, don't send push notifications. Otherwise in development and production
     // set up a connection pool to APNs so we can send notifications.
@@ -493,7 +508,7 @@ async function createAppService({
         files: new FilesContextModule({tokenAgent, resourceServiceUrl}),
         edge: new EdgeServiceContextModule({tokenAgent, edgeServiceUrl}),
         tasks: new TaskContextModule({
-            router: createServiceTaskRealtimeServiceRouter(options),
+            router: taskRealtimeServiceRouter,
             tokenAgent,
             dangerouslyEscalateToSystemContext,
         }),
@@ -501,7 +516,10 @@ async function createAppService({
             process.env.NODE_ENV === "production"
                 ? new SesEmailContextModule(tokenAgent)
                 : new TraceOnlyEmailContextModule(),
-        languageModel: new LanguageModelContextModule(languageModel),
+        languageModels: createLanguageModelsContextModuleForProcess({
+            awsBedrockTokenForDevelopment: options.awsBedrockTokenForDevelopment,
+            embeddingModel,
+        }),
         apns: apnsContextModule,
         webPush:
             process.env.NODE_ENV === "test"

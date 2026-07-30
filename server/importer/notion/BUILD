@@ -9,7 +9,10 @@ exports_files([
 
 ts_project(
     name = "notion",
-    data = ["@ffmpeg"],
+    data = [
+        "@ffmpeg",
+        "//server/files/processor/whisper_base_en:whisper_base_en_data",
+    ],
     test_data = glob(
         ["test_fixtures/**"],
     ),

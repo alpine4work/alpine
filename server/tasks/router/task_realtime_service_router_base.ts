@@ -4,6 +4,8 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {decodeId} from "~/shared/id/id.js";
@@ -112,14 +114,22 @@ export const TaskRealtimeServiceRoutesSchema = Schema.object({
  * load the routes object from different places.
  */
 export abstract class TaskRealtimeServiceRouterBase {
+    // The routes we're currently serving. A refresh adopts freshly loaded routes as
+    // soon as it succeeds, which lets the interval keep idle processes fresh without
+    // needing a request to promote the new routes.
     private _routesState: {
         loadTime: number;
         promise: Promise<TaskRealtimeServiceRoutes>;
-        next: {
-            loadTime: number;
-            promise: Promise<TaskRealtimeServiceRoutes>;
-        } | null;
     } | null = null;
+
+    // The in-flight refresh, if any. Overlapping requests and the interval reuse it
+    // while its load time is still valid instead of starting redundant loads.
+    private _refreshState: {
+        loadTime: number;
+        promise: Promise<TaskRealtimeServiceRoutes>;
+    } | null = null;
+
+    private _backgroundRefreshInterval: Interval | null = null;
 
     private readonly _stableRandom = new StableRandom("TaskRealtimeServiceRouter");
 
@@ -244,67 +254,159 @@ export abstract class TaskRealtimeServiceRouterBase {
     ): Promise<TaskRealtimeServiceRoutes>;
 
     /**
-     * Get the current routes object. Calls `_loadRoutes()` and caches the result for
-     * some duration.
+     * Get the current routes object. Returns the cached routes when they're recent
+     * enough, otherwise loads fresh routes.
+     *
+     * Routes are kept fresh in the background — by the loop started with
+     * `_getRoutesAndStartRefreshInterval()`, or, as a fallback for runtimes without
+     * one (e.g. Cloudflare, which can only `fetch()` inside a request), by
+     * revalidating from this request path. We only block on a fresh load when there
+     * are no routes yet or the cached routes have become invalid (which means
+     * background refreshes have been failing).
      */
     public getRoutes(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
     ): Promise<TaskRealtimeServiceRoutes> {
         const currentTime = Date.now();
 
-        // If our routes promise is invalidated and we have a new promise at the ready,
-        // substitute it in.
-        if (
-            this._routesState &&
-            currentTime - this._routesState.loadTime > taskRealtimeServiceRoutesInvalidatedMs &&
-            this._routesState.next
-        ) {
-            this._routesState = {
-                loadTime: this._routesState.next.loadTime,
-                promise: this._routesState.next.promise,
-                next: null,
-            };
-        }
-
-        // This branch runs if one of the following is true:
-        //
-        // 1. We haven't loaded routes yet yet; OR
-        // 2. We have a routes promise that's invalidated and have not started a new routes
-        //    promise in the background; OR
-        // 3. We had started a new routes promise in the background but enough time has
-        //    passed that the background routes promise has become invalidated.
-        //
-        // We reach case 3 if the branch above sets the new routes promise but the new
-        // routes promise is also invalidated.
+        // No usable routes yet (cold start, or a first load that failed), or the cached
+        // routes are too old to use: block on a fresh load.
         if (
             this._routesState === null ||
             currentTime - this._routesState.loadTime > taskRealtimeServiceRoutesInvalidatedMs
         ) {
-            const routesPromise = this._loadRoutes(context, {isBlocking: true});
-            context.process.waitUntil(routesPromise);
-
-            this._routesState = {
-                loadTime: currentTime,
-                promise: routesPromise,
-                next: null,
-            };
+            return this._refreshRoutes(context, {isBlocking: true});
         }
 
-        // If we've passed our revalidation timeout then reload routes in the background.
-        // Once our current routes promise expires we can switch to this one.
-        if (
-            currentTime - this._routesState.loadTime > taskRealtimeServiceRoutesRevalidateMs &&
-            !this._routesState.next
-        ) {
-            const routesPromise = this._loadRoutes(context, {isBlocking: false});
-            context.process.waitUntil(routesPromise);
-
-            this._routesState.next = {
-                loadTime: currentTime,
-                promise: routesPromise,
-            };
+        // Valid but stale: revalidate in the background and keep serving the current
+        // routes until the fresh ones are ready.
+        if (currentTime - this._routesState.loadTime > taskRealtimeServiceRoutesRevalidateMs) {
+            void this._refreshRoutes(context, {isBlocking: false});
         }
 
         return this._routesState.promise;
+    }
+
+    /**
+     * Load routes once and start a process-level loop that refreshes them on an
+     * interval so they stay fresh even when the process receives no traffic.
+     * Subclasses call this from their static `new()` so a router is never returned
+     * before its routes are ready.
+     *
+     * Resolves once the first load completes; `new()` awaits it to delay service
+     * startup until routes are ready, so we never try to route a request before we
+     * know where `TaskRealtimeService` lives.
+     *
+     * The refresh interval starts before the first load finishes. `loadTime` is the
+     * time we started loading the routes, so anchoring the interval to the same moment
+     * keeps the revalidation cadence based on discovery start instead of discovery
+     * completion.
+     *
+     * Keeping routes fresh on a wall-clock interval matters for deploys: we keep old
+     * `TaskRealtimeService` nodes alive only for `taskRealtimeServiceDiscoveryWaitMs`,
+     * on the assumption that every router refreshes its routes (and so discovers newly
+     * deployed nodes) within that window. A router that only revalidated on the
+     * request path could miss that window while idle and keep routing to a node that's
+     * already been torn down.
+     *
+     * `registerShutdown` is handed a cleanup that stops the loop; wire it to process
+     * shutdown. We take a plain callback rather than a `ShutdownManager` so this
+     * package stays free of `server/node` — the edge router extends this base and
+     * bundles for Cloudflare, which has no such loop (it falls back to revalidating
+     * from `getRoutes()`).
+     */
+    protected async _getRoutesAndStartRefreshInterval(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        {registerShutdown}: {registerShutdown: (cleanup: () => void) => void},
+    ): Promise<void> {
+        assert(
+            this._backgroundRefreshInterval === null,
+            "`TaskRealtimeServiceRouter` background refresh is already running",
+        );
+
+        const initialLoad = this._refreshRoutes(context, {isBlocking: true});
+
+        this._backgroundRefreshInterval = createInterval(() => {
+            void this._refreshRoutes(context, {isBlocking: false});
+        }, taskRealtimeServiceRoutesRevalidateMs);
+
+        // Refresh for as long as the process is alive, but don't keep an otherwise idle
+        // process alive just to refresh routes.
+        this._backgroundRefreshInterval.unref?.();
+
+        const cleanup = () => {
+            this._backgroundRefreshInterval?.clear();
+            this._backgroundRefreshInterval = null;
+        };
+        registerShutdown(cleanup);
+
+        try {
+            await initialLoad;
+        } catch (error) {
+            cleanup();
+            throw error;
+        }
+    }
+
+    /**
+     * Load fresh routes and adopt them as the current routes once ready. Only one
+     * refresh runs at a time; concurrent callers (overlapping requests and the refresh
+     * loop) reuse the in-flight load.
+     *
+     * On failure we keep the current routes. They'll eventually become invalid, at
+     * which point `getRoutes()` blocks on a fresh load.
+     */
+    private _refreshRoutes(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        {isBlocking}: {isBlocking: boolean},
+    ): Promise<TaskRealtimeServiceRoutes> {
+        const currentTime = Date.now();
+
+        // Reuse an in-flight refresh only while the routes it will produce would still be
+        // valid. If discovery has already been running past the invalidation window, start
+        // a new load below instead of making callers wait on stale data.
+        if (
+            this._refreshState !== null &&
+            currentTime - this._refreshState.loadTime <= taskRealtimeServiceRoutesInvalidatedMs
+        ) {
+            return this._refreshState.promise;
+        }
+
+        // Timestamp the route map before making AWS/API calls. The loaded data is only
+        // known to be consistent as of this moment, not as of when all calls finish.
+        const loadTime = currentTime;
+        const routesPromise = this._loadRoutes(context, {isBlocking}).then(routes => {
+            // If discovery itself took too long, the result is already invalid. Reject it so
+            // callers retry instead of adopting stale routes.
+            if (Date.now() - loadTime > taskRealtimeServiceRoutesInvalidatedMs) {
+                throw new InternalError("`TaskRealtimeService` route discovery took too long");
+            }
+
+            return routes;
+        });
+        context.process.waitUntil(routesPromise);
+        const refreshState = {loadTime, promise: routesPromise};
+        this._refreshState = refreshState;
+
+        void routesPromise
+            .then(
+                () => {
+                    // Only the latest refresh may become current. An older refresh can resolve after a
+                    // newer one has started, but it must not overwrite the newer refresh state.
+                    if (this._refreshState === refreshState) {
+                        this._routesState = {loadTime, promise: routesPromise};
+                    }
+                },
+                // Keep the current routes if there's an error; see the method comment.
+                () => {},
+            )
+            .finally(() => {
+                // Avoid an older refresh clearing a newer in-flight refresh.
+                if (this._refreshState === refreshState) {
+                    this._refreshState = null;
+                }
+            });
+
+        return routesPromise;
     }
 }

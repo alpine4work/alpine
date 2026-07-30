@@ -1,5 +1,6 @@
 import {CalendarDate, parseDate} from "@internationalized/date";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
+import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {validateApiActor} from "~/server/api/internal/tasks/internal/validate_api_actor.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
@@ -19,6 +20,7 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {randomlyGenerateTaskTitleClientId} from "~/shared/tasks/title/task_title.js";
 
@@ -36,6 +38,8 @@ type TaskPatchState = {
     status: ApiTaskStatus;
     dueDate: CalendarDate | null;
     priority: ApiTaskPriority | null;
+    layout: TaskLayout | null;
+    parentTaskId: TaskId | null;
     collectionIds: Set<TaskCollectionId>;
 };
 
@@ -130,6 +134,8 @@ function createTaskWithoutNotesPatchState(task: TaskModel): TaskPatchState {
         status: intoApiTaskStatus(task.getDisplayStatus()),
         dueDate: task.getDueDate(),
         priority: task.getPriority(),
+        layout: task.getLayout(),
+        parentTaskId: task.getParent()?.taskId ?? null,
         collectionIds: new Set(
             task
                 .getCollections()
@@ -176,8 +182,14 @@ function applyTaskWithoutNotesPatches(
             case "SetPriority":
                 state.priority = patch.priority;
                 break;
+            case "SetLayout":
+                state.layout = fromApiTaskLayout(patch.layout);
+                break;
+            case "SetParent":
+                state.parentTaskId = patch.parent?.task.id ?? null;
+                break;
             case "AddCollection":
-                state.collectionIds.add(patch.collectionId);
+                state.collectionIds.add(patch.item.collection.id);
                 break;
             case "RemoveCollection":
                 state.collectionIds.delete(patch.collectionId);
@@ -245,6 +257,20 @@ function createTaskWithoutNotesPatchActions({
         pushTaskAction({
             type: "UpdatePriority",
             priority: finalState.priority,
+        });
+    }
+
+    if (finalState.layout !== initialState.layout) {
+        pushTaskAction({
+            type: "UpdateLayout",
+            layout: finalState.layout,
+        });
+    }
+
+    if (finalState.parentTaskId !== initialState.parentTaskId) {
+        pushTaskAction({
+            type: "UpdateParentTaskId",
+            parentTaskId: finalState.parentTaskId,
         });
     }
 

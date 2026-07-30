@@ -1,4 +1,5 @@
 import {addHours} from "date-fns";
+import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
@@ -1285,6 +1286,21 @@ class TaskActionTransactionCommitState {
         return intoEffectiveAccessPolicy(this._context, accessPolicy);
     }
 
+    public async isDefaultAccessPolicyForContentCreatedByBot(
+        accessPolicy: CreateOrUpdateAccessPolicy,
+    ): Promise<boolean> {
+        if (this._context.actor.type !== "Bot") return false;
+
+        const botContext = await this._context.actor.authenticate();
+        const defaultAccessPolicy = await createAccessPolicyForContentCreatedByBot(
+            botContext,
+            this._spaceId,
+            {consistency: this._consistency},
+        );
+
+        return isDeepEqual(accessPolicy, defaultAccessPolicy);
+    }
+
     public async validateAccessPolicyUpdate(
         entityId: SearchEntityId,
         oldAccessPolicy: AccessPolicy | null,
@@ -1440,6 +1456,15 @@ async function actuallyCommitTaskActionTransaction(
                               )
                             : null;
 
+                        const shouldAddFeedCandidateEntryForCreate =
+                            !!newResolvedAccessPolicy?.defaultGrant &&
+                            !(
+                                taskAction.accessPolicy &&
+                                (await state.isDefaultAccessPolicyForContentCreatedByBot(
+                                    taskAction.accessPolicy,
+                                ))
+                            );
+
                         const newTaskItem: TaskEssentialAttributesItem = {
                             partitionType: "Task",
                             sortRangeType: "EssentialAttributes",
@@ -1471,7 +1496,7 @@ async function actuallyCommitTaskActionTransaction(
                                 ? new AccessPolicyRegister(taskAction.accessPolicy, action.time)
                                 : null,
                             layout: null,
-                            feed: newResolvedAccessPolicy?.defaultGrant
+                            feed: shouldAddFeedCandidateEntryForCreate
                                 ? "AddedCandidateEntry"
                                 : null,
                             validLeaseId: null,

@@ -33,6 +33,7 @@ import {
 } from "~/server/importer/importer_service_context.js";
 import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
 import {processValidateNotionImportAndExtractMetadataJob} from "~/server/importer/notion/process_validate_notion_import_and_extract_metadata_job.js";
+import {createLanguageModelsContextModuleForProcess} from "~/server/language_models/create_language_models_context_module_for_process.js";
 import {
     createServerBasicProcessContextModules,
     serverBasicProcessContextOptions,
@@ -59,6 +60,8 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -72,6 +75,8 @@ export const options = {
     spaceId: {type: "string"},
     notionImportId: {type: "string"},
     importUploadsBucketName: {type: "string"},
+    // Used to test LLM calls against real AWS Bedrock in development. Optional.
+    awsBedrockTokenForDevelopment: {type: "string", optional: true},
     ...serverBasicProcessContextOptions,
     ...omitObject(serviceCloudflareR2Options, ["fileProcessorServiceUrl"]),
     ...serviceTokenAgentOptions,
@@ -126,10 +131,37 @@ export async function run({
         bucketName: importUploadsBucketName,
     });
 
-    const tokenAgent = await createServiceTokenAgent({
-        serviceName: "ImporterService",
-        options,
-    });
+    assert(
+        options.awsBedrockTokenForDevelopment === undefined ||
+            process.env.NODE_ENV !== "production",
+        "`awsBedrockTokenForDevelopment` must not be set in production",
+    );
+
+    const basicProcessContext = Context.new(
+        createServerBasicProcessContextModules({
+            tracer,
+            shutdownManager,
+            awsSigner,
+            options,
+        }),
+    );
+
+    const [tokenAgent, taskRealtimeServiceRouter] = await runAllPromises([
+        createServiceTokenAgent({
+            serviceName: "ImporterService",
+            options,
+        }),
+        createServiceTaskRealtimeServiceRouter({
+            options,
+            context: basicProcessContext,
+            registerShutdown: (cleanup: () => void) => {
+                shutdownManager.registerListener(
+                    "Stopping task realtime service route refresh",
+                    async () => cleanup(),
+                );
+            },
+        }),
+    ]);
 
     // Sometimes we want to upgrade a session actor to a system actor. This gives the
     // action escalated the system permission level which is dangerous! The system
@@ -173,17 +205,14 @@ export async function run({
         );
     };
 
-    const processContext: ImporterServiceProcessContext = Context.new({
-        ...createServerBasicProcessContextModules({
-            tracer,
-            shutdownManager,
-            awsSigner,
-            options,
-        }),
+    const processContext: ImporterServiceProcessContext = basicProcessContext.clone({
         r2: createServiceCloudflareR2ContextModule(options),
         files: new FilesContextModule({
             tokenAgent,
             resourceServiceUrl: options.resourceServiceUrl,
+        }),
+        languageModels: createLanguageModelsContextModuleForProcess({
+            awsBedrockTokenForDevelopment: options.awsBedrockTokenForDevelopment,
         }),
         importerService: importerModule,
         chatInjection: new ChatInjectionContextModule(chatInjection),
@@ -198,7 +227,7 @@ export async function run({
         opensearch: createServiceOpensearchContextModule(awsSigner, options),
         tasks: new TaskContextModule({
             tokenAgent,
-            router: createServiceTaskRealtimeServiceRouter(options),
+            router: taskRealtimeServiceRouter,
             dangerouslyEscalateToSystemContext,
         }),
     });

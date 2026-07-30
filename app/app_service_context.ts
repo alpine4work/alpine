@@ -9,7 +9,7 @@ import {SlackContextModuleBase} from "~/server/context/slack_context_module_base
 import {WebPushContextModuleBase} from "~/server/context/web_push_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {LanguageModelsContextModuleBase} from "~/server/language_models/language_models_context_module_base.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -18,7 +18,7 @@ type AppServiceExtraContextModules = {
     email: EmailContextModuleBase;
     edge: EdgeServiceContextModule;
     opensearch: OpensearchContextModule;
-    languageModel: LanguageModelContextModule;
+    languageModels: LanguageModelsContextModuleBase;
     apns: ApnsContextModuleBase;
     webPush: WebPushContextModuleBase;
     files: FilesContextModuleBase;

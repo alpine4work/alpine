@@ -552,20 +552,6 @@ export function validateAccessPolicyUpdate(
         }
     }
 
-    const oldDefaultGrant = oldAccessPolicy.defaultGrant;
-    const newDefaultGrant = newAccessPolicy.defaultGrant;
-
-    // Make sure that the actor is not adding a default grant at a generation less than
-    // their own.
-    if (oldDefaultGrant?.level !== "Manage" && newDefaultGrant?.level === "Manage") {
-        if (newDefaultGrant.generation <= actorManageGenerationInNewPolicy) {
-            return {
-                ok: false,
-                reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
-            };
-        }
-    }
-
     const hasManageAccessLevel =
         hasManageAccessLevelAccountGrant ||
         (newAccessPolicy.defaultGrant &&
@@ -579,12 +565,12 @@ export function validateAccessPolicyUpdate(
         };
     }
 
-    const oldManageGrantsLessThanActorGeneration = getManageGrantsLessThanOrEqualToActorGeneration(
+    const oldManageGrantsLessThanActorGeneration = getManageGrantsLessThanActorGeneration(
         oldAccessPolicy,
         actorManageGenerationInOldPolicy,
         isAccountRemovedFromSpace,
     );
-    const newManageGrantsLessThanActorGeneration = getManageGrantsLessThanOrEqualToActorGeneration(
+    const newManageGrantsLessThanActorGeneration = getManageGrantsLessThanActorGeneration(
         newAccessPolicy,
         actorManageGenerationInNewPolicy,
         isAccountRemovedFromSpace,
@@ -598,8 +584,6 @@ export function validateAccessPolicyUpdate(
     // 2. There were no managers that were removed from the old policy who were more
     //    senior than the current actor (they didn't illegally remove someone).
     // 3. At least one account has manage access.
-    // 4. The actor did not add a default Manage grant at a generation less than their
-    //    own.
     //
     // So we don't known anything about the ordering of the accounts that had Manage
     // access in the _new and old_ policy. So we still need to validate Rule 3:
@@ -658,110 +642,12 @@ export function validateAccessPolicyUpdate(
             };
         }
 
-        // The last item in the oldManageGrantsLessThanActorGeneration array is the actor's
-        // generation and requires special handling below. However, every generation group
-        // before the actor's generation must exactly equal the corresponding group in the
-        // new policy's generation groups, preserving the order.
-        if (i < oldManageGrantsLessThanActorGeneration.length - 1) {
-            if (isDeepEqual(oldManageGroup, newManageGroup)) continue;
+        // Every generation group before the actor's generation must exactly equal the
+        // corresponding group in the new policy's generation groups, preserving the order.
+        if (isDeepEqual(oldManageGroup, newManageGroup)) continue;
 
-            // Each generation "group" before the actor's generation must be in the exact same
-            // order in the old and new policy.
-            return {
-                ok: false,
-                reason: "Can\u2019t reorder manage grant generations",
-            };
-        }
-
-        /* ========================================================================== *\
-         *        LAST GROUP IN `oldManageGrantsLessThanActorGeneration`              *
-        \* ========================================================================== */
-
-        // Actor's can manage accounts at or above their level. If there is no matching
-        // group in the new policy, that means the actor removed themselves and any peers
-        // in the new policy without modifying any grants with generations lower than their
-        // own
-        if (!newManageGroup) continue;
-
-        // This makes sure that actor promoting an exsiting manager above themselves (e.g.
-        // Bob giving Dave the ability to remove Bob) Checks against the following case:
-        //
-        // ```
-        // old: [default-0, alice-1, bob-2 (actor), dave-3]
-        // new: [default-0, alice-1, dave-2, bob-3 (actor)]
-        // ```
-        if (
-            oldManageGroup.has(actorAccountId) &&
-            !newManageGroup.has(actorAccountId) &&
-            newAccessPolicy.accountGrantById.get(actorAccountId)?.level === "Manage"
-        ) {
-            return {
-                ok: false,
-                reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
-            };
-        }
-
-        // Check to see if the actor has revoked their manage access either by changing to
-        // a lower level or removing themselves from the policy entirely. Actors can remove
-        // themselves and any peers. This case checks that
-        //
-        // 1. The actor removed themselves as a manager.
-        // 2. The remaining actors at this generation in the new policy are a subset of the
-        //    actors in the old policy
-        if (oldManageGroup.has(actorAccountId) && !newManageGroup.has(actorAccountId)) {
-            // If the actor has removed themselves as a manager, that's okay, but it changes
-            // the calculus a little bit. They can't remove themselves, leave some of the other
-            // managers at the same generation, and add some new managers at the same
-            // generation. So what we want to do is check to see if the other managers at the
-            // same generation in the old policy are still in the new policy, and that the
-            // actor didn't add managers at the same generation. In other words, the removal is
-            // valid if
-            //
-            // 1. The actor removed all managers at their generation in the old policy. We can
-            //    return early in this case.
-            // 2. The actor removed themselves and 1 or more other managers at their generation
-            //    in the old policy, but they didn't add any new managers at that same
-            //    generation. We validate later that the actor didn't add any new managers at
-            //    that same generation by checking that the `newManageGroup` is a subset of the
-            //    `oldManageGroup`.
-            oldManageGroup.delete(actorAccountId);
-
-            if (oldManageGroup.size === 0) continue;
-        }
-
-        // According to the rule that an actor can manage all accounts at or above their
-        // generation, the following is okay (where bob is the actor):
-        //
-        // ```
-        // old: [alice-1, bob-2, charlie-2] -> [{alice}, {bob, charlie}]
-        // new: [alice-1, bob-2, charlie-3] -> [{alice}, {bob}, {charlie}]
-        // ```
-        //
-        // The last group in the old policy is {bob, charlie} and the corrsponding group in
-        // the new policy is {bob}. Since Bob is the actor, it's okay that charlie is no
-        // longer at the same generation as bob, or even whether charlie is in the policy
-        // at all (we already know that he was not given a generation lower than bob's)
-        //
-        // However, the following is not okay:
-        //
-        // ```
-        // old: [alice-1, bob-2, charlie-3] -> [{alice}, {bob}]
-        // new: [alice-1, bob-2, charlie-2] -> [{alice}, {bob, charlie}]
-        // ```
-        //
-        // The last group in the old policy is now {bob}, and the corresponding group in
-        // the new policy is {bob, charlie}. Since Bob is the actor, it's not okay that
-        // charlie is now at the same generation as bob.
-        //
-        // This rule can be enforced by checking whether or not the new group is a subset
-        // of the old group.
-        //
-        // ```
-        // Case 1: {bob} is a subset of {bob, charlie}
-        // Case 2: {bob, charlie} is not a subset of {bob}
-        // ```
-        if (newManageGroup.isSubsetOf(oldManageGroup)) continue;
-
+        // Each generation "group" before the actor's generation must be in the exact same
+        // order in the old and new policy.
         return {
             ok: false,
             reason: "Can\u2019t reorder manage grant generations",
@@ -798,7 +684,7 @@ export function validateAccessPolicyUpdate(
  *
  * Now it's super easy to see that the first "Manage group" has changed!!
  */
-function getManageGrantsLessThanOrEqualToActorGeneration(
+function getManageGrantsLessThanActorGeneration(
     accessPolicy: ResolvedAccessPolicyWithGenerations,
     referenceGeneration: number,
     isAccountRemovedFromSpace?: (accountId: AccountId) => boolean,
@@ -807,7 +693,7 @@ function getManageGrantsLessThanOrEqualToActorGeneration(
 
     for (const [accountId, grant] of accessPolicy.accountGrantById.entries()) {
         if (grant.level !== "Manage") continue;
-        if (grant.generation > referenceGeneration) continue;
+        if (grant.generation >= referenceGeneration) continue;
         if (accountId !== "DefaultGrant" && isAccountRemovedFromSpace?.(accountId)) continue;
 
         const generation = getAccountAccessPolicyManageGeneration(accountId, accessPolicy);
@@ -819,7 +705,7 @@ function getManageGrantsLessThanOrEqualToActorGeneration(
     if (
         accessPolicy.defaultGrant &&
         accessPolicy.defaultGrant.level === "Manage" &&
-        accessPolicy.defaultGrant.generation <= referenceGeneration
+        accessPolicy.defaultGrant.generation < referenceGeneration
     ) {
         const grants = getOrSetDefaultMapValue(
             generationToGrants,

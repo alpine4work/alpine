@@ -451,6 +451,102 @@ http_file(
 )
 
 # =========================================================================== #
+#                           File processor Whisper                            #
+# =========================================================================== #
+
+# `@xenova/transformers` 2.8.0 can run Whisper from a much smaller local file
+# set than the full `whisper-base.en` model repo. We intentionally package only
+# the config/tokenizer/feature extractor files plus the quantized encoder and
+# merged decoder weights used by our current ASR path. The omitted files are
+# alternative ONNX exports (different precisions / decoder layouts), not extra
+# required pieces for the loader we run today. See
+# `server/files/processor/whisper_base_en/README.md` for the rationale and
+# update guidance, including why the ONNX files come from Xenova.
+http_file(
+    name = "file_process_whisper_base_en_added_tokens",
+    downloaded_file_path = "added_tokens.json",
+    sha256 = "560be47bea388757f8d4cc185c5d82067426cbb6361e38016dd90ddc01ab203a",
+    url = "https://huggingface.co/onnx-community/whisper-base.en/resolve/main/added_tokens.json",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_config",
+    downloaded_file_path = "config.json",
+    sha256 = "c8a0de5ed8a083565a4319db29d0c210fda35b4d6076c2d711cae53ae00f3cb1",
+    url = "https://huggingface.co/onnx-community/whisper-base.en/resolve/main/config.json",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_generation_config",
+    downloaded_file_path = "generation_config.json",
+    sha256 = "3479b1f44a07e41db799e22599222fee5816738036def94a39841cb9cdbb4120",
+    url = "https://huggingface.co/onnx-community/whisper-base.en/resolve/main/generation_config.json",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_merges",
+    downloaded_file_path = "merges.txt",
+    sha256 = "1ce1664773c50f3e0cc8842619a93edc4624525b728b188a9e0be33b7726adc5",
+    url = "https://huggingface.co/onnx-community/whisper-base.en/resolve/main/merges.txt",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_normalizer",
+    downloaded_file_path = "normalizer.json",
+    sha256 = "bf1c507dc8724ca9cf9903640dacfb69dae2f00edee4f21ceba106a7392f26dd",
+    url = "https://huggingface.co/onnx-community/whisper-base.en/resolve/main/normalizer.json",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_preprocessor_config",
+    downloaded_file_path = "preprocessor_config.json",
+    sha256 = "a6a76d28c93edb273669eb9e0b0636a2bddbb1272c3261e47b7ca6dfdbac1b8d",
+    url = "https://huggingface.co/onnx-community/whisper-base.en/resolve/main/preprocessor_config.json",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_special_tokens_map",
+    downloaded_file_path = "special_tokens_map.json",
+    sha256 = "98bdf3ec5b32e31575b02f64b0a32bde7c0449075d34484a7df9bdd3cdeb9fb9",
+    url = "https://huggingface.co/onnx-community/whisper-base.en/resolve/main/special_tokens_map.json",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_tokenizer",
+    downloaded_file_path = "tokenizer.json",
+    sha256 = "5eb60cec1e77aeeb6869a2bb5a8e01a84c3fe5d072d75369343021fe6f5310d0",
+    url = "https://huggingface.co/onnx-community/whisper-base.en/resolve/main/tokenizer.json",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_tokenizer_config",
+    downloaded_file_path = "tokenizer_config.json",
+    sha256 = "93879c3dccdd4b976f709acd85b44778873f30c275e67026f30ca1e4c975230c",
+    url = "https://huggingface.co/onnx-community/whisper-base.en/resolve/main/tokenizer_config.json",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_vocab",
+    downloaded_file_path = "vocab.json",
+    sha256 = "f6bd25a65e4e63ca31360e9fb11c7e4f9a391a78385d640acd814092dd6eee4f",
+    url = "https://huggingface.co/onnx-community/whisper-base.en/resolve/main/vocab.json",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_encoder_model_quantized",
+    downloaded_file_path = "onnx/encoder_model_quantized.onnx",
+    sha256 = "d0d4e59e2842617b39787cece73d7e8f76f99b1697d3386c0e682eca2269f4a1",
+    url = "https://huggingface.co/Xenova/whisper-base.en/resolve/main/onnx/encoder_model_quantized.onnx",
+)
+
+http_file(
+    name = "file_process_whisper_base_en_decoder_model_merged_quantized",
+    downloaded_file_path = "onnx/decoder_model_merged_quantized.onnx",
+    sha256 = "a25afc5858a20aabb7652cb2d555996ebe10691a69bbdb423d5073d52f060325",
+    url = "https://huggingface.co/Xenova/whisper-base.en/resolve/main/onnx/decoder_model_merged_quantized.onnx",
+)
+
+# =========================================================================== #
 #                                  Apple iOS                                  #
 # =========================================================================== #
 

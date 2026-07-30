@@ -60,6 +60,7 @@ import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
+import {LanguageModelsNoopDevelopmentContextModule} from "~/server/language_models/language_models_noop_development_context_module.js";
 import {
     OpensearchClient,
     TestDisabledOpensearchClient,
@@ -701,6 +702,7 @@ export function actuallyCreateUnitTestEnvironment(
         }),
         files: new TestFilesContextModule(),
         r2: new CloudflareR2ContextModule(new TestEmptyCloudflareR2Client()),
+        languageModels: new LanguageModelsNoopDevelopmentContextModule(),
         logoDev: new LogoDevNoopContextModule(),
         loops: new LoopsNoopContextModule(),
         chatInjection: ChatInjectionContextModule.test(options.chatInjection),

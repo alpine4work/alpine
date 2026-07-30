@@ -2,8 +2,9 @@
 
 import {convertApiContentToProperQuotes} from "~/server/agents/bots/internal/convert_api_content_to_proper_quotes.js";
 import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
 
 function testConvertApiContentToProperQuotes(input: ApiContent, expected: ApiContent) {
     const result = convertApiContentToProperQuotes(input);
@@ -537,6 +538,191 @@ test("doesn\u2019t convert quotes to proper quotes in code", () => {
                         {type: "Text", text: "A "},
                         {type: "Text", text: '"danger"', marks: [{type: "Code"}]},
                         {type: "Text", text: " button variant was added"},
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("doesn\u2019t convert quotes to proper quotes in code blocks", () => {
+    testConvertApiContentToProperQuotes(
+        {
+            elements: [
+                {
+                    type: "Code",
+                    language: "javascript",
+                    lines: [
+                        {
+                            elements: [{type: "Text", text: 'const greeting = "Hello World";'}],
+                        },
+                        {
+                            elements: [{type: "Text", text: "const name = 'Alice';"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            elements: [
+                {
+                    type: "Code",
+                    language: "javascript",
+                    lines: [
+                        {
+                            elements: [{type: "Text", text: 'const greeting = "Hello World";'}],
+                        },
+                        {
+                            elements: [{type: "Text", text: "const name = 'Alice';"}],
+                        },
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("preserves file and preview block elements", () => {
+    const fileId = generateChronologicalId<FileId>();
+    const documentId = generateId<DocumentId>();
+
+    const content: ApiContent = {
+        elements: [
+            {type: "File", id: fileId, contentType: "text/plain"},
+            {
+                type: "Preview",
+                target: {type: "Document", id: documentId},
+                title: '"Quoted" title',
+            },
+            {
+                type: "FileGallery",
+                rows: [
+                    {
+                        items: [
+                            {element: {type: "File", id: fileId}},
+                            {
+                                element: {
+                                    type: "Preview",
+                                    target: {type: "Document", id: documentId},
+                                    title: "'Quoted' preview",
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                type: "FileFloat",
+                side: "Left",
+                element: {type: "File", id: fileId},
+            },
+        ],
+    };
+
+    testConvertApiContentToProperQuotes(content, content);
+});
+
+test("doesn\u2019t convert quotes in code blocks but converts in surrounding paragraphs", () => {
+    testConvertApiContentToProperQuotes(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: 'Here is some "code":'}],
+                },
+                {
+                    type: "Code",
+                    language: "python",
+                    lines: [
+                        {
+                            elements: [{type: "Text", text: 'print("Hello")'}],
+                        },
+                        {
+                            elements: [{type: "Text", text: "name = 'World'"}],
+                        },
+                    ],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "That's 'interesting'!"}],
+                },
+            ],
+        },
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Here is some \u201Ccode\u201D:"}],
+                },
+                {
+                    type: "Code",
+                    language: "python",
+                    lines: [
+                        {
+                            elements: [{type: "Text", text: 'print("Hello")'}],
+                        },
+                        {
+                            elements: [{type: "Text", text: "name = 'World'"}],
+                        },
+                    ],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "That\u2019s \u2018interesting\u2019!"}],
+                },
+            ],
+        },
+    );
+});
+
+test("handles code blocks with multiple lines and mixed quotes", () => {
+    testConvertApiContentToProperQuotes(
+        {
+            elements: [
+                {
+                    type: "Code",
+                    language: "typescript",
+                    lines: [
+                        {
+                            elements: [{type: "Text", text: "function greet(name: string) {"}],
+                        },
+                        {
+                            elements: [{type: "Text", text: '  return "Hello, " + name + "!";'}],
+                        },
+                        {
+                            elements: [{type: "Text", text: "}"}],
+                        },
+                        {
+                            elements: [{type: "Text", text: ""}],
+                        },
+                        {
+                            elements: [{type: "Text", text: "const message = 'It\\'s working';"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            elements: [
+                {
+                    type: "Code",
+                    language: "typescript",
+                    lines: [
+                        {
+                            elements: [{type: "Text", text: "function greet(name: string) {"}],
+                        },
+                        {
+                            elements: [{type: "Text", text: '  return "Hello, " + name + "!";'}],
+                        },
+                        {
+                            elements: [{type: "Text", text: "}"}],
+                        },
+                        {
+                            elements: [{type: "Text", text: ""}],
+                        },
+                        {
+                            elements: [{type: "Text", text: "const message = 'It\\'s working';"}],
+                        },
                     ],
                 },
             ],

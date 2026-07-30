@@ -30,6 +30,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {getFileEntityIfPossible} from "~/shared/rpc/files_rpc_definitions.js";
 import {getDynamicSearchEntityPathForFileEntity} from "~/shared/search/path/get_search_entity_path.js";
+import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -194,15 +195,40 @@ export function createContentEditorMentionNodeViewConstructor({
                         icon: <LinkIcon />,
                         iconPlacement: "end",
                         onPress: async () => {
-                            const url = new URL(
-                                getDynamicSearchEntityPathForFileEntity({
-                                    spaceId,
-                                    fileEntityId: mentionEntityId,
-                                    fileEntityResult:
-                                        references.fileEntityById?.get(mentionEntityId) ?? null,
-                                }),
-                                window.location.href,
-                            );
+                            let url: URL;
+                            if (!mentionEntityId.startsWith("Site:")) {
+                                url = new URL(
+                                    getDynamicSearchEntityPathForFileEntity({
+                                        spaceId,
+                                        fileEntityId: mentionEntityId,
+                                        fileEntityResult:
+                                            references.fileEntityById?.get(mentionEntityId) ?? null,
+                                    }),
+                                    window.location.href,
+                                );
+                            } else {
+                                // NOTE(ifitzsimmons, 2026-06-17): `getDynamicSearchEntityPathForFileEntity` will
+                                // resolve to the path of the site's first entity if it has one. However, when
+                                // copying a link to a site mention, it doesn't really make sense to copy the path
+                                // to the first entity.
+                                //
+                                // Think about the following use case:
+                                //
+                                // 1. User is looking at a site mention. The site has a Test Channel as its first
+                                //    entity.
+                                // 2. User copies the link to the site mention.
+                                // 3. User pastes the link into a chat message.
+                                // 4. The chat message is rendered as a link to the Test Channel.
+                                //
+                                // So by simply copying and pasting the link, we've created a site effect. This
+                                // does mean that if a user copies the link and pastes it into the URL bar, they
+                                // will be navigated to the site root and redirected to the Test Channel. Those
+                                // interactions will be relatively rare, so it's not a big deal.
+                                const siteIdObject = parseSearchDynamicEntityId(mentionEntityId);
+                                if (siteIdObject.type !== "Site") return;
+
+                                url = new URL(`/site/${siteIdObject.siteId}`, window.location.href);
+                            }
                             await writeTextToClipboard(url.toString());
                         },
                     },

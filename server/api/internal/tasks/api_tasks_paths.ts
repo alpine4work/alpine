@@ -12,9 +12,12 @@ import {
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
+import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
+import {getApiTaskCollectionItems} from "~/server/api/internal/tasks/internal/get_api_task_collection_items.js";
 import {getApiTaskNotes} from "~/server/api/internal/tasks/internal/get_api_task_notes.js";
 import {getApiTasksWithoutNotes} from "~/server/api/internal/tasks/internal/get_api_tasks_without_notes.js";
 import {intoApiTask} from "~/server/api/internal/tasks/internal/into_api_task.js";
+import {intoApiTaskLayout} from "~/server/api/internal/tasks/internal/into_api_task_layout.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
 import {updateTaskWithoutNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
@@ -131,6 +134,9 @@ export const apiTasksPaths: Pick<
                     status: taskInput.status,
                     dueDate,
                     priority: taskInput.priority,
+                    layout: taskInput.layout ? fromApiTaskLayout(taskInput.layout) : undefined,
+                    parentTaskId: taskInput.parent?.task.id,
+                    collectionIds: taskInput.collections?.map(item => item.collection.id),
                 }),
                 intoApiContentWithReferences(
                     context,
@@ -154,6 +160,12 @@ export const apiTasksPaths: Pick<
                       })
                     : undefined;
 
+            const collections = await getApiTaskCollectionItems(
+                context,
+                spaceId,
+                task.collectionIds,
+            );
+
             return {
                 content: {
                     spaceId,
@@ -165,6 +177,9 @@ export const apiTasksPaths: Pick<
                         assignee: apiAssignee ?? undefined,
                         due: task.dueDate ? {date: task.dueDate.toString()} : undefined,
                         priority: task.priority,
+                        layout: intoApiTaskLayout(task.layout),
+                        parent: task.parentTaskId ? {task: {id: task.parentTaskId}} : undefined,
+                        collections,
                         notes: {
                             version: 0,
                             content,

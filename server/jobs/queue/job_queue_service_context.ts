@@ -7,12 +7,12 @@ import {WebPushContextModule} from "~/server/context/web_push_context_module.js"
 import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";
 import {SchedulerContextModuleBase} from "~/server/deploy/data/scheduler_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {LanguageModelsContextModuleBase} from "~/server/language_models/language_models_context_module_base.js";
 import {LoopsContextModuleBase} from "~/server/spaces/loops_context_module.js";
 import {Context} from "~/shared/context/context.js";
 
 type JobQueueServiceExtraContextModules = {
-    languageModel: LanguageModelContextModule;
+    languageModels: LanguageModelsContextModuleBase;
     apns: ApnsContextModuleBase;
     github: GithubContextModuleBase;
     scheduler: SchedulerContextModuleBase;

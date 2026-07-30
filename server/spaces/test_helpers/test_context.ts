@@ -15,6 +15,7 @@ import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.
 import {ActorContextModule, ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
+import {LanguageModelsContextModuleBase} from "~/server/language_models/language_models_context_module_base.js";
 import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
 import {LoopsContextModuleBase} from "~/server/spaces/loops_context_module.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
@@ -32,6 +33,7 @@ type TestContextExtraModules = {
     billing: BillingContextModuleBase;
     importer: ImporterContextModuleBase;
     importerService: ImporterServiceContextModuleBase;
+    languageModels: LanguageModelsContextModuleBase;
     slack: SlackContextModuleBase;
     logoDev: LogoDevContextModuleBase;
     loops: LoopsContextModuleBase;

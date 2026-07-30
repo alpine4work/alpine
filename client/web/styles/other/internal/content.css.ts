@@ -1361,6 +1361,96 @@ globalStyle(`${fileClassName} > *`, {
     pointerEvents: "none",
 });
 
+export const fileDebugWidgetClassName = style({
+    zIndex: "90",
+    position: "absolute",
+    top: spacing["2"],
+    right: spacing["2"],
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: spacing["6"],
+    height: spacing["6"],
+    borderRadius: spacing["1"],
+    color: colorSchemeVars["green-90"],
+    pointerEvents: "auto",
+    cursor: "help",
+    selectors: {
+        "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: "0",
+            borderRadius: spacing["1"],
+            backgroundColor: colorSchemeVars["green-10"],
+            opacity: 0.4,
+            transition: "opacity 100ms ease-in-out",
+        },
+        [`${fileClassName}:hover &::before`]: {
+            opacity: 0.65,
+        },
+        "&:hover::before": {
+            opacity: 0.85,
+        },
+    },
+});
+
+export const fileDebugWidgetIconClassName = style({
+    zIndex: "1",
+    width: spacing["4"],
+    height: spacing["4"],
+});
+
+export const fileDebugWidgetOverlayClassName = style({
+    zIndex: "100",
+    position: "absolute",
+    top: "100%",
+    right: "0",
+    width: "max-content",
+    maxWidth: "min(42rem, calc(100vw - 2rem))",
+    maxHeight: "24rem",
+    marginTop: spacing["1"],
+    padding: spacing["2"],
+    borderRadius: spacing["1.5"],
+    overflow: "auto",
+    whiteSpace: "pre-wrap",
+    textAlign: "left",
+    backgroundColor: colorSchemeVars["grey-0"],
+    color: colorSchemeVars["grey-80"],
+    boxShadow: elevationVars["elevation-20"],
+    pointerEvents: "auto",
+    userSelect: "text",
+    cursor: "text",
+    opacity: 0,
+    visibility: "hidden",
+    transition: "opacity 100ms ease-in-out, visibility 100ms ease-in-out",
+    ...fontStyles.code,
+    fontSize: "11px",
+    lineHeight: "16px",
+    selectors: {
+        [`${fileDebugWidgetClassName}:hover &`]: {
+            opacity: 1,
+            visibility: "visible",
+        },
+    },
+});
+
+globalStyle(`${fileClassName}:has(${fileDebugWidgetClassName}:hover)`, {
+    overflow: "visible",
+    zIndex: "1000",
+});
+
+// Hacky, but this only affects the media debug widget. The widget is never shown
+// to users, and elevating the row/float keeps nearby comments, posts, and
+// reactions from rendering over the debug overlay.
+globalStyle(
+    `:is(${fileRowLikeClassName}, ${fileFloatClassName}):has(${fileDebugWidgetClassName}:hover)`,
+    {
+        overflow: "visible",
+        position: "relative",
+        zIndex: "1000",
+    },
+);
+
 export const fileImageViewerClassName = style({
     selectors: {
         [`${fileClassName}&`]: {

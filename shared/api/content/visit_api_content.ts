@@ -24,7 +24,13 @@ export type ApiContentVisitor = {
     ) => void;
     readonly visitInlineElement?: (
         element: ApiContentInlineElement,
-        context: {elements: ReadonlyArray<ApiContentInlineElement>; index: number},
+        context: {
+            elements: ReadonlyArray<ApiContentInlineElement>;
+            index: number;
+            // TODO: Replace this ad hoc flag with a `parent` or `parents` array once we have a
+            // better idea of what callers need from this traversal.
+            withinCodeBlockElement: boolean;
+        },
     ) => void;
     readonly visitMark?: (
         mark: ApiContentInlineElementMark,
@@ -123,7 +129,9 @@ export function visitApiContentBlockElement(
         }
         case "Code": {
             for (const line of element.lines) {
-                visitApiContentInlineElements(line.elements, visitor);
+                visitApiContentInlineElements(line.elements, visitor, {
+                    withinCodeBlockElement: true,
+                });
             }
             break;
         }
@@ -203,10 +211,11 @@ export function visitApiContentBlockElement(
 export function visitApiContentInlineElements(
     elements: ReadonlyArray<ApiContentInlineElement>,
     visitor: ApiContentVisitor,
+    {withinCodeBlockElement = false}: {withinCodeBlockElement?: boolean} = {},
 ) {
     for (let index = 0; index < elements.length; index++) {
         const element = elements[index]!;
-        visitor.visitInlineElement?.(element, {elements, index});
+        visitor.visitInlineElement?.(element, {elements, index, withinCodeBlockElement});
         visitApiContentInlineElement(element, visitor);
     }
 }

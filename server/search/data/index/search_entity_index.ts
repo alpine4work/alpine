@@ -24,7 +24,7 @@ import {getChannelIfPossible} from "~/server/forum/data/get_channel.js";
 import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
 import {getPostContentAndChannelPreviewIfPossible} from "~/server/forum/data/get_post_content_and_channel_preview.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {LanguageModelsContextModuleBase} from "~/server/language_models/language_models_context_module_base.js";
 import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {
     OpensearchClient,
@@ -1107,7 +1107,7 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
              * A language model is optional in unit tests. But must be provided in production
              * and local developer environments.
              */
-            languageModel?: LanguageModelContextModule;
+            languageModels?: LanguageModelsContextModuleBase;
         }
     >,
     job: IndexSearchEntityEmbeddingChunksJobDescription,
@@ -1323,7 +1323,8 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                 // Must provide a language model in the system context everywhere except Jest unit
                 // tests. Since the language model can be big, we allow unit tests to exclude the
                 // language model from their runfiles.
-                if (!context.languageModel && !import.meta.jest) {
+                const embeddingModelKey = context.languageModels?.getEmbeddingModelKey();
+                if (!embeddingModelKey && !import.meta.jest) {
                     throw new InternalError("Missing language model in context");
                 }
 
@@ -1336,9 +1337,9 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                 // Reuse vectors we've already computed to avoid paying an additional embedding
                 // cost.
                 const vectorResults = addNewChunks.map(({chunk, vector}, index): VectorResult => {
-                    if (!context.languageModel) return {type: "Reuse", vector: []};
+                    if (!embeddingModelKey) return {type: "Reuse", vector: []};
 
-                    const existingVector = vector?.[context.languageModel.model.statics.key];
+                    const existingVector = vector?.[embeddingModelKey];
                     if (existingVector) return {type: "Reuse", vector: existingVector.data};
 
                     chunkTextsToEmbed.push({text: chunk.text, index});
@@ -1348,13 +1349,14 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                 const vectorByEmbedResultIndex = new Map<number, ReadonlyArray<number>>();
 
                 if (chunkTextsToEmbed.length > 0) {
-                    assert(context.languageModel);
+                    assert(context.languageModels);
 
                     for (const [chunkTextsToEmbedIndex, vector] of enumerateIterable(
-                        await context.languageModel.model.embed(
-                            context.tracer.getTracer(),
+                        await context.languageModels.embed(
                             chunkTextsToEmbed.map(({text}) => text),
-                            {inputType: "SearchDocument"},
+                            {
+                                inputType: "SearchDocument",
+                            },
                         ),
                     )) {
                         vectorByEmbedResultIndex.set(
@@ -1385,7 +1387,7 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                         text: chunk.text,
                         textHash,
                         preambleEndIndex: chunk.preambleEndIndex,
-                        vector: !context.languageModel
+                        vector: !embeddingModelKey
                             ? {
                                   allMiniLmL6V2: null,
                                   cohereEmbedEnglishV3: null,
@@ -1393,7 +1395,7 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                             : {
                                   allMiniLmL6V2: null,
                                   cohereEmbedEnglishV3: null,
-                                  [context.languageModel.model.statics.key]: {data: vector},
+                                  [embeddingModelKey]: {data: vector},
                               },
                     };
 
@@ -2180,7 +2182,7 @@ function enrichOpensearchSearchHitExplanation(
 export async function searchBySemantics(
     context: Context<
         ServerAccountActionContextModules & {
-            languageModel?: LanguageModelContextModule;
+            languageModels?: LanguageModelsContextModuleBase;
         }
     >,
     {
@@ -2199,9 +2201,10 @@ export async function searchBySemantics(
         debugOptions?: SearchOptions;
     },
 ): Promise<Array<SearchEntityResultModel>> {
-    if (!context.languageModel && !import.meta.jest) {
+    const embeddingModelKey = context.languageModels?.getEmbeddingModelKey();
+    if (!embeddingModelKey && !import.meta.jest) {
         throw new InternalError("Missing language model in context");
-    } else if (!context.languageModel) {
+    } else if (!embeddingModelKey) {
         // If we don't have a language model in the test context, then don't perform the
         // semantic search.
         return [];
@@ -2239,11 +2242,10 @@ export async function searchBySemantics(
     // meaning we've determined for the user by parsing their query.
     if (filters.length > 0 && !isLowConfidence) return [];
 
-    const [queryEmbeddingVector] = await context.languageModel.model.embed(
-        context.tracer.getTracer(),
-        [queryText],
-        {inputType: "SearchQuery"},
-    );
+    assert(context.languageModels);
+    const [queryEmbeddingVector] = await context.languageModels.embed([queryText], {
+        inputType: "SearchQuery",
+    });
 
     assert(queryEmbeddingVector);
 
@@ -2265,7 +2267,7 @@ export async function searchBySemantics(
             sort: ["_score"],
             query: {
                 knn: {
-                    [`vector.${context.languageModel.model.statics.key}`]: {
+                    [`vector.${embeddingModelKey}`]: {
                         vector: new OpensearchQueryValue(
                             Array.isArray(queryEmbeddingVector)
                                 ? queryEmbeddingVector

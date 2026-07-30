@@ -20,6 +20,7 @@ import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
 } from "~/client/web/content/internal/content_file_preview.js";
+import {useMediaDebugModeEnabled} from "~/client/web/content/media_debug_mode.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {computeContentFileRowLikeLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
@@ -85,6 +86,7 @@ export function MessageViewFiles({
     const fileEntityRenderers = useContentFileEntityRenderers();
     const currentDate = useCurrentDate();
     const blockWidth = useContentBlockWidth();
+    const isMediaDebugModeEnabled = useMediaDebugModeEnabled();
 
     const [nodeByFileId] = useState(
         () =>
@@ -228,6 +230,7 @@ export function MessageViewFiles({
                                 // Disable video and audio file interactivity. When pressed we should always open
                                 // the post in a peek.
                                 withoutInteractivity: true,
+                                isMediaDebugModeEnabled,
                             });
                         }
 
@@ -253,6 +256,7 @@ export function MessageViewFiles({
             fileEntityRenderers,
             fileRegistry,
             files,
+            isMediaDebugModeEnabled,
             isInitialAppRender,
             nodeByFileId,
             platform,

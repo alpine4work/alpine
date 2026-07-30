@@ -4,12 +4,14 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {FileAlternativeSchema} from "~/shared/files/file_alternative.js";
+import {FileAnalysisSchema} from "~/shared/files/file_analysis.js";
 import {
     FileAttachmentTarget,
     FileAttachmentTargetByArea,
 } from "~/shared/files/file_attachment_target.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FilePreviewSchema} from "~/shared/files/file_preview.js";
+import {FileTranscriptSchema} from "~/shared/files/file_transcript.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -366,6 +368,23 @@ export const FilesTable = DynamoTableSchema.new({
                          * R2 with the key: `${spaceId}/${fileId}-preview`.
                          */
                         preview: FilePreviewSchema.nullable(),
+
+                        /**
+                         * Model-produced, search-oriented analysis for this file.
+                         *
+                         * If non-null this slot participates in file loading/polling until `isProcessing`
+                         * becomes false.
+                         */
+                        analysis: FileAnalysisSchema.nullable().default(null),
+
+                        /**
+                         * Transcript processing state for this file.
+                         *
+                         * If non-null this slot participates in file loading/polling until `isProcessing`
+                         * becomes false. The transcript JSON is stored in Cloudflare R2 with the key
+                         * `${spaceId}/${fileId}.transcript.json`.
+                         */
+                        transcript: FileTranscriptSchema.nullable().default(null),
                     }),
                 },
                 {

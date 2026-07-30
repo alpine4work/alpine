@@ -1,0 +1,9 @@
+/login      /login/index.html   200!
+/login/     /login/index.html   200!
+/login/*    /login/:splat       200!
+
+/           /index.html         200!  Role=alpine
+/*          /:splat             200!  Role=alpine
+
+/           /login/             401!
+/*          /login/             401!

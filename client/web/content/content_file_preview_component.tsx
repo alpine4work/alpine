@@ -6,6 +6,7 @@ import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
 } from "~/client/web/content/internal/content_file_preview.js";
+import {useMediaDebugModeEnabled} from "~/client/web/content/media_debug_mode.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
@@ -45,6 +46,7 @@ export function ContentFilePreview({
     const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
     const fileRegistry = useFileRegistry();
+    const isMediaDebugModeEnabled = useMediaDebugModeEnabled();
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -79,6 +81,7 @@ export function ContentFilePreview({
             // Disable video and audio file interactivity. When pressed we should always open
             // the post in a peek.
             withoutInteractivity: true,
+            isMediaDebugModeEnabled,
         });
 
         html.setAttribute(
@@ -91,7 +94,16 @@ export function ContentFilePreview({
         );
 
         return html;
-    }, [file, isInitialAppRender, node, platform, size, space.id, spacingScale]);
+    }, [
+        file,
+        isInitialAppRender,
+        isMediaDebugModeEnabled,
+        node,
+        platform,
+        size,
+        space.id,
+        spacingScale,
+    ]);
 
     const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
 

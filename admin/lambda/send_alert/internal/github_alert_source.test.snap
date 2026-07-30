@@ -48,15 +48,6 @@ Author: [developer123](https://github.com/developer123) • Triggered by: [devel
 "
 `;
 
-exports[`GitHubAlertSource deploy notifications comments on posts with commit hash when deploy fails 1`] = `
-[
-  {
-    "postId": "builds-post-id",
-    "type": "PostPreview",
-  },
-]
-`;
-
 exports[`GitHubAlertSource deploy notifications comments on posts with commit hash when deploy succeeds 1`] = `
 "URL: https://api.test.cyberworlds.com/posts/test-post-id-1/messages
 Channel: undefined

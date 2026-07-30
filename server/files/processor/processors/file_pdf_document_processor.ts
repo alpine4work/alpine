@@ -42,11 +42,13 @@ export function createFilePdfDocumentProcessor(
     return {
         type: "PdfDocument",
         hasAlternative: false,
+        hasAnalysis: false,
         hasPreview: {
             type: "Image",
             hasContent: true,
             hasVideoDuration: false,
         },
+        hasTranscript: false,
         process: async (
             context,
             {spaceId, fileId, signal, contentLength, withTemporaryDirectory},
@@ -96,7 +98,9 @@ export function processPdfDocumentFile(
     ReturnType<
         FileProcessorTemplate<
             false,
-            {type: "Image"; hasContent: true; hasVideoDuration: false}
+            {type: "Image"; hasContent: true; hasVideoDuration: false},
+            false,
+            false
         >["process"]
     >
 > {

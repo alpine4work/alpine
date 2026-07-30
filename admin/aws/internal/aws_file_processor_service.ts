@@ -28,7 +28,7 @@ import {
     TargetType,
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import {LambdaTarget} from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
-import {ManagedPolicy} from "aws-cdk-lib/aws-iam";
+import {ManagedPolicy, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Alias as LambdaAlias} from "aws-cdk-lib/aws-lambda";
 import {ISecret, Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
@@ -40,6 +40,7 @@ import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsApplicationLoadBalancerFromCloudflare} from "~/admin/aws/internal/constructs/aws_application_load_balancer_from_cloudflare.js";
 import {AwsHttpLambda} from "~/admin/aws/internal/constructs/aws_http_lambda.js";
 import {AwsSqsLambdaSubscriber} from "~/admin/aws/internal/constructs/aws_sqs_lambda.js";
+import {createAwsBedrockInvokeModelResources} from "~/admin/aws/internal/create_aws_bedrock_invoke_model_resources.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InternalError} from "~/shared/error/error.js";
 import {fileProcessorTimeoutMs, maxFileContentLength} from "~/shared/files/file_constants.js";
@@ -446,6 +447,13 @@ export class AwsFileProcessorService extends Construct {
         // Allow writing to the tracer event stream.
         observability.grantPutToTracerEventStream(taskDefinition.taskRole);
 
+        taskDefinition.addToTaskRolePolicy(
+            new PolicyStatement({
+                actions: ["bedrock:InvokeModel"],
+                resources: createAwsBedrockInvokeModelResources(this),
+            }),
+        );
+
         const service = new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,
             taskDefinition,
@@ -638,6 +646,13 @@ function getFileProcessorLambda(
     dynamo.grantReadWriteDataForTable(fileProcessorLambda.executionRole, "Files", {
         disallowQuery: true,
     });
+
+    fileProcessorLambda.executionRole.addToPrincipalPolicy(
+        new PolicyStatement({
+            actions: ["bedrock:InvokeModel"],
+            resources: createAwsBedrockInvokeModelResources(parentConstruct),
+        }),
+    );
 
     return fileProcessorLambda;
 }

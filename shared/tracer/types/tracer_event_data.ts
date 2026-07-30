@@ -1575,6 +1575,8 @@ export type TracerEventData = {
             readonly audioPreviewDurationDurationMs?: number;
             readonly audioPreviewMetadataDurationMs?: number;
             readonly codePreviewContentDurationMs?: number;
+            readonly analysisDurationMs?: number;
+            readonly transcriptDurationMs?: number;
 
             /**
              * The ratio of the original file's duration to the file's processing duration.
@@ -1727,6 +1729,29 @@ export type TracerEventData = {
                 readonly reasoningOutputTokens?: number;
                 readonly totalTokens?: number;
             };
+        };
+    };
+
+    /**
+     * Information regarding requests to Amazon Bedrock.
+     */
+    readonly bedrock?: {
+        /** The Bedrock model used. */
+        readonly model?: string;
+
+        /** The AWS region used for the request. */
+        readonly region?: string;
+
+        /**
+         * Token usage reported by Bedrock for the request.
+         */
+        readonly usage?: {
+            readonly inputTokens?: number;
+            readonly inputTokensMillicents?: number;
+            readonly outputTokens?: number;
+            readonly outputTokensMillicents?: number;
+            readonly totalTokens?: number;
+            readonly estimatedCostMillicents?: number;
         };
     };
 

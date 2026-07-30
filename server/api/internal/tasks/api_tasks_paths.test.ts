@@ -323,6 +323,40 @@ test("can read task with inactive status", async () => {
     });
 });
 
+test("does not return deleted task collections when reading a task", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const activeCollection = await TestTaskCollection.create(session, {name: "Active"});
+    const deletedCollection = await TestTaskCollection.create(session, {name: "Deleted"});
+    const task = await TestTask.create(session, {
+        title: "Task with stale collection",
+        collections: [activeCollection, deletedCollection],
+    });
+
+    await deletedCollection.delete(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await server.GET(`/tasks/${task.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
+            spaceId: space.id,
+            task: expect.objectContaining({
+                id: task.id,
+                collections: [{collection: {id: activeCollection.id}}],
+            }),
+        }),
+    });
+});
+
 test("can read task with high priority", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -431,6 +465,7 @@ test("can create an empty task", async () => {
                 creator: {id: bot.id},
                 status: {type: "Open", isActive: false},
                 title: "",
+                collections: [],
                 notes: {
                     version: 0,
                     content: {
@@ -677,11 +712,67 @@ test("can create an active task without an assignee (auto-assigns bot)", async (
     });
 });
 
-// TODO: Add test for creating a subtask (parentTaskId) once we have a read format
-// for parent tasks. \
-// TODO: Add test for creating a task with layout once we have a read format. \
-// TODO: Add test for creating a task with collectionIds once we have a read format
-// for collection membership.
+test("can create a project task with parent task and collections", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const parentTask = await TestTask.create(session, {title: "Parent task"});
+    const collections = await runAllPromises([
+        TestTaskCollection.create(session, {name: "Roadmap"}),
+        TestTaskCollection.create(session, {name: "Engineering"}),
+    ]);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.POST("/tasks", {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            spaceId: space.id,
+            task: {
+                title: "Project task",
+                layout: {type: "Project"},
+                parent: {task: {id: parentTask.id}},
+                collections: collections.map(collection => ({
+                    collection: {id: collection.id},
+                })),
+            },
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            spaceId: space.id,
+            task: expect.objectContaining({
+                title: "Project task",
+                layout: {type: "Project"},
+                parent: {task: {id: parentTask.id}},
+                collections: collections.map(collection => ({
+                    collection: {id: collection.id},
+                })),
+            }),
+        },
+    });
+
+    const taskModel = await context
+        .getTaskRealtimeServer()
+        .action(session)
+        .tasks.getTaskWithoutDependencies(space.id, response.body.task.id, {
+            consistency: "StrongWithinCache",
+        });
+
+    expect(taskModel.getParent()?.taskId).toEqual(parentTask.id);
+    expect(taskModel.getLayout()).toEqual("Project");
+    expect(
+        taskModel
+            .getCollections()
+            .getArray()
+            .map(({collectionId}) => collectionId),
+    ).toEqual(collections.map(collection => collection.id));
+});
 
 // NOTE: File attachment is tested through the full API flow where the bot uploads
 // a file first via POST /files, then references it in the task content. The unit
@@ -1017,6 +1108,85 @@ test("can clear nullable task fields with null", async () => {
     expect(response.body.task.assignee).toBeUndefined();
     expect(response.body.task.priority).toBeUndefined();
     expect(response.body.task.due).toBeUndefined();
+});
+
+test("can update task layout", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "Layout Task"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const projectResponse = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetLayout", layout: {type: "Project"}}],
+        },
+    });
+
+    expect(projectResponse).toMatchObject({
+        status: 200,
+        body: {
+            task: expect.objectContaining({
+                id: task.id,
+                layout: {type: "Project"},
+            }),
+        },
+    });
+
+    const taskResponse = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetLayout", layout: null}],
+        },
+    });
+
+    expect(taskResponse.status).toBe(200);
+    expect(taskResponse.body.task.layout).toBeUndefined();
+});
+
+test("can update and clear parent task", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const parentTask = await TestTask.create(session, {title: "Parent task"});
+    const task = await TestTask.create(session, {title: "Child task"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const setResponse = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetParent", parent: {task: {id: parentTask.id}}}],
+        },
+    });
+
+    expect(setResponse).toMatchObject({
+        status: 200,
+        body: {
+            task: expect.objectContaining({
+                id: task.id,
+                parent: {task: {id: parentTask.id}},
+            }),
+        },
+    });
+
+    const clearResponse = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetParent", parent: null}],
+        },
+    });
+
+    expect(clearResponse.status).toBe(200);
+    expect(clearResponse.body.task.parent).toBeUndefined();
 });
 
 test("patch only changes the fields that are passed", async () => {
@@ -1359,7 +1529,7 @@ test("adding collections through repeated patch requests appends them to the end
         const response = await server.PATCH(`/tasks/${task.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                patches: [{type: "AddCollection", collectionId: collection.id}],
+                patches: [{type: "AddCollection", item: {collection: {id: collection.id}}}],
             },
         });
 
@@ -2149,12 +2319,14 @@ describe("/task-collections/{id}/tasks", () => {
                         id: task1.id,
                         title: "First Task",
                         status: {type: "Open", isActive: false},
+                        collections: [{collection: {id: collection.id}}],
                     },
                     {
                         creator: {id: session.account.id},
                         id: task2.id,
                         title: "Second Task",
                         status: {type: "Open", isActive: false},
+                        collections: [{collection: {id: collection.id}}],
                     },
                 ],
                 nextCursor: null,
@@ -2256,6 +2428,7 @@ describe("/task-collections/{id}/tasks", () => {
                             date: "2025-12-31",
                         },
                         priority: "High",
+                        collections: [{collection: {id: collection.id}}],
                     },
                 ],
                 nextCursor: null,
@@ -2299,6 +2472,7 @@ describe("/task-collections/{id}/tasks", () => {
                         id: openTask.id,
                         title: "Open Task",
                         status: expect.objectContaining({type: "Open"}),
+                        collections: [{collection: {id: collection.id}}],
                     },
                 ],
                 nextCursor: null,
@@ -2501,6 +2675,48 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [],
                 nextCursor: null,
+            }),
+        });
+    });
+
+    test("does not return deleted collection references on listed tasks", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const activeCollection = await TestTaskCollection.create(session, {
+            name: "Active Collection",
+            access: "Public",
+        });
+        const deletedCollection = await TestTaskCollection.create(session, {
+            name: "Deleted Collection",
+            access: "Public",
+        });
+        const task = await TestTask.create(session, {
+            title: "Task in active and deleted collections",
+            collections: [activeCollection, deletedCollection],
+        });
+
+        await deletedCollection.delete(session);
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(`/task-collections/${activeCollection.id}/tasks`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                spaceId: space.id,
+                tasks: [
+                    expect.objectContaining({
+                        id: task.id,
+                        collections: [{collection: {id: activeCollection.id}}],
+                    }),
+                ],
             }),
         });
     });

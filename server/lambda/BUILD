@@ -18,6 +18,7 @@ ts_project(
         "//server/helpers",
         "//server/helpers/node",
         "//server/kinesis",
+        "//server/language_models",
         "//server/node",
         "//server/tokens",
         "//server/tracer",
