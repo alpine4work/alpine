@@ -66,7 +66,7 @@ export const apiTasksPaths: Pick<
     "/tasks": {
         patch: async (context, {requestBody}) => {
             const spaceId = context.actor.getSpaceId();
-            const {patches} = requestBody;
+            const {actor, patches} = requestBody;
 
             if (spaceId !== requestBody.spaceId) {
                 throw createAuthorizeSpaceAccessPermissionDeniedError(
@@ -78,6 +78,7 @@ export const apiTasksPaths: Pick<
 
             const {tasks, updateEvent, results} = await commitTaskPatchesFromApi(context, {
                 spaceId,
+                actorId: actor?.id ?? null,
                 patches,
             });
 
@@ -105,6 +106,7 @@ export const apiTasksPaths: Pick<
 
             const {tasks, updateEvent} = await commitTaskPatchesFromApi(context, {
                 spaceId,
+                actorId: requestBody.task.creator?.id ?? null,
                 patches: [{type: "Create", task: requestBody.task}],
             });
 
@@ -135,7 +137,7 @@ export const apiTasksPaths: Pick<
 
             const {tasks, updateEvent, results} = await commitTaskPatchesFromApi(context, {
                 spaceId,
-                actorId: requestBody.actor?.id,
+                actorId: requestBody.actor?.id ?? null,
                 patches: requestBody.patches.map(patch => ({
                     type: "Update",
                     id: taskId,

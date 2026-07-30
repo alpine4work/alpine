@@ -2102,7 +2102,7 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Task collection creator must exactly match the task action transaction actor",
+                "Task collection creator is required for new task collections",
             ),
         );
     });

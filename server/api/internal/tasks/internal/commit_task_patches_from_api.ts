@@ -55,7 +55,6 @@ import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskCreator} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {
     TaskNotesContentProsemirrorSchema,
@@ -95,7 +94,7 @@ export async function commitTaskPatchesFromApi(
         patches,
     }: {
         spaceId: SpaceId;
-        actorId?: AccountId;
+        actorId: AccountId | null;
         patches: ReadonlyArray<ApiTaskBatchPatch>;
     },
 ): Promise<{
@@ -133,19 +132,16 @@ export async function commitTaskPatchesFromApi(
                 hasCreates = true;
                 const taskId = generateId<TaskId>();
 
-                const creatorId = patch.task.creator?.id ?? actorId;
+                if (patch.task.creator && patch.task.creator.id !== actorId) {
+                    throw new InvalidArgumentError(
+                        "The creator ID for new tasks must match the actor ID",
+                        {
+                            displayMessage: errorDisplayMessage`Can't create a task with a \`creator\` that's different from the \`actor\` for the request. Try again but make sure the new task's \`creator\` is equal to whatever you set for the request's \`actor\`.`,
+                        },
+                    );
+                }
 
-                steps.push({
-                    type: "CreateTask",
-                    taskId,
-                    creator: {
-                        accountId: creatorId,
-                        from:
-                            creatorId !== botAccountId
-                                ? {type: "Bot", accountId: botAccountId}
-                                : null,
-                    },
-                });
+                steps.push({type: "CreateTask", taskId});
 
                 for (const fieldPatch of createApiTaskPatchesFromCreateRequest(patch.task)) {
                     steps.push({
@@ -435,7 +431,10 @@ export async function commitTaskPatchesFromApi(
 
             const taskAction: TaskCreateAction = {
                 type: "Create",
-                creator: step.creator,
+                creator: {
+                    accountId: actorId,
+                    from: actorId !== botAccountId ? {type: "Bot", accountId: botAccountId} : null,
+                },
                 creatorTimeZone: timeZone,
                 accessPolicy: assertExists(createAccessPolicy),
             };
@@ -1031,7 +1030,7 @@ export async function commitTaskPatchesFromApi(
  * step. This lets creates and updates share one action generation path.
  */
 type ApiTaskCommitStep =
-    | {type: "CreateTask"; taskId: TaskId; creator: TaskCreator}
+    | {type: "CreateTask"; taskId: TaskId}
     | {
           type: "ApplyPatch";
           taskId: TaskId;
