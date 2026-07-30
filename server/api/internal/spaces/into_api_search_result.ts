@@ -5,6 +5,7 @@ import {
     ApiSearchResultMatch,
     ApiSearchResultResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
@@ -149,6 +150,42 @@ export function intoApiSearchResult(
                 model.initialData.title !== null
                     ? `${getAccountShortNameWithoutFullNameTooltip(entity.post.author.initialData)} ${model.initialData.title}`
                     : getMissingSearchEntityTitle(entity);
+
+            if (model.initialData.title !== null && bodySnippet !== null) {
+                let dropLength = 0;
+
+                for (let i1 = 0; i1 < model.initialData.title.length; i1++) {
+                    const c1 = model.initialData.title[i1]!;
+
+                    if (!(dropLength < bodySnippet.text.length)) break;
+
+                    const c2 = bodySnippet.text[dropLength]!;
+
+                    if (c1 === c2) {
+                        dropLength++;
+                    } else if (dropLength > 0) {
+                        // If there's a character mismatch then this is an invalid drop. Cancel the loop.
+                        dropLength = 0;
+                        break;
+                    }
+                }
+
+                if (dropLength > 0) {
+                    if (!(dropLength < bodySnippet.text.length)) {
+                        bodySnippet = null;
+                    } else {
+                        bodySnippet.text = bodySnippet.text.slice(dropLength);
+
+                        bodySnippet.matches = filterMapArray(bodySnippet.matches, match => {
+                            const index = match.index - dropLength;
+                            if (index >= 0) return {index, length: match.length};
+
+                            const length = match.length + index;
+                            return {index: 0, length};
+                        });
+                    }
+                }
+            }
 
             return {
                 type: "Post",
