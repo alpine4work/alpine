@@ -78,6 +78,13 @@ export class ApiContentKeyEncoder {
     }
 }
 
+export type ApiContentDecodedKey = {
+    readonly version: number;
+    readonly pos: number;
+    readonly nodeSize: number;
+    readonly inlineContent: boolean;
+};
+
 /**
  * Decodes `ApiContentKey`s.
  *
@@ -92,12 +99,7 @@ export class ApiContentKeyDecoder {
         this.#entityIdHash = murmurhash.v3(entityId);
     }
 
-    decode(key: string): {
-        version: number;
-        pos: number;
-        nodeSize: number;
-        inlineContent: boolean;
-    } {
+    decode(key: string): ApiContentDecodedKey {
         const bytes = decodeBase64(key, "Rfc4648Url");
 
         const payload = unscrambleBytes(bytes, this.#entityIdHash);

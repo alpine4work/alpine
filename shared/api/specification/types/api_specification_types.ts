@@ -998,8 +998,7 @@ export namespace ApiSpecification {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly message: components["schemas"]["Message_Response"];
-                                readonly thread: components["schemas"]["DocumentThreadWithPreview_Response"];
-                                readonly document: components["schemas"]["Document_Response"];
+                                readonly thread: components["schemas"]["DocumentThread_Response"];
                             };
                         };
                     };
@@ -6155,6 +6154,16 @@ export namespace ApiSpecification {
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly payload: components["schemas"]["MessagePayload_Response"];
             };
+            readonly DocumentThread_Response: {
+                readonly id: components["schemas"]["DocumentThreadId"];
+                readonly isResolved: boolean;
+                readonly totalMessageCount: number;
+                readonly firstMessage: {
+                    readonly author: components["schemas"]["Account_Response"];
+                    readonly createdTime: components["schemas"]["DateTime"];
+                    readonly createdTimeZone: components["schemas"]["TimeZone"];
+                };
+            };
             readonly DocumentThreadWithPreview_Response: {
                 readonly id: components["schemas"]["DocumentThreadId"];
                 readonly isResolved: boolean;
@@ -6167,16 +6176,6 @@ export namespace ApiSpecification {
                 readonly preview: {
                     readonly version: number;
                     readonly contentSnippet: components["schemas"]["Content_Response_WithoutKeys"];
-                };
-            };
-            readonly DocumentThread_Response: {
-                readonly id: components["schemas"]["DocumentThreadId"];
-                readonly isResolved: boolean;
-                readonly totalMessageCount: number;
-                readonly firstMessage: {
-                    readonly author: components["schemas"]["Account_Response"];
-                    readonly createdTime: components["schemas"]["DateTime"];
-                    readonly createdTimeZone: components["schemas"]["TimeZone"];
                 };
             };
             readonly PostPreview_Response: {

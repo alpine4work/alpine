@@ -43,19 +43,12 @@ export function getCollaborativelyUpdateContentResult(
         currentContent,
         clientVersion,
         clientSteps,
-        knownClientContent,
         getSteps,
     }: {
         currentVersion: number;
         currentContent: Node;
         clientVersion: number;
         clientSteps: ReadonlyArray<Step>;
-        /**
-         * Optional optimization when the caller has already loaded the content at
-         * `clientVersion`. If omitted, the content is reconstructed by applying the
-         * conflicting steps' inverses to `currentContent`.
-         */
-        knownClientContent?: Node;
         getSteps: (
             startVersion: number,
             endVersion: number,
@@ -178,31 +171,29 @@ export function getCollaborativelyUpdateContentResult(
                 // We will drop any steps we can't rebase. But we still want to validate that the
                 // original steps were ok.
                 {
-                    clientContent = knownClientContent ?? content;
+                    clientContent = content;
 
-                    if (!knownClientContent) {
-                        for (let i = conflictingSteps.length - 1; i >= 0; i--) {
-                            const {invertedStep} = assertExists(conflictingSteps[i]);
-                            let invertedStepResult;
-                            try {
-                                invertedStepResult = invertedStep.apply(clientContent);
-                            } catch (error) {
-                                if (error instanceof RangeError) {
-                                    throw new DataLossError(
-                                        `Couldn\u2019t apply inverse of saved content step: ${error.message}`,
-                                    );
-                                }
-                                throw error;
-                            }
-                            if (!invertedStepResult.doc) {
-                                const failed = assertExists(invertedStepResult.failed);
+                    for (let i = conflictingSteps.length - 1; i >= 0; i--) {
+                        const {invertedStep} = assertExists(conflictingSteps[i]);
+                        let invertedStepResult;
+                        try {
+                            invertedStepResult = invertedStep.apply(clientContent);
+                        } catch (error) {
+                            if (error instanceof RangeError) {
                                 throw new DataLossError(
-                                    `Couldn\u2019t apply inverse of saved content step: ${failed}`,
+                                    `Couldn\u2019t apply inverse of saved content step: ${error.message}`,
                                 );
                             }
-
-                            clientContent = invertedStepResult.doc;
+                            throw error;
                         }
+                        if (!invertedStepResult.doc) {
+                            const failed = assertExists(invertedStepResult.failed);
+                            throw new DataLossError(
+                                `Couldn\u2019t apply inverse of saved content step: ${failed}`,
+                            );
+                        }
+
+                        clientContent = invertedStepResult.doc;
                     }
 
                     for (const step of clientSteps) {

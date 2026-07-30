@@ -1,4 +1,7 @@
-import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {
+    ApiContentDecodedKey,
+    ApiContentKeyDecoder,
+} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -8,9 +11,17 @@ export function getApiContentPositionPos(
     decoder: ApiContentKeyDecoder,
     position: ApiContentPosition,
 ): number {
+    const decodedKey = decoder.decode(position.key);
+    return getApiContentPositionPosWithDecodedKey(decodedKey, position);
+}
+
+export function getApiContentPositionPosWithDecodedKey(
+    decodedKey: ApiContentDecodedKey,
+    position: ApiContentPosition,
+): number {
     switch (position.type) {
         case "Inline": {
-            const {pos, nodeSize, inlineContent} = decoder.decode(position.key);
+            const {pos, nodeSize, inlineContent} = decodedKey;
 
             if (!inlineContent) {
                 throw new InvalidArgumentError("Content key isn\u2019t for inline content", {
@@ -27,11 +38,11 @@ export function getApiContentPositionPos(
             return pos + 1 + position.index;
         }
         case "Before": {
-            const {pos} = decoder.decode(position.key);
+            const {pos} = decodedKey;
             return pos;
         }
         case "After": {
-            const {pos, nodeSize} = decoder.decode(position.key);
+            const {pos, nodeSize} = decodedKey;
             return pos + nodeSize;
         }
         default:

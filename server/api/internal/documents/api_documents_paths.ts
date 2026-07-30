@@ -1,7 +1,6 @@
 import {Node} from "prosemirror-model";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createIntoApiDocumentCommentContentPayloadParent} from "~/server/api/internal/documents/internal/create_into_api_document_comment_content_payload_parent.js";
-import {intoApiDocumentThread} from "~/server/api/internal/documents/internal/into_api_document_thread.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
@@ -48,6 +47,7 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
+import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
     DocumentCollaborationCreateCommentThreadForApiRequestBodySchema,
     DocumentCollaborationCreateCommentThreadForApiResponseBodySchema,
@@ -65,7 +65,7 @@ import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/documen
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert, assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -338,12 +338,32 @@ export const apiDocumentsPaths: Pick<
     "/documents/{id}/threads": {
         post: async (context, {pathParameters, requestBody}) => {
             const {firstMessage, range} = requestBody.thread;
-            const content = assertMessageContent(
+
+            const firstMessageContent = assertMessageContent(
                 fromApiContent(MessageContentProsemirrorSchema, firstMessage.content),
             );
 
             const createdTimeZone = firstMessage.createdTimeZone ?? defaultTimeZone;
-            const fileIds = (firstMessage.files ?? []).map(parseFileIdFromApiFileElement);
+
+            const fileIds = (requestBody.thread.firstMessage.files ?? []).map(
+                getFileIdOrFileEntityIdFromApiMessageContentPayloadFile,
+            );
+            const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
+
+            // Attach files before creating the message, matching the app client flow. The
+            // service function validates attachments exist.
+            await runAllPromises(
+                attachmentFileIds.map(fileId =>
+                    attachFileToTargetAsBot(
+                        context,
+                        fileId,
+                        FileDocumentAuthorizer.bind({
+                            type: "DocumentComments",
+                            documentId: pathParameters.id,
+                        }),
+                    ),
+                ),
+            );
 
             const responseBody =
                 DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.deserialize(
@@ -353,7 +373,12 @@ export const apiDocumentsPaths: Pick<
                             serviceName: "DocumentCollaborationService",
                             route: "/api/durable-objects/documents/:documentId/create-comment-thread-for-api",
                             body: DocumentCollaborationCreateCommentThreadForApiRequestBodySchema.serialize(
-                                {range, content, fileIds, createdTimeZone},
+                                {
+                                    range,
+                                    content: firstMessageContent,
+                                    fileIds,
+                                    createdTimeZone,
+                                },
                             ),
                         },
                     ),
@@ -361,32 +386,54 @@ export const apiDocumentsPaths: Pick<
 
             if (!responseBody.ok) throw responseBody.error;
 
-            const {newVersion, commentThread, documentContentSnippet, files, message} =
-                responseBody;
+            const {spaceId, commentThread} = responseBody;
 
-            const spaceId = commentThread.spaceId;
-            const {thread, message: apiMessage} = await intoApiDocumentCommentThreadResponse(
-                context,
-                {
+            const message = await intoApiMessage(context, {
+                spaceId,
+                entityId: `DocumentComment:${pathParameters.id}-${commentThread.id}-0`,
+                fileAuthorizer: FileDocumentAuthorizer.bind({
+                    type: "DocumentComments",
                     documentId: pathParameters.id,
-                    commentThread,
-                    documentContent: {type: "Snippet", snippet: documentContentSnippet},
-                    documentVersion: newVersion,
-                    message,
-                    fileById: new Map(files.map(file => [file.id, file])),
+                }),
+                message: {
+                    index: 0,
+                    version: 0,
+                    authorId: context.actor.getBotAccountId(),
+                    createdTime: commentThread.createdTime,
+                    createdTimeZone,
+                    payload: {
+                        type: "Content",
+                        parent: null,
+                        content: firstMessageContent,
+                        contentUpdate: null,
+                        fileIds,
+                        reactionsByPos: emptyMap,
+                        filesReactions: emptyReactionSet,
+                    },
+                    stream: null,
                 },
-            );
-            assert(apiMessage !== undefined);
+                intoContentPayloadParent: createIntoApiDocumentCommentContentPayloadParent(
+                    context,
+                    spaceId,
+                    pathParameters.id,
+                    commentThread.id,
+                ),
+            });
 
             return {
                 content: {
                     spaceId,
-                    document: {
-                        id: pathParameters.id,
-                        version: newVersion,
+                    message,
+                    thread: {
+                        id: commentThread.id,
+                        isResolved: false,
+                        totalMessageCount: 1,
+                        firstMessage: {
+                            author: message.author,
+                            createdTime: message.createdTime,
+                            createdTimeZone: message.createdTimeZone,
+                        },
                     },
-                    thread,
-                    message: apiMessage,
                 },
             };
         },
@@ -522,10 +569,16 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId: commentThread.spaceId,
-                    thread: intoApiDocumentThread({
-                        ...commentThread,
-                        firstCommentAuthor,
-                    }),
+                    thread: {
+                        id: commentThread.id,
+                        isResolved: commentThread.isResolved,
+                        totalMessageCount: commentThread.commentCount,
+                        firstMessage: {
+                            author: firstCommentAuthor,
+                            createdTime: serializeDateString(commentThread.createdTime),
+                            createdTimeZone: commentThread.createdTimeZone,
+                        },
+                    },
                 },
             };
         },
@@ -587,11 +640,16 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId: commentThread.spaceId,
-                    thread: intoApiDocumentThread({
-                        ...commentThread,
+                    thread: {
+                        id: commentThread.id,
                         isResolved: newIsResolved,
-                        firstCommentAuthor,
-                    }),
+                        totalMessageCount: commentThread.commentCount,
+                        firstMessage: {
+                            author: firstCommentAuthor,
+                            createdTime: serializeDateString(commentThread.createdTime),
+                            createdTimeZone: commentThread.createdTimeZone,
+                        },
+                    },
                 },
             };
         },

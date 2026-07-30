@@ -922,11 +922,11 @@ export type ApiActorBotFrom = ApiSpecification.components["schemas"]["ActorBotFr
 
 export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
-export type ApiDocumentThreadWithPreviewResponse =
-    ApiSpecification.components["schemas"]["DocumentThreadWithPreview_Response"];
-
 export type ApiDocumentThreadResponse =
     ApiSpecification.components["schemas"]["DocumentThread_Response"];
+
+export type ApiDocumentThreadWithPreviewResponse =
+    ApiSpecification.components["schemas"]["DocumentThreadWithPreview_Response"];
 
 export type ApiPostPreviewResponse = ApiSpecification.components["schemas"]["PostPreview_Response"];
 

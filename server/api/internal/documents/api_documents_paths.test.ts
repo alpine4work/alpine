@@ -1,13 +1,12 @@
 import {jest} from "@jest/globals";
 import {Fragment, Mark, Slice} from "prosemirror-model";
-import {AddMarkStep, AddNodeMarkStep, ReplaceStep} from "prosemirror-transform";
+import {ReplaceStep} from "prosemirror-transform";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
     FileDocumentAuthorizer,
-    getDocumentCommentPayload,
     getDocumentContent,
     getDocumentContentSteps,
     getDocumentPreviewIfPossible,
@@ -25,48 +24,30 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {ApiContentKeyDecoder, ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import {getApiContentRange} from "~/shared/api/content/get_api_content_range.js";
-import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
-import {
-    MessageContent,
-    createSimpleMessageContent,
-} from "~/shared/content/message_content_schema.js";
 import {
     DocumentCollaborationCreateCommentThreadForApiRequestBodySchema,
-    DocumentCollaborationCreateCommentThreadForApiResponseBodySchema,
     DocumentCollaborationSetCommentThreadResolvedRequestBodySchema,
     DocumentCollaborationSetCommentThreadResolvedResponseBodySchema,
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
 import {
-    DocumentContent,
-    DocumentContentProsemirrorSchema,
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/documents/document_content_schema.js";
-import {getDocumentCommentThreadSnippetAtPos} from "~/shared/documents/get_document_comment_thread_snippet_at_pos.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
-import {assertId, generateId, isId} from "~/shared/id/id.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {assertId, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-
-// NOCOMMIT: Huh??
-let createCommentThreadDocumentContentOverrideForTest:
-    | ((args: {
-          commentThreadId: DocumentCommentThreadId;
-          documentContent: DocumentContent;
-      }) => DocumentContent)
-    | null = null;
-let createCommentThreadMessageContentOverrideForTest: MessageContent | null = null;
-let createCommentThreadForApiResponseOverrideForTest: (() => unknown) | null = null;
+import {
+    AddMarksAfterRemoveAllStep,
+    RemoveAllMarksStep,
+} from "~/shared/prosemirror/remove_all_marks_step.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 const context = createTestContext({
     chatInjection,
@@ -104,65 +85,15 @@ const context = createTestContext({
     // `DocumentCollaborationDurableObject` isn't that dissimilar from what you see
     // here.
     sendRequestToDurableObject: async (actualContext, request) => {
-        const setCommentThreadResolvedMatch = request.url.match(
-            /^\/api\/durable-objects\/documents\/([^/]+)\/set-comment-thread-resolved\/([^/]+)/,
+        const context = (actualContext as ApiServiceBotActionContext).dynamo
+            // Strong consistency isn't required since this logic is test-only. So all requests
+            // will be strong consistency implicitly.
+            .unexpectStrongReadConsistency();
+
+        const match = request.url.match(
+            /^\/api\/durable-objects\/documents\/([^/]+)\/([^/]+)(?:\/(.*))?/,
         );
-        if (setCommentThreadResolvedMatch) {
-            const context = (
-                actualContext as ApiServiceBotActionContext
-            ).dynamo.unexpectStrongReadConsistency();
-
-            const documentId = assertId<DocumentId>(setCommentThreadResolvedMatch[1]!);
-            const commentThreadId = assertId<DocumentCommentThreadId>(
-                setCommentThreadResolvedMatch[2]!,
-            );
-
-            const {resolved} =
-                DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.deserialize(
-                    request.body ?? null,
-                );
-
-            const document = await getDocumentContent(context, documentId);
-            if (resolved) {
-                await updateDocumentContent(context, {
-                    id: documentId,
-                    version: document.version,
-                    steps: [
-                        new RemoveAllMarksStep(
-                            schema.marks.comment.create({
-                                commentThreadId,
-                            }),
-                        ),
-                    ],
-                    clientId: generateId(),
-                    resolveCommentThreadIds: [commentThreadId],
-                });
-            } else {
-                const {version, ranges} = await getResolvedDocumentCommentThreadRanges(context, {
-                    documentId,
-                    commentThreadId,
-                });
-
-                await updateDocumentContent(context, {
-                    id: documentId,
-                    version,
-                    steps: [
-                        new AddMarksAfterRemoveAllStep(
-                            schema.marks.comment.create({
-                                commentThreadId,
-                            }),
-                            ranges,
-                        ),
-                    ],
-                    clientId: generateId(),
-                    unresolveCommentThreadIds: [commentThreadId],
-                });
-            }
-
-            return DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.serialize({
-                ok: true,
-            });
-        }
+        if (!match) return;
 
         const updateContentResponse = await handleUpdateContentWithoutOptimisticBroadcastForTest(
             actualContext,
@@ -170,273 +101,126 @@ const context = createTestContext({
         );
         if (updateContentResponse !== undefined) return updateContentResponse;
 
-        const match = request.url.match(/^\/api\/durable-objects\/documents\/([^/]+)\/([^/]+)/);
-        if (!match) return;
-
-        const context = (actualContext as ApiServiceBotActionContext).dynamo
-            // Strong consistency isn't required since this logic is test-only. So all requests
-            // will be strong consistency implicitly.
-            .unexpectStrongReadConsistency();
-
         const documentId = assertId<DocumentId>(match[1]!);
         const route = match[2]!;
 
-        if (route === "create-comment-thread-for-api") {
-            if (createCommentThreadForApiResponseOverrideForTest) {
-                return createCommentThreadForApiResponseOverrideForTest();
+        switch (route) {
+            case "update-content-with-diff": {
+                const requestBody =
+                    DocumentCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
+                        request.body ?? null,
+                    );
+                const document = await getDocumentContent(context, documentId);
+                const invertedSteps =
+                    requestBody.version < document.version
+                        ? await getDocumentContentSteps(context, {
+                              id: documentId,
+                              startVersion: requestBody.version,
+                              endVersion: document.version,
+                          })
+                        : [];
+                let oldContent = document.content;
+
+                for (let index = invertedSteps.length - 1; index >= 0; index--) {
+                    const step = invertedSteps[index]!;
+                    const stepResult = step.invertedStep.apply(oldContent);
+                    if (!stepResult.doc) throw new InternalError(stepResult.failed!);
+                    oldContent = assertDocumentContent(stepResult.doc);
+                }
+
+                const titleNode =
+                    requestBody.title === undefined
+                        ? oldContent.child(0)
+                        : schema.nodes.title.create(
+                              null,
+                              requestBody.title.length > 0 ? schema.text(requestBody.title) : null,
+                          );
+
+                const requestContent = schema.nodes.doc.create(oldContent.attrs, [
+                    titleNode,
+                    ...(requestBody.content ?? oldContent.content.content.slice(1)),
+                ]);
+
+                const steps = diffProsemirrorNodes(oldContent, requestContent);
+
+                const {newVersion, newContent} = await updateDocumentContent(context, {
+                    id: documentId,
+                    version: requestBody.version,
+                    steps,
+                    clientId: generateId(),
+                });
+
+                return DocumentCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
+                    ok: true,
+                    spaceId: document.spaceId,
+                    creatorId: document.creator.id,
+                    newVersion,
+                    newContent,
+                });
             }
+            case "set-comment-thread-resolved": {
+                const commentThreadId = assertId<DocumentCommentThreadId>(match[3]!);
 
-            const requestBody =
-                DocumentCollaborationCreateCommentThreadForApiRequestBodySchema.deserialize(
-                    request.body ?? null,
-                );
+                const {resolved} =
+                    DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.deserialize(
+                        request.body ?? null,
+                    );
 
-            const document = await getDocumentContent(context, documentId);
-            const apiContentRange = await getApiContentRange({
-                entityId: `Document:${documentId}`,
-                latestVersion: document.version,
-                range: requestBody.range,
-                getContentAtVersion: async version => {
-                    const invertedSteps =
-                        version < document.version
-                            ? await getDocumentContentSteps(context, {
-                                  id: documentId,
-                                  startVersion: version,
-                                  endVersion: document.version,
-                              })
-                            : [];
-
-                    let documentContentAtVersion = document.content;
-
-                    for (let index = invertedSteps.length - 1; index >= 0; index--) {
-                        const stepResult =
-                            invertedSteps[index]!.invertedStep.apply(documentContentAtVersion);
-                        if (!stepResult.doc) throw new InternalError(stepResult.failed!);
-                        documentContentAtVersion = assertDocumentContent(stepResult.doc);
-                    }
-
-                    return documentContentAtVersion;
-                },
-            });
-            const commentRange = trimSpacesFromProsemirrorRange(
-                apiContentRange.contentAtVersion,
-                apiContentRange,
-            );
-            const selectedContent = apiContentRange.contentAtVersion.textBetween(
-                commentRange.from,
-                commentRange.to,
-                "",
-                "\uFFFC",
-            );
-            if (
-                commentRange.from >= commentRange.to ||
-                (!selectedContent.includes("\uFFFC") && !/\S/u.test(selectedContent))
-            ) {
-                throw new InvalidArgumentError(
-                    "Item target range must include at least one non-space character",
-                    {
-                        displayMessage: errorDisplayMessage`Item target range must include at least one non-space character.`,
-                    },
-                );
-            }
-
-            const commentThreadId = generateId<DocumentCommentThreadId>();
-            const commentMark = DocumentContentProsemirrorSchema.marks.comment.create({
-                commentThreadId,
-            });
-
-            // Keep this test implementation aligned with the collaboration service: inline
-            // descendants use one range mark while each fully enclosed leaf node needs its own
-            // node mark.
-            const commentSteps: Array<AddMarkStep | AddNodeMarkStep> = [];
-            let hasInlineContent = false;
-            apiContentRange.contentAtVersion.nodesBetween(
-                commentRange.from,
-                commentRange.to,
-                (node, pos) => {
-                    if (node.isInline) hasInlineContent = true;
-
-                    if (
-                        !node.isInline &&
-                        node.isLeaf &&
-                        node.type.allowsMarkType(commentMark.type) &&
-                        commentRange.from <= pos &&
-                        pos + node.nodeSize <= commentRange.to
-                    ) {
-                        commentSteps.push(new AddNodeMarkStep(pos, commentMark));
-                    }
-                },
-            );
-
-            if (hasInlineContent) {
-                commentSteps.unshift(
-                    new AddMarkStep(commentRange.from, commentRange.to, commentMark),
-                );
-            }
-
-            const {steps} = await getCollaborativelyUpdateContentResult(context, {
-                currentVersion: document.version,
-                currentContent: document.content,
-                clientVersion: apiContentRange.version,
-                clientSteps: commentSteps,
-                knownClientContent: apiContentRange.contentAtVersion,
-                getSteps: (startVersion, endVersion) =>
-                    getDocumentContentSteps(context, {
+                const document = await getDocumentContent(context, documentId);
+                if (resolved) {
+                    await updateDocumentContent(context, {
                         id: documentId,
-                        startVersion,
-                        endVersion,
-                    }),
-            });
-
-            const {newVersion, newContent} = await updateDocumentContent(context, {
-                id: documentId,
-                version: document.version,
-                steps,
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId,
-                        createdTimeZone: requestBody.createdTimeZone,
-                        initialCommentContent: requestBody.content,
-                        initialCommentFileIds: requestBody.fileIds,
-                        attachInitialCommentFilesAsBot: true,
-                    },
-                ],
-            });
-
-            const fileIds = new Set(
-                requestBody.fileIds.filter((fileId): fileId is FileId => isId(fileId)),
-            );
-            const files = await runAllPromises(
-                Array.from(fileIds, fileId =>
-                    getFileFromAttachment(
+                        version: document.version,
+                        steps: [
+                            new RemoveAllMarksStep(
+                                schema.marks.comment.create({
+                                    commentThreadId,
+                                }),
+                            ),
+                        ],
+                        clientId: generateId(),
+                        resolveCommentThreadIds: [commentThreadId],
+                    });
+                } else {
+                    const {version, ranges} = await getResolvedDocumentCommentThreadRanges(
                         context,
-                        fileId,
-                        FileDocumentAuthorizer.bind({
-                            type: "DocumentComments",
+                        {
                             documentId,
-                        }),
-                        {consistency: "Strong"},
-                    ),
-                ),
-            );
+                            commentThreadId,
+                        },
+                    );
 
-            const firstComment = await getDocumentCommentPayload(context, {
-                documentId,
-                commentThreadId,
-                commentIndex: 0,
-            });
-            const commentThread = {
-                spaceId: document.spaceId,
-                id: commentThreadId,
-                createdTime: firstComment.createdTime,
-                isResolved: false,
-                commentCount: 1,
-                firstCommentAuthorId: firstComment.authorId,
-                fallbackContentSnippet: null,
-            };
-            const documentContent =
-                createCommentThreadDocumentContentOverrideForTest?.({
-                    commentThreadId,
-                    documentContent: newContent,
-                }) ?? newContent;
-            const appliedCommentStep = steps[0];
-            assert(appliedCommentStep);
-            let appliedCommentPos: number;
-            if (appliedCommentStep instanceof AddNodeMarkStep) {
-                appliedCommentPos = appliedCommentStep.pos;
-            } else {
-                assert(appliedCommentStep instanceof AddMarkStep);
-                appliedCommentPos = appliedCommentStep.from;
+                    await updateDocumentContent(context, {
+                        id: documentId,
+                        version,
+                        steps: [
+                            new AddMarksAfterRemoveAllStep(
+                                schema.marks.comment.create({
+                                    commentThreadId,
+                                }),
+                                ranges,
+                            ),
+                        ],
+                        clientId: generateId(),
+                        unresolveCommentThreadIds: [commentThreadId],
+                    });
+                }
+
+                return DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.serialize({
+                    ok: true,
+                });
             }
-            const documentContentSnippet = getDocumentCommentThreadSnippetAtPos(
-                documentContent,
-                appliedCommentPos,
-                {wholeTextBlocks: true},
-            );
-            const payload =
-                firstComment.payload.type === "Content" &&
-                createCommentThreadMessageContentOverrideForTest
-                    ? {
-                          ...firstComment.payload,
-                          content: createCommentThreadMessageContentOverrideForTest,
-                      }
-                    : firstComment.payload;
+            case "create-comment-thread-for-api": {
+                const requestBody =
+                    DocumentCollaborationCreateCommentThreadForApiRequestBodySchema.deserialize(
+                        request.body ?? null,
+                    );
 
-            return DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.serialize({
-                ok: true,
-                newVersion,
-                commentThreadId,
-                commentThread: {
-                    ...commentThread,
-                    firstCommentAuthorId: commentThread.firstCommentAuthorId ?? null,
-                },
-                documentContentSnippet,
-                files,
-                message: {
-                    index: firstComment.index,
-                    version: firstComment.version,
-                    createdTime: firstComment.createdTime,
-                    createdTimeZone: firstComment.createdTimeZone,
-                    authorId: firstComment.authorId,
-                    payload,
-                    stream: firstComment.stream,
-                },
-            });
+                throw new UnimplementedError("TODO: Codex you need to implement this");
+            }
+            default:
+                throw new InternalError(quote`Unknown route: ${route}`);
         }
-
-        if (route !== "update-content-with-diff") return;
-
-        const requestBody = DocumentCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
-            request.body ?? null,
-        );
-        const document = await getDocumentContent(context, documentId);
-        const invertedSteps =
-            requestBody.version < document.version
-                ? await getDocumentContentSteps(context, {
-                      id: documentId,
-                      startVersion: requestBody.version,
-                      endVersion: document.version,
-                  })
-                : [];
-        let oldContent = document.content;
-
-        for (let index = invertedSteps.length - 1; index >= 0; index--) {
-            const step = invertedSteps[index]!;
-            const stepResult = step.invertedStep.apply(oldContent);
-            if (!stepResult.doc) throw new InternalError(stepResult.failed!);
-            oldContent = assertDocumentContent(stepResult.doc);
-        }
-
-        const titleNode =
-            requestBody.title === undefined
-                ? oldContent.child(0)
-                : schema.nodes.title.create(
-                      null,
-                      requestBody.title.length > 0 ? schema.text(requestBody.title) : null,
-                  );
-
-        const requestContent = schema.nodes.doc.create(oldContent.attrs, [
-            titleNode,
-            ...(requestBody.content ?? oldContent.content.content.slice(1)),
-        ]);
-
-        const steps = diffProsemirrorNodes(oldContent, requestContent);
-
-        const {newVersion, newContent} = await updateDocumentContent(context, {
-            id: documentId,
-            version: requestBody.version,
-            steps,
-            clientId: generateId(),
-        });
-
-        return DocumentCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
-            ok: true,
-            spaceId: document.spaceId,
-            creatorId: document.creator.id,
-            newVersion,
-            newContent,
-        });
     },
 });
 
@@ -465,12 +249,6 @@ jest.unstable_mockModule(
 const {apiDocumentsPaths} = await import("./api_documents_paths.js");
 
 const server = createTestApiServer(context, apiDocumentsPaths);
-
-afterEach(() => {
-    createCommentThreadDocumentContentOverrideForTest = null;
-    createCommentThreadMessageContentOverrideForTest = null;
-    createCommentThreadForApiResponseOverrideForTest = null;
-});
 
 describe("POST /documents", () => {
     test("can create a document without content", async () => {
@@ -2280,111 +2058,6 @@ describe("comment threads", () => {
         });
     });
 
-    test("uses the collaboration service response for a newly created comment thread", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-
-        const document = await TestDocument.create(session);
-        await document.type(session, "Hello");
-
-        const bot = await TestBot.createAndInstantiate(session);
-        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
-
-        const paragraph = await getFirstParagraphFromApiDocument({
-            documentId: document.id,
-            apiKey,
-        });
-
-        createCommentThreadDocumentContentOverrideForTest = ({commentThreadId}) =>
-            assertDocumentContent(
-                schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
-                    schema.node("title"),
-                    schema.node("paragraph", {}, [
-                        schema.text("Snippet from returned response", [
-                            schema.mark("comment", {commentThreadId}),
-                        ]),
-                    ]),
-                ]),
-            );
-        createCommentThreadMessageContentOverrideForTest = createSimpleMessageContent(
-            "Comment from returned response",
-        );
-
-        const createThreadResponse = await server.POST(`/documents/${document.id}/threads`, {
-            headers: {authorization: `bearer ${apiKey}`},
-            body: {
-                thread: {
-                    range: {
-                        start: {type: "Inline", key: paragraph.key, index: 0},
-                        end: {type: "Inline", key: paragraph.key, index: 4},
-                    },
-                    firstMessage: {
-                        content: {
-                            elements: [
-                                {
-                                    type: "Paragraph",
-                                    elements: [{type: "Text", text: "Persisted comment"}],
-                                },
-                            ],
-                        },
-                    },
-                },
-            },
-        });
-
-        expect(createThreadResponse.status).toBe(200);
-
-        const createdCommentThreadId = createThreadResponse.body.thread.id;
-
-        expect(createThreadResponse.body.thread.documentContentSnippet).toEqual({
-            elements: [
-                {
-                    type: "Paragraph",
-                    key: expect.any(String),
-                    elements: [
-                        {
-                            type: "Text",
-                            text: "Snippet from returned response",
-                            marks: [{type: "Comment", threadId: createdCommentThreadId}],
-                        },
-                    ],
-                },
-            ],
-        });
-        expect(createThreadResponse.body.message).toEqual(
-            expect.objectContaining({
-                index: 0,
-                payload: expect.objectContaining({
-                    type: "Content",
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                key: expect.any(String),
-                                elements: [{type: "Text", text: "Comment from returned response"}],
-                            },
-                        ],
-                    },
-                }),
-            }),
-        );
-
-        expect((await document.get()).content.doc.toJSON()).toEqual(
-            schema
-                .node("doc", {accessPolicy: document.initialAccessPolicy}, [
-                    schema.node("title"),
-                    schema.node("paragraph", {}, [
-                        schema.text("Hello", [
-                            schema.mark("comment", {
-                                commentThreadId: createdCommentThreadId,
-                            }),
-                        ]),
-                    ]),
-                ])
-                .toJSON(),
-        );
-    });
-
     test("can create a document comment thread with file attachments", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -2603,22 +2276,14 @@ describe("comment threads", () => {
             apiKey,
         });
 
-        createCommentThreadForApiResponseOverrideForTest = () =>
-            DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.serialize({
-                ok: false,
-                error: new InvalidArgumentError("Item target range start must be before the end", {
-                    displayMessage: errorDisplayMessage`Item target range start must be before the end.`,
-                }),
-            });
-
         expect(
             await server.POST(`/documents/${document.id}/threads`, {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {
                     thread: {
                         range: {
-                            start: {type: "Inline", key: paragraph.key, index: 0},
-                            end: {type: "Inline", key: paragraph.key, index: 4},
+                            start: {type: "Inline", key: paragraph.key, index: 4},
+                            end: {type: "Inline", key: paragraph.key, index: 0},
                         },
                         firstMessage: {
                             content: {

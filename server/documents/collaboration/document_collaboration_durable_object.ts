@@ -35,7 +35,6 @@ import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
-import {getDocumentCommentThreadSnippetAtPos} from "~/shared/documents/get_document_comment_thread_snippet_at_pos.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -79,6 +78,12 @@ import {getFileWithoutSignedUrlFromAttachment} from "~/shared/rpc/files_rpc_defi
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {
+    getApiContentPositionPos,
+    getApiContentPositionPosWithDecodedKey,
+} from "~/shared/api/content/closed_source/get_api_content_position_pos.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 
 type DocumentCollaborationDurableObjectRoute =
     | {type: "Main"; accessLevel: AccessLevel | null}
@@ -450,126 +455,6 @@ class DocumentCollaborationDurableObject {
 
                 return new Response(null, {status: 200});
             }
-            case "SetCommentThreadResolved": {
-                if (request.method !== "POST") {
-                    return new Response("405 Method Not Allowed", {
-                        status: 405,
-                        headers: {"content-type": "text/plain"},
-                    });
-                }
-
-                try {
-                    const accountContext = context.actor.authorizeAccount();
-                    const {resolved} =
-                        DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.deserialize(
-                            await request.json(),
-                        );
-
-                    if (resolved) {
-                        // We use a `null` `connectionId` and generate a new `clientId` because the client
-                        // doesn't know about these update steps. It needs to apply the realtime update for
-                        // the `RemoveAllMarksStep` along with all other clients. We also don't update the
-                        // client's presence state along with these updates.
-                        await this._contentManager.updateAndWaitForPersistence(
-                            accountContext,
-                            null,
-                            {
-                                version: this._contentManager.getCurrentVersion(),
-                                steps: [
-                                    new RemoveAllMarksStep(
-                                        DocumentContentProsemirrorSchema.marks.comment.create({
-                                            commentThreadId: route.commentThreadId,
-                                        }),
-                                    ),
-                                ],
-                                clientId: generateId(),
-                                createCommentThreads: [],
-                                intentionallyUpdateAccessPolicy: null,
-                                resolveCommentThreadIds: [route.commentThreadId],
-                                updateOurPresenceState: {state: null},
-                            },
-                        );
-                    } else {
-                        // NOTE(calebmer): Warning! Calling an RPC here creates a network waterfall which
-                        // can be slow. The network flow is:
-                        //
-                        // 1. RPC `getResolvedDocumentCommentThreadRanges`
-                        //     - Cloudflare `DocumentCollaborationService` → AWS `AppService`
-                        //     - AWS `AppService` → Cloudflare `DocumentCollaborationService`
-                        // 2. RPC `updateDocumentContent`
-                        //     - Cloudflare `DocumentCollaborationService` → AWS `AppService`
-                        //     - AWS `AppService` → Cloudflare `DocumentCollaborationService`
-                        //
-                        // Given this Durable Object runs on the edge this doubles the network latency
-                        // penalty from Cloudflare to AWS. Ideally we'd only make one network request to
-                        // app service per procedure.
-                        //
-                        // Since this procedure is relatively uncommon and our document collaboration
-                        // service needs to know which steps to commit before calling back to app service,
-                        // we tolerate this.
-                        const {version, ranges} = await getResolvedDocumentCommentThreadRanges(
-                            accountContext,
-                            {
-                                documentId: this._contentManager.id,
-                                commentThreadId: route.commentThreadId,
-                            },
-                        );
-
-                        // We use a `null` `connectionId` and generate a new `clientId` because the client
-                        // doesn't know about these update steps. It needs to apply the realtime update for
-                        // the `AddMarksAfterRemoveAllStep` along with all other clients. We also don't
-                        // update the client's presence state along with these updates.
-                        await this._contentManager.updateAndWaitForPersistence(
-                            accountContext,
-                            null,
-                            {
-                                // This update runs at an old version. The ranges will need to be rebased with all
-                                // updates that have happened since that old version.
-                                version,
-                                steps: [
-                                    new AddMarksAfterRemoveAllStep(
-                                        DocumentContentProsemirrorSchema.marks.comment.create({
-                                            commentThreadId: route.commentThreadId,
-                                        }),
-                                        ranges,
-                                    ),
-                                ],
-                                clientId: generateId(),
-                                createCommentThreads: [],
-                                intentionallyUpdateAccessPolicy: null,
-                                unresolveCommentThreadIds: [route.commentThreadId],
-                                updateOurPresenceState: {state: null},
-                            },
-                        );
-                    }
-
-                    return new Response(
-                        JSON.stringify(
-                            DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.serialize(
-                                {ok: true},
-                            ),
-                        ),
-                        {
-                            status: 200,
-                            headers: {"content-type": "application/json"},
-                        },
-                    );
-                } catch (error) {
-                    span.addException(error);
-
-                    return new Response(
-                        JSON.stringify(
-                            DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.serialize(
-                                {ok: false, error},
-                            ),
-                        ),
-                        {
-                            status: isSystemError(error) ? 500 : 400,
-                            headers: {"content-type": "application/json"},
-                        },
-                    );
-                }
-            }
             case "BroadcastSpellCheckRealtimeEvents": {
                 const {events} = SpellCheckIgnoredLintRealtimeTransactionSchema.deserialize(
                     await request.json(),
@@ -663,8 +548,9 @@ class DocumentCollaborationDurableObject {
                         })(),
                     ]);
 
-                    // Wait for our update to actually persist before responding. This endpoint is
-                    // called by the API which provides read-after-write semantics to API clients.
+                    // Very important! Wait for our update to actually persist before responding. This
+                    // endpoint is called by the API which provides read-after-write semantics to API
+                    // clients.
                     await persistencePromise;
 
                     return new Response(
@@ -732,6 +618,129 @@ class DocumentCollaborationDurableObject {
                     {status: 200},
                 );
             }
+            case "SetCommentThreadResolved": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                try {
+                    const accountContext = context.actor.authorizeAccount();
+
+                    const {resolved} =
+                        DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.deserialize(
+                            await request.json(),
+                        );
+
+                    if (resolved) {
+                        // We use a `null` `connectionId` and generate a new `clientId` because the client
+                        // doesn't know about these update steps. It needs to apply the realtime update for
+                        // the `RemoveAllMarksStep` along with all other clients. We also don't update the
+                        // client's presence state along with these updates.
+                        await this._contentManager.updateAndWaitForPersistence(
+                            accountContext,
+                            null,
+                            {
+                                version: this._contentManager.getCurrentVersion(),
+                                steps: [
+                                    new RemoveAllMarksStep(
+                                        DocumentContentProsemirrorSchema.marks.comment.create({
+                                            commentThreadId: route.commentThreadId,
+                                        }),
+                                    ),
+                                ],
+                                clientId: generateId(),
+                                createCommentThreads: [],
+                                intentionallyUpdateAccessPolicy: null,
+                                intentionallyUpdateDeletedTime: null,
+                                resolveCommentThreadIds: [route.commentThreadId],
+                                updateOurPresenceState: {state: null},
+                            },
+                        );
+                    } else {
+                        // NOTE(calebmer): Warning! Calling an RPC here creates a network waterfall which
+                        // can be slow. The network flow is:
+                        //
+                        // 1. RPC `getResolvedDocumentCommentThreadRanges`
+                        //     - Cloudflare `DocumentCollaborationService` → AWS `AppService`
+                        //     - AWS `AppService` → Cloudflare `DocumentCollaborationService`
+                        // 2. RPC `updateDocumentContent`
+                        //     - Cloudflare `DocumentCollaborationService` → AWS `AppService`
+                        //     - AWS `AppService` → Cloudflare `DocumentCollaborationService`
+                        //
+                        // Given this Durable Object runs on the edge this doubles the network latency
+                        // penalty from Cloudflare to AWS. Ideally we'd only make one network request to
+                        // app service per procedure.
+                        //
+                        // Since this procedure is relatively uncommon and our document collaboration
+                        // service needs to know which steps to commit before calling back to app service,
+                        // we tolerate this.
+                        const {version, ranges} = await getResolvedDocumentCommentThreadRanges(
+                            accountContext,
+                            {
+                                documentId: this._contentManager.id,
+                                commentThreadId: route.commentThreadId,
+                            },
+                        );
+
+                        // We use a `null` `connectionId` and generate a new `clientId` because the client
+                        // doesn't know about these update steps. It needs to apply the realtime update for
+                        // the `AddMarksAfterRemoveAllStep` along with all other clients. We also don't
+                        // update the client's presence state along with these updates.
+                        await this._contentManager.updateAndWaitForPersistence(
+                            accountContext,
+                            null,
+                            {
+                                // This update runs at an old version. The ranges will need to be rebased with all
+                                // updates that have happened since that old version.
+                                version,
+                                steps: [
+                                    new AddMarksAfterRemoveAllStep(
+                                        DocumentContentProsemirrorSchema.marks.comment.create({
+                                            commentThreadId: route.commentThreadId,
+                                        }),
+                                        ranges,
+                                    ),
+                                ],
+                                clientId: generateId(),
+                                createCommentThreads: [],
+                                intentionallyUpdateAccessPolicy: null,
+                                intentionallyUpdateDeletedTime: null,
+                                unresolveCommentThreadIds: [route.commentThreadId],
+                                updateOurPresenceState: {state: null},
+                            },
+                        );
+                    }
+
+                    return new Response(
+                        JSON.stringify(
+                            DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.serialize(
+                                {ok: true},
+                            ),
+                        ),
+                        {
+                            status: 200,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                } catch (error) {
+                    span.addException(error);
+
+                    return new Response(
+                        JSON.stringify(
+                            DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.serialize(
+                                {ok: false, error},
+                            ),
+                        ),
+                        {
+                            status: isSystemError(error) ? 500 : 400,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                }
+            }
             case "CreateCommentThreadForApi": {
                 if (request.method !== "POST") {
                     return new Response("405 Method Not Allowed", {
@@ -748,196 +757,135 @@ class DocumentCollaborationDurableObject {
                             await request.json(),
                         );
 
+                    // Authorizing document access is a round-trip to AWS. Run it in parallel with
+                    // computing and applying the update to avoid an extra serial round-trip. The
+                    // `update()` call awaits `authorizationPromise` before mutating any durable object
+                    // state so an account without access can't put the durable object in a bad state.
                     const authorizationPromise = authorizeDocumentAccess(accountContext, {
                         documentId: this._contentManager.id,
                         expectedAccessLevel: "Comment",
                     });
 
-                    const [authorizationResult, apiContentRangeResult] = await runAllPromises([
-                        captureResultPromise(authorizationPromise),
+                    const [, responseResult] = await runAllPromises([
+                        authorizationPromise,
                         captureResultPromise(
-                            getApiContentRange({
-                                entityId: `Document:${this.id}`,
-                                latestVersion: this._contentManager.getCurrentVersion(),
-                                range: requestBody.range,
-                                getContentAtVersion: version =>
-                                    this._contentManager.getContentAtVersion(
-                                        accountContext,
+                            (async () => {
+                                const decoder = new ApiContentKeyDecoder(`Document:${this.id}`);
+                                const startDecodedKey = decoder.decode(requestBody.range.start.key);
+                                const endDecodedKey = decoder.decode(requestBody.range.end.key);
+
+                                if (startDecodedKey.version !== endDecodedKey.version) {
+                                    throw new InvalidArgumentError(
+                                        "Range content keys are for different document versions",
+                                        {
+                                            displayMessage: errorDisplayMessage`Range content keys are for different document versions. Try again with range start/end keys from the same document version.`,
+                                        },
+                                    );
+                                }
+
+                                const {version} = startDecodedKey;
+
+                                if (version > this._contentManager.getCurrentVersion()) {
+                                    throw new InvalidArgumentError(
+                                        "Range content key document version is higher than the current document version",
+                                        {
+                                            displayMessage: errorDisplayMessage`Range content key document version is higher than the current document version. Try again with range start/end keys from the current document version.`,
+                                        },
+                                    );
+                                }
+
+                                const content = await this._contentManager.getContentAtVersion(
+                                    accountContext,
+                                    startDecodedKey.version,
+                                );
+
+                                const from = getApiContentPositionPosWithDecodedKey(
+                                    startDecodedKey,
+                                    requestBody.range.start,
+                                );
+                                const to = getApiContentPositionPosWithDecodedKey(
+                                    endDecodedKey,
+                                    requestBody.range.end,
+                                );
+
+                                const commentThreadId = generateId<DocumentCommentThreadId>();
+                                const commentMark =
+                                    DocumentContentProsemirrorSchema.marks.comment.create({
+                                        commentThreadId,
+                                    });
+
+                                // A target range can contain both inline content and markable leaf nodes such as
+                                // files. `AddMarkStep` marks all inline descendants, but ProseMirror requires a
+                                // separate `AddNodeMarkStep` for each leaf node that is completely enclosed by the
+                                // range.
+                                const steps: Array<AddMarkStep | AddNodeMarkStep> = [];
+                                let hasInlineContent = false;
+
+                                content.nodesBetween(from, to, (node, pos) => {
+                                    if (node.isInline) hasInlineContent = true;
+
+                                    if (
+                                        !node.isInline &&
+                                        node.isLeaf &&
+                                        node.type.allowsMarkType(commentMark.type) &&
+                                        from <= pos &&
+                                        pos + node.nodeSize <= to
+                                    ) {
+                                        steps.push(new AddNodeMarkStep(pos, commentMark));
+                                    }
+                                });
+
+                                if (hasInlineContent) {
+                                    // Mark steps do not move document positions, so the inline and node steps can all
+                                    // use coordinates from the requested version.
+                                    steps.unshift(new AddMarkStep(from, to, commentMark));
+                                }
+
+                                const {commentThreadCreatedTime, persistencePromise} =
+                                    await this._contentManager.update(accountContext, null, {
                                         version,
+                                        steps,
+                                        clientId: generateId(),
+                                        createCommentThreads: [
+                                            {
+                                                commentThreadId,
+                                                createdTimeZone: requestBody.createdTimeZone,
+                                                initialCommentContent: requestBody.content,
+                                                initialCommentFileIds: requestBody.fileIds,
+                                                attachInitialCommentFilesAsBot: true,
+                                            },
+                                        ],
+                                        intentionallyUpdateAccessPolicy: null,
+                                        intentionallyUpdateDeletedTime: null,
+                                        updateOurPresenceState: {state: null},
+                                        validationPromise: authorizationPromise,
+                                    });
+
+                                // Very important! Wait for our update to actually persist before responding. This
+                                // endpoint is called by the API which provides read-after-write semantics to API
+                                // clients.
+                                await persistencePromise;
+
+                                return new Response(
+                                    JSON.stringify(
+                                        DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.serialize(
+                                            {
+                                                ok: true,
+                                                spaceId: this.spaceId,
+                                                commentThread: {
+                                                    id: commentThreadId,
+                                                    createdTime: commentThreadCreatedTime,
+                                                },
+                                            },
+                                        ),
                                     ),
-                            }),
+                                    {status: 200, headers: {"content-type": "application/json"}},
+                                );
+                            })(),
                         ),
                     ]);
-                    if (!authorizationResult.ok) throw authorizationResult.error;
-                    if (!apiContentRangeResult.ok) throw apiContentRangeResult.error;
-                    const apiContentRange = apiContentRangeResult.value;
-                    const commentRange = trimSpacesFromProsemirrorRange(
-                        apiContentRange.contentAtVersion,
-                        apiContentRange,
-                    );
-                    const selectedContent = apiContentRange.contentAtVersion.textBetween(
-                        commentRange.from,
-                        commentRange.to,
-                        "",
-                        "\uFFFC",
-                    );
 
-                    if (
-                        commentRange.from >= commentRange.to ||
-                        (!selectedContent.includes("\uFFFC") && !/\S/u.test(selectedContent))
-                    ) {
-                        throw new InvalidArgumentError(
-                            "Item target range must include at least one non-space character",
-                            {
-                                displayMessage: errorDisplayMessage`Item target range must include at least one non-space character.`,
-                            },
-                        );
-                    }
-
-                    const commentThreadId = generateId<DocumentCommentThreadId>();
-                    const commentMark = DocumentContentProsemirrorSchema.marks.comment.create({
-                        commentThreadId,
-                    });
-
-                    // A target range can contain both inline content and markable leaf nodes such as
-                    // files. `AddMarkStep` marks all inline descendants, but ProseMirror requires a
-                    // separate `AddNodeMarkStep` for each leaf node that is completely enclosed by the
-                    // range.
-                    const commentSteps: Array<AddMarkStep | AddNodeMarkStep> = [];
-                    let hasInlineContent = false;
-
-                    apiContentRange.contentAtVersion.nodesBetween(
-                        commentRange.from,
-                        commentRange.to,
-                        (node, pos) => {
-                            if (node.isInline) hasInlineContent = true;
-
-                            if (
-                                !node.isInline &&
-                                node.isLeaf &&
-                                node.type.allowsMarkType(commentMark.type) &&
-                                commentRange.from <= pos &&
-                                pos + node.nodeSize <= commentRange.to
-                            ) {
-                                commentSteps.push(new AddNodeMarkStep(pos, commentMark));
-                            }
-                        },
-                    );
-
-                    if (hasInlineContent) {
-                        // Mark steps do not move document positions, so the inline and node steps can all
-                        // use coordinates from the requested version.
-                        commentSteps.unshift(
-                            new AddMarkStep(commentRange.from, commentRange.to, commentMark),
-                        );
-                    }
-
-                    const {
-                        newVersion,
-                        newContent: newDocumentContent,
-                        steps,
-                        createdCommentThreadTime,
-                        persistencePromise,
-                    } = await this._contentManager.update(accountContext, null, {
-                        version: apiContentRange.version,
-                        steps: commentSteps,
-                        documentContent: apiContentRange.contentAtVersion,
-                        clientId: generateId(),
-                        createCommentThreads: [
-                            {
-                                commentThreadId,
-                                createdTimeZone: requestBody.createdTimeZone,
-                                initialCommentContent: requestBody.content,
-                                initialCommentFileIds: requestBody.fileIds,
-                                attachInitialCommentFilesAsBot: true,
-                            },
-                        ],
-                        intentionallyUpdateAccessPolicy: null,
-                        intentionallyUpdateDeletedTime: null,
-                        updateOurPresenceState: {state: null},
-                        validationPromise: authorizationPromise,
-                    });
-
-                    await persistencePromise;
-                    assert(createdCommentThreadTime !== null);
-
-                    const fileIds = new Set(
-                        requestBody.fileIds.filter((fileId): fileId is FileId => isId(fileId)),
-                    );
-                    const files = await runAllPromises(
-                        Array.from(fileIds, async fileId => {
-                            const {file} = await getFileWithoutSignedUrlFromAttachment(
-                                accountContext,
-                                {
-                                    fileId,
-                                    target: {
-                                        type: "DocumentComments",
-                                        documentId: this.id,
-                                    },
-                                },
-                            );
-                            return file;
-                        }),
-                    );
-
-                    const authorId = accountContext.actor.getPossiblyBotAccountId();
-                    const commentThread = {
-                        spaceId: this.spaceId,
-                        id: commentThreadId,
-                        createdTime: createdCommentThreadTime,
-                        isResolved: false,
-                        commentCount: 1,
-                        firstCommentAuthorId: authorId,
-                        fallbackContentSnippet: null,
-                    };
-                    const message = {
-                        index: 0,
-                        version: 0,
-                        createdTime: createdCommentThreadTime,
-                        createdTimeZone: requestBody.createdTimeZone,
-                        authorId,
-                        payload: {
-                            type: "Content" as const,
-                            parent: null,
-                            content: requestBody.content,
-                            contentUpdate: null,
-                            fileIds: requestBody.fileIds,
-                            reactionsByPos: emptyMap,
-                            filesReactions: emptyReactionSet,
-                        },
-                        stream: null,
-                    };
-                    const appliedCommentStep = steps[0];
-                    assert(appliedCommentStep);
-                    let appliedCommentPos: number;
-                    if (appliedCommentStep instanceof AddNodeMarkStep) {
-                        appliedCommentPos = appliedCommentStep.pos;
-                    } else {
-                        assert(appliedCommentStep instanceof AddMarkStep);
-                        appliedCommentPos = appliedCommentStep.from;
-                    }
-                    const documentContentSnippet = getDocumentCommentThreadSnippetAtPos(
-                        newDocumentContent,
-                        appliedCommentPos,
-                        {wholeTextBlocks: true},
-                    );
-
-                    return new Response(
-                        JSON.stringify(
-                            DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.serialize(
-                                {
-                                    ok: true,
-                                    newVersion,
-                                    commentThreadId,
-                                    commentThread,
-                                    documentContentSnippet,
-                                    files,
-                                    message,
-                                },
-                            ),
-                        ),
-                        {status: 200, headers: {"content-type": "application/json"}},
-                    );
+                    return unwrapResult(responseResult);
                 } catch (error) {
                     span.addException(error);
 

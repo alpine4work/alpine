@@ -671,7 +671,7 @@ paths:
                             # document thread response.
                             schema:
                                 type: object
-                                required: [spaceId, document, thread, message]
+                                required: [spaceId, message, thread]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
@@ -679,9 +679,7 @@ paths:
                                     message:
                                         $ref: "#/components/schemas/Message"
                                     thread:
-                                        $ref: "#/components/schemas/DocumentThreadWithPreview"
-                                    document:
-                                        $ref: "#/components/schemas/Document"
+                                        $ref: "#/components/schemas/DocumentThread"
 
     /documents/{id}/threads/{threadId}:
         parameters:

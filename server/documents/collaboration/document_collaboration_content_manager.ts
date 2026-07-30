@@ -323,6 +323,7 @@ export class DocumentCollaborationContentManager {
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
+
             /**
              * An optional promise that must resolve before we mutate any durable object state.
              * If it rejects we throw before applying the update so the caller can run
@@ -335,7 +336,7 @@ export class DocumentCollaborationContentManager {
         newVersion: number;
         newContent: DocumentContent;
         steps: ReadonlyArray<Step>;
-        createdCommentThreadTime: Date | null;
+        commentThreadCreatedTime: Date;
         persistencePromise: Promise<void>;
         presenceState: DocumentCollaborationPresenceState | null;
         hasSentPresenceState: boolean;
@@ -389,7 +390,6 @@ export class DocumentCollaborationContentManager {
                     currentContent: stateRef.current.content,
                     clientVersion: update.version,
                     clientSteps: update.steps,
-                    knownClientContent: update.documentContent,
                     getSteps: (startVersion, endVersion) =>
                         this.stepCache.getSteps(context, startVersion, endVersion),
                 });
@@ -691,8 +691,7 @@ export class DocumentCollaborationContentManager {
                 newContent,
                 persistencePromise: this._persistenceState.promise,
                 presenceState,
-                createdCommentThreadTime:
-                    update.createCommentThreads.length > 0 ? commentThreadCreatedTime : null,
+                commentThreadCreatedTime,
             };
         });
 
@@ -702,7 +701,7 @@ export class DocumentCollaborationContentManager {
             newContent,
             persistencePromise,
             presenceState,
-            createdCommentThreadTime,
+            commentThreadCreatedTime,
         } = result;
 
         if (steps.length === 0) {
@@ -710,7 +709,7 @@ export class DocumentCollaborationContentManager {
                 newVersion: oldVersion,
                 newContent,
                 steps,
-                createdCommentThreadTime,
+                commentThreadCreatedTime,
                 persistencePromise,
                 presenceState,
                 hasSentPresenceState: false,
@@ -847,7 +846,7 @@ export class DocumentCollaborationContentManager {
             newVersion,
             newContent,
             steps,
-            createdCommentThreadTime,
+            commentThreadCreatedTime,
             persistencePromise,
             presenceState,
             hasSentPresenceState: true,
@@ -891,7 +890,7 @@ export class DocumentCollaborationContentManager {
      *   redundant with the existing pair, and extending `PersistedContent` to carry
      *   steps/clientId/presence would force every existing `PersistedContent` handler
      *   to grow. If the naming becomes confusing we can address in a follow-up change.
-     * - No batching – same-client follow-up updates cannot be merged into this
+     * - No batching – same-client follow-up updates cannot be merged into this
      *   persistence request because the caller is awaiting a confirmed persist.
      */
     public async updateAndWaitForPersistence(
@@ -900,11 +899,6 @@ export class DocumentCollaborationContentManager {
         update: {
             version: number | null;
             steps: ReadonlyArray<Step>;
-            /**
-             * Content already loaded at `version`. This is an optimization that avoids
-             * reconstructing it from the current document and inverted steps.
-             */
-            documentContent?: DocumentContent;
             clientId: ContentEditorClientId;
             createCommentThreads: ReadonlyArray<{
                 commentThreadId: DocumentCommentThreadId;
@@ -930,7 +924,7 @@ export class DocumentCollaborationContentManager {
         newVersion: number;
         newContent: DocumentContent;
         steps: ReadonlyArray<Step>;
-        createdCommentThreadTime: Date | null;
+        commentThreadCreatedTime: Date | null;
         getRynamoEventsForSite: () => Promise<
             ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>
         >;
@@ -978,7 +972,6 @@ export class DocumentCollaborationContentManager {
                     currentContent: stateRef.current.content,
                     clientVersion,
                     clientSteps: update.steps,
-                    knownClientContent: update.documentContent,
                     getSteps: (startVersion, endVersion) =>
                         this.stepCache.getSteps(context, startVersion, endVersion),
                 });
@@ -1093,7 +1086,7 @@ export class DocumentCollaborationContentManager {
                 presenceState,
                 eventsForSite,
                 updatedCommentThreads,
-                createdCommentThreadTime:
+                commentThreadCreatedTime:
                     update.createCommentThreads.length > 0 ? commentThreadCreatedTime : null,
             };
         });
@@ -1106,7 +1099,7 @@ export class DocumentCollaborationContentManager {
             presenceState,
             eventsForSite,
             updatedCommentThreads,
-            createdCommentThreadTime,
+            commentThreadCreatedTime,
         } = updateAndWaitForPersistenceResult;
 
         const getRynamoEventsForSite = async (): Promise<
@@ -1120,7 +1113,7 @@ export class DocumentCollaborationContentManager {
                 newVersion: oldVersion,
                 newContent,
                 steps,
-                createdCommentThreadTime,
+                commentThreadCreatedTime,
                 getRynamoEventsForSite,
             };
         }
@@ -1264,7 +1257,7 @@ export class DocumentCollaborationContentManager {
             newVersion,
             newContent,
             steps,
-            createdCommentThreadTime,
+            commentThreadCreatedTime,
             getRynamoEventsForSite,
         };
     }
