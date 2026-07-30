@@ -5947,6 +5947,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "createdTimeZone": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
+                                    },
                                     "fallbackContentSnippet": {
                                         "valueSchema": {
                                             "type": "Nullable",
@@ -6846,6 +6852,12 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Date"
                                         },
                                         "optional": false
+                                    },
+                                    "createdTimeZone": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
                                     },
                                     "fallbackContentSnippet": {
                                         "valueSchema": {
@@ -10480,6 +10492,44 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "creator": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "from": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "Union",
+                                                            "typeKey": "type",
+                                                            "variantSchemaByTypeValue": {
+                                                                "Bot": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "type": {
+                                                                            "valueSchema": {
+                                                                                "type": "Value",
+                                                                                "value": "Bot"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "accountId": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "optional": true
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "name": {
                                         "valueSchema": {
                                             "type": "String"
@@ -10648,6 +10698,44 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Id"
                                         },
                                         "optional": false
+                                    },
+                                    "author": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "from": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "Union",
+                                                            "typeKey": "type",
+                                                            "variantSchemaByTypeValue": {
+                                                                "Bot": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "type": {
+                                                                            "valueSchema": {
+                                                                                "type": "Value",
+                                                                                "value": "Bot"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "accountId": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "optional": true
+                                                }
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "content": {
                                         "valueSchema": {

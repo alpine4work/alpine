@@ -11311,6 +11311,7 @@ describe("Comments", () => {
             documentId: document.id,
             commentThreadId,
             createdTime: expect.any(Date),
+            createdTimeZone: defaultTimeZone,
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 1,
@@ -11350,6 +11351,7 @@ describe("Comments", () => {
             documentId: document.id,
             commentThreadId,
             createdTime: expect.any(Date),
+            createdTimeZone: defaultTimeZone,
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 1,
@@ -11391,6 +11393,7 @@ describe("Comments", () => {
             documentId: document.id,
             commentThreadId,
             createdTime: expect.any(Date),
+            createdTimeZone: defaultTimeZone,
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 2,
@@ -11436,6 +11439,7 @@ describe("Comments", () => {
             documentId: document.id,
             commentThreadId,
             createdTime: expect.any(Date),
+            createdTimeZone: defaultTimeZone,
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 2,
@@ -11516,6 +11520,7 @@ describe("Comments", () => {
             documentId: document.id,
             commentThreadId,
             createdTime: expect.any(Date),
+            createdTimeZone: defaultTimeZone,
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 1,
@@ -11555,6 +11560,7 @@ describe("Comments", () => {
             documentId: document.id,
             commentThreadId,
             createdTime: expect.any(Date),
+            createdTimeZone: defaultTimeZone,
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 1,
@@ -11596,6 +11602,7 @@ describe("Comments", () => {
             documentId: document.id,
             commentThreadId,
             createdTime: expect.any(Date),
+            createdTimeZone: defaultTimeZone,
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 2,
@@ -11623,6 +11630,7 @@ describe("Comments", () => {
             documentId: document.id,
             commentThreadId,
             createdTime: expect.any(Date),
+            createdTimeZone: defaultTimeZone,
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 2,
@@ -17330,6 +17338,7 @@ describe("Comments", () => {
             fallbackContentSnippet: null,
             spaceId: space.id,
             createdTime: expect.any(Date),
+            createdTimeZone: defaultTimeZone,
         });
     });
 

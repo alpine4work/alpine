@@ -367,6 +367,8 @@ export class AgentMessageStream {
                                     url = `https://alpine.inc/chat/${targetPathObject.id}?message=${targetPathObject.index}`;
                                     break;
                                 case "DocumentThread":
+                                    url = `https://alpine.inc/doc/${targetPathObject.document.id}?thread=${targetPathObject.id}`;
+                                    break;
                                 case "DocumentCommentThreadComments":
                                     url = `https://alpine.inc/doc/${targetPathObject.id}?thread=${targetPathObject.threadId}`;
                                     break;

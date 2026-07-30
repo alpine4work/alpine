@@ -1444,7 +1444,7 @@ function getRoomPathForPromptCacheKey(spaceId: SpaceId, room: ApiMessageRoomRefe
         case "DocumentThread":
             // "thread/" (7 characters) + ID \* 2 (52 characters + "-" (1 character)) = 60
             // characters
-            return `thread/${room.id}-${room.threadId}`;
+            return `thread/${room.document.id}-${room.id}`;
         default:
             throw exhaustive(room);
     }

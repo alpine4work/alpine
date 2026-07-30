@@ -304,6 +304,30 @@ Merged message block.
             },
         },
         {
+            name: "deleted message",
+            pageLink: true,
+            markdown: `\
+<message id="1" deleted></message>
+`,
+            page: {
+                preamble: {elements: []},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Message",
+                        idAttribute: {startMessageIndex: 1, endMessageIndex: 2},
+                        deleted: true,
+                        author: null,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([]),
+                    },
+                ],
+            },
+        },
+        {
             name: "message log at end of messages",
             pageLink: true,
             markdown: `\

@@ -593,7 +593,7 @@ export async function createAgentWebPostPage(
                 spaceId: context.spaceId,
                 post: {
                     createdTimeZone,
-                    channel,
+                    channel: {id: channel.id},
                     content: postBlock.content,
                 },
             },

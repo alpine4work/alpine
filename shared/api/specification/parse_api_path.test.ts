@@ -165,8 +165,8 @@ describe("parseApiPath", () => {
                 parseApiPath(`/documents/${documentId}/threads/${documentCommentThreadId}`),
             ).toEqual({
                 type: "DocumentThread",
-                id: documentId,
-                threadId: documentCommentThreadId,
+                id: documentCommentThreadId,
+                document: {id: documentId},
             });
         });
 
@@ -413,8 +413,8 @@ describe("printApiPath", () => {
         expect(
             printApiPath({
                 type: "DocumentThread",
-                id: documentId,
-                threadId: documentCommentThreadId,
+                id: documentCommentThreadId,
+                document: {id: documentId},
             }),
         ).toEqual(`/documents/${documentId}/threads/${documentCommentThreadId}`);
     });
@@ -499,8 +499,8 @@ describe("parseApiMessageRoomPath", () => {
             parseApiMessageRoomPath(`/documents/${documentId}/threads/${documentCommentThreadId}`),
         ).toEqual({
             type: "DocumentThread",
-            id: documentId,
-            threadId: documentCommentThreadId,
+            id: documentCommentThreadId,
+            document: {id: documentId},
         });
     });
 });
@@ -514,8 +514,8 @@ describe("printApiMessageRoomPath", () => {
         expect(
             printApiMessageRoomPath({
                 type: "DocumentThread",
-                id: documentId,
-                threadId: documentCommentThreadId,
+                id: documentCommentThreadId,
+                document: {id: documentId},
             }),
         ).toEqual(`/documents/${documentId}/threads/${documentCommentThreadId}`);
     });

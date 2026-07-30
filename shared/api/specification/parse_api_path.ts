@@ -126,8 +126,8 @@ type ApiPathsType = [
         path: `/documents/${DocumentId}/threads/${DocumentCommentThreadId}`;
         pathObject: {
             readonly type: "DocumentThread";
-            readonly id: DocumentId;
-            readonly threadId: DocumentCommentThreadId;
+            readonly id: DocumentCommentThreadId;
+            readonly document: {readonly id: DocumentId};
         };
     },
     {
@@ -325,8 +325,8 @@ export function parseApiPath(path: string): ApiPathObject {
 
                 return {
                     type: "DocumentThread",
-                    id: pathSegments[1],
-                    threadId: pathSegments[3],
+                    id: pathSegments[3],
+                    document: {id: pathSegments[1]},
                 };
             } else {
                 if (pathSegments.length !== 2) {
@@ -470,7 +470,7 @@ export function printApiPath(path: ApiPathObject): ApiPath {
         case "Document":
             return `/documents/${path.id}`;
         case "DocumentThread":
-            return `/documents/${path.id}/threads/${path.threadId}`;
+            return `/documents/${path.document.id}/threads/${path.id}`;
         case "DocumentComment":
             return `/documents/${path.id}/threads/${path.threadId}/messages/${path.index}`;
         case "DocumentCommentThreadComments":
@@ -586,7 +586,9 @@ export function getApiMentionReferencePathIfExists(path: ApiPath): ApiMentionRef
     const pathObject = parseApiNotMentionReference(path);
 
     switch (pathObject.type) {
-        case "DocumentThread":
+        case "DocumentThread": {
+            return `/documents/${pathObject.document.id}`;
+        }
         case "DocumentComment":
         case "DocumentCommentThreadComments": {
             return `/documents/${pathObject.id}`;

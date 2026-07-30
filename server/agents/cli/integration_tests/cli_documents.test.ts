@@ -155,7 +155,7 @@ test("search for and read document created by a test helper", async () => {
     await indexDocumentSearchEntityImmediately(document);
 
     expect(await cli.run("alpine search 'Me zoo'")).toEqual(`\
-1. [Me at the zoo](/document/me-at-the-zoo)
+1. [**Me** at the **zoo**](/document/me-at-the-zoo)
 
    The first video, “**Me** at the **zoo**,” was uploaded on April 23, 2005.
 `);
@@ -1258,7 +1258,9 @@ test("resolve a document comment thread", async () => {
 
     await indexDocumentSearchEntityImmediately(document);
     expect(await cli.run("alpine search 'YouTube resolution review'")).toEqual(
-        expect.stringContaining("[YouTube resolution review](/document/youtube-resolution-review)"),
+        expect.stringContaining(
+            "[**YouTube resolution review**](/document/youtube-resolution-review)",
+        ),
     );
     expect(await cli.run("alpine read /document/youtube-resolution-review")).toEqual(`\
 # YouTube resolution review
@@ -1303,7 +1305,7 @@ test("unresolve a document comment thread", async () => {
 
     await indexDocumentSearchEntityImmediately(document);
     expect(await cli.run("alpine search 'YouTube reopened review'")).toEqual(
-        expect.stringContaining("[YouTube reopened review](/document/youtube-reopened-review)"),
+        expect.stringContaining("[**YouTube reopened review**](/document/youtube-reopened-review)"),
     );
     expect(await cli.run("alpine read /document/youtube-reopened-review")).toEqual(`\
 # YouTube reopened review
@@ -1355,7 +1357,7 @@ test("add a document comment", async () => {
 
     await indexDocumentSearchEntityImmediately(document);
     expect(await cli.run("alpine search 'YouTube evidence review'")).toEqual(
-        expect.stringContaining("[YouTube evidence review](/document/youtube-evidence-review)"),
+        expect.stringContaining("[**YouTube evidence review**](/document/youtube-evidence-review)"),
     );
     expect(await cli.run("alpine read /document/youtube-evidence-review")).toEqual(`\
 # YouTube evidence review
@@ -1436,10 +1438,10 @@ test("add a document comment with a file attachment", async () => {
     // Reading the source gives the CLI a stable pathname for the file that can be
     // reused in the document comment update.
     expect(await cli.run("alpine search 'Attachment source'")).toEqual(
-        expect.stringContaining("[Attachment source](/document/attachment-source)"),
+        expect.stringContaining("[**Attachment source**](/document/attachment-source)"),
     );
     expect(await cli.run("alpine search 'YouTube evidence review'")).toEqual(
-        expect.stringContaining("[YouTube evidence review](/document/youtube-evidence-review)"),
+        expect.stringContaining("[**YouTube evidence review**](/document/youtube-evidence-review)"),
     );
     expect(await cli.run("alpine read /document/attachment-source")).toEqual(`\
 # Attachment source

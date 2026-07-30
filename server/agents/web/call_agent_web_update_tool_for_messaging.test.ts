@@ -1269,7 +1269,13 @@ test("rejects updating a deleted bot message", async () => {
     await expect(
         callAgentWebUpdateTool(context, {
             path: chatPath,
-            updates: [{old: "Deleted message", new: "Replacement content", replaceAll: false}],
+            updates: [
+                {
+                    old: '<message id="0" from="[ChatGPT](/bot/chatgpt)" deleted></message>',
+                    new: '<message id="0" from="[ChatGPT](/bot/chatgpt)" deleted>\n\nReplacement content\n\n</message>',
+                    replaceAll: false,
+                },
+            ],
         }),
     ).resolves.toEqual(
         'Error: Couldn\u2019t update `/chat/incident-response`. You can\u2019t update a deleted message. `<message id="0">` was deleted. Try again without changing the deleted message.',
@@ -1441,7 +1447,7 @@ test("rejects creating a reply that quotes a deleted message", async () => {
             updates: [
                 {
                     old: "\n\nEnd of messages.",
-                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice): Deleted message\n\n</blockquote>\n\nReplying to the deleted message.\n\n</message>\n\nEnd of messages.',
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[ChatGPT](/bot/chatgpt): Deleted message\n\n</blockquote>\n\nReplying to the deleted message.\n\n</message>\n\nEnd of messages.',
                     replaceAll: false,
                 },
             ],
@@ -1775,13 +1781,7 @@ Message 0
 
 </message>
 
-<message id="1-2" from="[Alice](/human/alice)">
-
-Deleted message
-
-Deleted message
-
-</message>
+<message id="1-2" from="[Alice](/human/alice)" deleted></message>
 
 <message id="3" from="[Alice](/human/alice)">
 

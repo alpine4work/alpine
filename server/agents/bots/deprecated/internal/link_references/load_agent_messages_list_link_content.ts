@@ -354,8 +354,8 @@ function getMessageRoom(link: AgentPaginatedMessagesListLink): ApiMessageRoomRef
         case "DocumentCommentThreadComments":
             return {
                 type: "DocumentThread",
-                id: link.documentId,
-                threadId: link.commentThreadId,
+                id: link.commentThreadId,
+                document: {id: link.documentId},
             };
         case "TaskComments":
             return {type: "Task", id: link.taskId};

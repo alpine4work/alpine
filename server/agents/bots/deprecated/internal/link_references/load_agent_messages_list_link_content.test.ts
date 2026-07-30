@@ -15,7 +15,7 @@ import {
     ApiContentResponseWithoutKeys,
     ApiDocumentThreadResponse,
     ApiMessageResponse,
-    ApiTaskWithNotesResponse,
+    ApiTaskResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -151,9 +151,9 @@ function mockGetTask(
     api: ApiClientMock,
     spaceId: SpaceId,
     taskId: TaskId,
-    responseData: Partial<Omit<ApiTaskWithNotesResponse, "id">>,
+    responseData: Partial<Omit<ApiTaskResponse, "id">>,
 ): void {
-    api.mockGet("/tasks/{id}-with-notes", {
+    api.mockGet("/tasks/{id}", {
         params: {path: {id: taskId}},
         data: {
             spaceId,
@@ -163,12 +163,6 @@ function mockGetTask(
                 title: responseData.title ?? "Test Task",
                 collections: responseData.collections ?? [],
                 subtasks: responseData.subtasks ?? {openTaskCount: 0, closedTaskCount: 0},
-                notes: responseData.notes ?? {
-                    version: 0,
-                    content: addKeysToApiContentForTest(
-                        createApiContentResponseWithSingleParagraph("Test Task Content"),
-                    ),
-                },
                 ...responseData,
             },
         },
@@ -195,17 +189,6 @@ function mockGetTaskCommentsList(
             ...responseData,
         },
     });
-}
-
-function createApiContentResponseWithSingleParagraph(text: string): ApiContentResponseWithoutKeys {
-    return {
-        elements: [
-            {
-                type: "Paragraph",
-                elements: [{type: "Text", text}],
-            },
-        ],
-    };
 }
 
 describe("loadAgentMessagesListLinkContent", () => {
@@ -1184,7 +1167,7 @@ preview of the document near the comment. The specific text this comment was lef
 \`<comment></comment>\`.
 
 <document_preview>
-This is **bold** and *italic* and \`myFunction()\` inline code. [Alice](/account/alice) is going to take care of this!!.
+This is **bold** and _italic_ and \`myFunction()\` inline code. [Alice](/account/alice) is going to take care of this!!.
 </document_preview>
 
 <time>November 21st at 8:10am EST</time>
@@ -1362,7 +1345,7 @@ Thanks Alice!
 This is a comment thread on the document \u201C[Code Review](/document/code-review).\u201D The following is a preview of the document near the comment. The specific text this comment was left on is wrapped in \`<comment></comment>\`.
 
 <document_preview>
-<comment>Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. They promoted a *water boy* **to captain** to the ~~head~~ of their <mark class="highlight-orange">army</mark>.</comment>
+<comment>Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. They promoted a _water boy_ **to captain** to the ~~head~~ of their <mark class="highlight-orange">army</mark>.</comment>
 </document_preview>
 
 <time>November 21st at 8:10am EST</time>

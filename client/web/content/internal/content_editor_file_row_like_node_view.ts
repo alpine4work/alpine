@@ -29,6 +29,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -164,9 +165,9 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                 if (lastLayouts !== layouts) {
                     lastLayouts = layouts;
 
-                    dom.style.height = `${Math.max(...layouts.map(({height}) => height)).toFixed(3)}px`;
+                    dom.style.height = `${toFixedWithoutTrailingZeros(Math.max(...layouts.map(({height}) => height)), 3)}px`;
                     dom.style.gridTemplateColumns = layouts
-                        .map(({widthFr}) => `${widthFr.toFixed(6)}fr`)
+                        .map(({widthFr}) => `${toFixedWithoutTrailingZeros(widthFr, 6)}fr`)
                         .join(" ");
                 }
             };

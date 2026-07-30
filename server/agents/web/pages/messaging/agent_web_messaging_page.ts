@@ -72,6 +72,7 @@ export type AgentWebMessagingPageMessageBlock = {
     readonly type: "Message";
     readonly idAttribute: AgentWebMessagingPageMessageRange | null;
     readonly author: ApiAccountReferenceResponse | null;
+    readonly deletedAttribute: true | null;
     readonly timeAttribute: string | null;
     readonly timeZoneAttribute: string | null;
     readonly parent: AgentWebMessagingPageMessageBlockParent | null;

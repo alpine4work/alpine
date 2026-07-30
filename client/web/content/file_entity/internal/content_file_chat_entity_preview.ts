@@ -39,6 +39,7 @@ import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {subscribeToRoomChat, unsubscribeFromRoomChat} from "~/shared/rpc/chat_rpc_definitions.js";
@@ -134,7 +135,7 @@ export function renderContentFileChatEntityPreview(
         );
         breadcrumbWrapperHtml.setAttribute(
             "style",
-            `padding-top: ${(containerPaddingPx / transformScale).toFixed(2)}px`,
+            `padding-top: ${toFixedWithoutTrailingZeros(containerPaddingPx / transformScale, 2)}px`,
         );
         renderContentFileEntitySiteBreadcrumb({
             get,
@@ -304,7 +305,7 @@ function renderFileChatEntityPreviewTopBar(
     topBarHtml.setAttribute(
         "style",
         [
-            `padding: ${topBarPaddingTopPx.toFixed(2)}px 0 ${scaledContainerPaddingPx.toFixed(2)}px 0`,
+            `padding: ${toFixedWithoutTrailingZeros(topBarPaddingTopPx, 2)}px 0 ${toFixedWithoutTrailingZeros(scaledContainerPaddingPx, 2)}px 0`,
             `height: ${(convertRemLengthToPx(contentStyles.fileEntityPreviewSubscribeButtonHeight, spacingScale) + topBarPaddingTopPx + scaledContainerPaddingPx).toFixed(2)}px`,
         ].join("; "),
     );

@@ -395,7 +395,7 @@ test("returns not found around a comment index before the first comment", async 
     });
 
     expect(response).toEqual(
-        "Error: Couldn\u2019t read `/post/launch?comment=-1`. Couldn\u2019t find any comments in the requested range `-1`. Try again with a comment index or range from an `id` attribute you\u2019ve seen before.",
+        "Error: Couldn\u2019t read `/post/launch?comment=-1`. Couldn\u2019t find any comments in the requested range `-1`. Try again with a `<comment>` `id` attribute you\u2019ve seen before.",
     );
 });
 

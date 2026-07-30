@@ -24,6 +24,7 @@ import {FileModel} from "~/shared/files/file_model.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -127,17 +128,18 @@ export function createContentEditorFileFloatNodeViewConstructor({
 
                     const remPx = remPxBySpacingScale[spacingScale];
 
-                    dom.style.width = `${(
+                    dom.style.width = `${toFixedWithoutTrailingZeros(
                         layouts[0]!.width +
-                        (direction === "left"
-                            ? contentStyles.fileFloatLeftMarginXRem
-                            : contentStyles.fileFloatRightMarginXRem) *
-                            remPx
-                    ).toFixed(3)}px`;
-                    dom.style.height = `${(
-                        layouts[0]!.height +
-                        contentStyles.fileFloatMarginYRem * remPx * 2
-                    ).toFixed(3)}px`;
+                            (direction === "left"
+                                ? contentStyles.fileFloatLeftMarginXRem
+                                : contentStyles.fileFloatRightMarginXRem) *
+                                remPx,
+                        3,
+                    )}px`;
+                    dom.style.height = `${toFixedWithoutTrailingZeros(
+                        layouts[0]!.height + contentStyles.fileFloatMarginYRem * remPx * 2,
+                        3,
+                    )}px`;
                 }
             };
 

@@ -1189,45 +1189,40 @@ describe("GitHubAlertSource", () => {
                                             type: "Post",
                                             id: postId1,
                                             title: `in GitHub: cursor pushed a commit (${shortHash})`,
-                                            bodyMatch: [
-                                                {isMatch: true, text: "in"},
-                                                {text: " "},
-                                                {isMatch: true, text: "GitHub"},
-                                                {text: ": cursor pushed a commit ("},
-                                                {isMatch: true, text: shortHash},
-                                                {text: ")"},
-                                            ],
+                                            bodySnippet: {
+                                                text: `in GitHub: cursor pushed a commit (${shortHash})`,
+                                                matches: [],
+                                            },
                                             author: {botId: "paul-bot-id"},
                                         },
                                         {
                                             type: "Post",
                                             id: postId2,
                                             title: `in GitHub: another post with ${shortHash}`,
-                                            bodyMatch: [
-                                                {isMatch: true, text: "in"},
-                                                {text: " "},
-                                                {isMatch: true, text: "GitHub"},
-                                                {text: `: another post with ${shortHash}`},
-                                            ],
+                                            bodySnippet: {
+                                                text: `in GitHub: another post with ${shortHash}`,
+                                                matches: [],
+                                            },
                                             author: {botId: "paul-bot-id"},
                                         },
                                         {
                                             type: "Post",
                                             id: "post-without-commit-hash",
                                             title: "in GitHub: unrelated post",
-                                            bodyMatch: [
-                                                {isMatch: true, text: "in"},
-                                                {text: " "},
-                                                {isMatch: true, text: "GitHub"},
-                                                {text: ": unrelated post"},
-                                            ],
+                                            bodySnippet: {
+                                                text: "in GitHub: unrelated post",
+                                                matches: [],
+                                            },
                                             author: {botId: "paul-bot-id"},
                                         },
                                         {
                                             type: "Post",
                                             id: humanPostId,
                                             title: `in GitHub: manual mention of ${shortHash}`,
-                                            bodyMatch: [{text: `manual mention of ${shortHash}`}],
+                                            bodySnippet: {
+                                                text: `manual mention of ${shortHash}`,
+                                                matches: [],
+                                            },
                                             author: {},
                                         },
                                     ],
@@ -1369,14 +1364,20 @@ describe("GitHubAlertSource", () => {
                                             type: "Post",
                                             id: postId,
                                             title: `in GitHub: commit ${commitHash.substring(0, 7)}`,
-                                            bodyMatch: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                            bodySnippet: {
+                                                text: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                                matches: [],
+                                            },
                                             author: {botId: "paul-bot-id"},
                                         },
                                         {
                                             type: "Post",
                                             id: "builds-post-id",
                                             title: `in Builds: Build failed for ${commitHash.substring(0, 7)}`,
-                                            bodyMatch: `Build failed for ${commitHash.substring(0, 7)}`,
+                                            bodySnippet: {
+                                                text: `Build failed for ${commitHash.substring(0, 7)}`,
+                                                matches: [],
+                                            },
                                             author: {botId: "paul-bot-id"},
                                         },
                                     ],
@@ -1426,7 +1427,7 @@ describe("GitHubAlertSource", () => {
                     {
                         element: {
                             type: "Preview",
-                            target: {
+                            reference: {
                                 type: "Post",
                                 id: "builds-post-id",
                             },
@@ -1556,14 +1557,20 @@ describe("GitHubAlertSource", () => {
                                             type: "Post",
                                             id: postId,
                                             title: `in GitHub: commit ${commitHash.substring(0, 7)}`,
-                                            bodyMatch: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                            bodySnippet: {
+                                                text: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                                matches: [],
+                                            },
                                             author: {botId: "paul-bot-id"},
                                         },
                                         {
                                             type: "Post",
                                             id: "builds-post-id",
                                             title: `in Builds: Build failed for ${commitHash.substring(0, 7)}`,
-                                            bodyMatch: `Build failed for ${commitHash.substring(0, 7)}`,
+                                            bodySnippet: {
+                                                text: `Build failed for ${commitHash.substring(0, 7)}`,
+                                                matches: [],
+                                            },
                                             author: {botId: "paul-bot-id"},
                                         },
                                     ],
@@ -1613,7 +1620,7 @@ describe("GitHubAlertSource", () => {
                     {
                         element: {
                             type: "Preview",
-                            target: {
+                            reference: {
                                 type: "Post",
                                 id: "builds-post-id",
                             },

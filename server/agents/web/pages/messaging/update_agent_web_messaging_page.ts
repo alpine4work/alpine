@@ -236,6 +236,15 @@ export async function updateAgentWebMessagingPage<
 
         if (isDeepEqual(normalizedOldBlock, normalizedNewBlock)) continue;
 
+        if (oldBlock.type === "Message" && oldBlock.deletedAttribute !== null) {
+            const idAttribute = assertExists(oldBlock.idAttribute);
+            const idAttributeString = printAgentWebMessagingPageMessageIndexRange(idAttribute);
+
+            throw new InvalidArgumentError("Can\u2019t update a deleted message", {
+                displayMessage: errorDisplayMessage`You can\u2019t update the deleted ${quote(`<${messageNouns.noun} id="${idAttributeString}">`)}. Try again without changing a deleted ${messageNouns.noun}.`,
+            });
+        }
+
         if (
             normalizedOldBlock.type !== "Message" ||
             normalizedOldBlock.author.id !== context.botAccount.id ||
@@ -360,6 +369,12 @@ export async function updateAgentWebMessagingPage<
             });
         }
 
+        if (newBlock.deletedAttribute !== null) {
+            throw new InvalidArgumentError("Can\u2019t create a deleted message", {
+                displayMessage: errorDisplayMessage`You can\u2019t create a deleted ${messageNouns.noun}. Try again without the \`deleted\` attribute.`,
+            });
+        }
+
         const expectedNewMessageIndex = lastMessageIndex + (index - commonBlocksLength);
         expectedNewMessageIndexes.push(expectedNewMessageIndex);
 
@@ -460,6 +475,16 @@ export async function updateAgentWebMessagingPage<
                 });
             }
 
+            if (citedBlock.block.deletedAttribute !== null) {
+                const idAttributeString = printAgentWebMessagingPageMessageIndexRange(
+                    citedBlock.idAttribute,
+                );
+
+                throw new InvalidArgumentError("Can\u2019t quote a deleted message", {
+                    displayMessage: errorDisplayMessage`You can\u2019t quote the deleted ${quote(`<${messageNouns.noun} id="${idAttributeString}">`)}. Try again without the \`<blockquote>\` or quote a ${messageNouns.noun} that hasn\u2019t been deleted.`,
+                });
+            }
+
             const citedBlockAuthor = citedBlock.block.author ?? context.botAccount;
             if (citedBlockAuthor.id !== newBlock.parent.author.id) {
                 const idAttributeString = printAgentWebMessagingPageMessageIndexRange(
@@ -474,7 +499,6 @@ export async function updateAgentWebMessagingPage<
                 );
             }
 
-            // NOCOMMIT: What about deleted messages??
             const {content: otherContent} = unsafelyZipTemporaryKeysIntoApiContentResponse(
                 citedBlock.block.content,
             );

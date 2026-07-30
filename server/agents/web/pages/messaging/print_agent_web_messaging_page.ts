@@ -283,12 +283,24 @@ export async function printAgentWebMessagingPage<
                     openTag += ` from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
                 }
 
+                if (block.deletedAttribute !== null) {
+                    openTag += " deleted";
+                }
+
                 if (block.timeAttribute !== null) {
                     openTag += ` time="${escapeHtml(block.timeAttribute)}"`;
                 }
 
                 if (block.timeZoneAttribute !== null) {
                     openTag += ` timezone="${escapeHtml(block.timeZoneAttribute)}"`;
+                }
+
+                if (block.deletedAttribute !== null) {
+                    children.push({
+                        type: "html",
+                        value: `${openTag}></${messageNouns.noun}>`,
+                    });
+                    break;
                 }
 
                 openTag += ">";

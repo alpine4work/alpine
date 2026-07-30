@@ -216,8 +216,8 @@ export function getApiMessage(
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages/{index}", {
                 params: {
                     path: {
-                        id: room.id,
-                        threadId: room.threadId,
+                        id: room.document.id,
+                        threadId: room.id,
                         index,
                     },
                 },
@@ -257,8 +257,8 @@ export function getApiMessagesFromStart(
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
-                        id: room.id,
-                        threadId: room.threadId,
+                        id: room.document.id,
+                        threadId: room.id,
                     },
                     query: {limit, cursor: cursor ?? undefined},
                 },
@@ -304,8 +304,8 @@ export function getApiMessagesFromEnd(
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
-                        id: room.id,
-                        threadId: room.threadId,
+                        id: room.document.id,
+                        threadId: room.id,
                     },
                     query: {limit, cursor: cursor ?? undefined, from: "End"},
                 },
@@ -353,7 +353,7 @@ export function createApiMessage(
         }
         case "DocumentThread": {
             return apiClient.post(tracer, "/documents/{id}/threads/{threadId}/messages", {
-                params: {path: {id: room.id, threadId: room.threadId}},
+                params: {path: {id: room.document.id, threadId: room.id}},
                 body,
             });
         }
@@ -395,8 +395,8 @@ export function createApiMessageStreamPart(
                 {
                     params: {
                         path: {
-                            id: room.id,
-                            threadId: room.threadId,
+                            id: room.document.id,
+                            threadId: room.id,
                             index: messageIndex,
                         },
                     },
@@ -462,8 +462,8 @@ export async function putApiMessageStreamPart(
                 {
                     params: {
                         path: {
-                            id: room.id,
-                            threadId: room.threadId,
+                            id: room.document.id,
+                            threadId: room.id,
                             index: messageIndex,
                             partIndex,
                         },
@@ -532,8 +532,8 @@ export async function patchApiMessageApprovals(
                 {
                     params: {
                         path: {
-                            id: room.id,
-                            threadId: room.threadId,
+                            id: room.document.id,
+                            threadId: room.id,
                             index: messageIndex,
                         },
                     },
@@ -583,7 +583,9 @@ export function getApiMessageApprovals(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals",
                 {
-                    params: {path: {id: room.id, threadId: room.threadId, index: messageIndex}},
+                    params: {
+                        path: {id: room.document.id, threadId: room.id, index: messageIndex},
+                    },
                 },
             );
         }
@@ -621,8 +623,8 @@ export function completeApiMessageStream(
                 {
                     params: {
                         path: {
-                            id: room.id,
-                            threadId: room.threadId,
+                            id: room.document.id,
+                            threadId: room.id,
                             index: messageIndex,
                         },
                     },
@@ -665,8 +667,8 @@ export function pingApiMessageStream(
                 {
                     params: {
                         path: {
-                            id: room.id,
-                            threadId: room.threadId,
+                            id: room.document.id,
+                            threadId: room.id,
                             index: messageIndex,
                         },
                     },

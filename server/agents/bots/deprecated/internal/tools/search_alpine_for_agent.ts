@@ -422,8 +422,8 @@ function intoApiMessageRoomPathFromPathIfPossible(
         case "DocumentMessage":
             return {
                 type: "DocumentThread",
-                id: apiPath.id,
-                threadId: apiPath.threadId,
+                id: apiPath.threadId,
+                document: {id: apiPath.id},
             };
         case "TaskMessage":
             return {type: "Task", id: apiPath.id};

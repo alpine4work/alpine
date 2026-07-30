@@ -302,7 +302,7 @@ test("creates a task in the middle of manually ordered subtasks", async () => {
     ).resolves.toEqual(`\
 Update was successful.
 
-Created the following task: [New subtask (Closed)](/task/new-subtask).`);
+Created this task: [New subtask (Closed)](/task/new-subtask).`);
 
     expect(
         api
@@ -405,7 +405,7 @@ test("moves a subtask and creates a subtask immediately after it at the same pos
         result: `\
 Update was successful.
 
-Created the following task: [New subtask (Open)](/task/new-subtask).`,
+Created this task: [New subtask (Open)](/task/new-subtask).`,
         requests: [
             {
                 spaceId,
@@ -516,7 +516,7 @@ test("creates a subtask immediately before a moved subtask at the same position"
         result: `\
 Update was successful.
 
-Created the following task: [New subtask (Open)](/task/new-subtask).`,
+Created this task: [New subtask (Open)](/task/new-subtask).`,
         requests: [
             {
                 spaceId,
@@ -622,7 +622,7 @@ End of tasks.`,
         result: `\
 Update was successful.
 
-Created the following tasks:
+Created these tasks:
 
 - [First new subtask (Open)](/task/first-new-subtask)
 
@@ -715,7 +715,7 @@ test("updates and creates tasks in one request", async () => {
         result: `\
 Update was successful.
 
-Created the following task: [New subtask (Open)](/task/new-subtask).`,
+Created this task: [New subtask (Open)](/task/new-subtask).`,
         requests: [
             {
                 spaceId,

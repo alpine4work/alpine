@@ -37,7 +37,7 @@ alpine create task-collection '# Roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Roadmap](/task-collection/roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Task 01 (Open)](/task/task-01)
 
@@ -197,7 +197,7 @@ alpine create task-collection '# Roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Roadmap](/task-collection/roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Before (Open)](/task/before)
 
@@ -374,7 +374,7 @@ alpine create task '# Parent
     ).toEqual(`\
 Create was successful. New task: [Parent](/task/parent).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Before (Open)](/task/before)
 
@@ -482,7 +482,7 @@ alpine update /task/parent/subtasks?after=000000 \\
     ).toEqual(`\
 Update was successful.
 
-Created the following tasks:
+Created these tasks:
 
 - [Moved new 1 (Open)](/task/moved-new-1)
 
@@ -566,7 +566,7 @@ alpine create task '# Parent
     ).toEqual(`\
 Create was successful. New task: [Parent](/task/parent).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Task 01 (Open)](/task/task-01)
 
@@ -730,7 +730,7 @@ alpine create task '# Parent
     ).toEqual(`\
 Create was successful. New task: [Parent](/task/parent).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Before (Open)](/task/before)
 
@@ -826,7 +826,7 @@ alpine update /task/parent/subtasks?after=000000 \\
     ).toEqual(`\
 Update was successful.
 
-Created the following task: [Moved new 1 (Open)](/task/moved-new-1).
+Created this task: [Moved new 1 (Open)](/task/moved-new-1).
 `);
 
     expect(
@@ -902,7 +902,7 @@ alpine create task-collection '# Roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Roadmap](/task-collection/roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Before (Open)](/task/before)
 
@@ -1008,7 +1008,7 @@ alpine update /task-collection/roadmap?after=000000 \\
     ).toEqual(`\
 Update was successful.
 
-Created the following tasks:
+Created these tasks:
 
 - [Moved new 1 (Open)](/task/moved-new-1)
 
@@ -1104,7 +1104,7 @@ alpine create task '# Parent
     ).toEqual(`\
 Create was successful. New task: [Parent](/task/parent).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Before (Open)](/task/before)
 
@@ -1208,7 +1208,7 @@ alpine update /task/parent/subtasks?after=000000 \\
     ).toEqual(`\
 Update was successful.
 
-Created the following tasks:
+Created these tasks:
 
 - [Moved previous 1 (Open)](/task/moved-previous-1)
 
@@ -1331,7 +1331,7 @@ alpine create task-collection '# Roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Roadmap](/task-collection/roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Before (Open)](/task/before)
 
@@ -1511,7 +1511,7 @@ alpine create task-collection '# Roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Roadmap](/task-collection/roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Before (Open)](/task/before)
 
@@ -1619,7 +1619,7 @@ alpine update /task-collection/roadmap?after=000000 \\
     ).toEqual(`\
 Update was successful.
 
-Created the following tasks:
+Created these tasks:
 
 - [Condition new 1 (Open)](/task/condition-new-1)
 
@@ -1701,7 +1701,7 @@ alpine create task '# Parent
     ).toEqual(`\
 Create was successful. New task: [Parent](/task/parent).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Task 01 (Open)](/task/task-01)
 
@@ -1789,7 +1789,7 @@ alpine update /task/parent \\
     ).toEqual(`\
 Update was successful.
 
-Created the following tasks:
+Created these tasks:
 
 - [Condition previous 1 (Open)](/task/condition-previous-1)
 
@@ -1884,7 +1884,7 @@ alpine create task '# Parent
     ).toEqual(`\
 Create was successful. New task: [Parent](/task/parent).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Task 01 (Open)](/task/task-01)
 
@@ -1972,7 +1972,7 @@ alpine update /task/parent/subtasks \\
     ).toEqual(`\
 Update was successful.
 
-Created the following task: [Condition previous 1 (Open)](/task/condition-previous-1).
+Created this task: [Condition previous 1 (Open)](/task/condition-previous-1).
 `);
 
     expect(
@@ -2066,7 +2066,7 @@ alpine create task '# Parent
     ).toEqual(`\
 Create was successful. New task: [Parent](/task/parent).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Before (Open)](/task/before)
 
@@ -2166,7 +2166,7 @@ alpine update /task/parent/subtasks?after=000000 \\
     ).toEqual(`\
 Update was successful.
 
-Created the following tasks:
+Created these tasks:
 
 - [Condition previous 1 (Open)](/task/condition-previous-1)
 

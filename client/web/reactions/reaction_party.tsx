@@ -24,6 +24,7 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
 import {getValueByReaction, mapReactionMap} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
@@ -47,17 +48,7 @@ const partyHeight = iconSize - secondRowTranslateY;
 const partyHeightRem = partyHeight * (iconSizeRem / iconSize);
 
 function round3(n: number): string {
-    const s = n.toFixed(3);
-
-    if (/\.000$/.test(s)) {
-        return s.slice(0, -4);
-    } else if (/\.[1-9]00$/.test(s)) {
-        return s.slice(0, -2);
-    } else if (/\.[1-9][1-9]0$/.test(s)) {
-        return s.slice(0, -1);
-    } else {
-        return s;
-    }
+    return toFixedWithoutTrailingZeros(n, 3);
 }
 
 const reactionIconUnwrappedSvgs = mapReactionMap(

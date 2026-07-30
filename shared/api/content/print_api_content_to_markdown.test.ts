@@ -81,7 +81,7 @@ Hello, world!
                         ],
                     },
                     expectedMarkdown: `\
-Hello, *world*!
+Hello, _world_!
 `,
                 },
                 {
@@ -384,7 +384,7 @@ This is **bold** text
                         ],
                     },
                     expectedMarkdown: `\
-This is *italic* text
+This is _italic_ text
 `,
                 },
                 {
@@ -464,7 +464,7 @@ Click [here](https://example.com) to visit
                         ],
                     },
                     expectedMarkdown: `\
-This is ***bold italic*** text
+This is **_bold italic_** text
 `,
                 },
                 {
@@ -508,7 +508,7 @@ This is **~~bold struck~~** text
                         ],
                     },
                     expectedMarkdown: `\
-This is *~~italic struck~~* text
+This is _~~italic struck~~_ text
 `,
                 },
                 {
@@ -530,7 +530,7 @@ This is *~~italic struck~~* text
                         ],
                     },
                     expectedMarkdown: `\
-This is ***~~all three~~*** text
+This is **_~~all three~~_** text
 `,
                 },
                 {
@@ -580,7 +580,7 @@ Click [**this bold link**](https://example.com) to visit
                         ],
                     },
                     expectedMarkdown: `\
-Click [*this italic link*](https://example.com) to visit
+Click [_this italic link_](https://example.com) to visit
 `,
                 },
                 {
@@ -607,7 +607,7 @@ Click [*this italic link*](https://example.com) to visit
                         ],
                     },
                     expectedMarkdown: `\
-Click [***~~fancy link~~***](https://example.com) to visit
+Click [**_~~fancy link~~_**](https://example.com) to visit
 `,
                 },
                 {
@@ -680,7 +680,7 @@ Click [***~~fancy link~~***](https://example.com) to visit
                         ],
                     },
                     expectedMarkdown: `\
-> Quote with **bold** and *italic* text
+> Quote with **bold** and _italic_ text
 `,
                 },
                 {
@@ -708,7 +708,7 @@ Click [***~~fancy link~~***](https://example.com) to visit
                         ],
                     },
                     expectedMarkdown: `\
-Normal text with **bold**, *italic*, \`code\`, and [link](https://example.com).
+Normal text with **bold**, _italic_, \`code\`, and [link](https://example.com).
 `,
                 },
                 {
@@ -748,7 +748,7 @@ Normal text with **bold**, *italic*, \`code\`, and [link](https://example.com).
                     expectedMarkdown: `\
 Introduction paragraph
 
-> A *formatted* quote
+> A _formatted_ quote
 
 Conclusion with **emphasis**
 `,
@@ -962,7 +962,7 @@ Regular line **<br />** Still regular
                         ],
                     },
                     expectedMarkdown: `\
-Regular lin&#x65;*<br />*&#x53;till regular
+Regular lin&#x65;_<br />_&#x53;till regular
 `,
                 },
                 {
@@ -980,7 +980,7 @@ Regular lin&#x65;*<br />*&#x53;till regular
                         ],
                     },
                     expectedMarkdown: `\
-Regular line *<br />* Still regular
+Regular line _<br />_ Still regular
 `,
                 },
                 {
@@ -1089,7 +1089,7 @@ Bold line\\*\\*\\
                         ],
                     },
                     expectedMarkdown: `\
-Bold line\\*\\**<br />*\\*\\*Still bold
+Bold line\\*\\*_<br />_\\*\\*Still bold
 `,
                 },
                 {
@@ -1161,7 +1161,7 @@ Bold line\\*\\**<br />*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold lin&#x65;*<br />*&#x53;till bold**
+**Bold lin&#x65;_<br />_&#x53;till bold**
 `,
                 },
                 {
@@ -1637,7 +1637,7 @@ snake\\_case\\_variable
                     expectedMarkdown: `\
 - Item with **bold** text
 
-- Item with *italic* text
+- Item with _italic_ text
 
 - Item with \`code\`
 `,
@@ -3225,7 +3225,7 @@ After the list
                         ],
                     },
                     expectedMarkdown: `\
-- - 1. Deep with **bold** and *italic*
+- - 1. Deep with **bold** and _italic_
 `,
                 },
                 {
@@ -3426,7 +3426,7 @@ After the list
                     expectedMarkdown: `\
 - [ ] Task with **bold** text
 
-- [x] Task with *italic* text
+- [x] Task with _italic_ text
 `,
                 },
                 {
@@ -4111,7 +4111,7 @@ In progress
                     },
                     expectedMarkdown: `\
 Next, something outrageous happened. <mark data-comment="${printTestCommentMarkMixedThreadId}">The Eagles sought to defend \
-[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
+[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a _mere_ \
 **squire** to the ~~captain~~ of their <mark class="highlight-red">army</mark>.</mark>
 `,
                 },
@@ -4200,7 +4200,7 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                     },
                     expectedMarkdown: `\
 Next, something outrageous happened. <mark data-comment="${threadId}">The Eagles sought to defend \
-[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
+[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a _mere_ \
 **squire** to the ~~captain~~ of their <mark data-comment="${threadId2}">army</mark>.</mark>
 `,
                 },
@@ -4289,7 +4289,7 @@ Next, something outrageous happened. <mark data-comment="${threadId}">The Eagles
                     },
                     expectedMarkdown: `\
 Next, something outrageous happened. <mark data-comment="${threadId}">The Eagles sought to defend \
-[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
+[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a _mere_ \
 **squire** to the ~~captain~~ of their </mark><mark data-comment="${threadId2}"><mark data-comment="${threadId}">army</mark></mark><mark data-comment="${threadId}">.</mark>
 `,
                 },
@@ -4378,7 +4378,7 @@ Next, something outrageous happened. <mark data-comment="${threadId}">The Eagles
                     },
                     expectedMarkdown: `\
 Next, something outrageous happened. <mark data-comment="${threadId2}">The Eagles sought to defend \
-[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
+[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a _mere_ \
 **squire** to the ~~captain~~ of their <mark data-comment="${threadId}">army</mark>.</mark>
 `,
                 },
@@ -4467,7 +4467,7 @@ Next, something outrageous happened. <mark data-comment="${threadId2}">The Eagle
                     },
                     expectedMarkdown: `\
 Next, something outrageous happened. <mark data-comment="${threadId2}">The Eagles sought to defend \
-[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
+[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a _mere_ \
 **squire** to the ~~captain~~ of their </mark><mark data-comment="${threadId}"><mark data-comment="${threadId2}">army</mark></mark><mark data-comment="${threadId2}">.</mark>
 `,
                 },
@@ -4778,7 +4778,7 @@ This text has <mark data-comment="${threadId2}"><mark data-comment="${threadId3}
                         ],
                     },
                     expectedMarkdown: `\
-| **Bold&#x20;**&#x48;eader | *Italic&#x20;*&#x48;eader |
+| **Bold&#x20;**&#x48;eader | _Italic&#x20;_&#x48;eader |
 | - | - |
 | \`Code text\` | [Link text](https://example.com) |
 `,
@@ -7532,7 +7532,7 @@ Author: [@kate](https://alpine.inc/mention/${accountId2})
                         ],
                     },
                     expectedMarkdown: `\
-*~~strike then italic~~* and *~~italic then strike~~*
+_~~strike then italic~~_ and _~~italic then strike~~_
 `,
                 },
                 {
@@ -7557,7 +7557,7 @@ Author: [@kate](https://alpine.inc/mention/${accountId2})
                         ],
                     },
                     expectedMarkdown: `\
-[***~~styled link~~***](https://example.com)
+[**_~~styled link~~_**](https://example.com)
 `,
                 },
                 {
@@ -8292,7 +8292,7 @@ $\\[$
                         ],
                     },
                     expectedMarkdown: `\
-*\\\\&#x20;*
+_\\\\&#x20;_
 `,
                 },
                 {
@@ -8334,7 +8334,7 @@ $\\[$
                         ],
                     },
                     expectedMarkdown: `\
-*&#x20;&#x20;*
+_&#x20;&#x20;_
 `,
                 },
                 {
@@ -8360,7 +8360,7 @@ $\\[$
                         ],
                     },
                     expectedMarkdown: `\
-> ***&#x20;***_&#x20;_
+> **_&#x20;_**_&#x20;_
 `,
                 },
                 {
@@ -8669,7 +8669,7 @@ $(ab)$
                         ],
                     },
                     expectedMarkdown: `\
-\\\\&#x30;*&#x20;*
+\\\\&#x30;_&#x20;_
 `,
                 },
                 {
@@ -8814,7 +8814,7 @@ $(ab)$
                         ],
                     },
                     expectedMarkdown: `\
-<br />*&#x20;*
+<br />_&#x20;_
 `,
                 },
                 {
@@ -9047,7 +9047,7 @@ $(ab)$
                         ],
                     },
                     expectedMarkdown: `\
-***&#x20;***_[ ](http://a.aa)&#x20;_
+**_&#x20;_**_[ ](http://a.aa)&#x20;_
 `,
                 },
                 {
@@ -10162,7 +10162,7 @@ Click <a href="https://alpine.inc/mention/${accountId}#short">here</a> to visit
                         ],
                     },
                     expectedMarkdown: `\
-## Bold **and** *italic* heading
+## Bold **and** _italic_ heading
 `,
                 },
                 {

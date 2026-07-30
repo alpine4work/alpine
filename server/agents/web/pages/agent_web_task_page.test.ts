@@ -738,8 +738,8 @@ Error: Unexpected task priority \u201CImmediate\u201D on line 4. Try again with 
                 await storeAgentWebPageLinkForTest(storage, engineeringReference);
             },
             parseError: markdown`
-Error: Unexpected task parent link \u201CEngineering\u201D on line 4. Try again with a link to a
-task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
+Error: Unexpected task parent link \u201CEngineering\u201D on line 4. Try again with a single link
+to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`) and nothing else.
             `,
         },
         {
@@ -756,7 +756,7 @@ task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
             },
             parseError: markdown`
 Error: Unexpected task parent link \u201CParent task Other task\u201D on line 4. Try again with a
-link to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
+single link to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`) and nothing else.
             `,
         },
         {
@@ -772,8 +772,8 @@ link to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
                 await storeAgentWebPageLinkForTest(storage, engineeringReference);
             },
             parseError: markdown`
-Error: Unexpected task assignee link \u201CEngineering\u201D on line 4. Try again with a link to a
-human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).
+Error: Unexpected task assignee link \u201CEngineering\u201D on line 4. Try again with a single link
+to a human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`) and nothing else.
             `,
         },
         {
@@ -789,8 +789,8 @@ human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).
                 await storeAgentWebPageLinkForTest(storage, [aliceReference, bobReference]);
             },
             parseError: markdown`
-Error: Unexpected task assignee link \u201CAlice Bob\u201D on line 4. Try again with a link to a
-human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).
+Error: Unexpected task assignee link \u201CAlice Bob\u201D on line 4. Try again with a single link
+to a human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`) and nothing else.
             `,
         },
         {

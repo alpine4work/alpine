@@ -243,10 +243,10 @@ bar`,
     },
     {
         name: "slice nested bold italic text",
-        content: "***both***",
+        content: "**_both_**",
         from: 1,
         to: 5,
-        slice: "***both***",
+        slice: "**_both_**",
     },
     {
         name: "slice matching link mark",

@@ -367,7 +367,7 @@ test("search for and read an empty room chat", async () => {
     await TestChat.createRoom(cli.session, {name: "YouTube empty room"});
 
     expect(await cli.run("alpine search 'YouTube empty room'")).toEqual(`\
-1. [YouTube empty room](/chat/youtube-empty-room)
+1. [**YouTube empty room**](/chat/youtube-empty-room)
 `);
 
     expect(await cli.run("alpine read /chat/youtube-empty-room")).toEqual(`\
@@ -715,13 +715,7 @@ Message 0
 
 </message>
 
-<message id="1-2" from="[Alice](/human/alice)">
-
-Deleted message
-
-Deleted message
-
-</message>
+<message id="1-2" deleted></message>
 
 <message id="3" from="[Alice](/human/alice)">
 
@@ -753,7 +747,11 @@ test("rejects updating a deleted bot message", async () => {
 
     expect(
         await cli.run(`\
-alpine update /chat/deleted-update-room --old 'Deleted message' --new 'Replacement content'
+alpine update /chat/deleted-update-room --old '<message id="0" deleted></message>' --new '<message id="0" deleted>
+
+Replacement content
+
+</message>'
 `),
     ).toEqual(`\
 Error: Couldn’t update \`/chat/deleted-update-room\`. You can’t update a deleted message. \`<message id="0">\` was deleted. Try again without changing the deleted message.
@@ -825,7 +823,7 @@ alpine update /chat/deleted-reply-room --old 'End of messages.' --new '<message>
 
 <blockquote cite="?message=0">
 
-[Alice](/human/alice): Deleted message
+[My Bot](/bot/my-bot): Deleted message
 
 </blockquote>
 

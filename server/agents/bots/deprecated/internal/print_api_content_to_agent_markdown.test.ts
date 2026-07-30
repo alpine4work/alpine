@@ -244,7 +244,7 @@ test("mention with nested formatting preserves formatting but removes URL", asyn
                 },
             ],
         },
-        `See *[Important Task (Open)](/task/important-task)* for details.\n`,
+        `See _[Important Task (Open)](/task/important-task)_ for details.\n`,
         new Map([
             [
                 "/task/important-task",
@@ -1047,7 +1047,7 @@ describe("comment mark conversion", () => {
             },
             `\
 <comment>Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. \
-<comment>They promoted a *water boy* **to captain** to the ~~head~~ of their <mark class="highlight-orange">army</mark>.</comment></comment>\n`,
+<comment>They promoted a _water boy_ **to captain** to the ~~head~~ of their <mark class="highlight-orange">army</mark>.</comment></comment>\n`,
         );
     });
 });

@@ -131,8 +131,8 @@ export async function loadInitialAgentMessagesContent({
                 ...options,
                 link: {
                     type: "DocumentCommentThreadComments",
-                    documentId: room.id,
-                    commentThreadId: room.threadId,
+                    documentId: room.document.id,
+                    commentThreadId: room.id,
                     label: "",
                     ...commonLinkOptions,
                 },

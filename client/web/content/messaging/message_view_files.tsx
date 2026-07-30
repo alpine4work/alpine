@@ -54,6 +54,7 @@ import {
     HtmlGenerator,
 } from "~/shared/helpers/html/html_generator.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadModelFile} from "~/shared/messaging/message_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -161,11 +162,11 @@ export function MessageViewFiles({
                     fileRowHtml.setAttribute(
                         "style",
                         [
-                            `height: ${Math.max(...fileLayouts.map(({height}) => height)).toFixed(3)}px`,
+                            `height: ${toFixedWithoutTrailingZeros(Math.max(...fileLayouts.map(({height}) => height)), 3)}px`,
                             "display: grid",
                             "grid-template-rows: 1fr",
                             `grid-template-columns: ${fileLayouts
-                                .map(({widthFr}) => `${widthFr.toFixed(6)}fr`)
+                                .map(({widthFr}) => `${toFixedWithoutTrailingZeros(widthFr, 6)}fr`)
                                 .join(" ")}`,
                             // Left align message files instead of center aligning message files. This matches
                             // the more conversational format of messages as opposed to the carefully edited

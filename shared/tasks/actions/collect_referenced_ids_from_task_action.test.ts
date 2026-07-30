@@ -240,7 +240,7 @@ test("doesn\u2019t collect ids from task actions without account or site referen
     expect(ids).toEqual({accountIds: new Set(), siteIds: new Set()});
 });
 
-test("collects the action actor account ids from a task action", () => {
+test("doesn\u2019t collect action actor account ids from a task action", () => {
     const accountId = generateId<AccountId>();
     const botAccountId = generateId<AccountId>();
 
@@ -252,7 +252,7 @@ test("collects the action actor account ids from a task action", () => {
         },
     });
 
-    expect(ids).toEqual({accountIds: new Set([accountId, botAccountId]), siteIds: new Set()});
+    expect(ids).toEqual({accountIds: new Set(), siteIds: new Set()});
 });
 
 test("doesn\u2019t collect unknown action actor account ids from a task action", () => {
@@ -314,7 +314,7 @@ test("doesn\u2019t collect ids from collection actions without site references",
     expect(ids).toEqual({accountIds: new Set(), siteIds: new Set()});
 });
 
-test("collects the action actor account ids from a collection action", () => {
+test("doesn\u2019t collect action actor account ids from a collection action", () => {
     const accountId = generateId<AccountId>();
     const botAccountId = generateId<AccountId>();
 
@@ -326,7 +326,7 @@ test("collects the action actor account ids from a collection action", () => {
         },
     });
 
-    expect(ids).toEqual({accountIds: new Set([accountId, botAccountId]), siteIds: new Set()});
+    expect(ids).toEqual({accountIds: new Set(), siteIds: new Set()});
 });
 
 test("collects the account id from an update account name action", () => {

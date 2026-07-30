@@ -47,6 +47,7 @@ import {
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
 import {htmlPTagOmissionTagNames} from "~/shared/helpers/html/html_p_tag_omission_tag_names.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -261,8 +262,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
         html.setAttribute(
             "style",
             [
-                `height: ${Math.max(...layouts.map(({height}) => height)).toFixed(3)}px`,
-                `grid-template-columns: ${layouts.map(({widthFr}) => `${widthFr.toFixed(6)}fr`).join(" ")}`,
+                `height: ${toFixedWithoutTrailingZeros(Math.max(...layouts.map(({height}) => height)), 3)}px`,
+                `grid-template-columns: ${layouts.map(({widthFr}) => `${toFixedWithoutTrailingZeros(widthFr, 6)}fr`).join(" ")}`,
             ].join("; "),
         );
 
@@ -460,8 +461,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
                 html.setAttribute(
                     "style",
                     [
-                        `width: ${layouts[0]!.width.toFixed(3)}px`,
-                        `height: ${layouts[0]!.height.toFixed(3)}px`,
+                        `width: ${toFixedWithoutTrailingZeros(layouts[0]!.width, 3)}px`,
+                        `height: ${toFixedWithoutTrailingZeros(layouts[0]!.height, 3)}px`,
                     ].join("; "),
                 );
 

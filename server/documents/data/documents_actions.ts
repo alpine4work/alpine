@@ -6105,7 +6105,7 @@ export async function putDocumentCommentMessageApprovalDecisions(
     completedTime: Date | null;
 }> {
     return await putMessageApprovalDecisions(context, {
-        room: {type: "DocumentThread", id: documentId, threadId: commentThreadId},
+        room: {type: "DocumentThread", id: commentThreadId, document: {id: documentId}},
         messageIndex: commentIndex,
         payload,
         consistency,

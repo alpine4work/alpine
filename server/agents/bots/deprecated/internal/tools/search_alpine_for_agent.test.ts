@@ -619,8 +619,8 @@ The following search results matched the keyword search but did not match any sp
             ...request,
             room: cast<ApiMessageRoomReference>({
                 type: "DocumentThread",
-                id: currentDocumentId,
-                threadId: currentThreadId,
+                id: currentThreadId,
+                document: {id: currentDocumentId},
             }),
         };
 
@@ -774,8 +774,8 @@ The following search results matched the keyword search but did not match any sp
             ...request,
             room: cast<ApiMessageRoomReference>({
                 type: "DocumentThread",
-                id: currentDocumentId,
-                threadId: currentThreadId,
+                id: currentThreadId,
+                document: {id: currentDocumentId},
             }),
         };
 

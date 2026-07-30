@@ -640,10 +640,15 @@ test("prints deleted messages", async () => {
         spaceId,
         chatId,
         from: "End",
-        totalMessageCount: 1,
+        totalMessageCount: 2,
         limit: 30,
         createMessage: index => ({
-            ...createApiMessageMock({index, author: aliceAccount}),
+            ...createApiMessageMock({
+                index,
+                author: aliceAccount,
+                createdTimeZone:
+                    index === 0 ? defaultTimeZone : assertTimeZone("America/Los_Angeles"),
+            }),
             payload: {type: "Deleted" as const},
         }),
     });
@@ -658,11 +663,9 @@ test("prints deleted messages", async () => {
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id="0" from="[Alice](/human/alice)">
+<message id="0" from="[Alice](/human/alice)" deleted></message>
 
-Deleted message
-
-</message>
+<message id="1" from="[Alice](/human/alice)" deleted time="5 minutes later" timezone="PDT"></message>
 
 End of messages.`);
 });
@@ -4883,8 +4886,8 @@ Test message 4
 End of messages.`,
         },
     ])(
-        "reads start of small message list when requested message is before total count (limit: $limit)",
-        async ({limit, response}) => {
+        "returns an error for a requested message before the start of the list (limit: $limit)",
+        async ({limit}) => {
             mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             mockApiGetChatMessages(api, {
@@ -4896,12 +4899,14 @@ End of messages.`,
                 createMessage: index => createApiMessageMock({index, author}),
             });
 
-            expect(
-                await callAgentWebReadTool(context, {
+            await expect(
+                callAgentWebReadTool(context, {
                     path: "/chat/incident-response?message=-100",
                     limit,
                 }),
-            ).toEqual(response);
+            ).resolves.toBe(
+                "Error: Couldn\u2019t read `/chat/incident-response?message=-100`. Couldn\u2019t find any messages in the requested range `-100`. Try again with a `<message>` `id` attribute you\u2019ve seen before.",
+            );
         },
     );
 

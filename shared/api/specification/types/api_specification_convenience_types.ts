@@ -24,6 +24,9 @@ export type ApiDocumentReference = ApiSpecification.components["schemas"]["Docum
 export type ApiDocumentReferenceResponse =
     ApiSpecification.components["schemas"]["DocumentReference_Response"];
 
+export type ApiDocumentThreadReference =
+    ApiSpecification.components["schemas"]["DocumentThreadReference"];
+
 export type ApiPostReference = ApiSpecification.components["schemas"]["PostReference"];
 
 export type ApiPostReferenceResponse =
@@ -855,18 +858,6 @@ export type ApiMessageContentPayloadParentContentSnippetInlineElementMark =
 export type ApiMessageRoomReference =
     ApiSpecification.components["schemas"]["MessageRoomReference"];
 
-export type ApiChatMessageRoomReference =
-    ApiSpecification.components["schemas"]["ChatMessageRoomReference"];
-
-export type ApiDocumentThreadMessageRoomReference =
-    ApiSpecification.components["schemas"]["DocumentThreadMessageRoomReference"];
-
-export type ApiPostMessageRoomReference =
-    ApiSpecification.components["schemas"]["PostMessageRoomReference"];
-
-export type ApiTaskMessageRoomReference =
-    ApiSpecification.components["schemas"]["TaskMessageRoomReference"];
-
 export type ApiSearchResult = ApiSpecification.components["schemas"]["SearchResult"];
 
 export type ApiSearchAccountResult = ApiSpecification.components["schemas"]["SearchAccountResult"];
@@ -1007,6 +998,9 @@ export type ApiContentCodeBlockElementResponse =
 export type ApiContentFileFloatBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentFileFloatBlockElement_Response"];
 
+export type ApiMessageRoomReferenceResponse =
+    ApiSpecification.components["schemas"]["MessageRoomReference_Response"];
+
 export type ApiMentionReferenceResponse =
     ApiSpecification.components["schemas"]["MentionReference_Response"];
 
@@ -1094,6 +1088,9 @@ export type ApiTaskAddCollectionPatchResponse =
 
 export type ApiBotWebhookCreatedMessageEventResponse =
     ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEvent_Response"];
+
+export type ApiBotWebhookUpdatedMessageStreamExperimentalApprovalsPartEventResponse =
+    ApiSpecification.components["schemas"]["BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent_Response"];
 
 export type ApiMessageExperimentalApprovalDecisionResponse =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecision_Response"];

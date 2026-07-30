@@ -42,6 +42,7 @@ export const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessa
             },
         ),
         author: ApiAccountReferenceArbitrary,
+        deletedAttribute: fc.constant(null),
         timeAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
         timeZoneAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
         parent: fc.oneof(

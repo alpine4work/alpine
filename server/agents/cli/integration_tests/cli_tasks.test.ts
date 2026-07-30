@@ -16,7 +16,7 @@ test("create an active task assigned to another account", async () => {
     await cli.session.space.createSession({name: "Alice"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(
@@ -42,7 +42,7 @@ test("create and read a task with every field", async () => {
     await cli.session.space.createSession({name: "Alice"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(await cli.run("alpine create task '# Launch program'")).toEqual(`\
@@ -99,7 +99,7 @@ Ship behind a flag.
     ).toEqual(`\
 Create was successful. New task: [Ship task page](/task/ship-task-page).
 
-Also created the following task: [Draft launch brief (Open, active)](/task/draft-launch-brief).
+Also created this task: [Draft launch brief (Open, active)](/task/draft-launch-brief).
 `);
 
     expect(await cli.run("alpine read /task/ship-task-page")).toEqual(`\
@@ -147,11 +147,11 @@ test("update every task field independently", async () => {
     await cli.session.space.createSession({name: "Bob"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(await cli.run("alpine search Bob")).toEqual(`\
-1. [Bob](/human/bob)
+1. [**Bob**](/human/bob)
 
 2. [My Bot](/bot/my-bot)
 `);
@@ -264,7 +264,7 @@ test("activate a task already assigned to another account", async () => {
     await cli.session.space.createSession({name: "Alice"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(
@@ -298,7 +298,7 @@ test("activate and assign a task to another account in the same update", async (
     await cli.session.space.createSession({name: "Alice"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(await cli.run("alpine create task '# Activate and assign'")).toEqual(`\
@@ -331,11 +331,11 @@ test("activate and reassign a task to another account in the same update", async
     await cli.session.space.createSession({name: "Bob"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(await cli.run("alpine search Bob")).toEqual(`\
-1. [Bob](/human/bob)
+1. [**Bob**](/human/bob)
 
 2. [My Bot](/bot/my-bot)
 `);
@@ -373,7 +373,7 @@ test("create and read a task collection with color and every task field", async 
     await cli.session.space.createSession({name: "Alice"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(
@@ -410,7 +410,7 @@ alpine create task '# Embedded launch task
     ).toEqual(`\
 Create was successful. New task: [Embedded launch task](/task/embedded-launch-task).
 
-Also created the following task: [Embedded child (Open)](/task/embedded-child).
+Also created this task: [Embedded child (Open)](/task/embedded-child).
 `);
 
     expect(
@@ -471,11 +471,11 @@ test("update every task collection field and embedded task field", async () => {
     await cli.session.space.createSession({name: "Bob"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(await cli.run("alpine search Bob")).toEqual(`\
-1. [Bob](/human/bob)
+1. [**Bob**](/human/bob)
 
 2. [My Bot](/bot/my-bot)
 `);
@@ -510,7 +510,7 @@ Color: Red
     ).toEqual(`\
 Create was successful. New task collection: [Mutable roadmap](/task-collection/mutable-roadmap).
 
-Also created the following task: [Mutable task (Open)](/task/mutable-task).
+Also created this task: [Mutable task (Open)](/task/mutable-task).
 `);
 
     expect(await cli.run("alpine read /task-collection/mutable-roadmap")).toEqual(`\
@@ -651,7 +651,7 @@ alpine create task-collection '# Cursor sort roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Cursor sort roadmap](/task-collection/cursor-sort-roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Cursor task 01 (Open)](/task/cursor-task-01)
 
@@ -681,7 +681,7 @@ printf '%s' "$page" | sed -n '/Next page »/ { s/.*Next page »](//; s/).*//; p;
     );
 
     expect(await cli.run(`alpine read '${nextPagePath}&sort=-created'`)).toEqual(`\
-Error: Couldn\u2019t read \`${nextPagePath}&sort=-created\`. Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts. (You may get this error if you\u2019re paginating through a task collection when the task collection\u2019s default sorts change. In that case try paginating from the start of the collection again and you\u2019ll pick up the new sorts.)
+Error: Couldn\u2019t read \`${nextPagePath}&sort=-created\`. Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts.
 `);
 });
 
@@ -729,7 +729,7 @@ test("reject a task collection cursor after its default sorts change", async () 
     });
 
     expect(await cli.run("alpine search 'Changing default sorts roadmap'")).toEqual(`\
-1. [Changing default sorts roadmap](/task-collection/changing-default-sorts-roadmap)
+1. [**Changing default sorts roadmap**](/task-collection/changing-default-sorts-roadmap)
 `);
 
     const nextPagePath = (
@@ -748,7 +748,7 @@ printf '%s' "$page" | sed -n '/Next page »/ { s/.*Next page »](//; s/).*//; p;
     });
 
     expect(await cli.run(`alpine read '${nextPagePath}'`)).toEqual(`\
-Error: Couldn’t read \`${nextPagePath}\`. Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts. (You may get this error if you’re paginating through a task collection when the task collection’s default sorts change. In that case try paginating from the start of the collection again and you’ll pick up the new sorts.)
+Error: Couldn’t read \`${nextPagePath}\`. Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts.
 `);
 });
 
@@ -770,7 +770,7 @@ test("read task collection default filters and sorts", async () => {
     });
 
     expect(await cli.run("alpine search 'Filtered roadmap'")).toEqual(`\
-1. [Filtered roadmap](/task-collection/filtered-roadmap)
+1. [**Filtered roadmap**](/task-collection/filtered-roadmap)
 `);
 
     expect(await cli.run("alpine read /task-collection/filtered-roadmap")).toEqual(`\
@@ -813,7 +813,7 @@ alpine create task-collection '# Shuffle roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Shuffle roadmap](/task-collection/shuffle-roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Shuffle alpha (Open)](/task/shuffle-alpha)
 
@@ -868,7 +868,7 @@ alpine create task-collection '# Linked shuffle roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Linked shuffle roadmap](/task-collection/linked-shuffle-roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Linked shuffle alpha (Open)](/task/linked-shuffle-alpha)
 
@@ -942,7 +942,7 @@ alpine create task-collection '# Move and add roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Move and add roadmap](/task-collection/move-and-add-roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Move add alpha (Open)](/task/move-add-alpha)
 
@@ -965,7 +965,7 @@ alpine update /task-collection/move-and-add-roadmap \\
     ).toEqual(`\
 Update was successful.
 
-Created the following task: [Move add new task (Open)](/task/move-add-new-task).
+Created this task: [Move add new task (Open)](/task/move-add-new-task).
 `);
 
     expect(await cli.run("alpine read /task-collection/move-and-add-roadmap")).toEqual(`\
@@ -996,7 +996,7 @@ alpine create task-collection '# Adjacent move roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Adjacent move roadmap](/task-collection/adjacent-move-roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Adjacent alpha (Open)](/task/adjacent-alpha)
 
@@ -1023,7 +1023,7 @@ alpine update /task-collection/adjacent-move-roadmap \\
     ).toEqual(`\
 Update was successful.
 
-Created the following task: [Adjacent new task (Open)](/task/adjacent-new-task).
+Created this task: [Adjacent new task (Open)](/task/adjacent-new-task).
 `);
 
     expect(await cli.run("alpine read /task-collection/adjacent-move-roadmap")).toEqual(`\
@@ -1057,7 +1057,7 @@ alpine create task '# Adjacent subtask parent
     ).toEqual(`\
 Create was successful. New task: [Adjacent subtask parent](/task/adjacent-subtask-parent).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Adjacent first subtask (Open)](/task/adjacent-first-subtask)
 
@@ -1099,7 +1099,7 @@ alpine update /task/adjacent-subtask-parent/subtasks \\
     ).toEqual(`\
 Update was successful.
 
-Created the following tasks:
+Created these tasks:
 
 - [Adjacent new subtask 1 (Open)](/task/adjacent-new-subtask-1)
 
@@ -1128,11 +1128,11 @@ test("update every embedded subtask field and remove every subtask", async () =>
     await cli.session.space.createSession({name: "Bob"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(await cli.run("alpine search Bob")).toEqual(`\
-1. [Bob](/human/bob)
+1. [**Bob**](/human/bob)
 
 2. [My Bot](/bot/my-bot)
 `);
@@ -1169,7 +1169,7 @@ alpine create task '# Subtasks parent
     ).toEqual(`\
 Create was successful. New task: [Subtasks parent](/task/subtasks-parent).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Mutable child (Open)](/task/mutable-child)
 
@@ -1210,7 +1210,7 @@ alpine update /task/subtasks-parent \\
     ).toEqual(`\
 Create was successful. New task: [Existing child](/task/existing-child).
 
-Also created the following task: [Grandchild (Open)](/task/grandchild).
+Also created this task: [Grandchild (Open)](/task/grandchild).
 Update was successful.
 `);
 
@@ -1320,7 +1320,7 @@ alpine create task-collection '# Successive moves roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Successive moves roadmap](/task-collection/successive-moves-roadmap).
 
-Also created the following tasks:
+Also created these tasks:
 
 - [Successive alpha (Open)](/task/successive-alpha)
 
@@ -1377,7 +1377,7 @@ test("activate an embedded task already assigned to another account", async () =
     await cli.session.space.createSession({name: "Alice"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(
@@ -1390,7 +1390,7 @@ alpine create task-collection '# Embedded existing roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Embedded existing roadmap](/task-collection/embedded-existing-roadmap).
 
-Also created the following task: [Embedded existing task (Open)](/task/embedded-existing-task).
+Also created this task: [Embedded existing task (Open)](/task/embedded-existing-task).
 `);
 
     expect(
@@ -1415,7 +1415,7 @@ test("activate and assign an embedded task in the same update", async () => {
     await cli.session.space.createSession({name: "Alice"});
 
     expect(await cli.run("alpine search Alice")).toEqual(`\
-1. [Alice](/human/alice)
+1. [**Alice**](/human/alice)
 `);
 
     expect(
@@ -1427,7 +1427,7 @@ alpine create task-collection '# Embedded assignment roadmap
     ).toEqual(`\
 Create was successful. New task collection: [Embedded assignment roadmap](/task-collection/embedded-assignment-roadmap).
 
-Also created the following task: [Embedded assignment task (Open)](/task/embedded-assignment-task).
+Also created this task: [Embedded assignment task (Open)](/task/embedded-assignment-task).
 `);
 
     expect(
@@ -1603,7 +1603,7 @@ test("add a task comment with a file attachment", async () => {
     });
 
     expect(await cli.run("alpine search 'Task attachment source'")).toEqual(
-        expect.stringContaining("[Task attachment source](/document/task-attachment-source)"),
+        expect.stringContaining("[**Task attachment source**](/document/task-attachment-source)"),
     );
     expect(await cli.run("alpine read /document/task-attachment-source")).toEqual(`\
 # Task attachment source
@@ -1795,7 +1795,7 @@ test("read a task page with more than fifty subtasks", async () => {
 
     expect(await cli.run("alpine search 'Large read state tasks'")).toEqual(
         expect.stringContaining(
-            "[Large read state tasks](/task-collection/large-read-state-tasks)",
+            "[**Large read state tasks**](/task-collection/large-read-state-tasks)",
         ),
     );
 

@@ -3562,15 +3562,15 @@ test("authorizing chat access after getting chat as session actor is cached", as
             beforeMessageIndex: null,
         });
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         await authorizeChatAccess(actionContext, chatId, "Edit");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         await authorizeChatAccess(actionContext, chatId, "Edit");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -3580,7 +3580,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
     }
 });
 

@@ -135,6 +135,7 @@ async function actuallyParseAgentWebMessagingPage<
         startedAttribute: "id" | "from" | "time" | "timezone" | null;
         idAttribute: string | null;
         fromAttribute: string | null;
+        deletedAttribute: true | null;
         timeAttribute: string | null;
         timeZoneAttribute: string | null;
         parent: {
@@ -225,6 +226,7 @@ async function actuallyParseAgentWebMessagingPage<
                                 startedAttribute: null,
                                 idAttribute: null,
                                 fromAttribute: null,
+                                deletedAttribute: null,
                                 timeAttribute: null,
                                 timeZoneAttribute: null,
                                 parent: null,
@@ -503,6 +505,7 @@ async function actuallyParseAgentWebMessagingPage<
                                               state.openTagPosition,
                                               state.fromAttribute,
                                           ),
+                                deletedAttribute: state.deletedAttribute,
                                 timeAttribute: state.timeAttribute,
                                 timeZoneAttribute: state.timeZoneAttribute,
                                 parent,
@@ -559,6 +562,12 @@ async function actuallyParseAgentWebMessagingPage<
                                 if (!state.hasEndedOpenTag) {
                                     state.startedAttribute = "id";
                                     state.idAttribute = "";
+                                }
+                                break;
+                            }
+                            case "deleted": {
+                                if (!state.hasEndedOpenTag) {
+                                    state.deletedAttribute = true;
                                 }
                                 break;
                             }

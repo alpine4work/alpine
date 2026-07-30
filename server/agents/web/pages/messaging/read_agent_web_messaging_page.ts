@@ -400,7 +400,6 @@ export async function readAgentWebMessagingPageInDirection<
 
         const {contextDate, contextFormattedTimeZone, page} =
             buildAgentWebMessagingPageFromApiMessages(context, {
-                messageNouns,
                 direction,
                 roomMetadata,
                 messages,
@@ -566,7 +565,6 @@ export async function readAgentWebMessagingPageAroundMessage<
 
         const {contextDate, contextFormattedTimeZone, page} =
             buildAgentWebMessagingPageFromApiMessages(context, {
-                messageNouns,
                 direction: "Around",
                 roomMetadata,
                 messages,
@@ -643,7 +641,6 @@ function buildAgentWebMessagingPageFromApiMessages<
 >(
     context: AgentWebContext,
     {
-        messageNouns,
         direction,
         roomMetadata,
         messages,
@@ -651,7 +648,6 @@ function buildAgentWebMessagingPageFromApiMessages<
         isStartOfMessages,
         isEndOfMessages,
     }: {
-        messageNouns: AgentWebMessagingPageNouns;
         direction: "Start" | "End" | "Around";
         roomMetadata: {
             pageLink: AgentWebMessagingPagePaginationPageLink;
@@ -686,6 +682,7 @@ function buildAgentWebMessagingPageFromApiMessages<
         lastCreatedTime: Date;
         differenceInMinutesSinceLastMessage: number;
         hasFiles: boolean;
+        isDeleted: boolean;
         messages: Array<ApiMessageResponse>;
     } | null = null;
 
@@ -751,6 +748,8 @@ function buildAgentWebMessagingPageFromApiMessages<
             // Don't merge if the previous message block had files. This mirrors the UI, where
             // file attachments always render their own message header.
             !currentBlock.hasFiles &&
+            // Only merge adjacent deleted messages or adjacent not-deleted messages.
+            currentBlock.isDeleted === (message.payload.type === "Deleted") &&
             // Never merge the current bot's messages. This makes it easier when we need to
             // update the current bot's message content.
             message.author.id !== context.botAccount.id &&
@@ -803,6 +802,7 @@ function buildAgentWebMessagingPageFromApiMessages<
             lastCreatedTime: createdTime,
             differenceInMinutesSinceLastMessage,
             hasFiles: message.payload.type === "Content" && message.payload.files.length > 0,
+            isDeleted: message.payload.type === "Deleted",
             messages: [message],
         };
     }
@@ -982,11 +982,6 @@ function buildAgentWebMessagingPageFromApiMessages<
             switch (message.payload.type) {
                 case "Deleted": {
                     unzippedMessageKeys.push([]);
-
-                    elements.push({
-                        type: "Paragraph",
-                        elements: [{type: "Text", text: `Deleted ${messageNouns.noun}`}],
-                    });
                     break;
                 }
                 case "Content": {
@@ -1017,6 +1012,7 @@ function buildAgentWebMessagingPageFromApiMessages<
                 endMessageIndex: lastMessage.index + 1,
             },
             author: intoApiAccountReference(firstMessage.author),
+            deletedAttribute: currentBlock.isDeleted ? true : null,
             timeAttribute,
             timeZoneAttribute,
             parent,

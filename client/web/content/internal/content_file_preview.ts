@@ -96,6 +96,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 
@@ -693,7 +694,7 @@ function renderContentFileImagePreviewInner(
                 letterboxImageHtml.setAttribute(
                     "style",
                     // eslint-disable-next-line cyberworlds/string-quotes
-                    `clip-path: path('M 0 0 H ${Math.ceil(barWidth)} V ${layout.height.toFixed(3)} H 0 Z M ${(layout.width - Math.ceil(barWidth)).toFixed(3)} 0 H ${layout.width.toFixed(3)} V ${layout.height.toFixed(3)} H ${(layout.width - Math.ceil(barWidth)).toFixed(3)} Z')`,
+                    `clip-path: path('M 0 0 H ${Math.ceil(barWidth)} V ${toFixedWithoutTrailingZeros(layout.height, 3)} H 0 Z M ${toFixedWithoutTrailingZeros(layout.width - Math.ceil(barWidth), 3)} 0 H ${toFixedWithoutTrailingZeros(layout.width, 3)} V ${toFixedWithoutTrailingZeros(layout.height, 3)} H ${toFixedWithoutTrailingZeros(layout.width - Math.ceil(barWidth), 3)} Z')`,
                 );
             } else {
                 const barHeight = (layout.height - containedFileHeight) / 2;
@@ -701,7 +702,7 @@ function renderContentFileImagePreviewInner(
                 letterboxImageHtml.setAttribute(
                     "style",
                     // eslint-disable-next-line cyberworlds/string-quotes
-                    `clip-path: path('M 0 0 H ${layout.width.toFixed(3)} V ${Math.ceil(barHeight)} H 0 Z M 0 ${(layout.height - Math.ceil(barHeight)).toFixed(3)} H ${layout.width.toFixed(3)} V ${layout.height.toFixed(3)} H 0 Z')`,
+                    `clip-path: path('M 0 0 H ${toFixedWithoutTrailingZeros(layout.width, 3)} V ${Math.ceil(barHeight)} H 0 Z M 0 ${toFixedWithoutTrailingZeros(layout.height - Math.ceil(barHeight), 3)} H ${toFixedWithoutTrailingZeros(layout.width, 3)} V ${toFixedWithoutTrailingZeros(layout.height, 3)} H 0 Z')`,
                 );
             }
         }
@@ -849,7 +850,7 @@ function renderContentFileCodePreview(
     // instead of the unscaled element height. To reproduce the bug which caused us to
     // add this: Scale down a code preview by adding another file to its file row. Then
     // add a comment to the code preview.
-    html.setAttribute("style", `height: ${layout.height.toFixed(3)}px`);
+    html.setAttribute("style", `height: ${toFixedWithoutTrailingZeros(layout.height, 3)}px`);
 
     appendImageHtmlForSelection(html, platform);
 
@@ -887,9 +888,10 @@ function renderContentFileCodePreview(
 
     containerHtml.setAttribute(
         "style",
-        `width: ${blockWidth / initialScale}px; height: ${(layout.height / scale).toFixed(
+        `width: ${blockWidth / initialScale}px; height: ${toFixedWithoutTrailingZeros(
+            layout.height / scale,
             3,
-        )}px; transform-origin: top left; transform: scale(${scale.toFixed(6)})`,
+        )}px; transform-origin: top left; transform: scale(${toFixedWithoutTrailingZeros(scale, 6)})`,
     );
 
     const preHtml = new HtmlElementGenerator("pre");
@@ -1078,7 +1080,8 @@ export function renderFileImagePreviewPlaceholder(
     const rectWidth = rectWidthBase + -translateX * 2;
     const rectHeight = rectHeightBase + -translateY * 2;
 
-    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${blurStdDeviation.toFixed(
+    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${toFixedWithoutTrailingZeros(
+        blurStdDeviation,
         6,
     )}" color-interpolation-filters="sRGB" /></filter><g filter="url(#blur)">`;
 
@@ -1095,12 +1098,12 @@ export function renderFileImagePreviewPlaceholder(
 
             svg +=
                 `<rect ` +
-                `x="${(x * rectWidthBase + translateX).toFixed(6)}" ` +
-                `y="${(y * rectHeightBase + translateY).toFixed(6)}" ` +
+                `x="${toFixedWithoutTrailingZeros(x * rectWidthBase + translateX, 6)}" ` +
+                `y="${toFixedWithoutTrailingZeros(y * rectHeightBase + translateY, 6)}" ` +
                 // Have `width` and `height` fill the remainder of the image so we don't get any
                 // gaps between `<rect>`s from rounding errors when rendering the SVG.
-                `width="${rectWidth.toFixed(6)}" ` +
-                `height="${rectHeight.toFixed(6)}" ` +
+                `width="${toFixedWithoutTrailingZeros(rectWidth, 6)}" ` +
+                `height="${toFixedWithoutTrailingZeros(rectHeight, 6)}" ` +
                 `fill="${color}"${
                     pixel.alpha !== undefined ? ` fill-opacity="${pixel.alpha}"` : ""
                 } />`;
@@ -1226,7 +1229,8 @@ function renderFileProcessingPreviewPlaceholder(
     const scaleX = (pixelGridWidth + -translateX * 2) / pixelGridWidth;
     const scaleY = (pixelGridHeight + -translateY * 2) / pixelGridHeight;
 
-    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${blurStdDeviation.toFixed(
+    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${toFixedWithoutTrailingZeros(
+        blurStdDeviation,
         6,
     )}" color-interpolation-filters="sRGB" /></filter><g filter="url(#blur)">`;
 
@@ -1238,12 +1242,12 @@ function renderFileProcessingPreviewPlaceholder(
 
             svg +=
                 `<rect ` +
-                `x="${(x * scaleX + translateX).toFixed(6)}" ` +
-                `y="${(y * scaleY + translateY).toFixed(6)}" ` +
+                `x="${toFixedWithoutTrailingZeros(x * scaleX + translateX, 6)}" ` +
+                `y="${toFixedWithoutTrailingZeros(y * scaleY + translateY, 6)}" ` +
                 // Have `width` and `height` fill the remainder of the image so we don't get any
                 // gaps between `<rect>`s from rounding errors when rendering the SVG.
-                `width="${scaleX.toFixed(6)}" ` +
-                `height="${scaleY.toFixed(6)}" ` +
+                `width="${toFixedWithoutTrailingZeros(scaleX, 6)}" ` +
+                `height="${toFixedWithoutTrailingZeros(scaleY, 6)}" ` +
                 `style="fill: ${colorSchemeVars[pixel]}" />`;
         }
     }

@@ -10,7 +10,7 @@ describe("default separator", () => {
         {input: "Task 123 Version 2", output: "task-123-version-2"},
         {input: "already-a-slug", output: "already-a-slug"},
         {input: "foo_bar/baz", output: "foo-bar-baz"},
-        {input: "!@#$%^&*()", output: ""},
+        {input: "!@#$%^&*()", output: "and"},
         {input: "東京", output: ""},
         {input: "", output: ""},
     ];

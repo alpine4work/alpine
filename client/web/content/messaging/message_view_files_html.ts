@@ -18,6 +18,7 @@ import {RemLength} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadModelFile} from "~/shared/messaging/message_model.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
@@ -117,10 +118,10 @@ export function renderMessageViewFiles(
         fileRowHtml.setAttribute(
             "style",
             [
-                `height: ${Math.max(...fileLayouts.map(({height}) => height)).toFixed(3)}px`,
+                `height: ${toFixedWithoutTrailingZeros(Math.max(...fileLayouts.map(({height}) => height)), 3)}px`,
                 "display: grid",
                 "grid-template-rows: 1fr",
-                `grid-template-columns: ${fileLayouts.map(({widthFr}) => `${widthFr.toFixed(6)}fr`).join(" ")}`,
+                `grid-template-columns: ${fileLayouts.map(({widthFr}) => `${toFixedWithoutTrailingZeros(widthFr, 6)}fr`).join(" ")}`,
                 // Left align message files instead of center aligning message files. This matches
                 // the more conversational format of messages as opposed to the carefully edited
                 // prose format of documents.

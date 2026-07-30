@@ -271,8 +271,8 @@ export class GitHubAlertSource extends AlertSource {
             const posts = searchResult.value.results.filter(
                 result =>
                     result.type === "Post" &&
-                    result.bodyMatch &&
-                    (JSON.stringify(result.bodyMatch) ?? "").includes(shortHash),
+                    result.bodySnippet !== null &&
+                    result.bodySnippet.text.includes(shortHash),
             );
 
             if (posts.length === 0) {

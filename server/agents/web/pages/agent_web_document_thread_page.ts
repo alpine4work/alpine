@@ -369,7 +369,7 @@ export async function readAgentWebDocumentThreadPage(
                 roomMetadataPromise,
                 readAgentWebMessagingPageInDirection(context, {
                     messageNouns: agentWebMessagingPageCommentNouns,
-                    room: {type: "DocumentThread", id, threadId},
+                    room: {type: "DocumentThread", id: threadId, document: {id}},
                     getRoomMetadata: async ({isStartOfMessages}) => {
                         const roomMetadata = await roomMetadataPromise;
 
@@ -410,7 +410,7 @@ export async function readAgentWebDocumentThreadPage(
                 roomMetadataPromise,
                 readAgentWebMessagingPageAroundMessage(context, {
                     messageNouns: agentWebMessagingPageCommentNouns,
-                    room: {type: "DocumentThread", id, threadId},
+                    room: {type: "DocumentThread", id: threadId, document: {id}},
                     getRoomMetadata: async ({isStartOfMessages}) => {
                         const roomMetadata = await roomMetadataPromise;
 
@@ -650,8 +650,8 @@ export async function updateAgentWebDocumentThreadPage(
         room: mapMaybeThunk(oldPageMetadata, oldPageMetadata =>
             mapMaybePromise(oldPageMetadata, oldPageMetadata => ({
                 type: "DocumentThread",
-                id: oldPageMetadata.id,
-                threadId: oldPageMetadata.threadId,
+                id: oldPageMetadata.threadId,
+                document: {id: oldPageMetadata.id},
             })),
         ),
         oldPageMetadata,

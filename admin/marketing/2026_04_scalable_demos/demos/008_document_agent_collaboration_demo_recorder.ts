@@ -166,8 +166,8 @@ forth. You also don\u2019t have to make updates to the document yourself.
                     type: "CreatedMessage",
                     room: {
                         type: "DocumentThread",
-                        id: document.id,
-                        threadId: commentThreadId,
+                        id: commentThreadId,
+                        document: {id: document.id},
                     },
                     index: 0,
                     author: {id: accounts.cassCade.account.id},

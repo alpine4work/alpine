@@ -284,10 +284,12 @@ test("add a post comment", async () => {
         overrideCreatedTime: new Date("2026-05-14T15:05:00.000Z"),
     });
 
+    // NOCOMMIT: Yikes! This double post content is not good. We may need to do
+    // something special for posts which repeat their title and body.
     expect(await cli.run("alpine search 'YouTube evidence review'")).toEqual(`\
-1. [Alice in Launch Updates: YouTube evidence review](/post/alice-in-launch-updates-youtube-evidence-review)
+1. [Alice in Launch Updates: **YouTube evidence review**](/post/alice-in-launch-updates-youtube-evidence-review)
 
-   in Launch Updates: **YouTube** **evidence** **review**
+   in Launch Updates: **YouTube evidence review**
 
 2. [Alice: The initial **review** is ready.](/post-comment/alice-the-initial-review-is-ready)
 `);
@@ -350,7 +352,7 @@ test("read channel posts with comment counts", async () => {
     });
 
     expect(await cli.run("alpine search 'Post Comment Counts'")).toEqual(
-        expect.stringContaining("[Post Comment Counts](/channel/post-comment-counts)"),
+        expect.stringContaining("[**Post Comment Counts**](/channel/post-comment-counts)"),
     );
 
     expect(await cli.run("alpine read /channel/post-comment-counts")).toEqual(`\
@@ -388,7 +390,7 @@ test("read a bot-authored channel post", async () => {
     });
 
     expect(await cli.run("alpine search 'Bot Posts'")).toEqual(
-        expect.stringContaining("[Bot Posts](/channel/bot-posts)"),
+        expect.stringContaining("[**Bot Posts**](/channel/bot-posts)"),
     );
 
     expect(await cli.run("alpine read /channel/bot-posts")).toEqual(`\
@@ -422,7 +424,7 @@ test("read the first and tail pages of a paginated channel", async () => {
     }
 
     expect(await cli.run("alpine search 'Paged Posts'")).toEqual(
-        expect.stringContaining("[Paged Posts](/channel/paged-posts)"),
+        expect.stringContaining("[**Paged Posts**](/channel/paged-posts)"),
     );
 
     expect(await cli.run("alpine read /channel/paged-posts --limit=500b")).toEqual(`\
@@ -497,7 +499,7 @@ test("read a post comment reply with a non-default timezone", async () => {
 
     expect(await cli.run("alpine search 'YouTube reply review'")).toEqual(
         expect.stringContaining(
-            "[Alice in Reply Reviews: YouTube reply review](/post/alice-in-reply-reviews-youtube-reply-review)",
+            "[Alice in **Reply Reviews**: **YouTube reply review**](/post/alice-in-reply-reviews-youtube-reply-review)",
         ),
     );
 
@@ -573,7 +575,7 @@ test("add a post comment with a file attachment", async () => {
     });
 
     expect(await cli.run("alpine search 'Post attachment source'")).toEqual(
-        expect.stringContaining("[Post attachment source](/document/post-attachment-source)"),
+        expect.stringContaining("[**Post attachment source**](/document/post-attachment-source)"),
     );
     expect(await cli.run("alpine read /document/post-attachment-source")).toEqual(`\
 # Post attachment source
@@ -584,11 +586,11 @@ The source image is available below.
 `);
 
     expect(await cli.run("alpine search 'YouTube attachment review'")).toEqual(`\
-1. [Alice in Evidence Updates: YouTube attachment review](/post/alice-in-evidence-updates-youtube-attachmen)
+1. [Alice in Evidence Updates: **YouTube attachment review**](/post/alice-in-evidence-updates-youtube-attachmen)
 
-   in Evidence Updates: **YouTube** **attachment** **review**
+   in Evidence Updates: **YouTube attachment review**
 
-2. [Post attachment source](/document/post-attachment-source)
+2. [Post **attachment** source](/document/post-attachment-source)
 
    The source image is available below.
 `);
@@ -700,7 +702,7 @@ test("paginate post comments", async () => {
 
     expect(await cli.run("alpine search 'YouTube post pagination'")).toEqual(
         expect.stringContaining(
-            "[Alice in Launch Updates: YouTube post pagination](/post/alice-in-launch-updates-youtube-post-pagination)",
+            "[Alice in Launch Updates: **YouTube post pagination**](/post/alice-in-launch-updates-youtube-post-pagination)",
         ),
     );
 

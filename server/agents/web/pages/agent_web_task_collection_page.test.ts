@@ -1874,8 +1874,8 @@ Error: Unexpected task priority \u201CImmediate\u201D on line 4. Try again with 
   - Parent: [Alice](/human/alice)
 `,
             parseError: markdown`
-Error: Unexpected task parent link \u201CAlice\u201D on line 4. Try again with a link to a task
-you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
+Error: Unexpected task parent link \u201CAlice\u201D on line 4. Try again with a single link to a
+task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`) and nothing else.
             `,
         },
         {
@@ -1894,8 +1894,8 @@ you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).
   - Assignee: [Engineering](/task-collection/engineering)
 `,
             parseError: markdown`
-Error: Unexpected task assignee link \u201CEngineering\u201D on line 4. Try again with a link to a
-human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).
+Error: Unexpected task assignee link \u201CEngineering\u201D on line 4. Try again with a single link
+to a human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`) and nothing else.
             `,
         },
         {

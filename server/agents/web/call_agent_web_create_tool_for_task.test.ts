@@ -350,7 +350,7 @@ test("creates a task with a new subtask and all its fields", async () => {
         result: `\
 Create was successful. New task: [Create with a new subtask](/task/create-with-a-new-subtask).
 
-Also created the following task: [Draft launch brief (Open, active)](/task/draft-launch-brief).`,
+Also created this task: [Draft launch brief (Open, active)](/task/draft-launch-brief).`,
         requests: [
             {
                 method: "POST",

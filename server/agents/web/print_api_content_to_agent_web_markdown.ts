@@ -26,6 +26,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
@@ -529,7 +530,7 @@ async function traverseApiContentMarkdownHtmlNode(
                                 let fractionDigits = 2;
                                 let truncatedWidth = toFixedWithoutTrailingZeros(
                                     width,
-                                    fractionDigits,
+                                    Math.min(fractionDigits, 100),
                                 );
 
                                 let expectedWidth =
@@ -539,7 +540,7 @@ async function traverseApiContentMarkdownHtmlNode(
                                     fractionDigits++;
                                     truncatedWidth = toFixedWithoutTrailingZeros(
                                         width,
-                                        fractionDigits,
+                                        Math.min(fractionDigits, 100),
                                     );
 
                                     expectedWidth =
@@ -613,7 +614,10 @@ async function traverseApiContentMarkdownHtmlNode(
 
                                 let truncatedColumnWidths = columnWidths
                                     .map(width =>
-                                        toFixedWithoutTrailingZeros(width, fractionDigits),
+                                        toFixedWithoutTrailingZeros(
+                                            width,
+                                            Math.min(fractionDigits, 100),
+                                        ),
                                     )
                                     .join(",");
 
@@ -630,7 +634,10 @@ async function traverseApiContentMarkdownHtmlNode(
 
                                     truncatedColumnWidths = columnWidths
                                         .map(width =>
-                                            toFixedWithoutTrailingZeros(width, fractionDigits),
+                                            toFixedWithoutTrailingZeros(
+                                                width,
+                                                Math.min(fractionDigits, 100),
+                                            ),
                                         )
                                         .join(",");
 
@@ -887,23 +894,4 @@ function addDedupeNumberToTruncatedAgentWebMarkdownUrl(
     } else {
         return `${truncatedUrl}#${dedupeNumber}`;
     }
-}
-
-function toFixedWithoutTrailingZeros(value: number, fractionDigits: number): string {
-    const string = value.toFixed(Math.min(fractionDigits, 100));
-
-    let endIndex = string.length;
-
-    for (let i = string.length - 1; i >= 0; i--) {
-        if (string[i] !== "0") {
-            endIndex = i + 1;
-            break;
-        }
-    }
-
-    if (string[endIndex - 1] === ".") endIndex--;
-
-    if (endIndex === 0) return "0";
-
-    return string.slice(0, endIndex);
 }

@@ -69,7 +69,7 @@ function getApiMessageEntityIdForRoomPath(
         case "Chat":
             return `ChatMessage:${room.id}-${messageIndex}`;
         case "DocumentThread":
-            return `DocumentComment:${room.id}-${room.threadId}-${messageIndex}`;
+            return `DocumentComment:${room.document.id}-${room.id}-${messageIndex}`;
         case "Post":
             return `PostComment:${room.id}-${messageIndex}`;
         case "Task":
@@ -2026,7 +2026,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                "Hello, *world*!\n",
+                "Hello, _world_!\n",
             );
         });
 
