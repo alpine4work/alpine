@@ -191,13 +191,26 @@ describe("space search removes post title overlap from body snippets", () => {
             "- Unorderedyak title item\n" + "- A second unordered item contains unorderedyak.",
         ],
         [
+            "unordered list with only a title match",
+            "- Unorderedkoala title item\n" + "- A second unordered item has no match.",
+        ],
+        [
             "ordered list",
             "1. Orderedlynx title item\n" + "2. A second ordered item contains orderedlynx.",
+        ],
+        [
+            "ordered list with only a title match",
+            "1. Orderedpanda title item\n" + "2. A second ordered item has no match.",
         ],
         [
             "check list",
             "- [ ] Checklistibis title item\n" +
                 "- [x] A second checklist item contains checklistibis.",
+        ],
+        [
+            "check list with only a title match",
+            "- [ ] Checklisttern title item\n" +
+                "- [x] A second checklist item has no match.",
         ],
         [
             "table",
@@ -207,10 +220,23 @@ describe("space search removes post title overlap from body snippets", () => {
 | A second cell | Last row contains tableorca |`,
         ],
         [
+            "table with only a title match",
+            `\
+| Tablebadger title | First row |
+| --- | --- |
+| A second cell | Last row has no match |`,
+        ],
+        [
             "truncated title",
             "This is a very long sentence that contains " +
                 "word ".repeat(30) +
                 "truncatedfox body match.",
+        ],
+        [
+            "truncated title with only a title match",
+            "Truncatedotter starts a very long sentence that contains " +
+                "word ".repeat(30) +
+                "ending.",
         ],
         ["fuzzy title match", "Canonicalquokka"],
     ]);
@@ -318,6 +344,28 @@ describe("space search removes post title overlap from body snippets", () => {
         });
     });
 
+    test("nulls an unordered-list body snippet with only a title match", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=unorderedkoala`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("unordered list with only a title match"),
+                        title: "Alice in Search Channel: Unorderedkoala title item",
+                        titleMatches: [{index: 25, length: 14}],
+                        bodySnippet: null,
+                    }),
+                ],
+            },
+        });
+    });
+
     test("drops and repositions matches around ordered-list formatting", async () => {
         expect(
             await server.GET(`/spaces/${spaceId}/search?query=orderedlynx`, {
@@ -337,6 +385,28 @@ describe("space search removes post title overlap from body snippets", () => {
                             text: "A second ordered item contains orderedlynx.",
                             matches: [{index: 31, length: 11}],
                         },
+                    }),
+                ],
+            },
+        });
+    });
+
+    test("nulls an ordered-list body snippet with only a title match", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=orderedpanda`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("ordered list with only a title match"),
+                        title: "Alice in Search Channel: 1. Orderedpanda title item",
+                        titleMatches: [{index: 28, length: 12}],
+                        bodySnippet: null,
                     }),
                 ],
             },
@@ -368,6 +438,28 @@ describe("space search removes post title overlap from body snippets", () => {
         });
     });
 
+    test("nulls a check-list body snippet with only a title match", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=checklisttern`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("check list with only a title match"),
+                        title: "Alice in Search Channel: Checklisttern title item",
+                        titleMatches: [{index: 25, length: 13}],
+                        bodySnippet: null,
+                    }),
+                ],
+            },
+        });
+    });
+
     test("drops and repositions matches around table formatting", async () => {
         expect(
             await server.GET(`/spaces/${spaceId}/search?query=tableorca`, {
@@ -387,6 +479,28 @@ describe("space search removes post title overlap from body snippets", () => {
                             text: ". First row. A second cell. Last row contains tableorca",
                             matches: [{index: 46, length: 9}],
                         },
+                    }),
+                ],
+            },
+        });
+    });
+
+    test("nulls a table body snippet with only a title match", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=tablebadger`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("table with only a title match"),
+                        title: "Alice in Search Channel: Tablebadger title",
+                        titleMatches: [{index: 25, length: 11}],
+                        bodySnippet: null,
                     }),
                 ],
             },
@@ -418,6 +532,31 @@ describe("space search removes post title overlap from body snippets", () => {
                                 "truncatedfox body match.",
                             matches: [{index: 120, length: 12}],
                         },
+                    }),
+                ],
+            },
+        });
+    });
+
+    test("nulls a truncated-title body snippet with only a title match", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=truncatedotter`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("truncated title with only a title match"),
+                        title:
+                            "Alice in Search Channel: Truncatedotter starts a very long sentence " +
+                            "that contains word word word" +
+                            contentMentionTextTruncatedSuffix,
+                        titleMatches: [{index: 25, length: 14}],
+                        bodySnippet: null,
                     }),
                 ],
             },
