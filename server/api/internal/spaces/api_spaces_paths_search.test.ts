@@ -9,6 +9,7 @@ import {
 } from "~/server/search/data/index/search_entity_index.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {contentMentionTextTruncatedSuffix} from "~/shared/content/truncate_content_mention_text.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
@@ -81,8 +82,9 @@ test("space search post title includes its author, channel, and preview", async 
         await server.GET(`/spaces/${space.id}/search?query=quokka`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
-    ).toMatchObject({
+    ).toEqual({
         status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             results: [
                 expect.objectContaining({
@@ -168,5 +170,279 @@ test("space search rejects limits above 100", async () => {
                 retry: {able: false},
             },
         },
+    });
+});
+
+describe("space search removes post title overlap from body snippets", () => {
+    const postContentByCase = new Map([
+        [
+            "body match at start",
+            "Startquokka appears in the opening title sentence. " +
+                "A later sentence repeats startquokka in body context.",
+        ],
+        [
+            "body match at end",
+            "Opening sentence creates the title. " +
+                "Background filler without sentence punctuation ".repeat(30) +
+                "This filler sentence ends here. Endwombat appears at the end.",
+        ],
+        [
+            "unordered list",
+            "- Unorderedyak title item\n" + "- A second unordered item contains unorderedyak.",
+        ],
+        [
+            "ordered list",
+            "1. Orderedlynx title item\n" + "2. A second ordered item contains orderedlynx.",
+        ],
+        [
+            "check list",
+            "- [ ] Checklistibis title item\n" +
+                "- [x] A second checklist item contains checklistibis.",
+        ],
+        [
+            "table",
+            `\
+| Tableorca title | First row |
+| --- | --- |
+| A second cell | Last row contains tableorca |`,
+        ],
+        [
+            "truncated title",
+            "This is a very long sentence that contains " +
+                "word ".repeat(30) +
+                "truncatedfox body match.",
+        ],
+        ["fuzzy title match", "Canonicalquokka"],
+    ]);
+
+    let spaceId = "";
+    let apiKey = "";
+    let postIdByCase: ReadonlyMap<string, string> = new Map();
+
+    beforeAll(async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Example", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const channel = await TestChannel.create(session, {
+            name: "Search Channel",
+            access: "Public",
+        });
+
+        spaceId = space.id;
+        apiKey = await bot.createApiKey(session);
+        postIdByCase = new Map(
+            await runAllPromises(
+                Array.from(postContentByCase, async ([name, content]) => {
+                    const post = await channel.createPost(session, content);
+                    return [name, post.id] as const;
+                }),
+            ),
+        );
+
+        await runAllTimersAndWaitForTestTasks();
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+    });
+
+    test("moves a body match at the start of the body into the overlapping title", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=startquokka`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("body match at start"),
+                        title: "Alice in Search Channel: Startquokka appears in the opening title sentence",
+                        titleMatches: [{index: 25, length: 11}],
+                        bodySnippet: {
+                            text: ". A later sentence repeats startquokka in body context.",
+                            matches: [{index: 27, length: 11}],
+                        },
+                    }),
+                ],
+            },
+        });
+    });
+
+    test("does not drop or reposition a body match in a non-overlapping end fragment", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=endwombat`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("body match at end"),
+                        title: "Alice in Search Channel: Opening sentence creates the title",
+                        titleMatches: [],
+                        bodySnippet: {
+                            text: "Endwombat appears at the end.",
+                            matches: [{index: 0, length: 9}],
+                        },
+                    }),
+                ],
+            },
+        });
+    });
+
+    test("drops a partial title overlap separated by unordered-list formatting", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=unorderedyak`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("unordered list"),
+                        title: "Alice in Search Channel: Unorderedyak title item",
+                        titleMatches: [{index: 25, length: 12}],
+                        bodySnippet: {
+                            text: ". A second unordered item contains unorderedyak.",
+                            matches: [{index: 35, length: 12}],
+                        },
+                    }),
+                ],
+            },
+        });
+    });
+
+    test("drops and repositions matches around ordered-list formatting", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=orderedlynx`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("ordered list"),
+                        title: "Alice in Search Channel: 1. Orderedlynx title item",
+                        titleMatches: [{index: 28, length: 11}],
+                        bodySnippet: {
+                            text: "A second ordered item contains orderedlynx.",
+                            matches: [{index: 31, length: 11}],
+                        },
+                    }),
+                ],
+            },
+        });
+    });
+
+    test("drops and repositions matches around check-list formatting", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=checklistibis`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("check list"),
+                        title: "Alice in Search Channel: Checklistibis title item",
+                        titleMatches: [{index: 25, length: 13}],
+                        bodySnippet: {
+                            text: ". A second checklist item contains checklistibis.",
+                            matches: [{index: 35, length: 13}],
+                        },
+                    }),
+                ],
+            },
+        });
+    });
+
+    test("drops and repositions matches around table formatting", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=tableorca`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("table"),
+                        title: "Alice in Search Channel: Tableorca title",
+                        titleMatches: [{index: 25, length: 9}],
+                        bodySnippet: {
+                            text: ". First row. A second cell. Last row contains tableorca",
+                            matches: [{index: 46, length: 9}],
+                        },
+                    }),
+                ],
+            },
+        });
+    });
+
+    test("ignores the synthetic suffix when dropping a truncated title", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=truncatedfox`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("truncated title"),
+                        title:
+                            "Alice in Search Channel: This is a very long sentence that contains " +
+                            "word word word word word word" +
+                            contentMentionTextTruncatedSuffix,
+                        titleMatches: [],
+                        bodySnippet: {
+                            text:
+                                "word word word word word word word word word word word word " +
+                                "word word word word word word word word word word word word " +
+                                "truncatedfox body match.",
+                            matches: [{index: 120, length: 12}],
+                        },
+                    }),
+                ],
+            },
+        });
+    });
+
+    test("uses a fuzzy body match as the canonical title match after a full drop", async () => {
+        expect(
+            await server.GET(`/spaces/${spaceId}/search?query=canonicalquokko`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                results: [
+                    expect.objectContaining({
+                        type: "Post",
+                        id: postIdByCase.get("fuzzy title match"),
+                        title: "Alice in Search Channel: Canonicalquokka",
+                        titleMatches: [{index: 25, length: 15}],
+                        bodySnippet: null,
+                    }),
+                ],
+            },
+        });
     });
 });
