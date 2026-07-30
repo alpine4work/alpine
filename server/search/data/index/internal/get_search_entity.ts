@@ -1926,7 +1926,7 @@ async function getPostSearchEntity(
         // but we do need to do ..." (where "but we do need to do" is the body match and
         // "Rachel " was added because we assumed the body would start with " in Product:"
         // but the body doesn't start with " in Product:" if the match is near the end).
-        body: `in ${post.channel.name}: ${getFullText()}`,
+        body: `in ${post.channel.name}:\n\n${getFullText()}`,
         tags: emptyArray,
         media: {type: "Account", accountId: post.authorId},
         embeddingChunks: getEmbeddingChunks(),
