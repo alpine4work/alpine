@@ -907,6 +907,7 @@ test("can create a task with all fields", async () => {
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
+            actor,
             actions: [
                 expect.objectContaining({
                     type: "UpdateTask",
@@ -915,25 +916,21 @@ test("can create a task with all fields", async () => {
                 }),
                 expect.objectContaining({
                     type: "UpdateTask",
-                    actor,
                     taskId: response.body.task.id,
                     taskAction: expect.objectContaining({type: "UpdateTitle"}),
                 }),
                 expect.objectContaining({
                     type: "UpdateTask",
-                    actor,
                     taskId: response.body.task.id,
                     taskAction: expect.objectContaining({type: "UpdateAssignee"}),
                 }),
                 expect.objectContaining({
                     type: "UpdateTask",
-                    actor,
                     taskId: response.body.task.id,
                     taskAction: expect.objectContaining({type: "UpdateDueDate"}),
                 }),
                 expect.objectContaining({
                     type: "UpdateTask",
-                    actor,
                     taskId: response.body.task.id,
                     taskAction: expect.objectContaining({type: "UpdatePriority"}),
                 }),
@@ -1219,14 +1216,14 @@ test("can update a task title", async () => {
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
+            actor: {
+                accountId: session.account.id,
+                from: {type: "Bot", accountId: bot.id},
+            },
             actions: [
                 expect.objectContaining({
                     type: "UpdateTask",
                     taskId: task.id,
-                    actor: {
-                        accountId: session.account.id,
-                        from: {type: "Bot", accountId: bot.id},
-                    },
                     taskAction: expect.objectContaining({type: "UpdateTitle"}),
                 }),
             ],
@@ -1599,28 +1596,25 @@ test("can update multiple task fields at once", async () => {
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
+            actor,
             actions: [
                 expect.objectContaining({
                     type: "UpdateTask",
-                    actor,
                     taskId: task.id,
                     taskAction: expect.objectContaining({type: "UpdateTitle"}),
                 }),
                 expect.objectContaining({
                     type: "UpdateTask",
-                    actor,
                     taskId: task.id,
                     taskAction: expect.objectContaining({type: "UpdateAssignee"}),
                 }),
                 expect.objectContaining({
                     type: "UpdateTask",
-                    actor,
                     taskId: task.id,
                     taskAction: expect.objectContaining({type: "UpdatePriority"}),
                 }),
                 expect.objectContaining({
                     type: "UpdateTask",
-                    actor,
                     taskId: task.id,
                     taskAction: expect.objectContaining({type: "UpdateDueDate"}),
                 }),
@@ -5372,6 +5366,10 @@ test("can create a task collection", async () => {
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
+            actor: {
+                accountId: bot.id,
+                from: null,
+            },
             actions: [
                 expect.objectContaining({
                     type: "UpdateCollection",
@@ -5386,10 +5384,6 @@ test("can create a task collection", async () => {
                 }),
                 expect.objectContaining({
                     type: "UpdateCollection",
-                    actor: {
-                        accountId: bot.id,
-                        from: null,
-                    },
                     collectionId: response.body.collection.id,
                     collectionAction: {type: "UpdateColor", color: "blue"},
                 }),
@@ -5472,14 +5466,14 @@ test("can update a task collection name", async () => {
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
+            actor: {
+                accountId: session.account.id,
+                from: {type: "Bot", accountId: bot.id},
+            },
             actions: [
                 expect.objectContaining({
                     type: "UpdateCollection",
                     collectionId: collection.id,
-                    actor: {
-                        accountId: session.account.id,
-                        from: {type: "Bot", accountId: bot.id},
-                    },
                     collectionAction: {type: "UpdateName", name: "Updated Name"},
                 }),
             ],
@@ -5569,16 +5563,15 @@ test("can update multiple task collection fields at once", async () => {
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
+            actor,
             actions: [
                 expect.objectContaining({
                     type: "UpdateCollection",
-                    actor,
                     collectionId: collection.id,
                     collectionAction: {type: "UpdateName", name: "Updated Name"},
                 }),
                 expect.objectContaining({
                     type: "UpdateCollection",
-                    actor,
                     collectionId: collection.id,
                     collectionAction: {type: "UpdateColor", color: "purple"},
                 }),

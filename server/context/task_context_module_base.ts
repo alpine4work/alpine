@@ -26,6 +26,7 @@ import {
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskCreator} from "~/shared/tasks/task_creator.js";
 import {
     createTaskCollectionNotFoundError,
     createTaskNotFoundError,
@@ -40,6 +41,7 @@ export type TaskContextModuleActionTransaction = {
     readonly committedTime: Date;
     readonly actionTransactionId: TaskActionTransactionId;
     readonly actions: ReadonlyArray<TaskAction>;
+    readonly actor: TaskCreator | null;
     readonly clientId: TaskRealtimeClientId | null;
 };
 

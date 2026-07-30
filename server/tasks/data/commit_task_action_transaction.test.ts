@@ -2978,8 +2978,8 @@ describe("commitTaskActionTransaction()", () => {
     });
 });
 
-describe("task action actor tracking", () => {
-    test("records session context actor on task actions", async () => {
+describe("task action transaction actor tracking", () => {
+    test("records session context actor on task action transactions", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const task = await TestTask.create(session);
@@ -3011,14 +3011,14 @@ describe("task action actor tracking", () => {
             await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
         ).toEqual([
             expect.objectContaining({
+                actor: {
+                    accountId: session.account.id,
+                    from: null,
+                },
                 actions: [
                     expect.objectContaining({
                         type: "UpdateTask",
                         taskId: task.id,
-                        actor: {
-                            accountId: session.account.id,
-                            from: null,
-                        },
                         taskAction: expect.objectContaining({type: "UpdateTitle"}),
                     }),
                 ],
@@ -3026,7 +3026,7 @@ describe("task action actor tracking", () => {
         ]);
     });
 
-    test("records session context actor on task collection actions", async () => {
+    test("records session context actor on task collection action transactions", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const collection = await TestTaskCollection.create(session, {access: "Public"});
@@ -3055,14 +3055,14 @@ describe("task action actor tracking", () => {
             await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
         ).toEqual([
             expect.objectContaining({
+                actor: {
+                    accountId: session.account.id,
+                    from: null,
+                },
                 actions: [
                     expect.objectContaining({
                         type: "UpdateCollection",
                         collectionId: collection.id,
-                        actor: {
-                            accountId: session.account.id,
-                            from: null,
-                        },
                         collectionAction: {type: "UpdateName", name: "Context actor"},
                     }),
                 ],
@@ -3070,7 +3070,7 @@ describe("task action actor tracking", () => {
         ]);
     });
 
-    test("records impersonated account context actor on task actions", async () => {
+    test("records impersonated account context actor on task action transactions", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const task = await TestTask.create(session);
@@ -3098,14 +3098,14 @@ describe("task action actor tracking", () => {
             await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
         ).toEqual([
             expect.objectContaining({
+                actor: {
+                    accountId: session.account.id,
+                    from: null,
+                },
                 actions: [
                     expect.objectContaining({
                         type: "UpdateTask",
                         taskId: task.id,
-                        actor: {
-                            accountId: session.account.id,
-                            from: null,
-                        },
                         taskAction: expect.objectContaining({type: "UpdateTitle"}),
                     }),
                 ],
@@ -3115,38 +3115,42 @@ describe("task action actor tracking", () => {
 });
 
 describe("bot task creation authorization", () => {
-    test("non-bot can\u2019t record task action bot provenance", async () => {
+    test("non-bot can\u2019t commit a task action transaction for another account", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
+        const otherSession = await space.createSession();
         const task = await TestTask.create(session);
 
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
         await expect(
-            commitTaskActionTransaction(session.action(), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    actor: {
-                        accountId: session.account.id,
-                        from: {type: "Bot", accountId: generateId<AccountId>()},
+            commitTaskActionTransaction(
+                session.action(),
+                space.id,
+                [
+                    {
+                        type: "UpdateTask",
+                        time: clock.now(),
+                        taskId: task.id,
+                        taskAction: {
+                            type: "UpdateTitle",
+                            titleUpdate: createTaskTitleFromText(
+                                randomlyGenerateTaskTitleClientId(),
+                                "Bot provenance",
+                            ),
+                        },
                     },
-                    taskId: task.id,
-                    taskAction: {
-                        type: "UpdateTitle",
-                        titleUpdate: createTaskTitleFromText(
-                            randomlyGenerateTaskTitleClientId(),
-                            "Bot provenance",
-                        ),
-                    },
-                },
-            ]),
+                ],
+                {actorId: otherSession.account.id},
+            ),
         ).rejects.toThrow(
-            new PermissionDeniedError("Only bots can record task action bot provenance"),
+            new PermissionDeniedError(
+                "Only bots can commit task actions on behalf of other accounts",
+            ),
         );
     });
 
-    test("bot can record task action actor provenance", async () => {
+    test("bot can record task action transaction actor provenance", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -3176,37 +3180,38 @@ describe("bot task creation authorization", () => {
 
         const startTime = new Date();
 
-        await commitTaskActionTransaction(botContext, space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                actor: {
-                    accountId: session.account.id,
-                    from: {type: "Bot", accountId: botAccount.id},
+        await commitTaskActionTransaction(
+            botContext,
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate: createTaskTitleFromText(
+                            randomlyGenerateTaskTitleClientId(),
+                            "Bot provenance",
+                        ),
+                    },
                 },
-                taskId,
-                taskAction: {
-                    type: "UpdateTitle",
-                    titleUpdate: createTaskTitleFromText(
-                        randomlyGenerateTaskTitleClientId(),
-                        "Bot provenance",
-                    ),
-                },
-            },
-        ]);
+            ],
+            {actorId: session.account.id},
+        );
 
         expect(
             await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
         ).toEqual([
             expect.objectContaining({
+                actor: {
+                    accountId: session.account.id,
+                    from: {type: "Bot", accountId: botAccount.id},
+                },
                 actions: [
                     expect.objectContaining({
                         type: "UpdateTask",
                         taskId,
-                        actor: {
-                            accountId: session.account.id,
-                            from: {type: "Bot", accountId: botAccount.id},
-                        },
                         taskAction: expect.objectContaining({type: "UpdateTitle"}),
                     }),
                 ],
@@ -3575,35 +3580,39 @@ describe("bot task creation authorization", () => {
 });
 
 describe("bot task collection creation authorization", () => {
-    test("non-bot can\u2019t record task collection action bot provenance", async () => {
+    test("non-bot can\u2019t commit a collection action transaction for another account", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
+        const otherSession = await space.createSession();
         const collection = await TestTaskCollection.create(session);
 
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
         await expect(
-            commitTaskActionTransaction(session.action(), space.id, [
-                {
-                    type: "UpdateCollection",
-                    time: clock.now(),
-                    actor: {
-                        accountId: session.account.id,
-                        from: {type: "Bot", accountId: generateId<AccountId>()},
+            commitTaskActionTransaction(
+                session.action(),
+                space.id,
+                [
+                    {
+                        type: "UpdateCollection",
+                        time: clock.now(),
+                        collectionId: collection.id,
+                        collectionAction: {
+                            type: "UpdateName",
+                            name: "Bot provenance",
+                        },
                     },
-                    collectionId: collection.id,
-                    collectionAction: {
-                        type: "UpdateName",
-                        name: "Bot provenance",
-                    },
-                },
-            ]),
+                ],
+                {actorId: otherSession.account.id},
+            ),
         ).rejects.toThrow(
-            new PermissionDeniedError("Only bots can record task collection action bot provenance"),
+            new PermissionDeniedError(
+                "Only bots can commit task actions on behalf of other accounts",
+            ),
         );
     });
 
-    test("bot can record task collection action actor provenance", async () => {
+    test("bot can record task collection action transaction actor provenance", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -3614,34 +3623,35 @@ describe("bot task collection creation authorization", () => {
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
         const startTime = new Date();
 
-        await commitTaskActionTransaction(botAccount.action(), space.id, [
-            {
-                type: "UpdateCollection",
-                time: clock.now(),
-                actor: {
-                    accountId: session.account.id,
-                    from: {type: "Bot", accountId: botAccount.id},
+        await commitTaskActionTransaction(
+            botAccount.action(),
+            space.id,
+            [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId: collection.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Bot provenance",
+                    },
                 },
-                collectionId: collection.id,
-                collectionAction: {
-                    type: "UpdateName",
-                    name: "Bot provenance",
-                },
-            },
-        ]);
+            ],
+            {actorId: session.account.id},
+        );
 
         expect(
             await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
         ).toEqual([
             expect.objectContaining({
+                actor: {
+                    accountId: session.account.id,
+                    from: {type: "Bot", accountId: botAccount.id},
+                },
                 actions: [
                     expect.objectContaining({
                         type: "UpdateCollection",
                         collectionId: collection.id,
-                        actor: {
-                            accountId: session.account.id,
-                            from: {type: "Bot", accountId: botAccount.id},
-                        },
                         collectionAction: {type: "UpdateName", name: "Bot provenance"},
                     }),
                 ],

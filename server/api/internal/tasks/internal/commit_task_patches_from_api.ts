@@ -55,6 +55,7 @@ import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskCreator} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {
     TaskNotesContentProsemirrorSchema,
@@ -90,7 +91,7 @@ export async function commitTaskPatchesFromApi(
     context: ApiServiceBotActionContext,
     {
         spaceId,
-        actorId,
+        actorId: originalActorId,
         patches,
     }: {
         spaceId: SpaceId;
@@ -107,7 +108,7 @@ export async function commitTaskPatchesFromApi(
     results: ReadonlyArray<ApiTaskBatchPatchResult>;
 }> {
     const botAccountId = context.actor.getBotAccountId();
-    actorId ??= botAccountId;
+    const actorId = originalActorId ?? botAccountId;
 
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const timeZone = defaultTimeZone;
@@ -132,7 +133,19 @@ export async function commitTaskPatchesFromApi(
                 hasCreates = true;
                 const taskId = generateId<TaskId>();
 
-                steps.push({type: "CreateTask", taskId});
+                const creatorId = patch.task.creator?.id ?? actorId;
+
+                steps.push({
+                    type: "CreateTask",
+                    taskId,
+                    creator: {
+                        accountId: creatorId,
+                        from:
+                            creatorId !== botAccountId
+                                ? {type: "Bot", accountId: botAccountId}
+                                : null,
+                    },
+                });
 
                 for (const fieldPatch of createApiTaskPatchesFromCreateRequest(patch.task)) {
                     steps.push({
@@ -422,10 +435,7 @@ export async function commitTaskPatchesFromApi(
 
             const taskAction: TaskCreateAction = {
                 type: "Create",
-                creator: {
-                    accountId: actorId,
-                    from: actorId !== botAccountId ? {type: "Bot", accountId: botAccountId} : null,
-                },
+                creator: step.creator,
                 creatorTimeZone: timeZone,
                 accessPolicy: assertExists(createAccessPolicy),
             };
@@ -1021,7 +1031,7 @@ export async function commitTaskPatchesFromApi(
  * step. This lets creates and updates share one action generation path.
  */
 type ApiTaskCommitStep =
-    | {type: "CreateTask"; taskId: TaskId}
+    | {type: "CreateTask"; taskId: TaskId; creator: TaskCreator}
     | {
           type: "ApplyPatch";
           taskId: TaskId;

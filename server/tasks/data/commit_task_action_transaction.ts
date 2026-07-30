@@ -173,12 +173,32 @@ export function commitTaskActionTransaction(
         }
 
         if (
-            options.actorId &&
+            options.actorId !== undefined &&
             context.actor.type !== "Bot" &&
             options.actorId !== context.actor.getPossiblyBotAccountId()
         ) {
             throw new PermissionDeniedError(
                 "Only bots can commit task actions on behalf of other accounts",
+            );
+        }
+
+        if (
+            options.actorId !== undefined &&
+            context.actor.type === "Bot" &&
+            options.actorId !== context.actor.getPossiblyBotAccountId() &&
+            !(await isAccountMemberOfSpace(context, spaceId, options.actorId))
+        ) {
+            const hasTaskAction = actions.some(action => action.type === "UpdateTask");
+            const hasCollectionAction = actions.some(action => action.type === "UpdateCollection");
+
+            throw new PermissionDeniedError(
+                "Unexpected task action transaction actor outside of space",
+                {
+                    displayMessage:
+                        hasTaskAction && !hasCollectionAction
+                            ? errorDisplayMessage`Actor must be a member of the same space the task is in. Try again without an actor or with an actor in the same space as the task.`
+                            : errorDisplayMessage`Actor must be a member of the same space the task collection is in. Try again without an actor or with an actor in the same space as the task collection.`,
+                },
             );
         }
 
@@ -832,7 +852,7 @@ class TaskActionTransactionCommitState {
         // right before committing.
         assert(
             this._context.actor.type === "Bot" ||
-                this._providedActorIdFromBot !== actorIdFromContext,
+                this._providedActorIdFromBot === actorIdFromContext,
         );
 
         return {

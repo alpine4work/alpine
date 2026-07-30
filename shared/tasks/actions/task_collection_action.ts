@@ -1,4 +1,7 @@
-import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
+import {
+    CreateOrUpdateAccessPolicy,
+    CreateOrUpdateAccessPolicySchema,
+} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -23,8 +26,11 @@ export type TaskCollectionCreateAction = SchemaType<typeof TaskCollectionCreateA
 const TaskCollectionCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
     creator: Schema.object({
-        accountId: Schema.id<AccountId>(),
-        from: TaskActorFromSchema.nullable(),
+        // For some reason `accountId` was set to be `nullable()` when
+        // `wrapOriginalPropertyInObject()` was added. That means we need to keep it as
+        // nullable. We use a `transform()` below to fix the type.
+        accountId: Schema.id<AccountId>().nullable().default(null),
+        from: TaskActorFromSchema.nullable().default(null),
     })
         .wrapOriginalPropertyInObject("accountId", {from: null})
         .nullable()
@@ -33,23 +39,23 @@ const TaskCollectionCreateActionSchema = Schema.object({
         .originalPropertyKey("creatorId"),
     name: LabelStringSchema,
     accessPolicy: CreateOrUpdateAccessPolicySchema,
+}).transform<{
+    readonly type: "Create";
+    readonly creator: TaskCreator | null;
+    readonly name: string;
+    readonly accessPolicy: CreateOrUpdateAccessPolicy;
+}>({
+    serialize: action => action,
+    deserialize: action => {
+        return {
+            ...action,
+            creator:
+                action.creator === null || action.creator.accountId === null
+                    ? null
+                    : {accountId: action.creator.accountId, from: action.creator.from},
+        };
+    },
 });
-
-export function getTaskCollectionCreateActionCreator(action: {
-    readonly creator: {
-        readonly accountId: AccountId | null;
-        readonly from: TaskCreator["from"];
-    } | null;
-}): TaskCreator | null {
-    if (action.creator === null || action.creator.accountId === null) {
-        return null;
-    }
-
-    return {
-        accountId: action.creator.accountId,
-        from: action.creator.from,
-    };
-}
 
 /**
  * Deletes a task collection.

@@ -9,10 +9,7 @@ import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskUpdateCollectionAction} from "~/shared/tasks/actions/task_action.js";
-import {
-    TaskCollectionCreateAction,
-    getTaskCollectionCreateActionCreator,
-} from "~/shared/tasks/actions/task_collection_action.js";
+import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {applyTaskCollectionActionToCollectionModelData} from "~/shared/tasks/model/apply_task_collection_action_to_collection_model_data.js";
 import {mergeTaskCollectionModelData} from "~/shared/tasks/model/merge_task_collection_model_data.js";
@@ -68,12 +65,11 @@ export class TaskCollectionModel {
         actionTime: HybridLogicalTime,
         action: TaskCollectionCreateAction,
     ) {
-        const creator = getTaskCollectionCreateActionCreator(action);
         return new TaskCollectionModel({
             spaceId,
             id: collectionId,
             createdTime: actionTime,
-            creator,
+            creator: action.creator,
             deletedTime: null,
             undeletedTime: null,
             name: new LabelStringRegister(action.name, actionTime),

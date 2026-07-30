@@ -1,5 +1,4 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
-import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {fromApiThemeColor} from "~/shared/api/content/closed_source/from_api_theme_color.js";
 import {intoApiThemeColor} from "~/shared/api/content/closed_source/into_api_theme_color.js";
@@ -11,7 +10,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
-import {TaskActor} from "~/shared/tasks/task_creator.js";
 
 type TaskCollectionPatch = ApiSpecification.components["schemas"]["TaskCollectionPatch"];
 type ApiTaskCollectionColor = Extract<TaskCollectionPatch, {readonly type: "SetColor"}>["color"];
@@ -46,7 +44,7 @@ export async function updateTaskCollectionFromApi(
     const consistency = "StrongWithinCache" as const;
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const botAccountId = context.actor.getBotAccountId();
-    const actor = createApiTaskActor({actorId, botAccountId});
+    actorId ??= botAccountId;
 
     const initialCollection = await context.tasks.getCollection(spaceId, collectionId, {
         consistency,
@@ -59,11 +57,11 @@ export async function updateTaskCollectionFromApi(
         initialState,
         finalState,
         clock,
-        actor,
     });
 
     if (actions.length > 0) {
         await commitTaskActionTransaction(context, spaceId, actions, {
+            actorId,
             consistency,
             waitForProcessing: true,
         });
@@ -122,13 +120,11 @@ function createTaskCollectionPatchActions({
     initialState,
     finalState,
     clock,
-    actor,
 }: {
     collectionId: TaskCollectionId;
     initialState: TaskCollectionPatchState;
     finalState: TaskCollectionPatchState;
     clock: HybridLogicalClock;
-    actor: TaskActor;
 }): Array<TaskAction> {
     const actions: Array<TaskAction> = [];
 
@@ -141,7 +137,6 @@ function createTaskCollectionPatchActions({
         actions.push({
             type: "UpdateCollection",
             time: clock.now(),
-            actor,
             collectionId,
             collectionAction,
         });

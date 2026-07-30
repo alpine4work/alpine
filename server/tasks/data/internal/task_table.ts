@@ -128,7 +128,7 @@ const TaskActionTable = DynamoTableSchema.new({
                             // If this document was created by something else, on behalf of the account ID.
                             from: TaskActorFromSchema.nullable(),
                         })
-                            .wrapOriginalPropertyInObject("id", {from: null})
+                            .wrapOriginalPropertyInObject("accountId", {from: null})
                             .originalPropertyKey("actorId")
                             .nullable()
                             .default(null),
