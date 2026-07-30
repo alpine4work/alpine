@@ -17,12 +17,14 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
-import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
-import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {
+    useSearchEntityModel,
+    useSearchEntityRegistry,
+} from "~/client/web/search/core/search_entity_registry_context.js";
 import {updateSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {SearchAffinityEntityView} from "~/client/web/search/search_affinity_entity_view.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     feedViewSideBarPaddingX,
     feedViewSideBarSpaceNameFontSize,
@@ -38,6 +40,7 @@ import {
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -50,6 +53,7 @@ import {
     searchByAffinity,
     unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
+import {getSearchEntityPath} from "~/shared/search/path/get_search_entity_path.js";
 import {
     isSearchDynamicEntityId,
     parseSearchAffinityEntityId,
@@ -361,6 +365,7 @@ function FeedSearchAffinityView({
     const {space} = useSpaceContext();
     const activeContextMenuActions = useContextMenuActions();
     const peekStackContext = usePeekStackContext();
+    const entityData = useSearchEntityModel(result.model);
 
     const [isPendingNavigation, setIsPendingNavigation] = useState(false);
 
@@ -370,7 +375,7 @@ function FeedSearchAffinityView({
 
             const path = getSearchEntityPath({
                 spaceId: space.id,
-                entityId: result.id,
+                entityData,
                 randomSeed,
                 currentTime: new Date(),
                 routeLayout: "wide",
@@ -400,6 +405,14 @@ function FeedSearchAffinityView({
                         spaceId: space.id,
                         entityId: result.id,
                         interaction: {type: "HighIntentUpdate"},
+                        // We don't add afinity points to the site when user clicks on a search entity in
+                        // the sidebar. At click-time, the user doesn't know anything about the site the
+                        // entity may or may not belong to. Adding points to the site could potentially
+                        // lead to a suggested entity with which the user has never really interacted.
+                        //
+                        // The entity's own view-time affinity hook will fire once they land on it (with a
+                        // known siteId), so entity engagement within a site still cascades to the site.
+                        siteId: null,
                     }).catch(error => {
                         // Silently fail. This doesn't affect anything the user sees so we don't need to
                         // report the error to the user.
@@ -439,7 +452,7 @@ function FeedSearchAffinityView({
             onPress: async () => {
                 const path = getSearchEntityPath({
                     spaceId: space.id,
-                    entityId: result.id,
+                    entityData,
                     randomSeed,
                     currentTime: new Date(),
                     routeLayout: "wide",
@@ -455,7 +468,7 @@ function FeedSearchAffinityView({
             onPress: async () => {
                 const path = getSearchEntityPath({
                     spaceId: space.id,
-                    entityId: result.id,
+                    entityData,
                     randomSeed,
                     currentTime: new Date(),
                     routeLayout: "wide",
@@ -523,7 +536,7 @@ function FeedViewFavoritesHeaderSeeMoreButton() {
             runPromiseWithoutAwaiting(async () => {
                 setIsPending(true);
                 try {
-                    navigate(`/s/${space.id}/favorites`);
+                    navigate(`/favorites/${space.id}`);
                 } finally {
                     setIsPending(false);
                 }
@@ -563,10 +576,11 @@ function isSearchAffinityResultDirectChatOrAccount(
 
     if (entityType === "Chat" && result.model instanceof SearchEntityModel) {
         const entity = get(searchEntityRegistry.getEntityStore(result.model));
+        assert(entity.type === "Chat");
 
         // HACK: Room chats have a null `accountCount` whereas direct chats have an integer
         // `accountCount`. So check `accountCount === null` to tell if this is a room chat.
-        if (entity.media?.type === "AccountPile" && entity.media.accountCount !== null) {
+        if (entity.chat.media?.type === "AccountPile" && entity.chat.media.accountCount !== null) {
             return true;
         }
     }

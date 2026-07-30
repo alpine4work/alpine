@@ -11,7 +11,7 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     feedViewSideBarLeftFlex,
     feedViewSideBarRightFlex,
@@ -140,19 +140,19 @@ export function FeedView({
                     setFeed(feed => feed.loadMoreEntries(output));
                 }}
                 shouldBeConnectedToChannelRealtime={false}
-                onPostRealtimeEventTransaction={useCallback(
-                    eventTransaction => {
-                        setFeed(feed => feed.handleEventTransaction(eventTransaction));
+                onPostRealtimeEvents={useCallback(
+                    events => {
+                        setFeed(feed => feed.handleEvents(events));
                     },
                     [setFeed],
                 )}
-                onOptimisticPostRealtimeEventTransaction={useCallback(
+                onOptimisticPostRealtimeEvents={useCallback(
                     (promise, postId, update) => {
                         setFeedOptimistically(promise, (feed, promiseValue) => {
                             // Once `promise` resolves, use the event transaction from `promise` to update the
                             // posts instead of our optimistic updater.
                             if (promiseValue) {
-                                return feed.handleEventTransaction(promiseValue);
+                                return feed.handleEvents(promiseValue);
                             }
 
                             const oldPostItem = feed.getPostRealtimeItemIfExists(postId);
@@ -168,7 +168,7 @@ export function FeedView({
                                 model: newPost,
                             };
 
-                            return feed.handleEventTransaction([
+                            return feed.handleEvents([
                                 {type: "PutItem", item: newPostItem, indexes: new Map()},
                             ]);
                         });
@@ -184,7 +184,8 @@ export function FeedView({
                     sideBarLeftSize &&
                     sideBarRightSize && (
                         <Box
-                            zIndex="10"
+                            pointerEvents="none"
+                            zIndex="40"
                             position="sticky"
                             top="0"
                             width="full"

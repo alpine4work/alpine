@@ -9,19 +9,19 @@ import {
     OverlayTriggerButtonRef,
 } from "~/client/web/design/overlay_trigger_button.js";
 import {defaultTooltipOffset} from "~/client/web/design/tooltip.js";
-import {useDynamoGeneralRealtimeItem} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {useRynamoItem} from "~/client/web/dynamo/use_rynamo_item.js";
 import {inboxEntryWidth} from "~/client/web/inbox/inbox_entry_view.js";
 import {LoudNotificationBadgeSvg} from "~/client/web/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/web/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {
     SpaceLayoutSideBarInboxOverlay,
     spaceLayoutSideBarInboxOverlayHeight,
 } from "~/client/web/spaces/layout/internal/space_layout_side_bar_inbox_overlay.js";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/web/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/web/virtualized/virtualized_scroll_view_state.js";
@@ -33,14 +33,12 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getInboxEntries,
@@ -50,7 +48,7 @@ import {
 export function SpaceLayoutSideBarInboxButton({
     initialInbox,
 }: {
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    initialInbox: RynamoItem<InboxModel>;
 }) {
     const spacingScale = useSpacingScale();
     const currentTimeRoundedToNearestTenMinutes = useCurrentTimeRoundedToNearestTenMinutes();
@@ -69,10 +67,10 @@ export function SpaceLayoutSideBarInboxButton({
     // inefficient.
     assert(platform !== "mobile" && !isNativeMobile);
 
-    const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
+    const {item: inbox} = useRynamoItem(initialInbox, {
         isConnected,
         subscribeToEvents: useCallback(
-            subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+            subscriber => subscribeToEvents(event => subscriber(event.events)),
             [subscribeToEvents],
         ),
         reloadItemWithStrongReadConsistency: useCallback(async () => {
@@ -87,9 +85,9 @@ export function SpaceLayoutSideBarInboxButton({
               isVisible: true;
               isPending: boolean;
               isAnimatingOut: boolean;
-              filter: "New" | "Archive";
+              filter: InboxEntryStatus;
               initialEntriesResultPromise: PromiseImmediate<
-                  DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>
+                  RynamoIndexQueryResult<InboxEntryModel>
               >;
           }
     >({isVisible: false});
@@ -274,7 +272,7 @@ export function SpaceLayoutSideBarInboxButton({
                             onArchivePress={async () => {
                                 const {entriesResult} = await getInboxEntries(context, {
                                     spaceId: space.id,
-                                    filter: "Archive",
+                                    filter: "Done",
                                     limit: initialEntriesLimit,
                                     afterCursor: null,
                                 });
@@ -286,7 +284,7 @@ export function SpaceLayoutSideBarInboxButton({
                                         ...overlayState,
                                         isVisible: true,
                                         isPending: false,
-                                        filter: "Archive",
+                                        filter: "Done",
                                         initialEntriesResultPromise:
                                             PromiseImmediate.resolve(entriesResult),
                                     };

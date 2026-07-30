@@ -3,16 +3,10 @@ import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherit
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
-
-// TODO(#sites): I'm not quite sure what the correct share dialog looks when
-// viewing an entity within a site. For now, we've asserted that the task access
-// policy cannot be a site access policy, in the below explanations, but I'm not
-// sure that that will really be true.
 
 export function createTaskDetailViewInheritedAccessPolicyExplanations({
     space,
@@ -24,10 +18,6 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
     return {
         DeleteDefaultGrant: () => {
             const task = taskSubscription?.taskEntryStore.getSnapshot().task;
-            const taskAccessPolicy = task?.getAccessPolicy();
-            // We can't modify a site's access policy through one of its entities, so this just
-            // makes the impossible case, impossible.
-            assert(taskAccessPolicy?.type !== "Site");
 
             const collections = task?.getCollections().getArray() ?? emptyArray;
             const noun = task?.getLayout() === "Project" ? "project" : "task";
@@ -58,10 +48,6 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
         },
         SetDefaultGrantLevel: accessLevel => {
             const task = taskSubscription?.taskEntryStore.getSnapshot().task;
-            const taskAccessPolicy = task?.getAccessPolicy();
-            // We can't modify a site's access policy through one of its entities, so this just
-            // makes the impossible case, impossible.
-            assert(taskAccessPolicy?.type !== "Site");
 
             const collections = task?.getCollections().getArray() ?? emptyArray;
             const noun = task?.getLayout() === "Project" ? "project" : "task";
@@ -111,10 +97,6 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
         },
         DeleteUrlGrant: () => {
             const task = taskSubscription?.taskEntryStore.getSnapshot().task;
-            const taskAccessPolicy = task?.getAccessPolicy();
-            // We can't modify a site's access policy through one of its entities, so this just
-            // makes the impossible case, impossible.
-            assert(taskAccessPolicy?.type !== "Site");
 
             const collections = task?.getCollections().getArray() ?? emptyArray;
             const noun = task?.getLayout() === "Project" ? "project" : "task";
@@ -142,10 +124,6 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
         },
         DeleteAccountGrant: (accountId: AccountId) => {
             const task = taskSubscription?.taskEntryStore.getSnapshot().task;
-            const taskAccessPolicy = task?.getAccessPolicy();
-            // We can't modify a site's access policy through one of its entities, so this just
-            // makes the impossible case, impossible.
-            assert(taskAccessPolicy?.type !== "Site");
 
             const collections = task?.getCollections().getArray() ?? emptyArray;
             const noun = task?.getLayout() === "Project" ? "project" : "task";
@@ -181,10 +159,6 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
         },
         SetAccountGrantLevel: (accountId: AccountId, accessLevel) => {
             const task = taskSubscription?.taskEntryStore.getSnapshot().task;
-            const taskAccessPolicy = task?.getAccessPolicy();
-            // We can't modify a site's access policy through one of its entities, so this just
-            // makes the impossible case, impossible.
-            assert(taskAccessPolicy?.type !== "Site");
 
             const collections = task?.getCollections().getArray() ?? emptyArray;
             const noun = task?.getLayout() === "Project" ? "project" : "task";

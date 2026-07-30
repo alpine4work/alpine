@@ -19,7 +19,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {preloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     createWidgetPrimaryMenuBarItemBackgroundInsetY,
     createWidgetPrimaryMenuBarItemDesktopPaddingX,
@@ -310,9 +310,9 @@ export function CreateWidgetPrimaryMenuBar({
                     const documentId = generateId();
 
                     if (withRootNavigateToCreatedDocument) {
-                        await rootNavigate(`/s/${space.id}/documents/${documentId}?create&focus`);
+                        await rootNavigate(`/doc/${documentId}?create=${space.id}&focus`);
                     } else {
-                        await navigate(`/s/${space.id}/documents/${documentId}?create&focus`);
+                        await navigate(`/doc/${documentId}?create=${space.id}&focus`);
                     }
                 }}
             />
@@ -328,7 +328,7 @@ export function CreateWidgetPrimaryMenuBar({
                 pressErrorTitle="Couldn&#x2019;t create task"
                 onPress={async () => {
                     const taskId = generateId();
-                    await navigate(`/s/${space.id}/tasks/${taskId}?create&focus`);
+                    await navigate(`/task/${taskId}?create=${space.id}&focus`);
                 }}
             />
             <CreateWidgetPrimaryMenuBarItem
@@ -343,7 +343,7 @@ export function CreateWidgetPrimaryMenuBar({
                 pressErrorTitle="Couldn&#x2019;t create post"
                 onPress={async () => {
                     const draftId = generateChronologicalId();
-                    await navigate(`/s/${space.id}/posts/new/${draftId}?focus=content`);
+                    await navigate(`/post/new/${draftId}/${space.id}?focus=content`);
                 }}
             />
             <CreateWidgetPrimaryMenuBarItem
@@ -363,7 +363,7 @@ export function CreateWidgetPrimaryMenuBar({
                     // all space accounts before.
                     preloadRpc(context, expensivelyGetAllSpaceAccounts, {spaceId: space.id});
 
-                    await navigate(`/s/${space.id}/chat/new?focus=picker`);
+                    await navigate(`/chat/new/${space.id}?focus=picker`);
                 }}
             />
         </Box>

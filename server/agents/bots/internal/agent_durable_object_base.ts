@@ -191,7 +191,7 @@ export abstract class AgentDurableObjectBase<
         const [route, routeObject]: [string, Route | "Webhook"] =
             url.pathname === "/webhook" ? ["/webhook", "Webhook"] : this._parseRoute(url);
 
-        return traceServerResponse(
+        return await traceServerResponse(
             this._tracer.get(),
             request,
             url,
@@ -205,9 +205,9 @@ export abstract class AgentDurableObjectBase<
                         },
                         async actionContext => {
                             if (routeObject === "Webhook") {
-                                return this._fetchWebhook(actionContext, request, url, span);
+                                return await this._fetchWebhook(actionContext, request, url, span);
                             } else {
-                                return this._fetch(actionContext, request, routeObject, span);
+                                return await this._fetch(actionContext, request, routeObject, span);
                             }
                         },
                     );
@@ -360,7 +360,7 @@ export abstract class AgentDurableObjectBase<
                     callback: (span: TracerSpan) => Promise<T>,
                 ): Promise<T> => {
                     if (scheduledEvent.tracerPropagationContext) {
-                        return this._tracer
+                        return await this._tracer
                             .get()
                             .withSpanFromPropagationContext(
                                 quote`Executing scheduled event ${scheduledEvent.type}`,
@@ -368,7 +368,7 @@ export abstract class AgentDurableObjectBase<
                                 callback,
                             );
                     } else {
-                        return this._tracer
+                        return await this._tracer
                             .get()
                             .withSpan(
                                 quote`Executing scheduled event ${scheduledEvent.type}`,

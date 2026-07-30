@@ -3,7 +3,6 @@ import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentReferences, ContentWithReferences} from "~/shared/content/content_references.js";
 import {
     printContentSingleLineTextSnippet,
@@ -12,6 +11,7 @@ import {
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {AccountId, FileId} from "~/shared/id/types/id_types.js";
+import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -85,21 +85,17 @@ export function getContentReferencesForClientPrintSingleLineTextSnippet(
             if (entity.isPrivate) return entity;
 
             const entityData = get(searchEntityRegistry.getEntityStore(entity.entity));
-            const entityDataMedia = entityData.media;
+
+            const author = getAuthorFromSearchEntityIfExists(entityData);
 
             return {
                 isPrivate: false,
                 title: entityData.title,
-                getAccountMediaShortName:
-                    entityDataMedia?.type === "Account"
-                        ? () => {
-                              const accountData = get(
-                                  accountRegistry.getAccountStore(entityDataMedia.account),
-                              );
-
-                              return getAccountShortNameWithoutFullNameTooltip(accountData);
-                          }
-                        : null,
+                getAuthorData: author
+                    ? () => {
+                          return get(accountRegistry.getAccountStore(author));
+                      }
+                    : null,
             };
         },
         getFileIfExists: fileId => {

@@ -8,16 +8,20 @@ import {
 } from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_file_entity.js";
 import {scrollLocatorToBottom} from "~/app/screenshot_tests/helpers/scroll_locator_to_bottom.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
     refreshTaskCollectionIndexForTest,
     refreshTaskIndexForTest,
 } from "~/server/tasks/data/task_index.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -26,6 +30,8 @@ import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort
 
 const personalScreenshotTime = new Date("2025-10-01T13:00:00Z");
 const sprintScreenshotTime = new Date("2025-10-08T13:00:00Z");
+
+const mobileViewport = {width: 390, height: 844};
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     async function waitForTaskIndex() {
@@ -36,6 +42,10 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             refreshTaskIndexForTest(context),
             refreshTaskCollectionIndexForTest(context),
         ]);
+    }
+
+    async function openCollectionMoreMenu() {
+        await runner.getByRole("button", {name: "More"}).last().click();
     }
 
     const {space, accounts} = await runner.createDemoSpace(context);
@@ -83,7 +93,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         return {loadingCollection, loadingTask};
     })();
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks`, {
+    await runner.goto(accounts.cassCade, `/my-tasks/${space.id}`, {
         fixedTime: personalScreenshotTime,
     });
     await runner.screenshot("a0", "personal-empty");
@@ -93,7 +103,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await createPersonalTasks(accounts.cassCade, collections);
     await waitForTaskIndex();
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks`, {
+    await runner.goto(accounts.cassCade, `/my-tasks/${space.id}`, {
         fixedTime: personalScreenshotTime,
     });
     await runner.screenshot("a1", "personal");
@@ -106,23 +116,19 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await waitForTaskIndex();
 
     {
-        const searchParams = new URLSearchParams();
-        searchParams.set(
-            "create",
-            serializeTaskQueryFiltersSearchParam([
-                {type: "Layout", operation: {type: "OneOf", layouts: ["Project"]}},
-            ]),
-        );
+        const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
+            {type: "Layout", operation: {type: "OneOf", layouts: ["Project"]}},
+        ]);
 
         await runner.goto(
             accounts.cassCade,
-            `/s/${space.id}/tasks/${generateId<TaskId>()}?${searchParams.toString()}`,
+            `/task/${generateId<TaskId>()}?create=${space.id}+${filtersSearchParam}`,
             {fixedTime: sprintScreenshotTime},
         );
         await runner.screenshot("a2", "project-new");
     }
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
+    await runner.goto(accounts.cassCade, `/task/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.getByText("2/3").first().click();
@@ -130,7 +136,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.mouse.move(0, 0);
     await runner.screenshot("a3", "project");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
+    await runner.goto(accounts.cassCade, `/task/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
         viewport: "wide",
     });
@@ -141,7 +147,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     await runner.screenshot("a3G", "project-wide");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
+    await runner.goto(accounts.cassCade, `/task/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
         viewport: {
             // Copied directly from `getTaskWideProjectLayoutScaleFromWindowWidth()` since
@@ -157,9 +163,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     await runner.screenshot("a3V", "project-narrow");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
+    await runner.goto(accounts.cassCade, `/task/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
-        peekPath: `/s/${space.id}/tasks/${featuredProjectTask.id}`,
+        peekPath: `/task/${featuredProjectTask.id}`,
     });
 
     // Should be visible since we persist the grid view expansion state (modified for
@@ -169,22 +175,22 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.screenshot("a4", "task-peek");
 
     {
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: sprintScreenshotTime,
-            peekPath: `/s/${space.id}/tasks/${generateId<TaskId>()}?create`,
+            peekPath: `/task/${generateId<TaskId>()}?create=${space.id}`,
         });
         await runner.screenshot("a5", "task-new");
     }
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${featuredProjectTask.id}`, {
+    await runner.goto(accounts.cassCade, `/task/${featuredProjectTask.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.screenshot("a6", "task");
 
-    await createSprintTasksAndBugTasks(accounts, collections);
+    const {featuredBugTask} = await createSprintTasksAndBugTasks(accounts, collections);
     await waitForTaskIndex();
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/view`, {
+    await runner.goto(accounts.cassCade, `/task-view/new/${space.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.screenshot("a7", "query-empty");
@@ -222,25 +228,182 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
         await runner.goto(
             accounts.cassCade,
-            `/s/${space.id}/tasks/view?${searchParams.toString()}`,
+            `/task-view/new/${space.id}?${searchParams.toString()}`,
             {fixedTime: sprintScreenshotTime},
         );
     }
     await runner.screenshot("a8", "query");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+    await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
         fixedTime: sprintScreenshotTime,
-        peekPath: `/s/${space.id}/tasks/collections/${generateId()}?create`,
+        peekPath: `/task-collection/${generateId()}?create=${space.id}`,
     });
     await runner.screenshot("a9", "collection-new");
 
-    const bugsPath = `/s/${space.id}/tasks/collections/${collections.bugs.id}`;
+    const bugsPath = `/task-collection/${collections.bugs.id}`;
 
     await runner.goto(accounts.cassCade, bugsPath, {fixedTime: sprintScreenshotTime});
     await runner.screenshot("aA", "collection");
 
+    {
+        // Default filters/sorts: Cass filters the Bugs collection down to open bugs sorted
+        // by priority and saves that customization as the collection default. Restores the
+        // collection's defaults and access policy at the end so the screenshots below are
+        // unaffected.
+        const bugsSearchParams = new URLSearchParams();
+        bugsSearchParams.set(
+            "filter",
+            serializeTaskQueryFiltersSearchParam([
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: new Set(["High", "Medium"]),
+                    },
+                },
+            ]),
+        );
+
+        await runner.goto(accounts.cassCade, `${bugsPath}?${bugsSearchParams.toString()}`, {
+            fixedTime: sprintScreenshotTime,
+        });
+        // The more menu shows an asterisk since these filters/sorts differ from the
+        // collection's (empty) defaults.
+        await runner.getByRole("button", {name: "More"}).last().waitFor();
+        await runner.screenshot("aA1", "collection-filtered");
+
+        await openCollectionMoreMenu();
+        await runner.getByText("The current filters are only visible to you.").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA2", "collection-filtered-more-menu");
+
+        await runner.getByRole("menuitem", {name: "Save as default filters"}).click();
+
+        // The save commits over the browser's realtime connection. Wait until it lands on
+        // the server before loading the collection again.
+        while ((await collections.bugs.getItem()).defaults.value.filters.length === 0) {
+            await wait(50);
+        }
+
+        // Opening the collection without any filters/sorts in the URL applies the saved
+        // defaults. The more menu has no asterisk since nothing is customized.
+        await runner.goto(accounts.cassCade, bugsPath, {fixedTime: sprintScreenshotTime});
+        await runner.getByText("Filter:").waitFor();
+        await runner.screenshot("aA3", "collection-filtered-default");
+
+        // Mason can edit the Bugs collection but not manage it. When he customizes the
+        // filters the more menu tells him the changes are only visible to him and only
+        // offers a reset.
+        const oldBugsAccessPolicyForDefaults = await collections.bugs.access.get();
+        assert(oldBugsAccessPolicyForDefaults.type === "Local");
+        await collections.bugs.access.grantDefault(accounts.cassCade, "Edit");
+
+        bugsSearchParams.set(
+            "filter",
+            serializeTaskQueryFiltersSearchParam([
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["Medium", "Low"])},
+                },
+            ]),
+        );
+
+        await runner.goto(accounts.masonClay, `${bugsPath}?${bugsSearchParams.toString()}`, {
+            fixedTime: sprintScreenshotTime,
+        });
+        await openCollectionMoreMenu();
+        await runner.getByText("The current filters are only visible to you.").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA4", "collection-filtered-not-manager");
+
+        await collections.bugs.access.set(accounts.cassCade, oldBugsAccessPolicyForDefaults);
+        await collections.bugs.updateDefaults(accounts.cassCade, {filters: [], sorts: []});
+    }
+
+    {
+        // Default filters/sorts on mobile: Cass filters the Bugs collection on a
+        // phone-sized viewport so the more menu shows an asterisk, then opens its menu. As
+        // with the desktop block above, restore the access policy at the end so the
+        // screenshots that follow are unaffected.
+        const mobileBugsSearchParams = new URLSearchParams();
+        mobileBugsSearchParams.set(
+            "filter",
+            serializeTaskQueryFiltersSearchParam([
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: new Set(["High", "Medium"]),
+                    },
+                },
+            ]),
+        );
+        mobileBugsSearchParams.set(
+            "sort",
+            serializeTaskQuerySortsSearchParam([{type: "Priority", direction: "Descending"}]),
+        );
+
+        await runner.goto(accounts.cassCade, `${bugsPath}?${mobileBugsSearchParams.toString()}`, {
+            fixedTime: sprintScreenshotTime,
+            viewport: mobileViewport,
+        });
+        // The more menu shows an asterisk since these filters/sorts differ from the
+        // collection's (empty) defaults.
+        await runner.getByRole("button", {name: "More"}).last().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA5", "collection-filtered-mobile");
+
+        await openCollectionMoreMenu();
+        await runner.getByText("The current filters/sorts are only visible to you.").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA6", "collection-filtered-more-menu-mobile");
+
+        // Mason can edit the Bugs collection but not manage it. On mobile his more menu
+        // also only offers a reset and tells him the customization is only visible to him.
+        const oldBugsAccessPolicyForMobileDefaults = await collections.bugs.access.get();
+        assert(oldBugsAccessPolicyForMobileDefaults.type === "Local");
+        await collections.bugs.access.grantDefault(accounts.cassCade, "Edit");
+
+        await runner.goto(accounts.masonClay, `${bugsPath}?${mobileBugsSearchParams.toString()}`, {
+            fixedTime: sprintScreenshotTime,
+            viewport: mobileViewport,
+        });
+        await openCollectionMoreMenu();
+        await runner.getByText("The current filters/sorts are only visible to you.").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA7", "collection-filtered-not-manager-mobile");
+
+        await collections.bugs.access.set(accounts.cassCade, oldBugsAccessPolicyForMobileDefaults);
+    }
+
+    // Reuse the `Tables` project task and the `Bugs` collection (which already has
+    // tasks) for their in-site previews. `screenshotFileEntity` screenshots each
+    // standalone, adds it to the site, screenshots it in-site, then removes it. This
+    // runs after the url-grant screenshots above because the cycle mutates the
+    // originals' access policy.
+    //
+    // The site is named "Q4 Planning" (the planning workspace the Tables project lives
+    // in) rather than "Tables" so the breadcrumb doesn't read "Tables › Tables".
+    const tablesProjectSite = await TestSite.create(accounts.cassCade, {
+        name: "Q4 Planning",
+        access: "Public",
+    });
+
+    const [oldBugsCollectionAccessPolicy, oldProjectTaskAccessPolicy] = await runAllPromises([
+        collections.bugs.access.get(),
+        projectTask.access.get(),
+    ]);
+
+    assert(oldProjectTaskAccessPolicy.type === "Local");
+    assert(oldBugsCollectionAccessPolicy.type === "Local");
+
     await screenshotFileEntity(runner, accounts.cassCade, "aA", "aB", `Task:${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
+        siteOptions: {
+            site: tablesProjectSite,
+            revertAccessPolicy: () =>
+                projectTask.access.set(accounts.cassCade, oldProjectTaskAccessPolicy),
+        },
     });
 
     await screenshotFileEntity(
@@ -249,13 +412,20 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         "aB",
         "aC",
         `TaskCollection:${collections.bugs.id}`,
-        {fixedTime: sprintScreenshotTime},
+        {
+            fixedTime: sprintScreenshotTime,
+            siteOptions: {
+                site: tablesProjectSite,
+                revertAccessPolicy: () =>
+                    collections.bugs.access.set(accounts.cassCade, oldBugsCollectionAccessPolicy),
+            },
+        },
     );
 
     await projectTask.access.grantUrl(accounts.cassCade);
     await collections.bugs.access.grantUrl(accounts.cassCade);
 
-    await runner.goto(null, `/s/${space.id}/tasks/${projectTask.id}`, {
+    await runner.goto(null, `/task/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.getByText("2/3").first().click();
@@ -273,12 +443,12 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     await runner.screenshot("aD", "task-peek-url-grant");
 
-    await runner.goto(null, `/s/${space.id}/tasks/${featuredProjectTask.id}`, {
+    await runner.goto(null, `/task/${featuredProjectTask.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.screenshot("aE", "task-url-grant");
 
-    await runner.goto(null, `/s/${space.id}/tasks/collections/${collections.bugs.id}`, {
+    await runner.goto(null, `/task-collection/${collections.bugs.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.screenshot("aF", "collection-url-grant");
@@ -287,7 +457,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await collections.bugs.access.revokeUrl(accounts.cassCade);
 
     {
-        await runner.goto(accounts.masonClay, `/s/${space.id}/tasks/${projectTask.id}`, {
+        await runner.goto(accounts.masonClay, `/task/${projectTask.id}`, {
             fixedTime: sprintScreenshotTime,
             allowPauseNetwork: true,
         });
@@ -300,23 +470,350 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
         const {loadingCollection, loadingTask} = await loadingCollectionAndTaskPromise;
 
-        await runner.goto(
-            accounts.masonClay,
-            `/s/${space.id}/tasks/collections/${loadingCollection.id}`,
-            {allowPauseNetwork: true},
-        );
+        await runner.goto(accounts.masonClay, `/task-collection/${loadingCollection.id}`, {
+            allowPauseNetwork: true,
+        });
         await runner.pauseNetwork();
         await scrollLocatorToBottom(runner.getByTestId("TaskCollectionScrollView"), {
             withExpectedScrollHeightChange: true,
         });
         await runner.screenshot("aH", "tasks-loading");
 
-        await runner.goto(accounts.masonClay, `/s/${space.id}/tasks/${loadingTask.id}`, {
+        await runner.goto(accounts.masonClay, `/task/${loadingTask.id}`, {
             allowPauseNetwork: true,
         });
         await runner.pauseNetwork();
         await scrollLocatorToBottom(runner.getByTestId("TaskDetailScrollView"));
         await runner.screenshot("aI", "task-see-more");
+    }
+
+    {
+        // Subtask file-entity previews, covering two site-membership cases (both reuse
+        // `tablesProjectSite` so the subtasks share the same "Q4 Planning" site as the
+        // root task and collection previews above):
+        //
+        // - Variant 2: subtask whose root parent is in the same site — site breadcrumb
+        //   shown above the parent task breadcrumb.
+        // - Variant 3: subtask in a site whose root parent is NOT in that site — site
+        //   breadcrumb hidden (the chain would otherwise misrepresent the root's access
+        //   policy); parent task breadcrumb only.
+
+        // Variant 2: root + subtask both in `tablesProjectSite`.
+        const rootInSubtaskSite = await TestTask.create(accounts.cassCade, {
+            title: "Tables",
+            assignee: accounts.masonClay,
+            assigneeStatus: "Active",
+            layout: "Project",
+            priority: "High",
+        });
+        await tablesProjectSite.addEntity(accounts.cassCade, {
+            entityId: `Task:${rootInSubtaskSite.id}`,
+            parentId: tablesProjectSite.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+        const subtaskWithRootInSite = await TestTask.create(accounts.cassCade, {
+            title: "Keyboard navigation between cells",
+            parent: rootInSubtaskSite,
+            assignee: accounts.masonClay,
+            assigneeStatus: "Active",
+            priority: "High",
+        });
+
+        // Variant 3: subtask in `tablesProjectSite`, root parent stays `Local`.
+        const rootNotInSubtaskSite = await TestTask.create(accounts.cassCade, {
+            title: "Tables",
+            assignee: accounts.masonClay,
+            assigneeStatus: "Active",
+            layout: "Project",
+            priority: "High",
+        });
+        const subtaskInSiteWithRootNotInSite = await TestTask.create(accounts.cassCade, {
+            title: "Keyboard navigation between cells",
+            parent: rootNotInSubtaskSite,
+            assignee: accounts.masonClay,
+            assigneeStatus: "Active",
+            priority: "High",
+        });
+        await tablesProjectSite.addEntity(accounts.cassCade, {
+            entityId: `Task:${subtaskInSiteWithRootNotInSite.id}`,
+            parentId: tablesProjectSite.initialRootContainerId,
+            orderKey: assertOrderKey("a2"),
+        });
+
+        // Variant 2 — subtask whose root parent is in the same site (site breadcrumb shown
+        // above the parent task breadcrumb).
+        await screenshotFileEntity(
+            runner,
+            accounts.cassCade,
+            "aZc",
+            "aZd",
+            `Task:${subtaskWithRootInSite.id}`,
+            {
+                fixedTime: sprintScreenshotTime,
+                namePrefix: "subtask-file-entity",
+                // The subtask is already in `tablesProjectSite`, so the preview shows the site
+                // breadcrumb without the helper's add/remove cycle.
+                siteOptions: {
+                    site: tablesProjectSite,
+                    // We don't do anything else with this task, so no need to revert.
+                    revertAccessPolicy: () => Promise.resolve(),
+                },
+            },
+        );
+
+        // Variant 3 — named to make the "in site, root not in site" condition explicit.
+        await screenshotFileEntity(
+            runner,
+            accounts.cassCade,
+            "aZd",
+            "aZe",
+            `Task:${subtaskInSiteWithRootNotInSite.id}`,
+            {
+                fixedTime: sprintScreenshotTime,
+                namePrefix: "subtask-file-entity-in-site-without-root-in-site",
+                // The subtask is already in `tablesProjectSite`, so the preview shows the site
+                // breadcrumb without the helper's add/remove cycle.
+                siteOptions: {
+                    site: tablesProjectSite,
+                    // We don't do anything else with this task, so no need to revert.
+                    revertAccessPolicy: () => Promise.resolve(),
+                },
+            },
+        );
+    }
+
+    {
+        // Task peek previews (project task)
+        const projectTaskOldAccessPolicy = await projectTask.access.get();
+        assert(projectTaskOldAccessPolicy.type === "Local");
+
+        // Open peeks against `/dev/empty` so the surrounding chrome is plain and the
+        // screenshot focuses on the entity peek under test rather than whatever's on the
+        // inbox page.
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/task/${projectTask.id}`,
+        });
+        await runner.getByText("Tables").first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b00", "project-task-peek");
+
+        // Same peek, scrolled — once the in-page header scrolls out the nav bar takes over
+        // the entity title (and the supratitle / chip carries the site).
+        await runner.getByTestId("TaskDetailScrollView").evaluate(element => {
+            element.scrollTop = 400;
+        });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b00S", "project-task-peek-scrolled");
+
+        const site = await TestSite.create(accounts.cassCade, {
+            name: "FY2026 Q3 Projects",
+            access: "Public",
+        });
+
+        await site.addEntity(accounts.cassCade, {
+            entityId: `Task:${projectTask.id}`,
+            parentId: site.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        await runner.services.waitForSqsProcessJobs();
+
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/task/${projectTask.id}`,
+        });
+        await runner.getByText("Tables").first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b01", "project-task-peek-in-site");
+
+        // Same peek, scrolled — once the in-page header scrolls out the nav bar takes over
+        // the entity title (and the supratitle / chip carries the site).
+        await runner.getByTestId("TaskDetailScrollView").evaluate(element => {
+            element.scrollTop = 400;
+        });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b01S", "project-task-peek-in-site-scrolled");
+
+        await site.removeEntity(accounts.cassCade, `Task:${projectTask.id}`);
+        await projectTask.access.set(accounts.cassCade, projectTaskOldAccessPolicy);
+    }
+
+    {
+        // Task peek previews (regular task)
+        const featuredBugTaskOldAccessPolicy = await featuredBugTask.access.get();
+        assert(featuredBugTaskOldAccessPolicy.type === "Local");
+
+        // Open peeks against `/dev/empty` so the surrounding chrome is plain and the
+        // screenshot focuses on the entity peek under test rather than whatever's on the
+        // inbox page.
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/task/${featuredBugTask.id}`,
+        });
+        await runner
+            .getByText("App crashes if user has deleted a previously-favorited task")
+            .first()
+            .waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b02", "regular-task-peek");
+
+        // Same peek, scrolled — once the in-page header scrolls out the nav bar takes over
+        // the entity title (and the supratitle / chip carries the site).
+        await runner.getByTestId("TaskDetailScrollView").evaluate(element => {
+            element.scrollTop = 400;
+        });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b02S", "regular-task-peek-scrolled");
+
+        const site = await TestSite.create(accounts.cassCade, {
+            name: "Incidents and Corrections of Error (COE)",
+            access: "Public",
+        });
+
+        await site.addEntity(accounts.cassCade, {
+            entityId: `Task:${featuredBugTask.id}`,
+            parentId: site.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        await runner.services.waitForSqsProcessJobs();
+
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/task/${featuredBugTask.id}`,
+        });
+        await runner
+            .getByText("App crashes if user has deleted a previously-favorited task")
+            .first()
+            .waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b03", "regular-task-peek-in-site");
+
+        // Same peek, scrolled — once the in-page header scrolls out the nav bar takes over
+        // the entity title (and the supratitle / chip carries the site).
+        await runner.getByTestId("TaskDetailScrollView").evaluate(element => {
+            element.scrollTop = 400;
+        });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b03S", "regular-task-peek-in-site-scrolled");
+
+        await site.removeEntity(accounts.cassCade, `Task:${featuredBugTask.id}`);
+        await featuredBugTask.access.set(accounts.cassCade, featuredBugTaskOldAccessPolicy);
+    }
+
+    {
+        // Collections peek
+        const oldBugsCollectionAccessPolicy = await collections.bugs.access.get();
+        assert(oldBugsCollectionAccessPolicy.type === "Local");
+
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/task-collection/${collections.bugs.id}`,
+        });
+        await runner.getByText("Bugs").first().waitFor();
+        await runner.mouse.move(0, 0);
+
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/task-collection/${collections.bugs.id}`,
+        });
+        await runner.getByText("Bugs").first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04", "task-collection-peek");
+
+        // Double click the collection name to open the inline name editor. Wait for the
+        // editor input to take focus so the focus ring and text selection are visible.
+        await runner
+            .getByTestId("PeekStackOverlay")
+            .getByRole("heading", {name: "Bugs"})
+            .dblclick();
+        await runner.getByPlaceholder("Bugs").and(runner.page.locator(":focus")).waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04E1", "task-collection-peek-name-editor");
+
+        // Replace the name then click away. Losing focus asks for confirmation instead of
+        // saving silently.
+        await runner.getByPlaceholder("Bugs").fill("Lorem ipsum");
+        await runner.getByTestId("TaskCollectionScrollView").first().click();
+        await runner.getByText("Save collection name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04E3", "task-collection-peek-name-editor-confirm-save");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByRole("heading", {name: "Bugs"}).waitFor();
+
+        // Same peek, scrolled — verifies the grown nav bar (chip + name + actions) stays
+        // anchored at the top while the task list scrolls beneath it.
+        await runner
+            .getByTestId("TaskCollectionScrollView")
+            .first()
+            .evaluate(element => {
+                element.scrollTop = 300;
+            });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04S", "task-collection-peek-scrolled");
+
+        const site = await TestSite.create(accounts.cassCade, {
+            name: "Operational Excellence",
+            access: "Public",
+        });
+
+        await site.addEntity(accounts.cassCade, {
+            entityId: `TaskCollection:${collections.bugs.id}`,
+            parentId: site.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        await runner.services.waitForSqsProcessJobs();
+
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/task-collection/${collections.bugs.id}`,
+        });
+        await runner.getByText("Bugs").first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b05", "task-collection-peek-in-site");
+
+        // Double click the collection name to open the inline name editor. Wait for the
+        // editor input to take focus so the focus ring and text selection are visible.
+        await runner
+            .getByTestId("PeekStackOverlay")
+            .getByRole("heading", {name: "Bugs"})
+            .dblclick();
+        await runner.getByPlaceholder("Bugs").and(runner.page.locator(":focus")).waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b05E1", "task-collection-peek-in-site-name-editor");
+
+        // Replace the name then click away. Losing focus asks for confirmation instead of
+        // saving silently.
+        await runner.getByPlaceholder("Bugs").fill("Lorem ipsum");
+        await runner.getByTestId("TaskCollectionScrollView").first().click();
+        await runner.getByText("Save collection name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b05E3", "task-collection-peek-in-site-name-editor-confirm-save");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByRole("heading", {name: "Bugs"}).waitFor();
+
+        // Same peek, scrolled — verifies the grown nav bar (chip + name + actions) stays
+        // anchored at the top while the task list scrolls beneath it.
+        await runner
+            .getByTestId("TaskCollectionScrollView")
+            .first()
+            .evaluate(element => {
+                element.scrollTop = 300;
+            });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b05S", "task-collection-peek-in-site-scrolled");
+
+        await site.removeEntity(accounts.cassCade, `TaskCollection:${collections.bugs.id}`);
+        await collections.bugs.access.set(accounts.cassCade, oldBugsCollectionAccessPolicy);
     }
 }
 
@@ -838,7 +1335,7 @@ the last tricky part because document position and visual line are not the same 
 wraps
             `,
             {
-                mattMention: `[](https://alpine.inc/s/${accounts.masonClay.space.id}/accounts/${accounts.mattRHorn.account.id}?mention=short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
             },
         ),
         {overrideCreatedTime: new Date("2025-10-06T14:18:00-04:00")},
@@ -1001,6 +1498,88 @@ async function createSprintTasksAndBugTasks(
         collections: bugs,
         priority: "Low",
     });
+    const featuredBugTask = await TestTask.create(accounts.cassCade, {
+        title: "App crashes if user has deleted a previously-favorited task",
+        collections: bugs,
+        priority: "Urgent",
+        dueDate: new CalendarDate(2025, 10, 10),
+        assignee: accounts.elleKappaTan,
+        notes: markdown`
+We noticed a significant rise in app crashes after refactoring our search logic. This is blocking a
+large number of users from using the App.
+        `,
+        status: "Open",
+        assigneeStatus: "Active",
+    });
+
+    {
+        await TestTask.create(accounts.cassCade, {
+            title: "Triage / Root Cause",
+            parent: featuredBugTask,
+            assignee: accounts.elleKappaTan,
+            status: "Closed",
+        });
+
+        await TestTask.create(accounts.cassCade, {
+            title: "Hot Fix",
+            parent: featuredBugTask,
+            assignee: accounts.elleKappaTan,
+            status: "Closed",
+        });
+
+        await TestTask.create(accounts.cassCade, {
+            title: "Schedule COE",
+            parent: featuredBugTask,
+            assignee: accounts.cassCade,
+            status: "Closed",
+        });
+
+        await TestTask.create(accounts.cassCade, {
+            title: "5 Why\u2019s",
+            parent: featuredBugTask,
+            assignee: accounts.elleKappaTan,
+            assigneeStatus: "Active",
+        });
+    }
+
+    await featuredBugTask.createComment(
+        accounts.cassCade,
+        markdown`
+I split this into the incident lane: triage, hot fix, COE, then 5 Why\u2019s. Let\u2019s keep the
+root cause tight and avoid turning the COE into a whole second project.
+        `,
+        {overrideCreatedTime: new Date("2025-10-08T09:16:00-04:00")},
+    );
+
+    await featuredBugTask.createComment(
+        accounts.elleKappaTan,
+        markdown`
+root cause is a bad assumption that all tasks in the index have a title.
+
+the search refactor asserted that assumption to make \u201Cimpossible cases actually
+impossible\u201D, but we missed that a null title is a valid state.
+        `,
+        {overrideCreatedTime: new Date("2025-10-08T09:31:00-04:00")},
+    );
+
+    const featuredBugTaskComment = await featuredBugTask.createComment(
+        accounts.hollyEvergreen,
+        markdown`
+Once the hot fix is out, send me the support-facing wording. I can fold it into the help center note
+so affected teams know refresh + retry is enough.
+        `,
+        {overrideCreatedTime: new Date("2025-10-08T10:04:00-04:00")},
+    );
+    await featuredBugTaskComment.setReaction(accounts.cassCade, "Yes");
+
+    await featuredBugTask.createComment(
+        accounts.cassCade,
+        markdown`
+Hot fix is live and the COE is on the calendar. Leaving 5 Why\u2019s active until we have the
+customer-impact count and know why the deleted-task fixture missed favorites.
+        `,
+        {overrideCreatedTime: new Date("2025-10-08T14:22:00-04:00")},
+    );
 
     await TestTask.create(accounts.cassCade, {
         title: "Slash menu opens on every keystroke after backslash",
@@ -1088,4 +1667,6 @@ async function createSprintTasksAndBugTasks(
         collections: bugs,
         priority: "Medium",
     });
+
+    return {featuredBugTask};
 }

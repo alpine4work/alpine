@@ -50,7 +50,7 @@ export async function getPostItemForAuthorizationIfExists(
     postId: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<PostItemForAuthorization | null> {
-    return PostItemAuthorizationCache.get(context, consistency, postId, consistency =>
+    return await PostItemAuthorizationCache.get(context, consistency, postId, consistency =>
         ForumRealtimeTable.getPartialItemIfExists(
             context,
             {

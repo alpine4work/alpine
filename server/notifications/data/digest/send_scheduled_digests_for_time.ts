@@ -20,7 +20,7 @@ export async function sendScheduledDigestsForTime(
     context: Context<{jobs: JobsContextModule} & Omit<ServerActionContextModules, "actor">>,
     digestTime: Date,
 ) {
-    return context.tracer.withSpan(
+    return await context.tracer.withSpan(
         "Send scheduled notification digests for time",
         async (context, span) => {
             const sendTime = serializeScheduleDateTime(digestTime);

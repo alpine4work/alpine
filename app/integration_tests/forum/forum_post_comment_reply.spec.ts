@@ -17,6 +17,9 @@ const session2 = createTestSession(context, space);
 async function tapSendComment(page: Page) {
     await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
 
+    // Blur the comment input so the on-screen keyboard dismisses before we tap.
+    await page.getByRole("textbox", {name: "New comment"}).blur();
+
     // Make sure the keyboard toolbar isn't animating when we tap.
     await (await page
         .getByRole("button", {name: "Send comment"})
@@ -55,7 +58,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     const replyToTestId = async (testId: string) => {
         const message = page.getByTestId(testId).getByTestId("MessageViewContent");
@@ -231,7 +234,7 @@ test("clicking a reply will scroll to the comment", async ({page, context: brows
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     // Scroll through all messages...
     for (let i = 0; i < 101; i++) {

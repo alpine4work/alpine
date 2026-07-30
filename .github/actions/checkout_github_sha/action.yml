@@ -1,0 +1,49 @@
+name: "Checkout GitHub SHA"
+description: "Syncs a prewarmed GitHub Actions workspace to the current job SHA."
+inputs:
+    github-token:
+        description: "GitHub token used to fetch the workflow commit."
+        required: true
+
+runs:
+    using: "composite"
+    steps:
+        - name: Checkout GitHub SHA
+          shell: bash
+          env:
+              GITHUB_TOKEN: ${{ inputs.github-token }}
+          run: |
+              set -euo pipefail
+
+              workspace="${GITHUB_WORKSPACE:?}"
+              repository="${GITHUB_REPOSITORY:?}"
+              sha="${GITHUB_SHA:?}"
+
+              mkdir -p "$workspace"
+              cd "$workspace"
+
+              git config --global --add safe.directory "$workspace"
+
+              if [ ! -d .git ]; then
+                  git init
+              fi
+
+              if git remote get-url origin >/dev/null 2>&1; then
+                  git remote set-url origin "https://github.com/$repository.git"
+              else
+                  git remote add origin "https://github.com/$repository.git"
+              fi
+
+              auth_header="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
+              if ! git \
+                  -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth_header" \
+                  fetch --no-tags --prune --depth=1 origin "$sha"; then
+                  git \
+                      -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth_header" \
+                      fetch --no-tags --prune --depth=50 origin \
+                      "+${GITHUB_REF:?}:refs/remotes/origin/github-actions-target"
+              fi
+
+              git checkout --force --detach "$sha"
+              git reset --hard "$sha"
+              git clean -ffdx

@@ -15,7 +15,7 @@ import {ShareNotificationMobileModal} from "~/client/web/navigation/share_notifi
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,

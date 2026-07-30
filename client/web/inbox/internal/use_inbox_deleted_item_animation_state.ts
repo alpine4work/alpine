@@ -4,8 +4,8 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {VirtualizedScrollViewRef} from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 
@@ -19,7 +19,7 @@ export function useInboxDeletedItemAnimationState({
     itemsDeletedByLastChangeForAnimation: ReadonlyArray<{
         index: number;
         cursor: DynamoIndexCursor;
-        item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+        item: RynamoItem<InboxEntryModel>;
     }>;
 }) {
     const spacingScale = useSpacingScale();
@@ -31,7 +31,7 @@ export function useInboxDeletedItemAnimationState({
                 readonly deletedItem: {
                     readonly index: number;
                     readonly cursor: DynamoIndexCursor;
-                    readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+                    readonly item: RynamoItem<InboxEntryModel>;
                 };
             };
             readonly queuedAnimations: ReadonlyArray<{
@@ -39,14 +39,14 @@ export function useInboxDeletedItemAnimationState({
                 readonly deletedItem: {
                     readonly index: number;
                     readonly cursor: DynamoIndexCursor;
-                    readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+                    readonly item: RynamoItem<InboxEntryModel>;
                 };
             }>;
         } | null;
         readonly finishedAnimations: ReadonlySet<{
             readonly index: number;
             readonly cursor: DynamoIndexCursor;
-            readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+            readonly item: RynamoItem<InboxEntryModel>;
         }>;
     }>({
         activeAnimations: null,

@@ -2,8 +2,11 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {ServerMinimalAccountActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
+import {getSiteAttributeUpdateTransaction} from "~/server/sites/data/internal/get_site_attribute_update_transaction.js";
 import {
     SiteTreeItem,
     getSiteTreeForUpdate,
@@ -13,7 +16,7 @@ import {
     SiteEntryItem,
     SitesTable,
 } from "~/server/sites/data/internal/sites_table.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -30,7 +33,7 @@ import {
     getSiteEntryKey,
     printSiteContainerId,
 } from "~/shared/sites/site_entry_id.js";
-import {isSiteItemContainer} from "~/shared/sites/site_entry_schema.js";
+import {isSiteEntryContainer} from "~/shared/sites/site_entry_schema.js";
 import {createParentItemNotFoundError} from "~/shared/sites/site_error_messages.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 import {SiteTreeBase} from "~/shared/sites/site_tree_base.js";
@@ -57,14 +60,14 @@ export async function moveSiteEntry(
               });
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const newParentId = item.newPosition.parentId;
     const newOrderKey = item.newPosition.orderKey;
 
-    return context.dynamo.retryTransaction(async () => {
+    return await context.dynamo.retryTransaction(async () => {
         const {siteTree, siteAttributesItem} = await getSiteTreeForUpdate(
             context,
             siteId,
@@ -97,7 +100,7 @@ export async function moveSiteEntry(
             //    From the server's perspective, the item is already in the new position. If it
             //    were to throw, the client's move from B back to A would fail.
             return {
-                getDynamoGeneralRealtimeEventTransaction: async () => [],
+                getRynamoEvents: async () => [],
             };
         }
 
@@ -106,25 +109,33 @@ export async function moveSiteEntry(
         validateSiteEntryMoveDoesNotIntroduceCycle(oldSiteEntry.item, newParentId, siteTree);
 
         const updateSiteAttributesEntry = createSiteAttributesItemUpdateTransactionEntry(
+            context,
             siteAttributesItem,
             item,
-            {
-                siteTree,
-            },
+            {siteTree},
         );
         const updateSiteItemEntry = createSiteEntryUpdateTransactionEntry(
             oldSiteEntry.item,
             item.newPosition,
         );
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+        await RynamoTableSchema.executeTransaction(context, [
             updateSiteAttributesEntry.transactionEntry,
             updateSiteItemEntry.transactionEntry,
         ]);
 
+        context.process.waitUntil(
+            markSearchAffinityEntityInteraction(context, {
+                spaceId: siteAttributesItem.spaceId,
+                entityId: `Site:${siteId}`,
+                interaction: {type: "LowIntentUpdate"},
+                siteId: null,
+            }),
+        );
+
         return {
-            getDynamoGeneralRealtimeEventTransaction: async (eventContext: ServerActionContext) =>
-                runAllPromises([
+            getRynamoEvents: async (eventContext: ServerActionContext) =>
+                await runAllPromises([
                     updateSiteAttributesEntry.getEvent(eventContext),
                     updateSiteItemEntry.getEvent(eventContext),
                 ]),
@@ -137,6 +148,7 @@ export async function moveSiteEntry(
  * tree and updates the site's `lastUpdatedTime`.
  */
 function createSiteAttributesItemUpdateTransactionEntry(
+    context: ServerMinimalAccountActionContext,
     siteAttributesItem: DynamoItem<SiteAttributesItem>,
     item:
         | (SiteSideBarSectionContainerIdObject & {
@@ -163,14 +175,7 @@ function createSiteAttributesItemUpdateTransactionEntry(
     );
     const newFirstEntityId = newTree.site.firstEntityId;
 
-    return SitesTable.transactionDirectlyUpdateItemWithEvent(
-        siteAttributesItem.update({
-            updatedTime: new Date(),
-            ...(newFirstEntityId !== siteAttributesItem.firstEntityId
-                ? {firstEntityId: newFirstEntityId}
-                : {}),
-        }),
-    );
+    return getSiteAttributeUpdateTransaction(context, siteAttributesItem, newFirstEntityId);
 }
 
 function createSiteEntryUpdateTransactionEntry(
@@ -194,7 +199,7 @@ function validateSiteEntryMoveDoesNotIntroduceCycle(
     newParentId: SiteContainerId,
     siteTree: SiteTreeBase<SiteTreeItem>,
 ) {
-    if (!isSiteItemContainer(entryToBeMoved)) return;
+    if (!isSiteEntryContainer(entryToBeMoved)) return;
 
     if (
         doesSiteEntryMoveIntroduceCycle(printSiteContainerId(entryToBeMoved), newParentId, siteTree)

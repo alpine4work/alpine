@@ -1,6 +1,12 @@
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
+import {authorizeTaskAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_access_if_possible.js";
+import {authorizeTaskCollectionAccess} from "~/server/tasks/data/authorization/authorize_task_collection_access.js";
+import {authorizeTaskCollectionAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_collection_access_if_possible.js";
+import {authorizeTaskQueryAccess} from "~/server/tasks/data/authorization/authorize_task_query_access.js";
+import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/backfill_task_action_transaction_history.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
@@ -8,14 +14,6 @@ import {
     TaskRealtimeProcessContext,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
-import {
-    authorizeTaskAccess,
-    authorizeTaskAccessIfPossible,
-    authorizeTaskCollectionAccess,
-    authorizeTaskCollectionAccessIfPossible,
-    authorizeTaskQueryAccess,
-    backfillTaskActionTransactionHistory,
-} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
 import {
     TaskRealtimeCollectionSubscription,
@@ -50,6 +48,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskQueryDefaults} from "~/shared/tasks/task_query_defaults.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
@@ -296,7 +295,7 @@ export class TaskRealtimeServer {
             return;
         }
 
-        return getOrSetDefaultMapValue(
+        return await getOrSetDefaultMapValue(
             this._backfillActionHistoryPromiseBySpaceId,
             spaceId,
             async () => {
@@ -369,7 +368,7 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, options.spaceId);
 
         const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
-        return store.loadQuery(context, options);
+        return await store.loadQuery(context, options);
     }
 
     public async subscribeToQuery(
@@ -408,7 +407,7 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, options.spaceId);
 
         const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
-        return store.subscribeToTask(context, eventBuilder, options);
+        return await store.subscribeToTask(context, eventBuilder, options);
     }
 
     public async subscribeToCollection(
@@ -427,7 +426,7 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, options.spaceId);
 
         const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
-        return store.subscribeToCollection(context, eventBuilder, options);
+        return await store.subscribeToCollection(context, eventBuilder, options);
     }
 
     public async applyActionTransaction(
@@ -504,7 +503,7 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, spaceId);
 
         const store = this._storeBySpaceId.getOrSetDefault(spaceId);
-        return store.getTask(context, taskId);
+        return await store.getTask(context, taskId);
     }
 
     /**
@@ -529,7 +528,7 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, spaceId);
 
         const store = this._storeBySpaceId.getOrSetDefault(spaceId);
-        return store.getCollection(context, collectionId);
+        return await store.getCollection(context, collectionId);
     }
 
     /**
@@ -652,8 +651,8 @@ export class TaskRealtimeServer {
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<void> {
-        const {spaceId: actualSpaceId} = await authorizeTaskCollectionAccess(
+    ): Promise<{defaults: TaskQueryDefaults}> {
+        const {spaceId: actualSpaceId, defaults} = await authorizeTaskCollectionAccess(
             context,
             collectionId,
             expectedAccessLevel,
@@ -669,6 +668,8 @@ export class TaskRealtimeServer {
                 "Tried loading `TaskCollectionId` with the wrong `SpaceId`",
             );
         }
+
+        return {defaults};
     }
 
     /**

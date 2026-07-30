@@ -142,7 +142,10 @@ class ChatRealtimeDurableObject {
                 throw new NotFoundError("Route not found");
             }
             case "Main": {
-                return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+                return await this._webSocketServer.upgrade(
+                    context.actor.authorizeSession(),
+                    request,
+                );
             }
             case "BroadcastNewMessage": {
                 if (request.method !== "POST") {

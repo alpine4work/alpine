@@ -47,7 +47,7 @@ async function main() {
 
 /* eslint-disable cyberworlds/string-quotes */
 
-import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
+import {DynamoTableSchemaTypes} from "~/server/dynamo/core/types/dynamo_table_schema_types.js";
 import {deserializeSchemaDescriptionFromJsonSafeValue} from "~/shared/schema/schema_description_json.js";
 
 // V8 suggests using \`JSON.parse()\` to speed up parsing time for objects of

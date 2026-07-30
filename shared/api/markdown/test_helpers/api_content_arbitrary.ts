@@ -1,5 +1,6 @@
 import fc, {Arbitrary, MaybeWeightedArbitrary} from "fast-check";
 import {produce} from "immer";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {apiContentInlineElementMarkTypeNormalizedOrder} from "~/shared/api/markdown/normalize_api_content.js";
@@ -60,6 +61,7 @@ import {
     DocumentId,
     FileId,
     PostId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
@@ -143,6 +145,11 @@ const ApiPreviewReferenceArbitraries = {
         id: createIdArbitrary<TaskCollectionId>(),
         title: ApiContentTextArbitrary,
     }),
+    Site: fc.record({
+        type: fc.constant("Site"),
+        id: createIdArbitrary<SiteId>(),
+        title: ApiContentTextArbitrary,
+    }),
 };
 
 export const ApiAccountReferenceArbitrary: fc.Arbitrary<ApiAccountReferenceResponse> = fc.record({
@@ -176,7 +183,6 @@ const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElemen
                     .tuple(ApiMentionReferenceArbitrary, fc.boolean())
                     .map(([referencePathObject, isAccountShortName]) =>
                         printApiMentionReferenceToMentionUrl(referencePathObject, {
-                            spaceId: apiContentArbitrarySpaceId,
                             isAccountShortName,
                         }),
                     ),
@@ -353,15 +359,25 @@ const ApiContentInlineElementArbitraryForSimpleTable =
         Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
     });
 
+// We don't really need to exercise content keys in the generative test.
+const ApiContentKeyArbitrary = fc.constant(
+    new ApiContentKeyEncoder({entityId: `Test`, version: 0}).encode({
+        pos: 0,
+        nodeSize: 0,
+    }),
+);
+
 const ApiContentParagraphBlockElementArbitrary: Arbitrary<ApiContentParagraphBlockElementResponse> =
     fc.record({
         type: fc.constant("Paragraph"),
+        key: ApiContentKeyArbitrary,
         elements: fc.array(ApiContentInlineElementArbitrary),
     });
 
 const ApiContentParagraphBlockElementArbitraryForSimpleTable: Arbitrary<ApiContentParagraphBlockElementResponse> =
     fc.record({
         type: fc.constant("Paragraph"),
+        key: ApiContentKeyArbitrary,
         elements: fc.array(ApiContentInlineElementArbitraryForSimpleTable),
     });
 
@@ -485,6 +501,7 @@ const ApiContentQuoteBlockElementArbitrary: Arbitrary<ApiContentQuoteBlockElemen
 const ApiContentHeadingBlockElementArbitrary: Arbitrary<ApiContentHeadingBlockElementResponse> =
     fc.record({
         type: fc.constant("Heading"),
+        key: ApiContentKeyArbitrary,
         level: fc.oneof(fc.constant(1), fc.constant(2), fc.constant(3)),
         elements: fc.array(ApiContentInlineElementArbitrary),
     });

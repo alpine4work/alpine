@@ -1,9 +1,11 @@
 import * as Y from "yjs";
 import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {generateId} from "~/shared/id/id.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 import {
     TaskTitle,
+    TaskTitleClientId,
     TaskTitleModel,
     TaskTitleProsemirrorSchema,
     TaskTitleUpdate,
@@ -13,19 +15,24 @@ import {
     createTaskTitleFromText,
     emptyTaskTitle,
     emptyTaskTitleModel,
+    generateTaskTitleClientIdFromRealmId,
+    generateTaskTitleClientIdFromRealmIdForTest,
     getTaskTitleProsemirrorNode,
     getTaskTitleProsemirrorNodeText,
     getTaskTitleText,
     isTaskTitle,
     mergeTaskTitleUpdates,
-    realmTaskTitleClientId,
     taskTitleMaxLength,
 } from "~/shared/tasks/title/task_title.js";
+
+const defaultTaskTitleClientId = generateTaskTitleClientIdFromRealmId({revertCount: 0});
 
 test("can get task title text", () => {
     expect(getTaskTitleText(emptyTaskTitle.get())).toEqual("");
     expect(getTaskTitleText(wordTaskTitleTestScenario.title4)).toEqual("Hello");
-    expect(getTaskTitleText(createTaskTitleFromText("abc123"))).toEqual("abc123");
+    expect(getTaskTitleText(createTaskTitleFromText(defaultTaskTitleClientId, "abc123"))).toEqual(
+        "abc123",
+    );
 });
 
 test("decoded empty task title is empty and has no client IDs", () => {
@@ -36,12 +43,17 @@ test("decoded empty task title is empty and has no client IDs", () => {
 });
 
 test("noop task title updates", () => {
-    expect(() => emptyTaskTitleModel.get().replace(0, 0, "")).toThrow(
+    expect(() => emptyTaskTitleModel.get().replace(defaultTaskTitleClientId, 0, 0, "")).toThrow(
         "Step must either delete or insert text",
     );
-    expect(() => new TaskTitleModel(wordTaskTitleTestScenario.title4).replace(2, 2, "")).toThrow(
-        "Step must either delete or insert text",
-    );
+    expect(() =>
+        new TaskTitleModel(wordTaskTitleTestScenario.title4).replace(
+            defaultTaskTitleClientId,
+            2,
+            2,
+            "",
+        ),
+    ).toThrow("Step must either delete or insert text");
 });
 
 test("can create task title updates", () => {
@@ -50,12 +62,12 @@ test("can create task title updates", () => {
     expect(title.getText()).toEqual("");
 
     {
-        const titleUpdate = title.replace(0, 0, "a");
+        const titleUpdate = title.replace(defaultTaskTitleClientId, 0, 0, "a");
 
         expect(Y.decodeUpdateV2(titleUpdate.raw)).toEqual({
             structs: [
                 {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                    id: new Y.ID(defaultTaskTitleClientId, 0),
                     length: 1,
                     origin: null,
                     left: null,
@@ -68,13 +80,13 @@ test("can create task title updates", () => {
                     info: 2,
                 },
                 {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                    id: new Y.ID(defaultTaskTitleClientId, 1),
                     length: 1,
                     origin: null,
                     left: null,
                     right: null,
                     rightOrigin: null,
-                    parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                    parent: new Y.ID(defaultTaskTitleClientId, 0),
                     parentSub: null,
                     redone: null,
                     content: new Y.ContentString("a"),
@@ -90,14 +102,14 @@ test("can create task title updates", () => {
     expect(title.getText()).toEqual("a");
 
     {
-        const titleUpdate = title.replace(1, 1, "b");
+        const titleUpdate = title.replace(defaultTaskTitleClientId, 1, 1, "b");
 
         expect(Y.decodeUpdateV2(titleUpdate.raw)).toEqual({
             structs: [
                 {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                    id: new Y.ID(defaultTaskTitleClientId, 2),
                     length: 1,
-                    origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                    origin: new Y.ID(defaultTaskTitleClientId, 1),
                     left: null,
                     right: null,
                     rightOrigin: null,
@@ -117,14 +129,14 @@ test("can create task title updates", () => {
     expect(title.getText()).toEqual("ab");
 
     {
-        const titleUpdate = title.replace(2, 2, "c");
+        const titleUpdate = title.replace(defaultTaskTitleClientId, 2, 2, "c");
 
         expect(Y.decodeUpdateV2(titleUpdate.raw)).toEqual({
             structs: [
                 {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 3),
+                    id: new Y.ID(defaultTaskTitleClientId, 3),
                     length: 1,
-                    origin: new Y.ID(realmTaskTitleClientId.get(), 2),
+                    origin: new Y.ID(defaultTaskTitleClientId, 2),
                     left: null,
                     right: null,
                     rightOrigin: null,
@@ -144,14 +156,14 @@ test("can create task title updates", () => {
     expect(title.getText()).toEqual("abc");
 
     {
-        const titleUpdate = title.replace(3, 3, "123");
+        const titleUpdate = title.replace(defaultTaskTitleClientId, 3, 3, "123");
 
         expect(Y.decodeUpdateV2(titleUpdate.raw)).toEqual({
             structs: [
                 {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 4),
+                    id: new Y.ID(defaultTaskTitleClientId, 4),
                     length: 3,
-                    origin: new Y.ID(realmTaskTitleClientId.get(), 3),
+                    origin: new Y.ID(defaultTaskTitleClientId, 3),
                     left: null,
                     right: null,
                     rightOrigin: null,
@@ -171,11 +183,11 @@ test("can create task title updates", () => {
     expect(title.getText()).toEqual("abc123");
 
     {
-        const titleUpdate = title.replace(1, 2, "");
+        const titleUpdate = title.replace(defaultTaskTitleClientId, 1, 2, "");
 
         expect(Y.decodeUpdateV2(titleUpdate.raw)).toEqual({
             structs: [],
-            ds: {clients: new Map([[realmTaskTitleClientId.get(), [{clock: 2, len: 1}]]])},
+            ds: {clients: new Map([[defaultTaskTitleClientId, [{clock: 2, len: 1}]]])},
         });
 
         title = titleUpdate.newTitle;
@@ -184,17 +196,17 @@ test("can create task title updates", () => {
     expect(title.getText()).toEqual("ac123");
 
     {
-        const titleUpdate = title.replace(1, 2, "C");
+        const titleUpdate = title.replace(defaultTaskTitleClientId, 1, 2, "C");
 
         expect(Y.decodeUpdateV2(titleUpdate.raw)).toEqual({
             structs: [
                 {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 7),
+                    id: new Y.ID(defaultTaskTitleClientId, 7),
                     length: 1,
-                    origin: new Y.ID(realmTaskTitleClientId.get(), 3),
+                    origin: new Y.ID(defaultTaskTitleClientId, 3),
                     left: null,
                     right: null,
-                    rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 4),
+                    rightOrigin: new Y.ID(defaultTaskTitleClientId, 4),
                     parent: null,
                     parentSub: null,
                     redone: null,
@@ -202,7 +214,7 @@ test("can create task title updates", () => {
                     info: 2,
                 },
             ],
-            ds: {clients: new Map([[realmTaskTitleClientId.get(), [{clock: 3, len: 1}]]])},
+            ds: {clients: new Map([[defaultTaskTitleClientId, [{clock: 3, len: 1}]]])},
         });
 
         title = titleUpdate.newTitle;
@@ -211,17 +223,17 @@ test("can create task title updates", () => {
     expect(title.getText()).toEqual("aC123");
 
     {
-        const titleUpdate = title.replace(0, 2, "xyz");
+        const titleUpdate = title.replace(defaultTaskTitleClientId, 0, 2, "xyz");
 
         expect(Y.decodeUpdateV2(titleUpdate.raw)).toEqual({
             structs: [
                 {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 8),
+                    id: new Y.ID(defaultTaskTitleClientId, 8),
                     length: 3,
-                    origin: new Y.ID(realmTaskTitleClientId.get(), 7),
+                    origin: new Y.ID(defaultTaskTitleClientId, 7),
                     left: null,
                     right: null,
-                    rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 4),
+                    rightOrigin: new Y.ID(defaultTaskTitleClientId, 4),
                     parent: null,
                     parentSub: null,
                     redone: null,
@@ -232,7 +244,7 @@ test("can create task title updates", () => {
             ds: {
                 clients: new Map([
                     [
-                        realmTaskTitleClientId.get(),
+                        defaultTaskTitleClientId,
                         [
                             {clock: 1, len: 1},
                             {clock: 7, len: 1},
@@ -248,15 +260,15 @@ test("can create task title updates", () => {
 
 test("can invert task title updates", () => {
     const title0 = emptyTaskTitleModel.get();
-    const update1 = title0.replace(0, 0, "a");
+    const update1 = title0.replace(defaultTaskTitleClientId, 0, 0, "a");
     const title1 = update1.newTitle;
-    const update2 = title1.replace(1, 1, "b");
+    const update2 = title1.replace(defaultTaskTitleClientId, 1, 1, "b");
     const title2 = update2.newTitle;
-    const update3 = title2.replace(2, 2, "c");
+    const update3 = title2.replace(defaultTaskTitleClientId, 2, 2, "c");
     const title3 = update3.newTitle;
-    const update4 = title3.replace(1, 2, "");
+    const update4 = title3.replace(defaultTaskTitleClientId, 1, 2, "");
     const title4 = update4.newTitle;
-    const update5 = title4.replace(1, 1, "d");
+    const update5 = title4.replace(defaultTaskTitleClientId, 1, 1, "d");
     const title5 = update5.newTitle;
 
     expect(title0.getText()).toEqual("");
@@ -266,30 +278,30 @@ test("can invert task title updates", () => {
     expect(title4.getText()).toEqual("ac");
     expect(title5.getText()).toEqual("adc");
 
-    const undoUpdate2OnTitle3 = assertExists(update2.invert(title3));
+    const undoUpdate2OnTitle3 = assertExists(update2.invert(defaultTaskTitleClientId, title3));
 
     expect(undoUpdate2OnTitle3.newTitle.getText()).toEqual("ac");
 
     expect(Y.decodeUpdateV2(undoUpdate2OnTitle3.raw)).toEqual({
         structs: [],
         ds: {
-            clients: new Map([[realmTaskTitleClientId.get(), [{clock: 2, len: 1}]]]),
+            clients: new Map([[defaultTaskTitleClientId, [{clock: 2, len: 1}]]]),
         },
     });
 
-    const undoUpdate4OnTitle5 = assertExists(update4.invert(title5));
+    const undoUpdate4OnTitle5 = assertExists(update4.invert(defaultTaskTitleClientId, title5));
 
     expect(undoUpdate4OnTitle5.newTitle.getText()).toEqual("abdc");
 
     expect(Y.decodeUpdateV2(undoUpdate4OnTitle5.raw)).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 5),
+                id: new Y.ID(defaultTaskTitleClientId, 5),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                origin: new Y.ID(defaultTaskTitleClientId, 1),
                 left: null,
                 right: null,
-                rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 2),
+                rightOrigin: new Y.ID(defaultTaskTitleClientId, 2),
                 parent: null,
                 parentSub: null,
                 redone: null,
@@ -305,15 +317,15 @@ test("can invert task title updates", () => {
 
 test("will GC deleted content", () => {
     const title0 = emptyTaskTitleModel.get();
-    const update1 = title0.replace(0, 0, "a");
+    const update1 = title0.replace(defaultTaskTitleClientId, 0, 0, "a");
     const title1 = update1.newTitle;
-    const update2 = title1.replace(1, 1, "bbbb");
+    const update2 = title1.replace(defaultTaskTitleClientId, 1, 1, "bbbb");
     const title2 = update2.newTitle;
-    const update3 = title2.replace(5, 5, "c");
+    const update3 = title2.replace(defaultTaskTitleClientId, 5, 5, "c");
     const title3 = update3.newTitle;
-    const update4 = title3.replace(1, 5, "");
+    const update4 = title3.replace(defaultTaskTitleClientId, 1, 5, "");
     const title4 = update4.newTitle;
-    const update5 = title4.replace(1, 1, "d");
+    const update5 = title4.replace(defaultTaskTitleClientId, 1, 1, "d");
     const title5 = update5.newTitle;
 
     expect(title0.getText()).toEqual("");
@@ -326,7 +338,7 @@ test("will GC deleted content", () => {
     expect(Y.decodeUpdateV2(title5.getRaw())).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                id: new Y.ID(defaultTaskTitleClientId, 0),
                 length: 1,
                 origin: null,
                 left: null,
@@ -339,22 +351,22 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                id: new Y.ID(defaultTaskTitleClientId, 1),
                 length: 1,
                 origin: null,
                 left: null,
                 right: null,
                 rightOrigin: null,
-                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parent: new Y.ID(defaultTaskTitleClientId, 0),
                 parentSub: null,
                 redone: null,
                 content: new Y.ContentString("a"),
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                id: new Y.ID(defaultTaskTitleClientId, 2),
                 length: 4,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                origin: new Y.ID(defaultTaskTitleClientId, 1),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -365,9 +377,9 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 6),
+                id: new Y.ID(defaultTaskTitleClientId, 6),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 5),
+                origin: new Y.ID(defaultTaskTitleClientId, 5),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -378,12 +390,12 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 7),
+                id: new Y.ID(defaultTaskTitleClientId, 7),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 5),
+                origin: new Y.ID(defaultTaskTitleClientId, 5),
                 left: null,
                 right: null,
-                rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 6),
+                rightOrigin: new Y.ID(defaultTaskTitleClientId, 6),
                 parent: null,
                 parentSub: null,
                 redone: null,
@@ -392,16 +404,20 @@ test("will GC deleted content", () => {
             },
         ],
         ds: {
-            clients: new Map([[realmTaskTitleClientId.get(), [{clock: 2, len: 4}]]]),
+            clients: new Map([[defaultTaskTitleClientId, [{clock: 2, len: 4}]]]),
         },
     });
 
     expect(
-        Y.decodeUpdateV2(new TaskTitleModel(title5.getRaw()).replace(3, 3, "e").newTitle.getRaw()),
+        Y.decodeUpdateV2(
+            new TaskTitleModel(title5.getRaw())
+                .replace(defaultTaskTitleClientId, 3, 3, "e")
+                .newTitle.getRaw(),
+        ),
     ).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                id: new Y.ID(defaultTaskTitleClientId, 0),
                 length: 1,
                 origin: null,
                 left: null,
@@ -414,22 +430,22 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                id: new Y.ID(defaultTaskTitleClientId, 1),
                 length: 1,
                 origin: null,
                 left: null,
                 right: null,
                 rightOrigin: null,
-                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parent: new Y.ID(defaultTaskTitleClientId, 0),
                 parentSub: null,
                 redone: null,
                 content: new Y.ContentString("a"),
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                id: new Y.ID(defaultTaskTitleClientId, 2),
                 length: 4,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                origin: new Y.ID(defaultTaskTitleClientId, 1),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -440,9 +456,9 @@ test("will GC deleted content", () => {
                 info: 0,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 6),
+                id: new Y.ID(defaultTaskTitleClientId, 6),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 5),
+                origin: new Y.ID(defaultTaskTitleClientId, 5),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -453,12 +469,12 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 7),
+                id: new Y.ID(defaultTaskTitleClientId, 7),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 5),
+                origin: new Y.ID(defaultTaskTitleClientId, 5),
                 left: null,
                 right: null,
-                rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 6),
+                rightOrigin: new Y.ID(defaultTaskTitleClientId, 6),
                 parent: null,
                 parentSub: null,
                 redone: null,
@@ -466,9 +482,9 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 8),
+                id: new Y.ID(defaultTaskTitleClientId, 8),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 6),
+                origin: new Y.ID(defaultTaskTitleClientId, 6),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -480,18 +496,18 @@ test("will GC deleted content", () => {
             },
         ],
         ds: {
-            clients: new Map([[realmTaskTitleClientId.get(), [{clock: 2, len: 4}]]]),
+            clients: new Map([[defaultTaskTitleClientId, [{clock: 2, len: 4}]]]),
         },
     });
 
-    const undoUpdate2OnTitle3 = assertExists(update2.invert(title3));
+    const undoUpdate2OnTitle3 = assertExists(update2.invert(defaultTaskTitleClientId, title3));
 
     expect(undoUpdate2OnTitle3.newTitle.getText()).toEqual("ac");
 
     expect(Y.decodeUpdateV2(undoUpdate2OnTitle3.newTitle.getRaw())).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                id: new Y.ID(defaultTaskTitleClientId, 0),
                 length: 1,
                 origin: null,
                 left: null,
@@ -504,22 +520,22 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                id: new Y.ID(defaultTaskTitleClientId, 1),
                 length: 1,
                 origin: null,
                 left: null,
                 right: null,
                 rightOrigin: null,
-                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parent: new Y.ID(defaultTaskTitleClientId, 0),
                 parentSub: null,
                 redone: null,
                 content: new Y.ContentString("a"),
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                id: new Y.ID(defaultTaskTitleClientId, 2),
                 length: 4,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                origin: new Y.ID(defaultTaskTitleClientId, 1),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -530,9 +546,9 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 6),
+                id: new Y.ID(defaultTaskTitleClientId, 6),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 5),
+                origin: new Y.ID(defaultTaskTitleClientId, 5),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -544,16 +560,20 @@ test("will GC deleted content", () => {
             },
         ],
         ds: {
-            clients: new Map([[realmTaskTitleClientId.get(), [{clock: 2, len: 4}]]]),
+            clients: new Map([[defaultTaskTitleClientId, [{clock: 2, len: 4}]]]),
         },
     });
 
     expect(
-        Y.decodeUpdateV2(undoUpdate2OnTitle3.newTitle.replace(1, 1, "d").newTitle.getRaw()),
+        Y.decodeUpdateV2(
+            undoUpdate2OnTitle3.newTitle
+                .replace(defaultTaskTitleClientId, 1, 1, "d")
+                .newTitle.getRaw(),
+        ),
     ).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                id: new Y.ID(defaultTaskTitleClientId, 0),
                 length: 1,
                 origin: null,
                 left: null,
@@ -566,22 +586,22 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                id: new Y.ID(defaultTaskTitleClientId, 1),
                 length: 1,
                 origin: null,
                 left: null,
                 right: null,
                 rightOrigin: null,
-                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parent: new Y.ID(defaultTaskTitleClientId, 0),
                 parentSub: null,
                 redone: null,
                 content: new Y.ContentString("a"),
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                id: new Y.ID(defaultTaskTitleClientId, 2),
                 length: 4,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                origin: new Y.ID(defaultTaskTitleClientId, 1),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -592,9 +612,9 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 6),
+                id: new Y.ID(defaultTaskTitleClientId, 6),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 5),
+                origin: new Y.ID(defaultTaskTitleClientId, 5),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -605,12 +625,12 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 7),
+                id: new Y.ID(defaultTaskTitleClientId, 7),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 5),
+                origin: new Y.ID(defaultTaskTitleClientId, 5),
                 left: null,
                 right: null,
-                rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 6),
+                rightOrigin: new Y.ID(defaultTaskTitleClientId, 6),
                 parent: null,
                 parentSub: null,
                 redone: null,
@@ -619,20 +639,20 @@ test("will GC deleted content", () => {
             },
         ],
         ds: {
-            clients: new Map([[realmTaskTitleClientId.get(), [{clock: 2, len: 4}]]]),
+            clients: new Map([[defaultTaskTitleClientId, [{clock: 2, len: 4}]]]),
         },
     });
 
     expect(
         Y.decodeUpdateV2(
             new TaskTitleModel(undoUpdate2OnTitle3.newTitle.getRaw())
-                .replace(1, 1, "d")
+                .replace(defaultTaskTitleClientId, 1, 1, "d")
                 .newTitle.getRaw(),
         ),
     ).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                id: new Y.ID(defaultTaskTitleClientId, 0),
                 length: 1,
                 origin: null,
                 left: null,
@@ -645,22 +665,22 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                id: new Y.ID(defaultTaskTitleClientId, 1),
                 length: 1,
                 origin: null,
                 left: null,
                 right: null,
                 rightOrigin: null,
-                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parent: new Y.ID(defaultTaskTitleClientId, 0),
                 parentSub: null,
                 redone: null,
                 content: new Y.ContentString("a"),
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                id: new Y.ID(defaultTaskTitleClientId, 2),
                 length: 4,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                origin: new Y.ID(defaultTaskTitleClientId, 1),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -671,9 +691,9 @@ test("will GC deleted content", () => {
                 info: 0,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 6),
+                id: new Y.ID(defaultTaskTitleClientId, 6),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 5),
+                origin: new Y.ID(defaultTaskTitleClientId, 5),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -684,12 +704,12 @@ test("will GC deleted content", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 7),
+                id: new Y.ID(defaultTaskTitleClientId, 7),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 5),
+                origin: new Y.ID(defaultTaskTitleClientId, 5),
                 left: null,
                 right: null,
-                rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 6),
+                rightOrigin: new Y.ID(defaultTaskTitleClientId, 6),
                 parent: null,
                 parentSub: null,
                 redone: null,
@@ -698,21 +718,21 @@ test("will GC deleted content", () => {
             },
         ],
         ds: {
-            clients: new Map([[realmTaskTitleClientId.get(), [{clock: 2, len: 4}]]]),
+            clients: new Map([[defaultTaskTitleClientId, [{clock: 2, len: 4}]]]),
         },
     });
 });
 
 test("can use inverted task title updates to undo/redo changes", () => {
     const title0 = emptyTaskTitleModel.get();
-    const update1 = title0.replace(0, 0, "quick undo test");
+    const update1 = title0.replace(defaultTaskTitleClientId, 0, 0, "quick undo test");
     const title1 = update1.newTitle;
-    const update2 = title1.replace(6, 10, "redo");
+    const update2 = title1.replace(defaultTaskTitleClientId, 6, 10, "redo");
     const title2 = update2.newTitle;
 
     expect(title2.getText()).toEqual("quick redo test");
 
-    const undoUpdate2OnTitle2 = assertExists(update2.invert(title2));
+    const undoUpdate2OnTitle2 = assertExists(update2.invert(defaultTaskTitleClientId, title2));
     const title3 = undoUpdate2OnTitle2.newTitle;
 
     expect(title3.getText()).toEqual("quick undo test");
@@ -720,12 +740,12 @@ test("can use inverted task title updates to undo/redo changes", () => {
     expect(Y.decodeUpdateV2(undoUpdate2OnTitle2.raw)).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 20),
+                id: new Y.ID(defaultTaskTitleClientId, 20),
                 length: 4,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 6),
+                origin: new Y.ID(defaultTaskTitleClientId, 6),
                 left: null,
                 right: null,
-                rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 7),
+                rightOrigin: new Y.ID(defaultTaskTitleClientId, 7),
                 parent: null,
                 parentSub: null,
                 redone: null,
@@ -734,11 +754,11 @@ test("can use inverted task title updates to undo/redo changes", () => {
             },
         ],
         ds: {
-            clients: new Map([[realmTaskTitleClientId.get(), [{clock: 16, len: 4}]]]),
+            clients: new Map([[defaultTaskTitleClientId, [{clock: 16, len: 4}]]]),
         },
     });
 
-    const undoUpdate1OnTitle3 = assertExists(update1.invert(title3));
+    const undoUpdate1OnTitle3 = assertExists(update1.invert(defaultTaskTitleClientId, title3));
     const title4 = undoUpdate1OnTitle3.newTitle;
 
     expect(title4.getText()).toEqual("");
@@ -748,7 +768,7 @@ test("can use inverted task title updates to undo/redo changes", () => {
         ds: {
             clients: new Map([
                 [
-                    realmTaskTitleClientId.get(),
+                    defaultTaskTitleClientId,
                     [
                         {clock: 0, len: 7},
                         {clock: 11, len: 5},
@@ -759,7 +779,9 @@ test("can use inverted task title updates to undo/redo changes", () => {
         },
     });
 
-    const redoUpdate1OnTitle4 = assertExists(undoUpdate1OnTitle3.invert(title4));
+    const redoUpdate1OnTitle4 = assertExists(
+        undoUpdate1OnTitle3.invert(defaultTaskTitleClientId, title4),
+    );
     const title5 = redoUpdate1OnTitle4.newTitle;
 
     expect(title5.getText()).toEqual("quick undo test");
@@ -767,12 +789,12 @@ test("can use inverted task title updates to undo/redo changes", () => {
     expect(Y.decodeUpdateV2(redoUpdate1OnTitle4.raw)).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 24),
+                id: new Y.ID(defaultTaskTitleClientId, 24),
                 length: 1,
                 origin: null,
                 left: null,
                 right: null,
-                rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 0),
+                rightOrigin: new Y.ID(defaultTaskTitleClientId, 0),
                 parent: null,
                 parentSub: null,
                 redone: null,
@@ -780,22 +802,22 @@ test("can use inverted task title updates to undo/redo changes", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 25),
+                id: new Y.ID(defaultTaskTitleClientId, 25),
                 length: 6,
                 origin: null,
                 left: null,
                 right: null,
                 rightOrigin: null,
-                parent: new Y.ID(realmTaskTitleClientId.get(), 24),
+                parent: new Y.ID(defaultTaskTitleClientId, 24),
                 parentSub: null,
                 redone: null,
                 content: new Y.ContentString("quick "),
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 31),
+                id: new Y.ID(defaultTaskTitleClientId, 31),
                 length: 5,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 30),
+                origin: new Y.ID(defaultTaskTitleClientId, 30),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -806,12 +828,12 @@ test("can use inverted task title updates to undo/redo changes", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 36),
+                id: new Y.ID(defaultTaskTitleClientId, 36),
                 length: 4,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 30),
+                origin: new Y.ID(defaultTaskTitleClientId, 30),
                 left: null,
                 right: null,
-                rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 31),
+                rightOrigin: new Y.ID(defaultTaskTitleClientId, 31),
                 parent: null,
                 parentSub: null,
                 redone: null,
@@ -824,7 +846,9 @@ test("can use inverted task title updates to undo/redo changes", () => {
         },
     });
 
-    const redoUpdate2OnTitle5 = assertExists(undoUpdate2OnTitle2.invert(title5));
+    const redoUpdate2OnTitle5 = assertExists(
+        undoUpdate2OnTitle2.invert(defaultTaskTitleClientId, title5),
+    );
     const title6 = redoUpdate2OnTitle5.newTitle;
 
     expect(title6.getText()).toEqual("quick redo test");
@@ -832,12 +856,12 @@ test("can use inverted task title updates to undo/redo changes", () => {
     expect(Y.decodeUpdateV2(redoUpdate2OnTitle5.raw)).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 40),
+                id: new Y.ID(defaultTaskTitleClientId, 40),
                 length: 4,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 39),
+                origin: new Y.ID(defaultTaskTitleClientId, 39),
                 left: null,
                 right: null,
-                rightOrigin: new Y.ID(realmTaskTitleClientId.get(), 31),
+                rightOrigin: new Y.ID(defaultTaskTitleClientId, 31),
                 parent: null,
                 parentSub: null,
                 redone: null,
@@ -846,7 +870,7 @@ test("can use inverted task title updates to undo/redo changes", () => {
             },
         ],
         ds: {
-            clients: new Map([[realmTaskTitleClientId.get(), [{clock: 36, len: 4}]]]),
+            clients: new Map([[defaultTaskTitleClientId, [{clock: 36, len: 4}]]]),
         },
     });
 });
@@ -854,52 +878,52 @@ test("can use inverted task title updates to undo/redo changes", () => {
 test("catches task title corruption and throws an error", () => {
     {
         const title1 = emptyTaskTitleModel.get();
-        const updateA = title1.replace(0, 0, "a");
-        const updateB = title1.replace(0, 0, "b");
+        const updateA = title1.replace(defaultTaskTitleClientId, 0, 0, "a");
+        const updateB = title1.replace(defaultTaskTitleClientId, 0, 0, "b");
         const title2 = title1.apply(updateA);
 
         expect(() => title2.apply(updateB)).toThrow(
-            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${defaultTaskTitleClientId}, ID clock: 1)`,
         );
     }
 
     {
         const title1 = emptyTaskTitleModel.get();
-        const updateA = title1.replace(0, 0, "b");
-        const updateB = title1.replace(0, 0, "a");
+        const updateA = title1.replace(defaultTaskTitleClientId, 0, 0, "b");
+        const updateB = title1.replace(defaultTaskTitleClientId, 0, 0, "a");
         const title2 = title1.apply(updateA);
 
         expect(() => title2.apply(updateB)).toThrow(
-            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${defaultTaskTitleClientId}, ID clock: 1)`,
         );
     }
 
     {
         const title1 = emptyTaskTitleModel.get();
-        const updateA = title1.replace(0, 0, "a");
-        const updateB = title1.replace(0, 0, "bc");
+        const updateA = title1.replace(defaultTaskTitleClientId, 0, 0, "a");
+        const updateB = title1.replace(defaultTaskTitleClientId, 0, 0, "bc");
         const title2 = title1.apply(updateA);
 
         expect(() => title2.apply(updateB)).toThrow(
-            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${defaultTaskTitleClientId}, ID clock: 1)`,
         );
     }
 
     {
         const title1 = emptyTaskTitleModel.get();
-        const updateA = title1.replace(0, 0, "ab");
-        const updateB = title1.replace(0, 0, "c");
+        const updateA = title1.replace(defaultTaskTitleClientId, 0, 0, "ab");
+        const updateB = title1.replace(defaultTaskTitleClientId, 0, 0, "c");
         const title2 = title1.apply(updateA);
 
         expect(() => title2.apply(updateB)).toThrow(
-            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${defaultTaskTitleClientId}, ID clock: 1)`,
         );
     }
 
     {
         const title1 = emptyTaskTitleModel.get();
-        const updateA = title1.replace(0, 0, "a");
-        const updateB = title1.replace(0, 0, "ab");
+        const updateA = title1.replace(defaultTaskTitleClientId, 0, 0, "a");
+        const updateB = title1.replace(defaultTaskTitleClientId, 0, 0, "ab");
         const title2 = title1.apply(updateA);
 
         expect(title2.apply(updateB).getText()).toEqual("ab");
@@ -907,28 +931,30 @@ test("catches task title corruption and throws an error", () => {
 
     {
         const title1 = emptyTaskTitleModel.get();
-        const updateA = title1.replace(0, 0, "ab");
-        const updateB = title1.replace(0, 0, "a");
+        const updateA = title1.replace(defaultTaskTitleClientId, 0, 0, "ab");
+        const updateB = title1.replace(defaultTaskTitleClientId, 0, 0, "a");
         const title2 = title1.apply(updateA);
 
         expect(title2.apply(updateB).getText()).toEqual("ab");
     }
 
     {
-        const title1 = emptyTaskTitleModel.get().replace(0, 0, "a").newTitle;
-        const updateA = title1.replace(0, 0, "b");
-        const updateB = title1.replace(0, 0, "c");
+        const title1 = emptyTaskTitleModel
+            .get()
+            .replace(defaultTaskTitleClientId, 0, 0, "a").newTitle;
+        const updateA = title1.replace(defaultTaskTitleClientId, 0, 0, "b");
+        const updateB = title1.replace(defaultTaskTitleClientId, 0, 0, "c");
         const title2 = title1.apply(updateA);
 
         expect(() => title2.apply(updateB)).toThrow(
-            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 2)`,
+            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${defaultTaskTitleClientId}, ID clock: 2)`,
         );
     }
 
     {
         const title1 = emptyTaskTitleModel.get();
-        const updateA = title1.replace(0, 0, "a");
-        const updateB = title1.apply(updateA).replace(0, 0, "b");
+        const updateA = title1.replace(defaultTaskTitleClientId, 0, 0, "a");
+        const updateB = title1.apply(updateA).replace(defaultTaskTitleClientId, 0, 0, "b");
         const title2 = title1.apply(updateA).apply(updateB);
 
         expect(title2.getText()).toEqual("ba");
@@ -938,13 +964,13 @@ test("catches task title corruption and throws an error", () => {
 test("can merge task title with itself", () => {
     const title1 = emptyTaskTitleModel.get();
     const title2 = title1
-        .replace(0, 0, "a")
-        .newTitle.replace(0, 0, "b")
-        .newTitle.replace(0, 0, "c").newTitle;
+        .replace(defaultTaskTitleClientId, 0, 0, "a")
+        .newTitle.replace(defaultTaskTitleClientId, 0, 0, "b")
+        .newTitle.replace(defaultTaskTitleClientId, 0, 0, "c").newTitle;
 
     expect(title2.getText()).toEqual("cba");
 
-    const title3 = title2.replace(1, 1, "x").newTitle;
+    const title3 = title2.replace(defaultTaskTitleClientId, 1, 1, "x").newTitle;
 
     expect(title3.getText()).toEqual("cxba");
 
@@ -1121,7 +1147,7 @@ test("reproduce bugged merge error when update is not in optimized form", () => 
     const title = new TaskTitleModel(rawTitle);
 
     expect(title.getText()).toEqual("new task");
-    expect(title.apply(update, {clientIdForTest: 1969136998}).getText()).toEqual("new task");
+    expect(title.apply(update).getText()).toEqual("new task");
 });
 
 test("reproduce bugged merge error when update is not in optimized form and there\u2019s some right origin", () => {
@@ -1344,22 +1370,22 @@ test("reproduce bugged merge error when update is not in optimized form and ther
     const title = new TaskTitleModel(rawTitle);
 
     expect(title.getText()).toEqual("hello world");
-    expect(title.apply(update, {clientIdForTest: 3587377474}).getText()).toEqual("hello world");
+    expect(title.apply(update).getText()).toEqual("hello world");
 });
 
 test("applying task title update to task title produces optimized form", () => {
     const title0 = emptyTaskTitleModel.get();
-    const update1 = title0.replace(0, 0, "a");
+    const update1 = title0.replace(defaultTaskTitleClientId, 0, 0, "a");
     const title1 = update1.newTitle;
-    const update2 = title1.replace(1, 1, "b");
+    const update2 = title1.replace(defaultTaskTitleClientId, 1, 1, "b");
     const title2 = update2.newTitle;
-    const update3 = title2.replace(2, 2, "c");
+    const update3 = title2.replace(defaultTaskTitleClientId, 2, 2, "c");
     const title3 = update3.newTitle;
 
     expect(Y.decodeUpdateV2(title3.getRaw())).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                id: new Y.ID(defaultTaskTitleClientId, 0),
                 length: 1,
                 origin: null,
                 left: null,
@@ -1372,13 +1398,13 @@ test("applying task title update to task title produces optimized form", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                id: new Y.ID(defaultTaskTitleClientId, 1),
                 length: 3,
                 origin: null,
                 left: null,
                 right: null,
                 rightOrigin: null,
-                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parent: new Y.ID(defaultTaskTitleClientId, 0),
                 parentSub: null,
                 redone: null,
                 content: new Y.ContentString("abc"),
@@ -1396,7 +1422,7 @@ test("applying task title update to task title produces optimized form", () => {
     ).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                id: new Y.ID(defaultTaskTitleClientId, 0),
                 length: 1,
                 origin: null,
                 left: null,
@@ -1409,22 +1435,22 @@ test("applying task title update to task title produces optimized form", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                id: new Y.ID(defaultTaskTitleClientId, 1),
                 length: 1,
                 origin: null,
                 left: null,
                 right: null,
                 rightOrigin: null,
-                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parent: new Y.ID(defaultTaskTitleClientId, 0),
                 parentSub: null,
                 redone: null,
                 content: new Y.ContentString("a"),
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                id: new Y.ID(defaultTaskTitleClientId, 2),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                origin: new Y.ID(defaultTaskTitleClientId, 1),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -1435,9 +1461,9 @@ test("applying task title update to task title produces optimized form", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 3),
+                id: new Y.ID(defaultTaskTitleClientId, 3),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 2),
+                origin: new Y.ID(defaultTaskTitleClientId, 2),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -1455,9 +1481,9 @@ test("applying task title update to task title produces optimized form", () => {
     expect(Y.decodeUpdateV2(Y.mergeUpdatesV2([update2.raw, update3.raw]))).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                id: new Y.ID(defaultTaskTitleClientId, 2),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                origin: new Y.ID(defaultTaskTitleClientId, 1),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -1468,9 +1494,9 @@ test("applying task title update to task title produces optimized form", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 3),
+                id: new Y.ID(defaultTaskTitleClientId, 3),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 2),
+                origin: new Y.ID(defaultTaskTitleClientId, 2),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -1497,7 +1523,7 @@ test("applying task title update to task title produces optimized form", () => {
     ).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                id: new Y.ID(defaultTaskTitleClientId, 0),
                 length: 1,
                 origin: null,
                 left: null,
@@ -1510,13 +1536,13 @@ test("applying task title update to task title produces optimized form", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                id: new Y.ID(defaultTaskTitleClientId, 1),
                 length: 3,
                 origin: null,
                 left: null,
                 right: null,
                 rightOrigin: null,
-                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parent: new Y.ID(defaultTaskTitleClientId, 0),
                 parentSub: null,
                 redone: null,
                 content: new Y.ContentString("abc"),
@@ -1529,9 +1555,9 @@ test("applying task title update to task title produces optimized form", () => {
     expect(Y.decodeUpdateV2(mergeTaskTitleUpdates(update2.raw, update3.raw))).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                id: new Y.ID(defaultTaskTitleClientId, 2),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                origin: new Y.ID(defaultTaskTitleClientId, 1),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -1542,9 +1568,9 @@ test("applying task title update to task title produces optimized form", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 3),
+                id: new Y.ID(defaultTaskTitleClientId, 3),
                 length: 1,
-                origin: new Y.ID(realmTaskTitleClientId.get(), 2),
+                origin: new Y.ID(defaultTaskTitleClientId, 2),
                 left: null,
                 right: null,
                 rightOrigin: null,
@@ -1565,7 +1591,7 @@ test("applying task title update to task title produces optimized form", () => {
     ).toEqual({
         structs: [
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                id: new Y.ID(defaultTaskTitleClientId, 0),
                 length: 1,
                 origin: null,
                 left: null,
@@ -1578,13 +1604,13 @@ test("applying task title update to task title produces optimized form", () => {
                 info: 2,
             },
             {
-                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                id: new Y.ID(defaultTaskTitleClientId, 1),
                 length: 3,
                 origin: null,
                 left: null,
                 right: null,
                 rightOrigin: null,
-                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parent: new Y.ID(defaultTaskTitleClientId, 0),
                 parentSub: null,
                 redone: null,
                 content: new Y.ContentString("abc"),
@@ -1803,25 +1829,25 @@ test("reproduce bugged merge error when merging item with GCed content with item
     expect(Y.decodeUpdateV2(title.getRaw())).toEqual(Y.decodeUpdateV2(update));
 
     expect(title.getText()).toEqual("task 2");
-    expect(title.apply(update, {clientIdForTest: 3476544294}).getText()).toEqual("task 2");
+    expect(title.apply(update).getText()).toEqual("task 2");
 
     const titleFromEmpty = emptyTaskTitleModel
         .get()
-        .replace(0, 0, "task 2", {clientIdForTest: 3476544294})
-        .newTitle.clear({clientIdForTest: 3476544294})
-        .newTitle.replace(0, 0, "task 2", {clientIdForTest: 3476544294})
-        .newTitle.clear({clientIdForTest: 3476544294})
-        .newTitle.replace(0, 0, "task 2", {clientIdForTest: 3476544294})
-        .newTitle.clear({clientIdForTest: 3476544294})
-        .newTitle.replace(0, 0, "task 2", {clientIdForTest: 3476544294}).newTitle;
+        .replace(3476544294 as TaskTitleClientId, 0, 0, "task 2")
+        .newTitle.clear(3476544294 as TaskTitleClientId)
+        .newTitle.replace(3476544294 as TaskTitleClientId, 0, 0, "task 2")
+        .newTitle.clear(3476544294 as TaskTitleClientId)
+        .newTitle.replace(3476544294 as TaskTitleClientId, 0, 0, "task 2")
+        .newTitle.clear(3476544294 as TaskTitleClientId)
+        .newTitle.replace(3476544294 as TaskTitleClientId, 0, 0, "task 2").newTitle;
 
     // `title` should not be garbage collected since `item.keep = true` is set on all
     // updates made with `replace()`.
     expect(Y.decodeUpdateV2(titleFromEmpty.getRaw())).toEqual(Y.decodeUpdateV2(rawTitle));
 
     expect(titleFromEmpty.getText()).toEqual("task 2");
-    expect(titleFromEmpty.apply(update, {clientIdForTest: 3476544294}).getText()).toEqual("task 2");
-    expect(title.apply(titleFromEmpty, {clientIdForTest: 3476544294}).getText()).toEqual("task 2");
+    expect(titleFromEmpty.apply(update).getText()).toEqual("task 2");
+    expect(title.apply(titleFromEmpty).getText()).toEqual("task 2");
 });
 
 // NOTE(calebmer, 2025-03-05): The following tests are written by AI with
@@ -1834,10 +1860,10 @@ test("can handle concurrent independent updates", () => {
     const title0 = emptyTaskTitleModel.get();
 
     // Create two independent updates from the same initial state
-    const updateA = title0.replace(0, 0, "Hello ", {clientIdForTest: 1});
+    const updateA = title0.replace(1 as TaskTitleClientId, 0, 0, "Hello ");
     const titleA = updateA.newTitle;
 
-    const updateB = title0.replace(0, 0, "World!", {clientIdForTest: 2});
+    const updateB = title0.replace(2 as TaskTitleClientId, 0, 0, "World!");
     const titleB = updateB.newTitle;
 
     // Apply updates in different orders - they should commute
@@ -1851,15 +1877,15 @@ test("can handle concurrent independent updates", () => {
 
 test("resolves concurrent conflicting updates deterministically", () => {
     // Make two clients with different titles
-    const titleA = TaskTitleModel.fromText("Hello ", {clientIdForTest: 1});
-    const titleB = TaskTitleModel.fromText("Hello ", {clientIdForTest: 1});
+    const titleA = TaskTitleModel.fromText(1 as TaskTitleClientId, "Hello ");
+    const titleB = TaskTitleModel.fromText(1 as TaskTitleClientId, "Hello ");
 
     // Client A adds "world" at the end
-    const updateA = titleA.replace(6, 6, "world", {clientIdForTest: 2});
+    const updateA = titleA.replace(2 as TaskTitleClientId, 6, 6, "world");
     const titleA2 = updateA.newTitle;
 
     // Client B adds "everyone" at the end
-    const updateB = titleB.replace(6, 6, "everyone", {clientIdForTest: 3});
+    const updateB = titleB.replace(3 as TaskTitleClientId, 6, 6, "everyone");
     const titleB2 = updateB.newTitle;
 
     // Client A receives Client B's update and applies it
@@ -1873,11 +1899,11 @@ test("resolves concurrent conflicting updates deterministically", () => {
 });
 
 test("handles concurrent edits at same position", () => {
-    const title = TaskTitleModel.fromText("ABC");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "ABC");
 
     // Two concurrent updates at the same position
-    const updateX = title.replace(1, 1, "X", {clientIdForTest: 1});
-    const updateY = title.replace(1, 1, "Y", {clientIdForTest: 2});
+    const updateX = title.replace(1 as TaskTitleClientId, 1, 1, "X");
+    const updateY = title.replace(2 as TaskTitleClientId, 1, 1, "Y");
 
     // Apply both updates
     const titleXY = title.apply(updateX).apply(updateY);
@@ -1890,12 +1916,12 @@ test("handles concurrent edits at same position", () => {
 test("deep cloning preserves document structure", () => {
     // Create a complex title with some operations
     let title = emptyTaskTitleModel.get();
-    title = title.replace(0, 0, "Hello").newTitle;
-    title = title.replace(5, 5, " World").newTitle;
-    title = title.replace(5, 11, " Beautiful").newTitle;
+    title = title.replace(defaultTaskTitleClientId, 0, 0, "Hello").newTitle;
+    title = title.replace(defaultTaskTitleClientId, 5, 5, " World").newTitle;
+    title = title.replace(defaultTaskTitleClientId, 5, 11, " Beautiful").newTitle;
 
     // Create a mutation on this title
-    const update = title.replace(0, 5, "Goodbye");
+    const update = title.replace(defaultTaskTitleClientId, 0, 5, "Goodbye");
     const newTitle = update.newTitle;
 
     // Original title should be unchanged
@@ -1903,15 +1929,15 @@ test("deep cloning preserves document structure", () => {
     expect(newTitle.getText()).toEqual("Goodbye Beautiful");
 
     // Check that we can apply additional mutations to both titles
-    const originalUpdate = title.replace(5, 15, " Planet");
-    const newUpdate = newTitle.replace(7, 17, " Earth");
+    const originalUpdate = title.replace(defaultTaskTitleClientId, 5, 15, " Planet");
+    const newUpdate = newTitle.replace(defaultTaskTitleClientId, 7, 17, " Earth");
 
     expect(originalUpdate.newTitle.getText()).toEqual("Hello Planet");
     expect(newUpdate.newTitle.getText()).toEqual("Goodbye Earth");
 });
 
 test("correctly converts between absolute and relative positions", () => {
-    const title = TaskTitleModel.fromText("Hello World");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "Hello World");
 
     // Create a relative position for different locations in the text
     const poss = [0, 5, 6, 11];
@@ -1927,13 +1953,13 @@ test("correctly converts between absolute and relative positions", () => {
 });
 
 test("relative positions are preserved across mutations", () => {
-    const title1 = TaskTitleModel.fromText("Hello World");
+    const title1 = TaskTitleModel.fromText(defaultTaskTitleClientId, "Hello World");
 
     // Create a relative position for the space between "Hello" and "World"
     const relativePos = title1.intoRelativePosition(5);
 
     // Make a change that doesn't affect the position
-    const update1 = title1.replace(0, 0, "Say ");
+    const update1 = title1.replace(defaultTaskTitleClientId, 0, 0, "Say ");
     const title2 = update1.newTitle;
 
     // The position should still be valid at the same logical location
@@ -1941,7 +1967,7 @@ test("relative positions are preserved across mutations", () => {
     expect(newAbsolutePos).toEqual(9); // "Say " + "Hello" = 9 chars
 
     // Now modify the text at the marked position
-    const update2 = title2.replace(newAbsolutePos, newAbsolutePos, ",");
+    const update2 = title2.replace(defaultTaskTitleClientId, newAbsolutePos, newAbsolutePos, ",");
     const title3 = update2.newTitle;
 
     // Verify the text is as expected
@@ -1950,12 +1976,12 @@ test("relative positions are preserved across mutations", () => {
 
 test("correctly identifies model equivalence", () => {
     // Create two models with the same content but different instances
-    const titleA = TaskTitleModel.fromText("Hello", {clientIdForTest: 1});
+    const titleA = TaskTitleModel.fromText(1 as TaskTitleClientId, "Hello");
 
-    const titleB = TaskTitleModel.fromText("Hello", {clientIdForTest: 2});
+    const titleB = TaskTitleModel.fromText(2 as TaskTitleClientId, "Hello");
 
     // Different content
-    const titleC = TaskTitleModel.fromText("World", {clientIdForTest: 1});
+    const titleC = TaskTitleModel.fromText(1 as TaskTitleClientId, "World");
 
     // Check equality
     expect(titleA.isEqual(titleA)).toBe(true); // Same instance
@@ -1964,7 +1990,7 @@ test("correctly identifies model equivalence", () => {
 
     // Create the same content through operations
     let titleD = emptyTaskTitleModel.get();
-    titleD = titleD.replace(0, 0, "Hello", {clientIdForTest: 1}).newTitle;
+    titleD = titleD.replace(1 as TaskTitleClientId, 0, 0, "Hello").newTitle;
 
     expect(titleA.isEqual(titleD)).toBe(true);
 });
@@ -1973,40 +1999,40 @@ test("manages complex undo/redo chains correctly", () => {
     let title = emptyTaskTitleModel.get();
 
     // Build a series of changes
-    const update1 = title.replace(0, 0, "First");
+    const update1 = title.replace(defaultTaskTitleClientId, 0, 0, "First");
     title = update1.newTitle;
 
-    const update2 = title.replace(5, 5, " Second");
+    const update2 = title.replace(defaultTaskTitleClientId, 5, 5, " Second");
     title = update2.newTitle;
 
-    const update3 = title.replace(12, 12, " Third");
+    const update3 = title.replace(defaultTaskTitleClientId, 12, 12, " Third");
     title = update3.newTitle;
 
     expect(title.getText()).toEqual("First Second Third");
 
     // Undo in reverse order
-    const undo3 = assertExists(update3.invert(title));
+    const undo3 = assertExists(update3.invert(defaultTaskTitleClientId, title));
     title = undo3.newTitle;
     expect(title.getText()).toEqual("First Second");
 
-    const undo2 = assertExists(update2.invert(title));
+    const undo2 = assertExists(update2.invert(defaultTaskTitleClientId, title));
     title = undo2.newTitle;
     expect(title.getText()).toEqual("First");
 
-    const undo1 = assertExists(update1.invert(title));
+    const undo1 = assertExists(update1.invert(defaultTaskTitleClientId, title));
     title = undo1.newTitle;
     expect(title.getText()).toEqual("");
 
     // Redo in original order
-    const redo1 = assertExists(undo1.invert(title));
+    const redo1 = assertExists(undo1.invert(defaultTaskTitleClientId, title));
     title = redo1.newTitle;
     expect(title.getText()).toEqual("First");
 
-    const redo2 = assertExists(undo2.invert(title));
+    const redo2 = assertExists(undo2.invert(defaultTaskTitleClientId, title));
     title = redo2.newTitle;
     expect(title.getText()).toEqual("First Second");
 
-    const redo3 = assertExists(undo3.invert(title));
+    const redo3 = assertExists(undo3.invert(defaultTaskTitleClientId, title));
     title = redo3.newTitle;
     expect(title.getText()).toEqual("First Second Third");
 });
@@ -2015,7 +2041,7 @@ test("all conversion functions work correctly", () => {
     const text = "Sample Task Title";
 
     // Create from text
-    const title = createTaskTitleFromText(text);
+    const title = createTaskTitleFromText(defaultTaskTitleClientId, text);
 
     // Validate it's a TaskTitle
     expect(isTaskTitle(title)).toBe(true);
@@ -2041,34 +2067,38 @@ test("all conversion functions work correctly", () => {
 });
 
 test("handles invalid positions gracefully", () => {
-    const title = TaskTitleModel.fromText("Hello");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "Hello");
 
     // Replacing before the start should throw
-    expect(() => title.replace(-1, 0, "X")).toThrow(
+    expect(() => title.replace(defaultTaskTitleClientId, -1, 0, "X")).toThrow(
         "Step `from` must be greater than or equal to 0",
     );
 
     // Replacing after the end should throw
-    expect(() => title.replace(6, 7, "X")).toThrow("Step `to` is out of bounds");
+    expect(() => title.replace(defaultTaskTitleClientId, 6, 7, "X")).toThrow(
+        "Step `to` is out of bounds",
+    );
 
     // From > to should throw
-    expect(() => title.replace(3, 2, "X")).toThrow(
+    expect(() => title.replace(defaultTaskTitleClientId, 3, 2, "X")).toThrow(
         "Step `to` must be greater than or equal to `from`",
     );
 });
 
 test("handles empty updates correctly", () => {
-    const title = TaskTitleModel.fromText("Hello");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "Hello");
 
     // No-op updates should throw
-    expect(() => title.replace(2, 2, "")).toThrow("Step must either delete or insert text");
+    expect(() => title.replace(defaultTaskTitleClientId, 2, 2, "")).toThrow(
+        "Step must either delete or insert text",
+    );
 
     // But deletion should be fine
-    const update = title.replace(2, 3, "");
+    const update = title.replace(defaultTaskTitleClientId, 2, 3, "");
     expect(update.newTitle.getText()).toEqual("Helo");
 
     // And insertion should be fine
-    const update2 = title.replace(2, 2, "X");
+    const update2 = title.replace(defaultTaskTitleClientId, 2, 2, "X");
     expect(update2.newTitle.getText()).toEqual("HeXllo");
 });
 
@@ -2077,11 +2107,11 @@ test("handles multiple interleaved updates with undo/redo", () => {
     let titleB = emptyTaskTitleModel.get();
 
     // Client A adds "Hello"
-    const updateA1 = titleA.replace(0, 0, "Hello", {clientIdForTest: 1});
+    const updateA1 = titleA.replace(1 as TaskTitleClientId, 0, 0, "Hello");
     titleA = updateA1.newTitle;
 
     // Client B adds "World"
-    const updateB1 = titleB.replace(0, 0, "World", {clientIdForTest: 2});
+    const updateB1 = titleB.replace(2 as TaskTitleClientId, 0, 0, "World");
     titleB = updateB1.newTitle;
 
     // Synchronize
@@ -2093,11 +2123,11 @@ test("handles multiple interleaved updates with undo/redo", () => {
     expect(titleA.getText()).toEqual("HelloWorld");
 
     // Client A adds space in the middle
-    const updateA2 = titleA.replace(5, 5, " ", {clientIdForTest: 1});
+    const updateA2 = titleA.replace(1 as TaskTitleClientId, 5, 5, " ");
     titleA = updateA2.newTitle;
 
     // Client B adds "!" at the end
-    const updateB2 = titleB.replace(10, 10, "!", {clientIdForTest: 2});
+    const updateB2 = titleB.replace(2 as TaskTitleClientId, 10, 10, "!");
     titleB = updateB2.newTitle;
 
     // Synchronize again
@@ -2109,11 +2139,11 @@ test("handles multiple interleaved updates with undo/redo", () => {
     expect(titleA.getText()).toEqual("Hello World!");
 
     // Client A undoes their last edit
-    const undoA2 = assertExists(updateA2.invert(titleA, {clientIdForTest: 1}));
+    const undoA2 = assertExists(updateA2.invert(1 as TaskTitleClientId, titleA));
     titleA = undoA2.newTitle;
 
     // Client B undoes their last edit
-    const undoB2 = assertExists(updateB2.invert(titleB, {clientIdForTest: 2}));
+    const undoB2 = assertExists(updateB2.invert(2 as TaskTitleClientId, titleB));
     titleB = undoB2.newTitle;
 
     // Synchronize the undo operations
@@ -2131,7 +2161,7 @@ test("handles largest document manipulations", () => {
 
     // Create a large text document, leaving room for edits
     const largeText = "x".repeat(taskTitleMaxLength - 8);
-    let title = TaskTitleModel.fromText(largeText);
+    let title = TaskTitleModel.fromText(defaultTaskTitleClientId, largeText);
 
     const start = 0;
     const middleReplaceStart = taskTitleMaxLength / 2;
@@ -2139,9 +2169,14 @@ test("handles largest document manipulations", () => {
     const end = taskTitleMaxLength - 5;
 
     // Make some edits at various positions
-    title = title.replace(middleReplaceStart, middleReplaceEnd, "MIDDLE").newTitle;
-    title = title.replace(start, start, "Start: ").newTitle;
-    title = title.replace(end, end, " :End").newTitle;
+    title = title.replace(
+        defaultTaskTitleClientId,
+        middleReplaceStart,
+        middleReplaceEnd,
+        "MIDDLE",
+    ).newTitle;
+    title = title.replace(defaultTaskTitleClientId, start, start, "Start: ").newTitle;
+    title = title.replace(defaultTaskTitleClientId, end, end, " :End").newTitle;
 
     // Verify results
     expect(title.getText()).toEqual(
@@ -2154,13 +2189,15 @@ test("handles largest document manipulations", () => {
 });
 
 test("replace and replace many produce identical results", () => {
-    const title = TaskTitleModel.fromText("Hello World");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "Hello World");
 
     // Single replace
-    const update1 = title.replace(6, 11, "Everyone");
+    const update1 = title.replace(defaultTaskTitleClientId, 6, 11, "Everyone");
 
     // Same operation with replaceMany
-    const update2 = title.replaceMany([{from: 6, to: 11, text: "Everyone"}]);
+    const update2 = title.replaceMany(defaultTaskTitleClientId, [
+        {from: 6, to: 11, text: "Everyone"},
+    ]);
 
     // Compare outputs
     expect(update1.newTitle.getText()).toEqual(update2.newTitle.getText());
@@ -2168,9 +2205,9 @@ test("replace and replace many produce identical results", () => {
 });
 
 test("replace many correctly applies multiple operations", () => {
-    const title = TaskTitleModel.fromText("Hello World");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "Hello World");
 
-    const update = title.replaceMany([
+    const update = title.replaceMany(defaultTaskTitleClientId, [
         {from: 0, to: 5, text: "Greetings"}, // Replace "Hello"
         {from: 10, to: 15, text: "Everyone"}, // Replace "World"
     ]);
@@ -2179,14 +2216,14 @@ test("replace many correctly applies multiple operations", () => {
 
     // Compare with sequential operations
     let otherTitle = title;
-    otherTitle = otherTitle.replace(0, 5, "Greetings").newTitle;
-    otherTitle = otherTitle.replace(10, 15, "Everyone").newTitle;
+    otherTitle = otherTitle.replace(defaultTaskTitleClientId, 0, 5, "Greetings").newTitle;
+    otherTitle = otherTitle.replace(defaultTaskTitleClientId, 10, 15, "Everyone").newTitle;
 
     expect(otherTitle.getText()).toEqual("Greetings Everyone");
 });
 
 test("frozen docs cannot be modified", () => {
-    const title = TaskTitleModel.fromText("Test");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "Test");
 
     const xmlFragment = title.getDocForTest().getXmlFragment("doc");
 
@@ -2204,6 +2241,7 @@ test("correctly integrates with ProseMirror", () => {
 
     // Convert to task title and back
     const title = new TaskTitleModel(emptyTaskTitle.get()).replace(
+        defaultTaskTitleClientId,
         0,
         0,
         "ProseMirror Node",
@@ -2221,13 +2259,13 @@ test("correctly integrates with ProseMirror", () => {
 
 test("handles special characters and unicode correctly", () => {
     const specialChars = "ñáéíóúü€£¥©®™😀🚀\n\t";
-    const title = TaskTitleModel.fromText(specialChars);
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, specialChars);
 
     // Verify the text is preserved
     expect(title.getText()).toEqual(specialChars);
 
     // Make edits with special characters
-    const updated = title.replace(2, 5, "👨‍👩‍👧‍👦").newTitle;
+    const updated = title.replace(defaultTaskTitleClientId, 2, 5, "👨‍👩‍👧‍👦").newTitle;
 
     // Verify edits worked correctly
     expect(updated.getText().includes("👨‍👩‍👧‍👦")).toBe(true);
@@ -2245,7 +2283,7 @@ test("multiple small updates compose correctly", () => {
 
     // Apply operations individually
     for (const op of operations) {
-        title = title.replace(op.pos, op.pos, op.text).newTitle;
+        title = title.replace(defaultTaskTitleClientId, op.pos, op.pos, op.text).newTitle;
     }
 
     expect(title.getText()).toEqual("12345");
@@ -2254,25 +2292,27 @@ test("multiple small updates compose correctly", () => {
     const initialModel = emptyTaskTitleModel.get();
     const steps = operations.map(op => ({from: op.pos, to: op.pos, text: op.text}));
 
-    const batchUpdate = initialModel.replaceMany(steps);
+    const batchUpdate = initialModel.replaceMany(defaultTaskTitleClientId, steps);
     expect(batchUpdate.newTitle.getText()).toEqual("12345");
 });
 
 test("deleted content is properly handled after GC", () => {
     // Create initial text
-    let title = emptyTaskTitleModel.get().replace(0, 0, "This text will be deleted").newTitle;
+    let title = emptyTaskTitleModel
+        .get()
+        .replace(defaultTaskTitleClientId, 0, 0, "This text will be deleted").newTitle;
 
     // Delete all the text
-    title = title.replace(0, 25, "").newTitle;
+    title = title.replace(defaultTaskTitleClientId, 0, 25, "").newTitle;
 
     // Add new content
-    title = title.replace(0, 0, "New content").newTitle;
+    title = title.replace(defaultTaskTitleClientId, 0, 0, "New content").newTitle;
 
     // Ensure the new text is correct
     expect(title.getText()).toEqual("New content");
 
     // Add more text and ensure it works correctly
-    title = title.replace(11, 11, " added").newTitle;
+    title = title.replace(defaultTaskTitleClientId, 11, 11, " added").newTitle;
     expect(title.getText()).toEqual("New content added");
 });
 
@@ -2282,12 +2322,17 @@ test("doesn\u2019t retain references to old versions", () => {
 
     // Create a bunch of versions
     for (let i = 0; i < 10; i++) {
-        title = title.replace(title.getText().length, title.getText().length, "v" + i).newTitle;
+        title = title.replace(
+            defaultTaskTitleClientId,
+            title.getText().length,
+            title.getText().length,
+            "v" + i,
+        ).newTitle;
         versions.push(title);
     }
 
     // Modify the latest version
-    title = title.replace(0, 0, "Modified: ").newTitle;
+    title = title.replace(defaultTaskTitleClientId, 0, 0, "Modified: ").newTitle;
 
     // All previous versions should be untouched
     for (let i = 0; i < 10; i++) {
@@ -2305,29 +2350,29 @@ test("properly handles empty documents", () => {
     expect(empty.getText()).toEqual("");
 
     // Add and then remove text
-    const withText = empty.replace(0, 0, "Some text").newTitle;
+    const withText = empty.replace(defaultTaskTitleClientId, 0, 0, "Some text").newTitle;
     expect(withText.getText()).toEqual("Some text");
 
-    const emptyAgain = withText.replace(0, 9, "").newTitle;
+    const emptyAgain = withText.replace(defaultTaskTitleClientId, 0, 9, "").newTitle;
     expect(emptyAgain.getText()).toEqual("");
 
     // Verify that we can still add text after clearing
-    const textAgain = emptyAgain.replace(0, 0, "New text").newTitle;
+    const textAgain = emptyAgain.replace(defaultTaskTitleClientId, 0, 0, "New text").newTitle;
     expect(textAgain.getText()).toEqual("New text");
 });
 
 test("handles multi-user simultaneous cursor position deletions", () => {
-    const title = TaskTitleModel.fromText("abcdefghijklm");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "abcdefghijklm");
 
     // Three users concurrently delete content at different cursor positions First user
     // removes "cde"
-    const update1 = title.replace(2, 5, "", {clientIdForTest: 1});
+    const update1 = title.replace(1 as TaskTitleClientId, 2, 5, "");
 
     // Second user removes "hij"
-    const update2 = title.replace(7, 10, "", {clientIdForTest: 2});
+    const update2 = title.replace(2 as TaskTitleClientId, 7, 10, "");
 
     // Third user removes "b"
-    const update3 = title.replace(1, 2, "", {clientIdForTest: 3});
+    const update3 = title.replace(3 as TaskTitleClientId, 1, 2, "");
 
     // Apply updates in different orders and ensure convergence
     const title123 = title.apply(update1).apply(update2).apply(update3);
@@ -2348,12 +2393,12 @@ test("handles multi-user simultaneous cursor position deletions", () => {
 });
 
 test("handles multi-user insertions at the same position", () => {
-    const title = TaskTitleModel.fromText("Hello World");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "Hello World");
 
     // Multiple users insert at position 5 (between "Hello" and " World")
-    const update1 = title.replace(5, 5, ",", {clientIdForTest: 1});
-    const update2 = title.replace(5, 5, "!", {clientIdForTest: 2});
-    const update3 = title.replace(5, 5, "?", {clientIdForTest: 3});
+    const update1 = title.replace(1 as TaskTitleClientId, 5, 5, ",");
+    const update2 = title.replace(2 as TaskTitleClientId, 5, 5, "!");
+    const update3 = title.replace(3 as TaskTitleClientId, 5, 5, "?");
 
     // Apply in different orders
     const title123 = title.apply(update1).apply(update2).apply(update3);
@@ -2365,13 +2410,13 @@ test("handles multi-user insertions at the same position", () => {
 });
 
 test("handles overlapping replacements correctly", () => {
-    const title = TaskTitleModel.fromText("The quick brown fox jumps");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "The quick brown fox jumps");
 
     // User 1 replaces "quick brown" with "slow red"
-    const update1 = title.replace(4, 15, "slow red", {clientIdForTest: 1});
+    const update1 = title.replace(1 as TaskTitleClientId, 4, 15, "slow red");
 
     // User 2 replaces "brown fox" with "dog"
-    const update2 = title.replace(10, 19, "dog", {clientIdForTest: 2});
+    const update2 = title.replace(2 as TaskTitleClientId, 10, 19, "dog");
 
     // Apply in different orders
     const title12 = title.apply(update1).apply(update2);
@@ -2385,27 +2430,27 @@ test("handles overlapping replacements correctly", () => {
     const finalText = title12.getText();
 
     // Check that applying the same updates to a fresh document gives the same result
-    let freshTitle = TaskTitleModel.fromText("The quick brown fox jumps");
+    let freshTitle = TaskTitleModel.fromText(defaultTaskTitleClientId, "The quick brown fox jumps");
     freshTitle = freshTitle.apply(update1).apply(update2);
     expect(freshTitle.getText()).toEqual(finalText);
 });
 
 test("handles complex concurrent editing with interleaved inserts and deletes", () => {
-    const title = TaskTitleModel.fromText("abcdefg");
+    const title = TaskTitleModel.fromText(defaultTaskTitleClientId, "abcdefg");
 
     // Series of concurrent edits:
     //
     // 1. Insert "X" between a and b
-    const update1 = title.replace(1, 1, "X", {clientIdForTest: 1});
+    const update1 = title.replace(1 as TaskTitleClientId, 1, 1, "X");
 
     // 2. Delete "cd"
-    const update2 = title.replace(2, 4, "", {clientIdForTest: 2});
+    const update2 = title.replace(2 as TaskTitleClientId, 2, 4, "");
 
     // 3. Replace "fg" with "FG"
-    const update3 = title.replace(5, 7, "FG", {clientIdForTest: 3});
+    const update3 = title.replace(3 as TaskTitleClientId, 5, 7, "FG");
 
     // 4. Insert "YZ" at start
-    const update4 = title.replace(0, 0, "YZ", {clientIdForTest: 4});
+    const update4 = title.replace(4 as TaskTitleClientId, 0, 0, "YZ");
 
     // Apply in different complex orders
     const title1234 = title.apply(update1).apply(update2).apply(update3).apply(update4);
@@ -2418,19 +2463,19 @@ test("handles complex concurrent editing with interleaved inserts and deletes", 
 });
 
 test("resolves complex undos with concurrent edits correctly", () => {
-    let title1 = TaskTitleModel.fromText("Initial text", {clientIdForTest: 1});
+    let title1 = TaskTitleModel.fromText(1 as TaskTitleClientId, "Initial text");
     let title2 = title1; // User 2 starts with the same document
 
     // User 1 edits
-    const update1 = title1.replace(8, 12, "content", {clientIdForTest: 1});
+    const update1 = title1.replace(1 as TaskTitleClientId, 8, 12, "content");
     title1 = update1.newTitle; // "Initial content"
 
     // User 2 makes a different edit before receiving user 1's update
-    const update2 = title2.replace(0, 0, "Modified ", {clientIdForTest: 2});
+    const update2 = title2.replace(2 as TaskTitleClientId, 0, 0, "Modified ");
     title2 = update2.newTitle; // "Modified Initial text"
 
     // User 1 undoes their edit
-    const undo1 = assertExists(update1.invert(title1, {clientIdForTest: 1}));
+    const undo1 = assertExists(update1.invert(1 as TaskTitleClientId, title1));
     title1 = undo1.newTitle; // Back to "Initial text"
 
     // User 2 receives user 1's edits (first the update, then the undo)
@@ -2449,22 +2494,22 @@ test("handles concurrent conflicting undos and redos", () => {
     let title2 = emptyTaskTitleModel.get();
 
     // Both users start with same document User 1 adds text
-    const update1 = title1.replace(0, 0, "Hello", {clientIdForTest: 1});
+    const update1 = title1.replace(1 as TaskTitleClientId, 0, 0, "Hello");
     title1 = update1.newTitle;
 
     // Sync to user 2
     title2 = title2.apply(update1);
 
     // User 1 adds more text
-    const update2 = title1.replace(5, 5, " World", {clientIdForTest: 1});
+    const update2 = title1.replace(1 as TaskTitleClientId, 5, 5, " World");
     title1 = update2.newTitle;
 
     // User 2 adds different text at same position before receiving update2
-    const update3 = title2.replace(5, 5, " Universe", {clientIdForTest: 2});
+    const update3 = title2.replace(2 as TaskTitleClientId, 5, 5, " Universe");
     title2 = update3.newTitle;
 
     // User 1 undoes their second edit
-    const undo2 = assertExists(update2.invert(title1, {clientIdForTest: 1}));
+    const undo2 = assertExists(update2.invert(1 as TaskTitleClientId, title1));
     title1 = undo2.newTitle;
 
     // User 1 receives User 2's update
@@ -2478,7 +2523,7 @@ test("handles concurrent conflicting undos and redos", () => {
     expect(title1.getText()).toEqual("Hello Universe");
 
     // User 1 re-applies their "World" edit (redo)
-    const redo2 = assertExists(undo2.invert(title1, {clientIdForTest: 1}));
+    const redo2 = assertExists(undo2.invert(1 as TaskTitleClientId, title1));
     title1 = redo2.newTitle;
 
     // User 2 receives the redo
@@ -2490,28 +2535,28 @@ test("handles concurrent conflicting undos and redos", () => {
 });
 
 test("preserves document integrity with concurrent undos of non-sequential updates", () => {
-    let title1 = TaskTitleModel.fromText("ABCDEFG", {clientIdForTest: 1});
+    let title1 = TaskTitleModel.fromText(1 as TaskTitleClientId, "ABCDEFG");
     let title2 = title1; // Start with identical documents
 
     // User 1 performs three edits
-    const update1 = title1.replace(1, 2, "1", {clientIdForTest: 1}); // A1CDEFG
+    const update1 = title1.replace(1 as TaskTitleClientId, 1, 2, "1"); // A1CDEFG
     title1 = update1.newTitle;
 
-    const update2 = title1.replace(3, 4, "2", {clientIdForTest: 1}); // A1C2EFG
+    const update2 = title1.replace(1 as TaskTitleClientId, 3, 4, "2"); // A1C2EFG
     title1 = update2.newTitle;
 
-    const update3 = title1.replace(5, 6, "3", {clientIdForTest: 1}); // A1C2E3G
+    const update3 = title1.replace(1 as TaskTitleClientId, 5, 6, "3"); // A1C2E3G
     title1 = update3.newTitle;
 
     // User 2 receives all of user 1's updates
     title2 = title2.apply(update1).apply(update2).apply(update3);
 
     // User 1 undoes the second edit (not the most recent one)
-    const undo2 = assertExists(update2.invert(title1, {clientIdForTest: 1}));
+    const undo2 = assertExists(update2.invert(1 as TaskTitleClientId, title1));
     title1 = undo2.newTitle; // Should be A1CDEF3G
 
     // User 2 simultaneously makes an edit
-    const update4 = title2.replace(0, 1, "X", {clientIdForTest: 2}); // X1C2E3G
+    const update4 = title2.replace(2 as TaskTitleClientId, 0, 1, "X"); // X1C2E3G
     title2 = update4.newTitle;
 
     // Both users receive each other's changes
@@ -2523,20 +2568,20 @@ test("preserves document integrity with concurrent undos of non-sequential updat
 });
 
 test("maintains internal structure integrity with multi-user complex operations", () => {
-    const title = TaskTitleModel.fromText("Baseline text", {clientIdForTest: 1});
+    const title = TaskTitleModel.fromText(1 as TaskTitleClientId, "Baseline text");
 
     // Series of edits by different users with overwrites User 1 replaces "Base" with
     // "Initial"
-    const update1 = title.replace(0, 4, "Initial", {clientIdForTest: 1});
+    const update1 = title.replace(1 as TaskTitleClientId, 0, 4, "Initial");
 
     // User 2 replaces "text" with "document"
-    const update2 = title.replace(9, 13, "document", {clientIdForTest: 2});
+    const update2 = title.replace(2 as TaskTitleClientId, 9, 13, "document");
 
     // User 3 inserts " important" before "text"
-    const update3 = title.replace(9, 9, " important", {clientIdForTest: 3});
+    const update3 = title.replace(3 as TaskTitleClientId, 9, 9, " important");
 
     // User 4 completely rewrites everything
-    const update4 = title.replace(0, 13, "Completely different text", {clientIdForTest: 4});
+    const update4 = title.replace(4 as TaskTitleClientId, 0, 13, "Completely different text");
 
     // Apply in different orders
     const title12 = title.apply(update1).apply(update2);
@@ -2551,26 +2596,26 @@ test("maintains internal structure integrity with multi-user complex operations"
     // Verify the result remains stable with additional operations Add another edit
     // operation on the merged document
     const titleFinal = title1234.replace(
+        5 as TaskTitleClientId,
         title1234.getText().length,
         title1234.getText().length,
         " - FINAL",
-        {clientIdForTest: 5},
     ).newTitle;
 
     // Create another merge path and ensure it gets the same content
     const titleAlt = title.apply(update4).apply(update1).apply(update2).apply(update3);
     const titleAltFinal = titleAlt.replace(
+        5 as TaskTitleClientId,
         titleAlt.getText().length,
         titleAlt.getText().length,
         " - FINAL",
-        {clientIdForTest: 5},
     ).newTitle;
 
     expect(titleFinal.getText()).toEqual(titleAltFinal.getText());
 });
 
 test("handles extreme cascading position shifts from interleaved updates", () => {
-    const title = TaskTitleModel.fromText("0123456789", {clientIdForTest: 1});
+    const title = TaskTitleModel.fromText(1 as TaskTitleClientId, "0123456789");
 
     // Create a series of non-sequential position updates that cascade Each edit shifts
     // positions for subsequent edits
@@ -2578,15 +2623,15 @@ test("handles extreme cascading position shifts from interleaved updates", () =>
     // These updates are designed to create complex dependencies
     const updates = [
         // Insert at position 1
-        title.replace(1, 1, "A", {clientIdForTest: 2}),
+        title.replace(2 as TaskTitleClientId, 1, 1, "A"),
         // Delete at position 3-5 (which will be shifted by the previous insert)
-        title.replace(3, 5, "", {clientIdForTest: 3}),
+        title.replace(3 as TaskTitleClientId, 3, 5, ""),
         // Replace at position 7-8 (shifted by both previous edits)
-        title.replace(7, 8, "B", {clientIdForTest: 4}),
+        title.replace(4 as TaskTitleClientId, 7, 8, "B"),
         // Insert at position 2 (which will affect all later positions)
-        title.replace(2, 2, "C", {clientIdForTest: 5}),
+        title.replace(5 as TaskTitleClientId, 2, 2, "C"),
         // Delete across positions that have been modified by previous edits
-        title.replace(4, 7, "", {clientIdForTest: 6}),
+        title.replace(6 as TaskTitleClientId, 4, 7, ""),
     ];
 
     // Apply in sequential order
@@ -2616,23 +2661,23 @@ test("handles extreme cascading position shifts from interleaved updates", () =>
 });
 
 test("handles rapid insert/delete pairs at the same position", () => {
-    const title = TaskTitleModel.fromText("ABCDEFG", {clientIdForTest: 1});
+    const title = TaskTitleModel.fromText(1 as TaskTitleClientId, "ABCDEFG");
 
     // Create a series of rapid insert/delete pairs at the same position by different
     // users
 
     // User 2 inserts X at position 3
-    const insert1 = title.replace(3, 3, "X", {clientIdForTest: 2});
+    const insert1 = title.replace(2 as TaskTitleClientId, 3, 3, "X");
 
     // User 3 deletes the character at position 3 (which may or may not be X depending
     // on order)
-    const delete1 = title.replace(3, 4, "", {clientIdForTest: 3});
+    const delete1 = title.replace(3 as TaskTitleClientId, 3, 4, "");
 
     // User 4 inserts Y at position 3
-    const insert2 = title.replace(3, 3, "Y", {clientIdForTest: 4});
+    const insert2 = title.replace(4 as TaskTitleClientId, 3, 3, "Y");
 
     // User 5 deletes the character at position 3 again
-    const delete2 = title.replace(3, 4, "", {clientIdForTest: 5});
+    const delete2 = title.replace(5 as TaskTitleClientId, 3, 4, "");
 
     // Apply in different orders
     const titleInsertDelete = title.apply(insert1).apply(delete1).apply(insert2).apply(delete2);
@@ -2650,22 +2695,22 @@ test("handles rapid insert/delete pairs at the same position", () => {
 });
 
 test("ensures inverted operation history remains consistent with concurrent updates", () => {
-    let title1 = TaskTitleModel.fromText("Original", {clientIdForTest: 1});
+    let title1 = TaskTitleModel.fromText(1 as TaskTitleClientId, "Original");
     let title2 = title1;
 
     // User 1 makes an edit
-    const update1 = title1.replace(0, 8, "Modified", {clientIdForTest: 1});
+    const update1 = title1.replace(1 as TaskTitleClientId, 0, 8, "Modified");
     title1 = update1.newTitle;
 
     // User 2 receives the update
     title2 = title2.apply(update1);
 
     // User 2 makes an unrelated edit
-    const update2 = title2.replace(8, 8, " Content", {clientIdForTest: 2});
+    const update2 = title2.replace(2 as TaskTitleClientId, 8, 8, " Content");
     title2 = update2.newTitle;
 
     // User 1 undoes their edit
-    const undo1 = assertExists(update1.invert(title1, {clientIdForTest: 1}));
+    const undo1 = assertExists(update1.invert(1 as TaskTitleClientId, title1));
     title1 = undo1.newTitle;
 
     // User 1 receives User 2's update
@@ -2679,7 +2724,7 @@ test("ensures inverted operation history remains consistent with concurrent upda
     expect(title1.getText()).toEqual("Original Content");
 
     // User 1 redoes their edit
-    const redo1 = assertExists(undo1.invert(title1, {clientIdForTest: 1}));
+    const redo1 = assertExists(undo1.invert(1 as TaskTitleClientId, title1));
     title1 = redo1.newTitle;
 
     // User 2 receives the redo
@@ -2693,13 +2738,13 @@ test("ensures inverted operation history remains consistent with concurrent upda
 test("handles concurrent editing with Unicode surrogate pairs and emojis", () => {
     // Include characters that require surrogate pairs to ensure UTF-16 handling
     const text = "😀🚀👨‍👩‍👧‍👦";
-    const title = TaskTitleModel.fromText(text, {clientIdForTest: 1});
+    const title = TaskTitleModel.fromText(1 as TaskTitleClientId, text);
 
     // User 2 inserts between the emoji face and rocket
-    const update1 = title.replace(2, 2, "👍", {clientIdForTest: 2});
+    const update1 = title.replace(2 as TaskTitleClientId, 2, 2, "👍");
 
     // User 3 deletes the family emoji
-    const update2 = title.replace(4, text.length, "", {clientIdForTest: 3});
+    const update2 = title.replace(3 as TaskTitleClientId, 4, text.length, "");
 
     // Apply in different orders
     const title12 = title.apply(update1).apply(update2);
@@ -2710,15 +2755,15 @@ test("handles concurrent editing with Unicode surrogate pairs and emojis", () =>
     expect(title12.getText()).toEqual("😀👍🚀");
 
     // Check that emoji operations with combining characters work properly
-    const updated = title12.replace(4, 6, "🧙‍♀️", {clientIdForTest: 4}).newTitle;
+    const updated = title12.replace(4 as TaskTitleClientId, 4, 6, "🧙‍♀️").newTitle;
     expect(updated.getText()).toEqual("😀👍🧙‍♀️");
 });
 
 test("maintains data integrity when same update is applied multiple times", () => {
-    const title = TaskTitleModel.fromText("Testing", {clientIdForTest: 1});
+    const title = TaskTitleModel.fromText(1 as TaskTitleClientId, "Testing");
 
     // Create an update
-    const update = title.replace(0, 7, "Modified", {clientIdForTest: 2});
+    const update = title.replace(2 as TaskTitleClientId, 0, 7, "Modified");
 
     // Apply the same update multiple times
     const multiTitle = title.apply(update).apply(update).apply(update);
@@ -2732,9 +2777,9 @@ test("maintains data integrity when same update is applied multiple times", () =
     // Apply some other updates between duplicate applications
     let complexTitle = title;
     complexTitle = complexTitle.apply(update);
-    complexTitle = complexTitle.replace(8, 8, " Text", {clientIdForTest: 3}).newTitle;
+    complexTitle = complexTitle.replace(3 as TaskTitleClientId, 8, 8, " Text").newTitle;
     complexTitle = complexTitle.apply(update);
-    complexTitle = complexTitle.replace(13, 13, "!", {clientIdForTest: 4}).newTitle;
+    complexTitle = complexTitle.replace(4 as TaskTitleClientId, 13, 13, "!").newTitle;
     complexTitle = complexTitle.apply(update);
 
     // Content should remain consistent
@@ -2742,16 +2787,16 @@ test("maintains data integrity when same update is applied multiple times", () =
 });
 
 test("gracefully handles empty operations in sequence", () => {
-    const title = TaskTitleModel.fromText("Sample text", {clientIdForTest: 1});
+    const title = TaskTitleModel.fromText(1 as TaskTitleClientId, "Sample text");
 
     // Create a sequence of operations where some operations are no-ops (they don't
     // actually change anything)
 
     // First replace "Sample" with itself - this should be a no-op internally
-    const update1 = title.replace(0, 6, "Sample", {clientIdForTest: 2});
+    const update1 = title.replace(2 as TaskTitleClientId, 0, 6, "Sample");
 
     // Add something at the end
-    const update2 = title.replace(11, 11, "!", {clientIdForTest: 3});
+    const update2 = title.replace(3 as TaskTitleClientId, 11, 11, "!");
 
     // Apply in order
     const resultTitle = title.apply(update1).apply(update2);
@@ -2768,8 +2813,8 @@ test("correctly handles updates with empty document states", () => {
     const empty = emptyTaskTitleModel.get();
 
     // Multiple users add text independently to the empty document
-    const update1 = empty.replace(0, 0, "First text", {clientIdForTest: 1});
-    const update2 = empty.replace(0, 0, "Second text", {clientIdForTest: 2});
+    const update1 = empty.replace(1 as TaskTitleClientId, 0, 0, "First text");
+    const update2 = empty.replace(2 as TaskTitleClientId, 0, 0, "Second text");
 
     // Apply in different orders
     const doc12 = empty.apply(update1).apply(update2);
@@ -2779,10 +2824,10 @@ test("correctly handles updates with empty document states", () => {
     expect(doc12.getText()).toEqual(doc21.getText());
 
     // Now delete all content and converge to empty again
-    const clearDoc = doc12.replace(0, doc12.getText().length, "", {clientIdForTest: 3});
+    const clearDoc = doc12.replace(3 as TaskTitleClientId, 0, doc12.getText().length, "");
 
     // From the clear state, add new content
-    const update3 = clearDoc.newTitle.replace(0, 0, "New content", {clientIdForTest: 4});
+    const update3 = clearDoc.newTitle.replace(4 as TaskTitleClientId, 0, 0, "New content");
 
     // Result should be just the new content
     expect(update3.newTitle.getText()).toEqual("New content");
@@ -2794,13 +2839,13 @@ function createMultiNodeTitle(): TaskTitleModel {
     const empty = emptyTaskTitleModel.get();
 
     // First segment - creates first node
-    const update1 = empty.replace(0, 0, "First segment ", {clientIdForTest: 1});
+    const update1 = empty.replace(1 as TaskTitleClientId, 0, 0, "First segment ");
 
     // Second segment - creates a second node
-    const update2 = empty.replace(0, 0, "Second segment ", {clientIdForTest: 2});
+    const update2 = empty.replace(2 as TaskTitleClientId, 0, 0, "Second segment ");
 
     // Third segment - creates a third node
-    const update3 = empty.replace(0, 0, "Third segment", {clientIdForTest: 3});
+    const update3 = empty.replace(3 as TaskTitleClientId, 0, 0, "Third segment");
 
     return empty.apply(update1).apply(update2).apply(update3);
 }
@@ -2863,7 +2908,7 @@ test("deletes content spanning across multiple nodes", () => {
     // ```
     //
     // Deleting from position 6 to 20 ("segment Second")
-    const updatedTitle = title.replace(6, 20, "", {clientIdForTest: 4}).newTitle;
+    const updatedTitle = title.replace(4 as TaskTitleClientId, 6, 20, "").newTitle;
 
     // Verify the text content is correct after deletion
     expect(updatedTitle.getText()).toEqual("First  segment Third segment");
@@ -2876,9 +2921,12 @@ test("deletes content spanning all nodes", () => {
     const title = createMultiNodeTitle();
 
     // Delete the entire content across all nodes
-    const updatedTitle = title.replace(0, title.getText().length, "", {
-        clientIdForTest: 4,
-    }).newTitle;
+    const updatedTitle = title.replace(
+        4 as TaskTitleClientId,
+        0,
+        title.getText().length,
+        "",
+    ).newTitle;
 
     // Verify text is empty
     expect(updatedTitle.getText()).toEqual("");
@@ -2900,13 +2948,13 @@ test("deletes partial content from each node", () => {
     let updatedTitle = title;
 
     // Delete "segment" from first node
-    updatedTitle = updatedTitle.replace(6, 13, "", {clientIdForTest: 4}).newTitle;
+    updatedTitle = updatedTitle.replace(4 as TaskTitleClientId, 6, 13, "").newTitle;
 
     // Delete "segment" from second node
-    updatedTitle = updatedTitle.replace(14, 21, "", {clientIdForTest: 5}).newTitle;
+    updatedTitle = updatedTitle.replace(5 as TaskTitleClientId, 14, 21, "").newTitle;
 
     // Delete "segment" from third node
-    updatedTitle = updatedTitle.replace(21, 28, "", {clientIdForTest: 6}).newTitle;
+    updatedTitle = updatedTitle.replace(6 as TaskTitleClientId, 21, 28, "").newTitle;
 
     // Verify the text content
     expect(updatedTitle.getText()).toEqual("First  Second  Third ");
@@ -2921,7 +2969,7 @@ test("inserts content at boundary between nodes", () => {
     const initialNodeLengths = getXmlTextNodeLengths(title);
 
     // Insert at the boundary between first and second nodes (after index 13)
-    const updatedTitle = title.replace(14, 14, "INSERTED ", {clientIdForTest: 4}).newTitle;
+    const updatedTitle = title.replace(4 as TaskTitleClientId, 14, 14, "INSERTED ").newTitle;
 
     // Verify text content
     expect(updatedTitle.getText()).toEqual("First segment INSERTED Second segment Third segment");
@@ -2948,7 +2996,7 @@ test("inserts content spanning positions in multiple nodes", () => {
     // ```
     //
     // Replace "segment Second segment" with "REPLACEMENT"
-    const updatedTitle = title.replace(6, 28, "REPLACEMENT", {clientIdForTest: 4}).newTitle;
+    const updatedTitle = title.replace(4 as TaskTitleClientId, 6, 28, "REPLACEMENT").newTitle;
 
     // Verify the text content
     expect(updatedTitle.getText()).toEqual("First REPLACEMENT Third segment");
@@ -2966,7 +3014,7 @@ test("deletes from start of one node to middle of another node", () => {
     // "First segment Second segment Third segment"
     //                |__________________|
     // ```
-    const updatedTitle = title.replace(14, 35, "", {clientIdForTest: 4}).newTitle;
+    const updatedTitle = title.replace(4 as TaskTitleClientId, 14, 35, "").newTitle;
 
     // Verify the text content
     expect(updatedTitle.getText()).toEqual("First segment segment");
@@ -2979,8 +3027,8 @@ test("simultaneously inserts at multiple node boundaries", () => {
     const title = createMultiNodeTitle();
 
     // Create two concurrent inserts at different node boundaries
-    const update1 = title.replace(14, 14, "[A]", {clientIdForTest: 4});
-    const update2 = title.replace(29, 29, "[B]", {clientIdForTest: 5});
+    const update1 = title.replace(4 as TaskTitleClientId, 14, 14, "[A]");
+    const update2 = title.replace(5 as TaskTitleClientId, 29, 29, "[B]");
 
     // Apply both updates
     const updatedTitle = title.apply(update1.raw).apply(update2.raw);
@@ -2999,13 +3047,13 @@ test("replaces content spanning into each node with different text", () => {
     let updatedTitle = title;
 
     // Replace part of first node
-    updatedTitle = updatedTitle.replace(0, 5, "1st", {clientIdForTest: 4}).newTitle;
+    updatedTitle = updatedTitle.replace(4 as TaskTitleClientId, 0, 5, "1st").newTitle;
 
     // Replace part of second node
-    updatedTitle = updatedTitle.replace(12, 18, "2nd", {clientIdForTest: 5}).newTitle;
+    updatedTitle = updatedTitle.replace(5 as TaskTitleClientId, 12, 18, "2nd").newTitle;
 
     // Replace part of third node
-    updatedTitle = updatedTitle.replace(24, 29, "3rd", {clientIdForTest: 6}).newTitle;
+    updatedTitle = updatedTitle.replace(6 as TaskTitleClientId, 24, 29, "3rd").newTitle;
 
     // Verify the text content
     expect(updatedTitle.getText()).toEqual("1st segment 2nd segment 3rd segment");
@@ -3020,16 +3068,19 @@ test("inserts large content between nodes then deletes it", () => {
     // Insert large text between first and second nodes
     const largeTextSize = 400;
     const largeText = "X".repeat(largeTextSize);
-    const withLargeText = title.replace(14, 14, largeText, {clientIdForTest: 4}).newTitle;
+    const withLargeText = title.replace(4 as TaskTitleClientId, 14, 14, largeText).newTitle;
 
     // Verify large text was inserted correctly
     expect(withLargeText.getText()).toContain(largeText);
     expect(withLargeText.getText().length).toEqual(title.getText().length + largeTextSize);
 
     // Now delete that large text
-    const deleteLargeText = withLargeText.replace(14, 14 + largeTextSize, "", {
-        clientIdForTest: 5,
-    }).newTitle;
+    const deleteLargeText = withLargeText.replace(
+        5 as TaskTitleClientId,
+        14,
+        14 + largeTextSize,
+        "",
+    ).newTitle;
 
     // Should be back to original text
     expect(deleteLargeText.getText()).toEqual(title.getText());
@@ -3041,7 +3092,7 @@ test("limits text size characters", () => {
     // Insert large text between first and second nodes
     const largeTextSize = taskTitleMaxLength * 2; // Exceeds the character limit
     const largeText = "X".repeat(largeTextSize);
-    const withLargeText = title.replace(14, 14, largeText, {clientIdForTest: 4}).newTitle;
+    const withLargeText = title.replace(4 as TaskTitleClientId, 14, 14, largeText).newTitle;
 
     expect(withLargeText.getText().length).toEqual(taskTitleMaxLength);
 });
@@ -3052,13 +3103,16 @@ test("typing in the middle of a title at the max length does nothing", () => {
     // Insert large text between first and second nodes
     const largeTextSize = taskTitleMaxLength * 2; // Exceeds the character limit
     const largeText = "X".repeat(largeTextSize);
-    const baseTitle = title.replace(14, 14, largeText, {clientIdForTest: 4}).newTitle;
+    const baseTitle = title.replace(4 as TaskTitleClientId, 14, 14, largeText).newTitle;
     const baseText = baseTitle.getText();
 
     // Try to insert some text into the middle of the title
-    const newTitle = baseTitle.replace(taskTitleMaxLength / 2, taskTitleMaxLength / 2, "INSERTED", {
-        clientIdForTest: 4,
-    }).newTitle;
+    const newTitle = baseTitle.replace(
+        4 as TaskTitleClientId,
+        taskTitleMaxLength / 2,
+        taskTitleMaxLength / 2,
+        "INSERTED",
+    ).newTitle;
     const newText = newTitle.getText();
 
     // Text should remain unchanged since we were at max length
@@ -3102,7 +3156,7 @@ test("typing in the middle of a title at the max length does nothing", () => {
         const largeText = "X".repeat(largeTextSize);
 
         let title = emptyTaskTitleModel.get();
-        title = title.replace(0, 0, largeText, {clientIdForTest: 4}).newTitle;
+        title = title.replace(4 as TaskTitleClientId, 0, 0, largeText).newTitle;
 
         const operations = Array.from({length: repeatCount}, (_, index) => ({
             pos: largeTextSize + stepText.length * index,
@@ -3114,7 +3168,7 @@ test("typing in the middle of a title at the max length does nothing", () => {
 
         // Only left room for 5 characters
         const expectedTitle = largeText + expectedInsertText;
-        const batchUpdate = title.replaceMany(steps);
+        const batchUpdate = title.replaceMany(defaultTaskTitleClientId, steps);
         expect(batchUpdate.newTitle.getText()).toEqual(expectedTitle);
     });
 });
@@ -3126,20 +3180,20 @@ test("performs multiple operations on overlapping node boundaries", () => {
     let updatedTitle = title;
 
     // 1. Insert at the start
-    updatedTitle = updatedTitle.replace(0, 0, "START: ", {clientIdForTest: 4}).newTitle;
+    updatedTitle = updatedTitle.replace(4 as TaskTitleClientId, 0, 0, "START: ").newTitle;
 
     // 2. Delete across first node boundary
-    updatedTitle = updatedTitle.replace(10, 20, "", {clientIdForTest: 5}).newTitle;
+    updatedTitle = updatedTitle.replace(5 as TaskTitleClientId, 10, 20, "").newTitle;
 
     // 3. Insert in the middle spanning a node boundary
-    updatedTitle = updatedTitle.replace(15, 15, "[MIDDLE]", {clientIdForTest: 6}).newTitle;
+    updatedTitle = updatedTitle.replace(6 as TaskTitleClientId, 15, 15, "[MIDDLE]").newTitle;
 
     // 4. Replace the end spanning the last node boundary
     updatedTitle = updatedTitle.replace(
+        7 as TaskTitleClientId,
         updatedTitle.getText().length - 10,
         updatedTitle.getText().length,
         "END",
-        {clientIdForTest: 7},
     ).newTitle;
 
     // Verify the text is modified but structure is maintained
@@ -3160,7 +3214,7 @@ test("inserts at every position across multiple nodes", () => {
 
     // Insert characters at various positions throughout the text
     for (let i = 0; i <= initialText.length; i += 5) {
-        updatedTitle = updatedTitle.replace(i, i, "*", {clientIdForTest: i + 10}).newTitle;
+        updatedTitle = updatedTitle.replace((i + 10) as TaskTitleClientId, i, i, "*").newTitle;
     }
 
     // Verify the text now contains stars
@@ -3180,11 +3234,7 @@ test("deletes across node boundaries with position updates", () => {
 
     // Create 5 separate nodes
     for (let i = 1; i <= 5; i++) {
-        updates.push(
-            title.replace(0, 0, `Node${i}-`, {
-                clientIdForTest: i,
-            }),
-        );
+        updates.push(title.replace(i as TaskTitleClientId, 0, 0, `Node${i}-`));
     }
 
     title = updates.reduce((title, update) => title.apply(update), title);
@@ -3198,15 +3248,15 @@ test("deletes across node boundaries with position updates", () => {
     // Now perform a series of deletions that affect position references
 
     // Delete Node2 completely
-    title = title.replace(6, 12, "", {clientIdForTest: 10}).newTitle;
+    title = title.replace(10 as TaskTitleClientId, 6, 12, "").newTitle;
     expect(title.getText()).toEqual("Node1-Node3-Node4-Node5-");
 
     // Delete first half of Node3 and second half of Node4
-    title = title.replace(6, 15, "", {clientIdForTest: 11}).newTitle;
+    title = title.replace(11 as TaskTitleClientId, 6, 15, "").newTitle;
     expect(title.getText()).toEqual("Node1-e4-Node5-");
 
     // Delete across Node1 and Node5 (the first and last remaining nodes)
-    title = title.replace(2, 14, "", {clientIdForTest: 12}).newTitle;
+    title = title.replace(12 as TaskTitleClientId, 2, 14, "").newTitle;
 
     // Verify final text
     expect(title.getText()).toEqual("No-");
@@ -3223,23 +3273,23 @@ test("handles complex insert/delete sequence on multiple nodes", () => {
     let updatedTitle = title;
 
     // Insert at start
-    updatedTitle = updatedTitle.replace(0, 0, "PREFIX-", {clientIdForTest: 1}).newTitle;
+    updatedTitle = updatedTitle.replace(1 as TaskTitleClientId, 0, 0, "PREFIX-").newTitle;
 
     // Delete across first boundary
-    updatedTitle = updatedTitle.replace(13, 20, "", {clientIdForTest: 2}).newTitle;
+    updatedTitle = updatedTitle.replace(2 as TaskTitleClientId, 13, 20, "").newTitle;
 
     // Insert at a position that was just affected by the delete
-    updatedTitle = updatedTitle.replace(13, 13, "NEW-", {clientIdForTest: 3}).newTitle;
+    updatedTitle = updatedTitle.replace(3 as TaskTitleClientId, 13, 13, "NEW-").newTitle;
 
     // Delete content that includes the just-inserted text
-    updatedTitle = updatedTitle.replace(10, 17, "", {clientIdForTest: 4}).newTitle;
+    updatedTitle = updatedTitle.replace(4 as TaskTitleClientId, 10, 17, "").newTitle;
 
     // Insert at end
     updatedTitle = updatedTitle.replace(
+        5 as TaskTitleClientId,
         updatedTitle.getText().length,
         updatedTitle.getText().length,
         "-SUFFIX",
-        {clientIdForTest: 5},
     ).newTitle;
 
     // Verify text integrity after complex operations
@@ -3253,9 +3303,12 @@ test("deletes empty nodes and ensures correct insertion points", () => {
     const title = createMultiNodeTitle();
 
     // Delete all content but preserve node structure
-    const emptyNodesTitle = title.replace(0, title.getText().length, "", {
-        clientIdForTest: 10,
-    }).newTitle;
+    const emptyNodesTitle = title.replace(
+        10 as TaskTitleClientId,
+        0,
+        title.getText().length,
+        "",
+    ).newTitle;
 
     // Verify text is empty
     expect(emptyNodesTitle.getText()).toEqual("");
@@ -3266,7 +3319,12 @@ test("deletes empty nodes and ensures correct insertion points", () => {
 
     // Now insert new content at position 0
     const newContent = "Brand new content";
-    const updatedTitle = emptyNodesTitle.replace(0, 0, newContent, {clientIdForTest: 11}).newTitle;
+    const updatedTitle = emptyNodesTitle.replace(
+        11 as TaskTitleClientId,
+        0,
+        0,
+        newContent,
+    ).newTitle;
 
     // Text should be correct
     expect(updatedTitle.getText()).toEqual(newContent);
@@ -3283,19 +3341,19 @@ test("interleaves delete and insert operations across node boundaries", () => {
     let updatedTitle = title;
 
     // Delete first segment's "segment"
-    updatedTitle = updatedTitle.replace(5, 13, "", {clientIdForTest: 1}).newTitle;
+    updatedTitle = updatedTitle.replace(1 as TaskTitleClientId, 5, 13, "").newTitle;
 
     // Insert at boundary of first and second segments
-    updatedTitle = updatedTitle.replace(6, 6, "-INSERT1-", {clientIdForTest: 2}).newTitle;
+    updatedTitle = updatedTitle.replace(2 as TaskTitleClientId, 6, 6, "-INSERT1-").newTitle;
 
     // Delete second segment's "segment"
-    updatedTitle = updatedTitle.replace(22, 30, "", {clientIdForTest: 3}).newTitle;
+    updatedTitle = updatedTitle.replace(3 as TaskTitleClientId, 22, 30, "").newTitle;
 
     // Insert at boundary of second and third segments
-    updatedTitle = updatedTitle.replace(22, 22, "-INSERT2-", {clientIdForTest: 4}).newTitle;
+    updatedTitle = updatedTitle.replace(4 as TaskTitleClientId, 22, 22, "-INSERT2-").newTitle;
 
     // Delete third segment's "segment"
-    updatedTitle = updatedTitle.replace(37, 44, "", {clientIdForTest: 5}).newTitle;
+    updatedTitle = updatedTitle.replace(5 as TaskTitleClientId, 37, 44, "").newTitle;
 
     // Verify the final text
     const finalText = updatedTitle.getText();
@@ -3308,10 +3366,10 @@ test("works with multiple concurrent edits spanning same node boundaries", () =>
     // Two users both try to modify content spanning the same nodes
 
     // User 1 replaces content across first and second node
-    const update1 = title.replace(10, 20, "USER1", {clientIdForTest: 1});
+    const update1 = title.replace(1 as TaskTitleClientId, 10, 20, "USER1");
 
     // User 2 replaces overlapping content
-    const update2 = title.replace(5, 25, "USER2", {clientIdForTest: 2});
+    const update2 = title.replace(2 as TaskTitleClientId, 5, 25, "USER2");
 
     // Apply in different orders
     const title12 = title.apply(update1.raw).apply(update2.raw);
@@ -3332,17 +3390,25 @@ test("handles last-character special case in multi-node documents", () => {
     // Test operations on the last character
 
     // Delete the last character
-    const withLastDeleted = title.replace(lastPos - 1, lastPos, "", {clientIdForTest: 1}).newTitle;
+    const withLastDeleted = title.replace(
+        1 as TaskTitleClientId,
+        lastPos - 1,
+        lastPos,
+        "",
+    ).newTitle;
     expect(withLastDeleted.getText()).toEqual(title.getText().substring(0, lastPos - 1));
 
     // Add character at the very end
-    const withAddedEnd = title.replace(lastPos, lastPos, "!", {clientIdForTest: 2}).newTitle;
+    const withAddedEnd = title.replace(2 as TaskTitleClientId, lastPos, lastPos, "!").newTitle;
     expect(withAddedEnd.getText()).toEqual(title.getText() + "!");
 
     // Replace the last character
-    const withReplacedLast = title.replace(lastPos - 1, lastPos, "?", {
-        clientIdForTest: 3,
-    }).newTitle;
+    const withReplacedLast = title.replace(
+        3 as TaskTitleClientId,
+        lastPos - 1,
+        lastPos,
+        "?",
+    ).newTitle;
     expect(withReplacedLast.getText()).toEqual(title.getText().substring(0, lastPos - 1) + "?");
 });
 
@@ -3355,7 +3421,7 @@ test("deletes alternating characters across node boundaries", () => {
     // Delete every other character across the entire string This will cross node
     // boundaries in a complex pattern
     for (let i = text.length; i - 1 >= 0; i -= 2) {
-        updatedTitle = updatedTitle.replace(i - 1, i, "", {clientIdForTest: i}).newTitle;
+        updatedTitle = updatedTitle.replace(i as TaskTitleClientId, i - 1, i, "").newTitle;
     }
 
     // Verify we've deleted roughly half the content
@@ -3366,3 +3432,28 @@ test("deletes alternating characters across node boundaries", () => {
 });
 
 // #endregion 2025-03-05 AI tests
+
+test("shuffling task title client IDs rarely conflicts and always produces u32s", () => {
+    const clientIds: Array<number> = [];
+
+    for (let i = 0; i < 100; i++) {
+        const realmId = generateId();
+
+        for (let revertCount = 0; revertCount < 5; revertCount++) {
+            clientIds.push(generateTaskTitleClientIdFromRealmIdForTest(realmId, {revertCount}));
+        }
+    }
+
+    const conflictCount = clientIds.length - new Set(clientIds).size;
+    const maxU32 = 2 ** 32 - 1;
+
+    expect({
+        hasAtMostOneConflict: conflictCount <= 1,
+        invalidClientIds: clientIds.filter(
+            clientId => !Number.isInteger(clientId) || clientId < 0 || clientId > maxU32,
+        ),
+    }).toEqual({
+        hasAtMostOneConflict: true,
+        invalidClientIds: [],
+    });
+});

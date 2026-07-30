@@ -15,7 +15,7 @@ export async function parseApiContentFromAgentWebMarkdown(
     options?: {documentId?: DocumentId | null},
 ): Promise<ApiContentResponse> {
     const root = parseMarkdownTree(markdown);
-    return parseApiContentFromAgentWebMarkdownTree(storage, root, options);
+    return await parseApiContentFromAgentWebMarkdownTree(storage, root, options);
 }
 
 export async function parseApiContentFromAgentWebMarkdownTree(
@@ -30,7 +30,6 @@ export async function parseApiContentFromAgentWebMarkdownTree(
     // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
     // `ApiContentMentionInlineElementResponse` object).
     return parseApiContentFromMarkdownTree(root, {
-        spaceId: storage.spaceId,
         // Add dummy widths to `FileGallery` items since we need `width`s to match the
         // `ApiContentResponse` type but we don't save old item widths in storage. We also
         // set this in `normalizeApiContentForAgentWebMarkdown()`.

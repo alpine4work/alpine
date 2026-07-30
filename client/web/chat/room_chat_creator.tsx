@@ -15,7 +15,7 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {ShareSwitchCreatorInput} from "~/client/web/navigation/share_switch_creator_input.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     channelCreatorFieldHelpMarginTop,
     channelCreatorGap,
@@ -95,9 +95,7 @@ export function RoomChatCreator({
                     pressErrorTitle="Couldn&#x2019;t save chat room"
                     onPress={async () => {
                         await navigate(
-                            `/s/${
-                                space.id
-                            }/chat/${generateId()}?create=${encodeURIComponent(name)}${!isPublic ? "&private" : ""}`,
+                            `/chat/${generateId()}?create=${space.id}+${encodeURIComponent(name)}${!isPublic ? "&private" : ""}`,
                             {
                                 replace: true,
                                 // In our native mobile app, we want to call
@@ -112,6 +110,7 @@ export function RoomChatCreator({
                 </Button>
             </Box>
         ),
+        defaultPreviousRoute: `/create/${space.id}`,
     });
 
     return (
@@ -166,7 +165,7 @@ export function RoomChatCreator({
                             >
                                 Chat rooms are for live conversations where all participants are
                                 present and engaged.{" "}
-                                <Link color="inherit" url={`/s/${space.id}/channels/new`}>
+                                <Link color="inherit" url={`/channel/new/${space.id}`}>
                                     Channels
                                 </Link>{" "}
                                 are better for decision making.

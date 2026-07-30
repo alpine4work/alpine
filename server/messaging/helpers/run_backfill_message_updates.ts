@@ -127,7 +127,7 @@ export async function runBackfillMessageUpdates<Message extends MessageModel>(
         mapIterable(versionByMessageIndex, async ([messageIndex, version]) => {
             let hasAlreadyAttempted = false;
 
-            return retryWithExponentialBackoff(async retry => {
+            return await retryWithExponentialBackoff(async retry => {
                 const isInitialAttempt = !hasAlreadyAttempted;
                 hasAlreadyAttempted = true;
 
@@ -149,7 +149,7 @@ export async function runBackfillMessageUpdates<Message extends MessageModel>(
                 // read will use strong consistency.
                 if (message.version < version) throw retry();
 
-                return createMessageModelFromItem(context, message);
+                return await createMessageModelFromItem(context, message);
             });
         }),
     );

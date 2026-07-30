@@ -15,7 +15,7 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             const sessionContext = context.actor.authorizeSession();
-            return createNotionImport(sessionContext, {
+            return await createNotionImport(sessionContext, {
                 spaceId: input.spaceId,
                 contentType: input.contentType,
                 contentLength: input.contentLength,

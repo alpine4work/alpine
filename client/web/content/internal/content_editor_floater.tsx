@@ -16,6 +16,7 @@ import {
 import {FocusScope} from "react-aria";
 import {ContentEditorCommentInputFloater} from "~/client/web/content/internal/content_editor_comment_input_floater.js";
 import {ContentEditorCursorTracker} from "~/client/web/content/internal/content_editor_cursor_tracker.js";
+import {ContentEditorGifPickerFloater} from "~/client/web/content/internal/content_editor_gif_picker_floater.js";
 import {
     ContentEditorHighlightSelector,
     ContentEditorHighlightSelectorRef,
@@ -59,6 +60,7 @@ export function ContentEditorFloater({
     commentFileAttachmentTarget,
     mentionFloaterSectionOrder,
     onPasteOrDropFiles,
+    onSelectGif,
 }: {
     platform: Platform;
     state: EditorState & {schema: ContentProsemirrorSchema};
@@ -85,6 +87,7 @@ export function ContentEditorFloater({
     onPasteOrDropFiles?: (
         fileInfos: ReadonlyArray<FileInfoWithEntity>,
     ) => SafeFloatingPromise<void>;
+    onSelectGif?: (url: URL) => void;
 }) {
     switch (floaterState.type) {
         case "PointerToolbar": {
@@ -161,6 +164,9 @@ export function ContentEditorFloater({
                     }
                     onCloseWithAnimation={() => setFloaterState({...floaterState, isClosing: true})}
                     onPasteOrDropFiles={onPasteOrDropFiles}
+                    onOpenGifPicker={
+                        onSelectGif ? () => setFloaterState({type: "GifPicker"}) : undefined
+                    }
                 />
             );
         }
@@ -171,6 +177,20 @@ export function ContentEditorFloater({
                     viewRef={viewRef}
                     range={floaterState.range}
                     fileAttachmentTarget={assertExists(commentFileAttachmentTarget)}
+                    onClose={() =>
+                        setFloaterState({type: "PointerToolbar", previousState: floaterState})
+                    }
+                />
+            );
+        }
+        case "GifPicker": {
+            if (!onSelectGif) return null;
+            return (
+                <ContentEditorGifPickerFloater
+                    platform={platform}
+                    state={state}
+                    viewRef={viewRef}
+                    onSelectGif={onSelectGif}
                     onClose={() =>
                         setFloaterState({type: "PointerToolbar", previousState: floaterState})
                     }

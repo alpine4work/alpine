@@ -7,6 +7,7 @@ import {join as joinPath} from "path";
 import {BrowserContext} from "playwright";
 import {parse as parseSetCookieHeader} from "set-cookie-parser";
 import {Readable as ReadableStream} from "stream";
+import {forwardDurableObjectRequestToEdgeServiceForTest} from "~/admin/environment/test/integration/forward_durable_object_request_to_edge_service_for_test.js";
 import {
     TestActualContext,
     actuallyCreateUnitTestEnvironment,
@@ -16,6 +17,7 @@ import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {handleUpdateContentWithoutOptimisticBroadcastForTest} from "~/server/documents/test_helpers/handle_update_content_without_optimistic_broadcast_for_test.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -25,9 +27,10 @@ import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
 import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
-import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/router/task_realtime_service_local_router.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {
@@ -36,7 +39,7 @@ import {
 } from "~/server/tokens/token_agent_private_side.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, UnknownError} from "~/shared/error/error.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -160,6 +163,7 @@ export async function withIntegrationTestEnvironment<Value>(
             afterEach: callback => afterEachCallbacks.push(callback),
             beforeAll: callback => beforeAllCallbacks.push(callback),
             afterAll: callback => afterAllCallbacks.push(callback),
+            setTimeout: () => {},
         },
         options,
     );
@@ -221,6 +225,7 @@ export function actuallyCreateIntegrationTestEnvironment(
         afterEach: (action: () => MaybePromise<void>) => void;
         beforeAll: (action: () => MaybePromise<void>) => void;
         afterAll: (action: () => MaybePromise<void>) => void;
+        setTimeout: (timeout: number) => void;
     },
     {
         undeclaredOutputsDirectoryPath,
@@ -323,8 +328,45 @@ export function actuallyCreateIntegrationTestEnvironment(
         forumInjection,
         notificationsInjection,
         searchInjection,
+        sitesInjection,
         spacesInjection,
         tasksInjection,
+
+        // Documents are added to/removed from a site by sending an access-policy update to
+        // the document's collaboration durable object. The durable object runs in the
+        // spawned edge service and isn't reachable for an in-process write, so we apply
+        // the change directly to the test database. Integration tests can do this because
+        // they bypass the production restriction that only `DocumentCollaborationService`
+        // may call `updateDocumentContent()`.
+        //
+        // That direct write leaves the document's resident collaboration durable object
+        // (woken by an earlier content-editor connection) at a stale in-memory version. So
+        // after writing, we evict the durable object via its test-only `/reset-for-test`
+        // route. The next websocket connection then reinitializes it fresh from the
+        // database instead of failing the "document version out of sync" check and closing
+        // the socket.
+        sendRequestToDurableObject: async (context, request) => {
+            const result = await handleUpdateContentWithoutOptimisticBroadcastForTest(
+                context,
+                request,
+            );
+
+            const documentIdMatch = request.url.match(
+                /^\/api\/durable-objects\/documents\/([^/]+)\//,
+            );
+            if (documentIdMatch && edgeServicePort !== null && appServiceTokenAgent !== null) {
+                await forwardDurableObjectRequestToEdgeServiceForTest(context, {
+                    edgeServiceUrl: `http://localhost:${edgeServicePort}`,
+                    tokenAgent: appServiceTokenAgent,
+                    serviceName: request.serviceName,
+                    url: `/api/durable-objects/documents/${documentIdMatch[1]}/reset-for-test`,
+                    route: "/api/durable-objects/documents/:documentId/reset-for-test",
+                    body: null,
+                });
+            }
+
+            return result;
+        },
 
         // In integration tests we run the full `TaskRealtimeService` server so when using
         // `context.tasks` you can directly access `TaskRealtimeService`.
@@ -400,12 +442,30 @@ export function actuallyCreateIntegrationTestEnvironment(
         inviteUrls = [];
     });
 
+    function waitForServiceHttpServer(
+        port: number,
+        serviceName: string,
+        subprocess: ChildProcessByStdio<null, ReadableStream, ReadableStream>,
+    ) {
+        return Promise.race([
+            waitForHttpServer(port),
+            waitForProcessExit(subprocess).then(() => {
+                throw new UnknownError(`${serviceName} exited before its HTTP server was ready`);
+            }),
+        ]);
+    }
+
     testHooks.beforeAll(async () => {
+        // Give services more time to start since they compete for CPU and memory while
+        // booting in parallel.
+        testHooks.setTimeout(60 * 1000);
+
         debug("Starting services");
 
         const keysDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "keys");
         const ensureLocalCachePath = joinPath(context.getTemporaryDirectoryPath(), "ensure");
         const cloudflareR2LocalDataPath = joinPath(context.getTemporaryDirectoryPath(), "r2");
+        const importerLocalUploadPath = joinPath(context.getTemporaryDirectoryPath(), "importer");
         const fileProcessorServiceTemporaryDirectoryPath = joinPath(
             context.getTemporaryDirectoryPath(),
             "files",
@@ -604,6 +664,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
                 `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
+                `--importerLocalUploadPathForTest=${importerLocalUploadPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
                 `--agentServiceUrl=http://localhost:${agentServicePort}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
@@ -882,29 +943,45 @@ export function actuallyCreateIntegrationTestEnvironment(
         ]);
 
         await runAllPromises([
-            waitForHttpServer(appServicePort).then(() => {
-                debug("`AppService` is ready");
-            }),
-            waitForHttpServer(taskRealtimeServicePort).then(() => {
+            waitForServiceHttpServer(appServicePort, "AppService", appServiceSubprocess).then(
+                () => {
+                    debug("`AppService` is ready");
+                },
+            ),
+            waitForServiceHttpServer(
+                taskRealtimeServicePort,
+                "TaskRealtimeService",
+                taskRealtimeServiceSubprocess,
+            ).then(() => {
                 debug("`TaskRealtimeService` is ready");
             }),
-            waitForHttpServer(fileProcessorServicePort).then(() => {
+            waitForServiceHttpServer(
+                fileProcessorServicePort,
+                "FileProcessorService",
+                fileProcessorServiceSubprocess,
+            ).then(() => {
                 debug("`FileProcessorService` is ready");
             }),
-            waitForHttpServer(apiServicePort).then(() => {
-                debug("`ApiService` is ready");
-            }),
-            waitForHttpServer(agentServicePort).then(() => {
-                debug("`AgentService` is ready");
-            }),
+            waitForServiceHttpServer(apiServicePort, "ApiService", apiServiceSubprocess).then(
+                () => {
+                    debug("`ApiService` is ready");
+                },
+            ),
+            waitForServiceHttpServer(agentServicePort, "AgentService", agentServiceSubprocess).then(
+                () => {
+                    debug("`AgentService` is ready");
+                },
+            ),
         ]);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing
         // `edgePort` will forward the request to `appPort` since the edge service proxies
         // our app service.
-        await waitForHttpServer(edgeServicePort).then(() => {
-            debug("`EdgeService` is ready");
-        });
+        await waitForServiceHttpServer(edgeServicePort, "EdgeService", edgeServiceSubprocess).then(
+            () => {
+                debug("`EdgeService` is ready");
+            },
+        );
     });
 
     const signIn = async (

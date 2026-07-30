@@ -20,7 +20,7 @@ export async function intoEffectiveAccessPolicy(
         case "Local":
             return accessPolicy;
         case "Site":
-            return context.sitesInjection.dangerouslyGetSiteAccessPolicyWithoutAuthorization(
+            return await context.sitesInjection.dangerouslyGetSiteAccessPolicyWithoutAuthorization(
                 accessPolicy.siteId,
                 options,
             );

@@ -16,14 +16,14 @@ import {
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {
-    ChannelBroadcastRealtimeEventTransactionSchema,
+    ChannelBroadcastRealtimeEventsSchema,
     ChannelRealtimeProtocol,
 } from "~/shared/forum/channel_realtime_protocol.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-type ChannelRealtimeDurableObjectRoute = "Main" | "BroadcastRealtimeEventTransaction" | "NotFound";
+type ChannelRealtimeDurableObjectRoute = "Main" | "BroadcastRealtimeEvents" | "NotFound";
 
 class ChannelRealtimeDurableObject {
     public static readonly serviceName = "ChannelRealtimeService";
@@ -96,7 +96,7 @@ class ChannelRealtimeDurableObject {
         if (url.pathname === "/") return ["/", "Main"];
 
         if (url.pathname === "/broadcast-realtime-event-transaction") {
-            return ["/broadcast-realtime-event-transaction", "BroadcastRealtimeEventTransaction"];
+            return ["/broadcast-realtime-event-transaction", "BroadcastRealtimeEvents"];
         }
 
         return ["/*", "NotFound"];
@@ -114,29 +114,32 @@ class ChannelRealtimeDurableObject {
 
         switch (route) {
             case "Main": {
-                return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+                return await this._webSocketServer.upgrade(
+                    context.actor.authorizeSession(),
+                    request,
+                );
             }
-            case "BroadcastRealtimeEventTransaction": {
+            case "BroadcastRealtimeEvents": {
                 // Make sure a user can't POST from their browser to broadcast a realtime event
                 // transaction. A POST request from a browser would be from the `AppClient` or
                 // `EdgeService` service.
                 if (
                     context.actor.serviceName !== "AppService" &&
-                    context.actor.serviceName !== "JobQueueService"
+                    context.actor.serviceName !== "JobQueueService" &&
+                    context.actor.serviceName !== "ApiService"
                 ) {
                     throw new PermissionDeniedError(
-                        "Only `AppService` or `JobQueueService` can broadcast realtime event transactions",
+                        "Only some services can broadcast realtime event transactions",
                     );
                 }
 
-                const {eventTransaction} =
-                    ChannelBroadcastRealtimeEventTransactionSchema.deserialize(
-                        await request.json(),
-                    );
+                const {events} = ChannelBroadcastRealtimeEventsSchema.deserialize(
+                    await request.json(),
+                );
 
                 this._webSocketServer.sendEventToAll(context, {
-                    type: "RealtimeEventTransaction",
-                    eventTransaction,
+                    type: "RealtimeEvents",
+                    events,
                 });
 
                 return new Response();

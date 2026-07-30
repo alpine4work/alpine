@@ -26,7 +26,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
    with everyone in Alpine\u201D message disappears.
         `,
         session,
-        path: `/s/${space.id}/documents/${document.id}`,
+        path: `/doc/${document.id}`,
         viewport: {width: scalableDemoDefaultViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

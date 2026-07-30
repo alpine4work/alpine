@@ -1482,6 +1482,7 @@ test("newly created documents will be visible in search even before indexing", a
         spaceId: space.id,
         entityId: `Document:${document.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -1500,10 +1501,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1517,10 +1520,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(1),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1543,10 +1548,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1560,10 +1567,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(1),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1579,10 +1588,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1613,10 +1624,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1630,10 +1643,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(1),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1649,10 +1664,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1666,10 +1683,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(1),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1686,10 +1705,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],

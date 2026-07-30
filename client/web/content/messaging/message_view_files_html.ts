@@ -11,6 +11,7 @@ import {AppContext} from "~/client/web/context/app_context.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {RemLength} from "~/shared/design/core/spacing.js";
@@ -65,7 +66,7 @@ export function renderMessageViewFiles(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         suppressHydrationWarning: () => void;
         withFileIdAttribute?: boolean;
     },
@@ -85,7 +86,7 @@ export function renderMessageViewFiles(
     }
 
     const spaceId = assertExists(nullableSpaceId);
-    const maxFileRowCount = 3;
+    const maxFileRowCount = fileRowMaxFileCount;
     const fileSchema = ContentBaseProsemirrorSchemaWithFiles.get();
 
     for (let rowIndex = 0; rowIndex < files.length; rowIndex += maxFileRowCount) {

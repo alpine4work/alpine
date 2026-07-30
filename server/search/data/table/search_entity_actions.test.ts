@@ -27,7 +27,7 @@ import {
     unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -1259,6 +1259,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(1);
@@ -1267,6 +1268,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(2);
@@ -1275,6 +1277,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(3);
@@ -1355,6 +1358,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(154);
@@ -1363,6 +1367,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(155);
@@ -1371,6 +1376,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(156);
@@ -1410,6 +1416,7 @@ test("marking create document interaction adds erosion to affinity item", async 
         spaceId: space.id,
         documentId,
         creatorId: session.account.id,
+        siteId: null,
     });
 
     expect(
@@ -2220,6 +2227,7 @@ test("adding and removing search affinity points is a noop for bot account", asy
         accountId: botAccountId,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toEqual(null);
@@ -2229,6 +2237,7 @@ test("adding and removing search affinity points is a noop for bot account", asy
         accountId: botAccountId,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toEqual(null);
@@ -2238,6 +2247,7 @@ test("adding and removing search affinity points is a noop for bot account", asy
         accountId: botAccountId,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toEqual(null);
@@ -2274,6 +2284,7 @@ test("bot can add affinity points on behalf of another account via markSearchAff
         spaceId: space.id,
         documentId,
         creatorId: adminSession.account.id,
+        siteId: null,
     });
 
     // The affinity points should be attributed to the human account, not the bot

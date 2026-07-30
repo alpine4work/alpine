@@ -24,7 +24,7 @@ import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover} from "~/client/web/remix/platform_context.js";
 import {getRemPxWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {
     backgroundColorVar,
@@ -36,13 +36,14 @@ import {
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 
 export const inboxEntryWidth = "96";
@@ -75,7 +76,7 @@ export function InboxEntryView({
     onArchive,
     onUnarchive,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     entry: InboxEntryModel;
     isSelected?: boolean;
     onPressStart?: () => void;
@@ -94,7 +95,7 @@ export function InboxEntryView({
     "aria-posinset"?: number;
     deletedItemAnimation?: {
         offset: number;
-        deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
+        deletedItem: {item: RynamoItem<InboxEntryModel>};
     } | null;
     onArchive: (options: {withAnimation: boolean}) => MaybePromise<void>;
     onUnarchive: () => MaybePromise<void>;
@@ -113,7 +114,7 @@ export function InboxEntryView({
     const [archiveFilterMoreMenuButtonState, setArchiveFilterMoreMenuButtonState] = useState<
         {isExpanded: false} | {isExpanded: true; isAnimatingOut: boolean}
     >({isExpanded: false});
-    if (filter !== "Archive" && archiveFilterMoreMenuButtonState.isExpanded)
+    if (filter !== "Done" && archiveFilterMoreMenuButtonState.isExpanded)
         setArchiveFilterMoreMenuButtonState({isExpanded: false});
 
     useEffect(() => {
@@ -684,13 +685,13 @@ export function InboxEntryView({
                             alignItems="center"
                             justifyContent="center"
                         >
-                            {!entryDisplay.secondAccount ? (
-                                <AccountAvatar account={entryDisplay.firstAccount} size="9" />
+                            {!entryDisplay.otherAccount ? (
+                                <AccountAvatar account={entryDisplay.featuredAccount} size="9" />
                             ) : (
                                 <>
                                     <Box position="absolute" top="0" left="0">
                                         <AccountAvatar
-                                            account={entryDisplay.firstAccount}
+                                            account={entryDisplay.featuredAccount}
                                             size="7"
                                         />
                                     </Box>
@@ -701,7 +702,7 @@ export function InboxEntryView({
                                         borderRadius="full"
                                     >
                                         <AccountAvatar
-                                            account={entryDisplay.secondAccount}
+                                            account={entryDisplay.otherAccount}
                                             size="7"
                                             backgroundBorderWidth={2}
                                         />
@@ -742,12 +743,12 @@ export function InboxEntryView({
                     </Box>
                     <Box paddingY="4" flexGrow="1" fontSize="75" overflow="hidden">
                         <Box>
-                            {entryDisplay.summary.map((summaryItem, i) =>
-                                typeof summaryItem === "string" ? (
-                                    summaryItem
+                            {entryDisplay.title.map((titleItem, i) =>
+                                typeof titleItem === "string" ? (
+                                    titleItem
                                 ) : (
                                     <span key={i} className={sprinkles({fontStyle: "bold"})}>
-                                        <AccountShortName account={summaryItem} />
+                                        <AccountShortName account={titleItem} />
                                     </span>
                                 ),
                             )}

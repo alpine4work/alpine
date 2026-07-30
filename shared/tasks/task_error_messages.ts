@@ -24,6 +24,11 @@ export const taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Recor
     Manage: errorDisplayMessage`You aren\u2019t allowed to share this task. Ask someone who can share the task to give you share access.`,
 };
 
+// If the client detects this specific error message it will revert any confirmed
+// but not persisted task notes steps and try backfilling again.
+export const taskNotesBackfillFutureVersionErrorMessage =
+    "Tried to backfill a future task notes version";
+
 // TODO(calebmer): Someday we should have a "trash" feature and this error message
 // should link the user to the trash and let them possible restore this entity from
 // the trash.

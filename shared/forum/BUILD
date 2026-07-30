@@ -22,6 +22,7 @@ ts_project(
         "//shared/reactions",
         "//shared/schema",
         "//shared/search",
+        "//shared/sites",
         "//shared/spaces",
         "//shared/web_socket",
     ],

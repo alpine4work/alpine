@@ -3,14 +3,14 @@
 import {Mark, Node} from "prosemirror-model";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {
-    ApiContentMarkdownIntoOptions,
+    ApiContentMarkdownIntoOptionsWithoutKeys,
+    ApiContentResponseWithoutKeys,
     intoApiContent,
 } from "~/shared/api/content/into_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
@@ -25,12 +25,9 @@ import {
     DocumentId,
     FileId,
     PostId,
-    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-
-const spaceId = generateId<SpaceId>();
 
 // Node builders
 const doc = (...content: Array<Node>) => schema.nodes.doc.create(null, content);
@@ -95,7 +92,7 @@ function normalizeNode(node: Node): Node {
     return node.type.create(attrs, content, node.marks);
 }
 
-function testIntoApiContent(node: Node, content: ApiContentResponse) {
+function testIntoApiContent(node: Node, content: ApiContentResponseWithoutKeys) {
     expect(
         fromApiContent(
             node.type.schema,
@@ -118,7 +115,7 @@ function testIntoApiContent(node: Node, content: ApiContentResponse) {
     ).toEqual(content);
 }
 
-function testIntoApiContentOnly(node: Node, content: ApiContentResponse) {
+function testIntoApiContentOnly(node: Node, content: ApiContentResponseWithoutKeys) {
     // Only test the intoApiContent conversion (not round-trip) This is for cases where
     // the schema doesn't support certain marks
     expect(
@@ -4203,7 +4200,7 @@ describe("file block elements", () => {
     const documentEntityId = `Document:${testDocumentId}` as const;
     const channelEntityId = `Channel:${testChannelId}` as const;
 
-    const fileOptions: ApiContentMarkdownIntoOptions = {
+    const fileOptions: ApiContentMarkdownIntoOptionsWithoutKeys = {
         getAccountMentionTitleIfExists: () => undefined,
         getSearchEntityMentionTitleIfExists: entityId => {
             if (entityId === documentEntityId) return "My Document";
@@ -4217,7 +4214,7 @@ describe("file block elements", () => {
         }),
     };
 
-    function testFileIntoApiContent(node: Node, content: ApiContentResponse) {
+    function testFileIntoApiContent(node: Node, content: ApiContentResponseWithoutKeys) {
         expect(
             fromApiContent(node.type.schema, intoApiContent(node, fileOptions)).toJSON(),
         ).toEqual(normalizeNode(node).toJSON());
@@ -4225,7 +4222,7 @@ describe("file block elements", () => {
         expect(intoApiContent(node, fileOptions)).toEqual(content);
     }
 
-    function testFileIntoApiContentOnly(node: Node, content: ApiContentResponse) {
+    function testFileIntoApiContentOnly(node: Node, content: ApiContentResponseWithoutKeys) {
         expect(intoApiContent(node, fileOptions)).toEqual(content);
     }
 
@@ -4472,7 +4469,7 @@ describe("file block elements", () => {
 
         test("proportional to aspect ratios", () => {
             const fileId3 = generateChronologicalId<FileId>();
-            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptions = {
+            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptionsWithoutKeys = {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     // Wide landscape photo
@@ -4522,7 +4519,7 @@ describe("file block elements", () => {
 
         test("same height but different widths", () => {
             const fileId3 = generateChronologicalId<FileId>();
-            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptions = {
+            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptionsWithoutKeys = {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     // Wide photo
@@ -4573,7 +4570,7 @@ describe("file block elements", () => {
 
         test("all different widths and heights", () => {
             const fileId3 = generateChronologicalId<FileId>();
-            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptions = {
+            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptionsWithoutKeys = {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     // Large landscape photo
@@ -4623,7 +4620,7 @@ describe("file block elements", () => {
         });
 
         test("audio file next to image", () => {
-            const opts: ApiContentMarkdownIntoOptions = {
+            const opts: ApiContentMarkdownIntoOptionsWithoutKeys = {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     // Audio file (no image dimensions)
@@ -4656,7 +4653,7 @@ describe("file block elements", () => {
         });
 
         test("code file next to image", () => {
-            const opts: ApiContentMarkdownIntoOptions = {
+            const opts: ApiContentMarkdownIntoOptionsWithoutKeys = {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     // JavaScript code file
@@ -4690,7 +4687,7 @@ describe("file block elements", () => {
 
         test("audio, code, and image together", () => {
             const fileId3 = generateChronologicalId<FileId>();
-            const opts: ApiContentMarkdownIntoOptions = {
+            const opts: ApiContentMarkdownIntoOptionsWithoutKeys = {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     if (fileId === fileId1) {
@@ -4729,7 +4726,7 @@ describe("file block elements", () => {
         });
 
         test("binary file next to image", () => {
-            const opts: ApiContentMarkdownIntoOptions = {
+            const opts: ApiContentMarkdownIntoOptionsWithoutKeys = {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     // Binary file with no preview
@@ -4762,7 +4759,7 @@ describe("file block elements", () => {
         });
 
         test("mixed known and unknown dimensions", () => {
-            const fileOptionsWithPartialDimensions: ApiContentMarkdownIntoOptions = {
+            const fileOptionsWithPartialDimensions: ApiContentMarkdownIntoOptionsWithoutKeys = {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     if (fileId === fileId1) {
@@ -4810,7 +4807,7 @@ describe("file block elements", () => {
         });
 
         test("widths survive markdown round trip", () => {
-            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptions = {
+            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptionsWithoutKeys = {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     if (fileId === fileId1) {
@@ -4836,8 +4833,8 @@ describe("file block elements", () => {
                 fileOptionsWithDimensions,
             );
 
-            const markdown = printApiContentToMarkdown(apiContent, {spaceId});
-            const parsed = parseApiContentFromMarkdown(markdown, {spaceId});
+            const markdown = printApiContentToMarkdown(apiContent);
+            const parsed = parseApiContentFromMarkdown(markdown);
 
             // Widths are response-only metadata and don't survive the round-trip (they'll be
             // recomputed on the next response). The parsed content should have the right

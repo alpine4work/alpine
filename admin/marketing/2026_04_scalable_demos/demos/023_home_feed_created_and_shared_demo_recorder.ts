@@ -6,8 +6,8 @@ import {scrollDemo} from "~/admin/marketing/2026_04_scalable_demos/helpers/scrol
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -26,9 +26,8 @@ runScalableDemoRecorder(async (context, services, recorder) => {
             .subtract({days})
             .toDate(timeZone);
 
-    const spaceUrl = `https://alpine.inc/s/${space.id}`;
     const accountMentionUrl = (accountSession: {account: {id: string}}) =>
-        `${spaceUrl}/accounts/${accountSession.account.id}?mention=short`;
+        `https://alpine.inc/mention/${accountSession.account.id}?short`;
 
     const [announcementsChannel, engineeringChannel, craftChannel, salesChannel, planningChannel] =
         await runAllPromises([
@@ -599,7 +598,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
             taskId: tablesLaunchTask.id,
             sharedTime: daysAgoAt(0, 9, 55),
             sharerId: accounts.cassCade.account.id,
-            creatorId: accounts.cassCade.account.id,
+            creator: {id: accounts.cassCade.account.id, from: null},
             event: "UpdatedToProjectLayout",
         },
         {
@@ -630,7 +629,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
             collectionId: q4PlanningCollection.id,
             sharedTime: daysAgoAt(1, 13, 10),
             sharerId: accounts.cassCade.account.id,
-            creatorId: accounts.cassCade.account.id,
+            creator: {id: accounts.cassCade.account.id, from: null},
             event: "Created",
         },
         {
@@ -676,7 +675,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
             taskId: ssoProspectTask.id,
             sharedTime: daysAgoAt(3, 16, 0),
             sharerId: accounts.cliffWeathers.account.id,
-            creatorId: accounts.cliffWeathers.account.id,
+            creator: {id: accounts.cliffWeathers.account.id, from: null},
             event: "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
         },
         {
@@ -692,7 +691,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
             taskId: surveyFollowupTask.id,
             sharedTime: daysAgoAt(4, 14, 0),
             sharerId: accounts.hollyEvergreen.account.id,
-            creatorId: accounts.hollyEvergreen.account.id,
+            creator: {id: accounts.hollyEvergreen.account.id, from: null},
             event: "UpdatedToProjectLayout",
         },
         {
@@ -715,7 +714,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
             collectionId: caseStudiesCollection.id,
             sharedTime: daysAgoAt(5, 10, 45),
             sharerId: accounts.hollyEvergreen.account.id,
-            creatorId: accounts.hollyEvergreen.account.id,
+            creator: {id: accounts.hollyEvergreen.account.id, from: null},
             event: "Created",
         },
         {
@@ -728,7 +727,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
         },
     ];
 
-    const url = new UrlPath(`/s/${space.id}/dev/feed`);
+    const url = new UrlPath(`/dev/feed/${space.id}`);
     url.searchParams.set(
         "entries",
         JSON.stringify(Schema.array(FeedEntrySchema).serialize(entries)),

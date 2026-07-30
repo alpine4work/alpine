@@ -4,8 +4,6 @@ import {
     GitHubRunners,
     LambdaAccess,
     Os,
-    RunnerImageComponent,
-    RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
 import {Duration, Fn, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
 import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
@@ -13,6 +11,9 @@ import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
+import {AwsGithubRunnerAsgProvider} from "~/admin/aws/internal/aws_github_runner_asg_provider.js";
+import {awsGithubRunnerImageBuilderComponents} from "~/admin/aws/internal/aws_github_runner_image_builder_components.js";
+import {awsGithubTestRunnerImageBuilderComponents} from "~/admin/aws/internal/aws_github_test_runner_image_builder_components.js";
 import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
@@ -73,63 +74,6 @@ export class AwsGithubRunners extends Construct {
         const deployInstanceClass = awsServiceInstanceClass;
         const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.XLARGE2);
 
-        const createImageBuilderComponents = (
-            extraAptDependencies: Array<string> = [],
-            {
-                noInstallRecommends: extraAptDependenciesWithNoInstallRecommends = [],
-            }: {
-                noInstallRecommends?: Array<string>;
-            } = {},
-        ) => [
-            RunnerImageComponent.requiredPackages(),
-            RunnerImageComponent.runnerUser(),
-            RunnerImageComponent.git(),
-            RunnerImageComponent.githubCli(),
-            RunnerImageComponent.awsCli(),
-            RunnerImageComponent.docker(),
-            RunnerImageComponent.githubRunner(RunnerVersion.latest()),
-
-            // Installs:
-            //
-            // - `zstd` for better GitHub `actions/cache` compression/decompression
-            //   performance.
-            // - `build-essential` which includes `gcc` and `make` among other common build
-            //   tools.
-            // - `nodejs` since we need to run `aws_github_runners_bazel_remote_cache.cjs`
-            //   before anything from Bazel.
-            RunnerImageComponent.custom({
-                name: "AptGetInstall",
-                commands: [
-                    `apt-get install -y ${Array.from(
-                        new Set([
-                            // Better GitHub `actions/cache` compression/decompression performance.
-                            "zstd",
-                            // Includes `gcc` and `make` among other common build tools. Necessary for building
-                            // some npm packages.
-                            "build-essential",
-                            // LLVM's linker. When Bazel auto-configures the CC toolchain it looks for `lld`
-                            // first, falling back to `gold` (from binutils). `gold` is deprecated and `rustc`
-                            // warns when it's used. Installing `lld` makes Bazel prefer it, which is also
-                            // faster.
-                            "lld",
-                            // We need run a small `aws_github_runners_bazel_remote_cache.cjs` server to enable
-                            // remote caching before anything is built by Bazel.
-                            "nodejs",
-
-                            ...extraAptDependencies,
-                        ]),
-                    ).join(" ")}`,
-                    ...(extraAptDependenciesWithNoInstallRecommends.length > 0
-                        ? [
-                              `apt-get install -y --no-install-recommends ${Array.from(
-                                  new Set(extraAptDependenciesWithNoInstallRecommends),
-                              ).join(" ")}`,
-                          ]
-                        : []),
-                ],
-            }),
-        ];
-
         const testImageBuilder = Ec2RunnerProvider.imageBuilder(this, "TestRunnerImageBuilder", {
             vpc,
             subnetSelection: {subnetType: SubnetType.PUBLIC},
@@ -148,118 +92,7 @@ export class AwsGithubRunners extends Construct {
                 instanceType: InstanceType.of(testInstanceClass, InstanceSize.MEDIUM),
             },
 
-            components: createImageBuilderComponents(
-                [
-                    // Dependencies required by Playwright for running Chromium:
-                    // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L252-L275
-                    //
-                    // We could also run `playwright install-deps` but putting them on the machine
-                    // image is more efficient.
-                    "libasound2t64",
-                    "libatk-bridge2.0-0t64",
-                    "libatk1.0-0t64",
-                    "libatspi2.0-0t64",
-                    "libcairo2",
-                    "libcups2t64",
-                    "libdbus-1-3",
-                    "libdrm2",
-                    "libgbm1",
-                    "libglib2.0-0t64",
-                    "libnspr4",
-                    "libnss3",
-                    "libpango-1.0-0",
-                    "libx11-6",
-                    "libxcb1",
-                    "libxcomposite1",
-                    "libxdamage1",
-                    "libxext6",
-                    "libxfixes3",
-                    "libxkbcommon0",
-                    "libxrandr2",
-
-                    // Dependencies required by Playwright for running WebKit:
-                    // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L305-L362
-                    //
-                    // We could also run `playwright install-deps` but putting them on the machine
-                    // image is more efficient.
-                    "gstreamer1.0-libav",
-                    "gstreamer1.0-plugins-bad",
-                    "gstreamer1.0-plugins-base",
-                    "gstreamer1.0-plugins-good",
-                    "libatk-bridge2.0-0t64",
-                    "libatk1.0-0t64",
-                    "libatomic1",
-                    "libavif16",
-                    "libcairo-gobject2",
-                    "libcairo2",
-                    "libdbus-1-3",
-                    "libdrm2",
-                    "libenchant-2-2",
-                    "libepoxy0",
-                    "libevent-2.1-7t64",
-                    "libflite1",
-                    "libfontconfig1",
-                    "libfreetype6",
-                    "libgbm1",
-                    "libgdk-pixbuf-2.0-0",
-                    "libgles2",
-                    "libglib2.0-0t64",
-                    "libgstreamer-gl1.0-0",
-                    "libgstreamer-plugins-bad1.0-0",
-                    "libgstreamer-plugins-base1.0-0",
-                    "libgstreamer1.0-0",
-                    "libgtk-3-0t64",
-                    "libgtk-4-1",
-                    "libharfbuzz-icu0",
-                    "libharfbuzz0b",
-                    "libhyphen0",
-                    "libicu74",
-                    "libicu74",
-                    "libjpeg-turbo8",
-                    "liblcms2-2",
-                    "libmanette-0.2-0",
-                    "libopus0",
-                    "libpango-1.0-0",
-                    "libpangocairo-1.0-0",
-                    "libpng16-16t64",
-                    "libsecret-1-0",
-                    "libvpx9",
-                    "libwayland-client0",
-                    "libwayland-egl1",
-                    "libwayland-server0",
-                    "libwebp7",
-                    "libwebpdemux2",
-                    "libwoff1",
-                    "libx11-6",
-                    "libx264-164",
-                    "libxkbcommon0",
-                    "libxml2",
-                    "libxslt1.1",
-                    // Playwright errs if this isn't installed when running WebKit, but it's not
-                    // present in the list we linked above.
-                    "libxt6",
-
-                    // Dependencies for fixing the following error when `DEBUG=pw:browser*` is set.
-                    // https://github.com/microsoft/playwright/issues/27855#issuecomment-1789282663
-                    //
-                    // ```
-                    // pw:browser [pid=1594][err] (MiniBrowser:1600): GLib-GIO-CRITICAL **: 18:21:12.441: g_application_quit: assertion 'G_IS_APPLICATION (application)' failed
-                    // ```
-                    "libfaad2",
-                    "libkate1",
-                    "libfdk-aac2",
-                    // TODO(calebmer, 2024-09-06): The package `libwpewebkit-1.0-3` is not available in
-                    // Ubuntu 24. We should try running integration tests again with
-                    // `DEBUG=pw:browser*` set to see if we still need something here.
-                    //
-                    // "libwpewebkit-1.0-3",
-                ],
-                {
-                    // Install `libreoffice` without any of its GUI dependencies since we'll only use
-                    // the `libreoffice` CLI and we'll only use it in tests.
-                    noInstallRecommends: ["libreoffice"],
-                },
-            ),
+            components: awsGithubTestRunnerImageBuilderComponents(),
         });
 
         const testRunnerProvider = new Ec2RunnerProvider(this, "TestRunnerProvider", {
@@ -293,11 +126,15 @@ export class AwsGithubRunners extends Construct {
             imageBuilder: testImageBuilder,
 
             // Pass parameters to the AWS GitHub workflow through the `USER_DATA_EXTRA`
-            // environment variable. We add this option to
-            // `@cloudsnorkel/cdk-github-runners` through a patch.
-            //
-            // eslint-disable-next-line cyberworlds/string-quotes
-            userDataExtra: Fn.join("", ['{"jobQueueUrl":"', sqs.getJobQueueUrl(), '"}']),
+            // environment variable. We add this option to `@cloudsnorkel/cdk-github-runners`
+            // through a patch.
+            /* eslint-disable cyberworlds/string-quotes */
+            userDataExtra: Fn.join("", [
+                '{"alpineRunnerTag":"aws-test","jobQueueUrl":"',
+                sqs.getJobQueueUrl(),
+                '"}',
+            ]),
+            /* eslint-enable cyberworlds/string-quotes */
 
             // Tag EC2 instances so the SSM State Manager association in AwsObservability
             // installs and configures the CloudWatch Agent on them. We pass tags here (rather
@@ -330,6 +167,90 @@ export class AwsGithubRunners extends Construct {
         // Allow writing to the tracer event stream.
         observability.grantPutToTracerEventStream(testRunnerProvider);
 
+        // Keep the ASG-backed test runners side by side with the legacy test runners
+        // during rollout so workflows can opt in gradually.
+        const testRunnerAsgProvider = new AwsGithubRunnerAsgProvider(
+            this,
+            "TestRunnerAsgProvider",
+            {
+                label: "aws-test-asg",
+                vpc,
+                /* eslint-disable cyberworlds/string-quotes */
+                userDataExtra: Fn.join("", [
+                    '{"alpineRunnerTag":"aws-test-asg","jobQueueUrl":"',
+                    sqs.getJobQueueUrl(),
+                    '"}',
+                ]),
+                /* eslint-enable cyberworlds/string-quotes */
+            },
+        );
+
+        bucket.grantReadWrite(testRunnerAsgProvider);
+        sqs.grantSendJobQueueMessages(testRunnerAsgProvider);
+        observability.grantPutToTracerEventStream(testRunnerAsgProvider);
+
+        const amiBuilderRunnerImageBuilder = Ec2RunnerProvider.imageBuilder(
+            this,
+            "AmiBuilderRunnerImageBuilder",
+            {
+                vpc,
+                subnetSelection: {subnetType: SubnetType.PUBLIC},
+
+                os: Os.LINUX_UBUNTU,
+                architecture: Architecture.ARM64,
+                baseAmi: stack.formatArn({
+                    service: "imagebuilder",
+                    resource: "image",
+                    account: "aws",
+                    resourceName: `ubuntu-server-24-lts-arm64/x.x.x`,
+                }),
+                awsImageBuilderOptions: {
+                    instanceType: InstanceType.of(testInstanceClass, InstanceSize.MEDIUM),
+                },
+
+                components: awsGithubRunnerImageBuilderComponents(),
+            },
+        );
+
+        const amiBuilderRunnerProvider = new Ec2RunnerProvider(this, "AmiBuilderRunnerProvider", {
+            vpc,
+            subnetSelection: {subnetType: SubnetType.PUBLIC},
+            labels: ["aws-ami-builder"],
+            instanceType: InstanceType.of(testInstanceClass, InstanceSize.LARGE),
+            storageSize: Size.gibibytes(40),
+            spot: false,
+            imageBuilder: amiBuilderRunnerImageBuilder,
+            /* eslint-disable cyberworlds/string-quotes */
+            userDataExtra: Fn.join("", [
+                '{"alpineRunnerTag":"aws-ami-builder","jobQueueUrl":"',
+                sqs.getJobQueueUrl(),
+                '"}',
+            ]),
+            /* eslint-enable cyberworlds/string-quotes */
+
+            // The stock EC2 runner bootstrap calls
+            // `amazon-cloudwatch-agent-ctl -a fetch-config` for `/var/log/runner.log`. When
+            // the global CloudWatch Agent SSM association also configures the instance, the
+            // agent tries to merge the runner log config with `AmazonCloudWatch-linux-config`,
+            // fails on conflicting metrics settings, and cloud-init exits before the runner
+            // registers with GitHub.
+            //
+            // TODO: Re-enable managed CloudWatch Agent config for AMI builder runners once the
+            // runner bootstrap appends its log config instead of fetching/replacing the agent
+            // config. \
+            // extraTags: [{key: "CloudWatchAgent", value: "true"}],
+        });
+
+        const amiBuilderRunnerProviderRole: unknown = (amiBuilderRunnerProvider as any).role;
+        assert(amiBuilderRunnerProviderRole instanceof Role);
+        amiBuilderRunnerProviderRole.addManagedPolicy(
+            ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+        );
+        amiBuilderRunnerProviderRole.addManagedPolicy(
+            ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
+        );
+        testRunnerAsgProvider.grantAmiRefreshWorkflow(amiBuilderRunnerProvider);
+
         const deployImageBuilder = Ec2RunnerProvider.imageBuilder(
             this,
             "DeployRunnerImageBuilder",
@@ -351,7 +272,7 @@ export class AwsGithubRunners extends Construct {
                     instanceType: InstanceType.of(deployInstanceClass, InstanceSize.MEDIUM),
                 },
 
-                components: createImageBuilderComponents(),
+                components: awsGithubRunnerImageBuilderComponents(),
             },
         );
 
@@ -399,7 +320,7 @@ export class AwsGithubRunners extends Construct {
             // environment variable. We add this option to `@cloudsnorkel/cdk-github-runners`
             // through a patch.
             userDataExtra: Fn.join("", [
-                `{"cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"jobQueueUrl":"`,
+                `{"alpineRunnerTag":"aws-deploy","cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"jobQueueUrl":"`,
                 sqs.getJobQueueUrl(),
                 '","fileProcessorJobQueueUrl":"',
                 sqs.getFileProcessorJobQueueUrl(),
@@ -469,7 +390,12 @@ export class AwsGithubRunners extends Construct {
         //
         // [1]: https://github.com/CloudSnorkel/cdk-github-runners/issues/596
         new GitHubRunners(this, "Runners", {
-            providers: [testRunnerProvider, deployRunnerProvider],
+            providers: [
+                testRunnerProvider,
+                testRunnerAsgProvider,
+                amiBuilderRunnerProvider,
+                deployRunnerProvider,
+            ],
             setupAccess: LambdaAccess.noAccess(),
             webhookAccess: LambdaAccess.lambdaUrl(),
         });

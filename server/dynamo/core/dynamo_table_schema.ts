@@ -2,6 +2,12 @@ import {AttributeValue} from "@aws-sdk/client-dynamodb";
 import fs from "fs/promises";
 import murmurhash from "murmurhash";
 import {dirname, join as joinPath} from "path";
+import {
+    DynamoCondition,
+    DynamoConditionExpression,
+    DynamoConditionExpressionCompilationContext,
+    DynamoConditionExpressionPrecedence,
+} from "~/server/dynamo/core/dynamo_condition.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {
     DynamoKeyAttribute,
@@ -18,24 +24,19 @@ import {
     intoDynamoAttributeValueObject,
 } from "~/server/dynamo/core/internal/dynamo_attribute_value.js";
 import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
-import {
-    DynamoCondition,
-    DynamoConditionExpression,
-    DynamoConditionExpressionCompilationContext,
-    DynamoConditionExpressionPrecedence,
-} from "~/server/dynamo/core/internal/dynamo_condition.js";
 import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/core/internal/dynamo_generated_schema_description.js";
 import {dynamoReservedWords} from "~/server/dynamo/core/internal/dynamo_reserved_words.js";
+import {DynamoTransactionEntryInternal} from "~/server/dynamo/core/internal/dynamo_transaction_entry_internal.js";
 import {
     getDynamoClient,
     getDynamoExpectsStrongReadConsistency,
     getDynamoRetryTransactionIfExists,
 } from "~/server/dynamo/core/internal/get_dynamo_client.js";
-import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoResourceInUseError} from "~/server/dynamo/core/is_dynamo_resource_in_use_exception.js";
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/core/is_dynamo_resource_not_found_error.js";
 import {isDynamoValidationError} from "~/server/dynamo/core/is_dynamo_validation_exception.js";
+import {DynamoTableSchemaTypes} from "~/server/dynamo/core/types/dynamo_table_schema_types.js";
 import {
     DynamoIndexCursor,
     DynamoIndexPartitionKey,
@@ -157,9 +158,39 @@ type DynamoTableSchemaIndexConfig = {
     readonly filter: ((item: any) => boolean) | null;
 };
 
-type DynamoTableSchemaInitializationState =
+type DynamoTableSchemaState =
     | {
           readonly isInitialized: false;
+
+          /**
+           * The config is the object you pass into the constructor when initializing the
+           * table.
+           *
+           * How it's different from `_description`:
+           *
+           * - Contains full `Schema` objects instead of a JSON description. So you need the
+           *   config to serialize/deserialize values from DynamoDB.
+           * - The object style is optimize for the developers who manually write the object.
+           *   So we pick shorter names like `partitions` instead of longer, explicit names
+           *   like `partitionByType`.
+           */
+          readonly partitionConfigByName: Map<
+              string,
+              DynamoTableSchemaTypes.Partition.ConfigBase & {
+                  readonly sortRangeByName: ReadonlyMap<
+                      string,
+                      DynamoTableSchemaTypes.SortRange.ConfigBase & {
+                          readonly index: number;
+                          readonly childSortRangeByName: ReadonlyMap<
+                              string,
+                              DynamoTableSchemaTypes.SortRange.ChildConfigBase & {
+                                  readonly index: number;
+                              }
+                          >;
+                      }
+                  >;
+              }
+          >;
 
           /**
            * Indexes may be added before initialization.
@@ -183,6 +214,36 @@ type DynamoTableSchemaInitializationState =
       }
     | {
           readonly isInitialized: true;
+
+          /**
+           * The config is the object you pass into the constructor when initializing the
+           * table.
+           *
+           * How it's different from `_description`:
+           *
+           * - Contains full `Schema` objects instead of a JSON description. So you need the
+           *   config to serialize/deserialize values from DynamoDB.
+           * - The object style is optimize for the developers who manually write the object.
+           *   So we pick shorter names like `partitions` instead of longer, explicit names
+           *   like `partitionByType`.
+           */
+          readonly partitionConfigByName: ReadonlyMap<
+              string,
+              DynamoTableSchemaTypes.Partition.ConfigBase & {
+                  readonly sortRangeByName: ReadonlyMap<
+                      string,
+                      DynamoTableSchemaTypes.SortRange.ConfigBase & {
+                          readonly index: number;
+                          readonly childSortRangeByName: ReadonlyMap<
+                              string,
+                              DynamoTableSchemaTypes.SortRange.ChildConfigBase & {
+                                  readonly index: number;
+                              }
+                          >;
+                      }
+                  >;
+              }
+          >;
 
           /**
            * Index configs for a specified item type. The item type string is in the form
@@ -274,274 +335,43 @@ export function incrementLocalDynamoTableSchemaGenerationForTest() {
  * - Queries use async iterators to transparently paginate.
  */
 export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
-    declare public readonly [typesSymbol]: Types;
+    declare readonly [typesSymbol]: Types;
 
-    private readonly _name: string;
-
-    /**
-     * The config is the object you pass into the constructor when initializing the
-     * table.
-     *
-     * How it's different from `_description`:
-     *
-     * - Contains full `Schema` objects instead of a JSON description. So you need the
-     *   config to serialize/deserialize values from DynamoDB.
-     * - The object style is optimize for the developers who manually write the object.
-     *   So we pick shorter names like `partitions` instead of longer, explicit names
-     *   like `partitionByType`.
-     */
-    private readonly _partitionConfigByName: Map<
-        string,
-        DynamoTableSchemaTypes.Partition.ConfigBase & {
-            readonly sortRangeByName: Map<
-                string,
-                DynamoTableSchemaTypes.SortRange.ConfigBase & {
-                    readonly index: number;
-                    readonly childSortRangeByName: Map<
-                        string,
-                        DynamoTableSchemaTypes.SortRange.ChildConfigBase & {
-                            readonly index: number;
-                        }
-                    >;
-                }
-            >;
-        }
-    >;
+    readonly #name: string;
 
     /**
      * Our DynamoDB table schema initializes a little after construction since we need
      * to wait for modifications from an `addIndex()` call in the same module.
      */
-    private _initializationState: DynamoTableSchemaInitializationState = {
-        isInitialized: false,
-        indexDescriptions: [],
-        indexConfigsByItemType: new Map(),
-    };
+    #state: DynamoTableSchemaState;
 
-    public static new<const Config extends DynamoTableSchemaTypes.ConfigBase>(
+    static new<const Config extends DynamoTableSchemaTypes.ConfigBase>(
         config: Config,
     ): DynamoTableSchema<DynamoTableSchemaTypes.Types<Config>> {
         return new DynamoTableSchema(config);
     }
 
     private constructor(config: DynamoTableSchemaTypes.ConfigBase) {
-        const partitionNames = new Set<string>();
+        this.#name = config.name;
 
-        // Validate that attribute names are identifiers that do not start with underscores
-        // and that attribute names are unique. We do not allow identifiers to start with
-        // underscores so we can reserve underscore names for framework properties.
-        //
-        // Also extends the attribute schema to include internal attributes. So when we
-        // serialize/deserialize with the schema we pick up those private attributes.
-        config = {
-            ...config,
-            partitions: config.partitions.map(
-                (partitionConfig): DynamoTableSchemaTypes.Partition.ConfigBase => {
-                    assert(
-                        isIdentifier(partitionConfig.name),
-                        "Partition name must be an identifier",
-                    );
-                    assert(
-                        partitionConfig.name[0] === partitionConfig.name[0]?.toUpperCase(),
-                        "Partition name must start with an uppercase letter",
-                    );
-                    assert(
-                        !partitionNames.has(partitionConfig.name),
-                        "Partition names must be unique within a table",
-                    );
-                    partitionNames.add(partitionConfig.name);
-
-                    // Use the type system to make sure we write out all the shared attribute names.
-                    const sharedAttributeNames: {
-                        [K in keyof DynamoTableSchemaTypes.ItemSharedAttributes]: true;
-                    } = {
-                        updateLockVersion: true,
-                    };
-
-                    const partitionAttributeNames = new Set<string>([
-                        "partitionType",
-                        "sortRangeType",
-                        "expirationTime",
-                        ...Object.keys(sharedAttributeNames),
-                    ]);
-
-                    const assertValidAttributeName = (attributeName: string) => {
-                        assert(isIdentifier(attributeName), "Attribute name must be an identifier");
-                        assert(
-                            !attributeName.startsWith("_"),
-                            "Attribute name must not start with an underscore",
-                        );
-                        assert(
-                            attributeName !== "partitionKey" && attributeName !== "sortKey",
-                            "Attribute may not be a reserved key attribute name",
-                        );
-                        assert(
-                            !/^index\d+(PartitionKey|SortKey)$/.test(attributeName),
-                            "Attribute name may not be a reserved index key attribute name",
-                        );
-                    };
-
-                    for (const attributeName of Object.keys(
-                        partitionConfig.partitionKeyAttributes,
-                    )) {
-                        assertValidAttributeName(attributeName);
-
-                        assert(
-                            !partitionAttributeNames.has(attributeName),
-                            "Attribute names must be unique within an item",
-                        );
-                        partitionAttributeNames.add(attributeName);
-                    }
-
-                    function processAttributesSchema(
-                        sortRangeConfig: DynamoTableSchemaTypes.SortRange.ChildConfigBase,
-                    ): ObjectSchema<any> {
-                        const sortRangeAttributeNames = new Set(partitionAttributeNames);
-
-                        for (const attributeName of Object.keys(
-                            sortRangeConfig.sortKeyAttributes,
-                        )) {
-                            assertValidAttributeName(attributeName);
-
-                            assert(
-                                !sortRangeAttributeNames.has(attributeName),
-                                "Attribute names must be unique within an item",
-                            );
-                            sortRangeAttributeNames.add(attributeName);
-                        }
-
-                        for (const attributeName of sortRangeConfig.attributes.propertySchemaByKey.keys()) {
-                            assertValidAttributeName(attributeName);
-
-                            assert(
-                                !sortRangeAttributeNames.has(attributeName),
-                                `Attribute names must be unique within an item`,
-                            );
-                            sortRangeAttributeNames.add(attributeName);
-                        }
-
-                        let attributesSchema: ObjectSchema<any> = sortRangeConfig.attributes.merge(
-                            DynamoTableItemSharedAttributesSchema,
-                        );
-
-                        attributesSchema =
-                            sortRangeConfig.withExpirationTime === "Optional"
-                                ? attributesSchema.merge(
-                                      Schema.object({
-                                          expirationTime:
-                                              DynamoTableItemSharedExpirationTimeAttributeSchema.optional(),
-                                      }),
-                                  )
-                                : sortRangeConfig.withExpirationTime === "Required"
-                                  ? attributesSchema.merge(
-                                        Schema.object({
-                                            expirationTime:
-                                                DynamoTableItemSharedExpirationTimeAttributeSchema,
-                                        }),
-                                    )
-                                  : sortRangeConfig.withExpirationTime === "RequiredNullable"
-                                    ? attributesSchema.merge(
-                                          Schema.object({
-                                              expirationTime:
-                                                  DynamoTableItemSharedExpirationTimeAttributeSchema.nullable(),
-                                          }),
-                                      )
-                                    : attributesSchema;
-
-                        return attributesSchema;
-                    }
-
-                    const sortRangeNames = new Set<string>();
-
-                    return {
-                        ...partitionConfig,
-                        sortRanges: partitionConfig.sortRanges.map(
-                            (sortRangeConfig): DynamoTableSchemaTypes.SortRange.ConfigBase => {
-                                assert(
-                                    isIdentifier(sortRangeConfig.name),
-                                    "Sort range name must be an identifier",
-                                );
-                                assert(
-                                    sortRangeConfig.name[0] ===
-                                        sortRangeConfig.name[0]?.toUpperCase(),
-                                    "Sort range name must start with an uppercase letter",
-                                );
-                                assert(
-                                    !sortRangeNames.has(sortRangeConfig.name),
-                                    "Sort range names must be unique within a partition",
-                                );
-                                sortRangeNames.add(sortRangeConfig.name);
-
-                                const childSortRangeNames = new Set<string>();
-
-                                return {
-                                    ...sortRangeConfig,
-                                    attributes: processAttributesSchema(sortRangeConfig),
-                                    childSortRanges: sortRangeConfig.childSortRanges?.map(
-                                        childSortRangeConfig => {
-                                            assert(
-                                                isIdentifier(childSortRangeConfig.name),
-                                                "Child sort range name must be an identifier",
-                                            );
-                                            assert(
-                                                childSortRangeConfig.name[0] ===
-                                                    childSortRangeConfig.name[0]?.toUpperCase(),
-                                                "Child sort range name must start with an uppercase letter",
-                                            );
-                                            assert(
-                                                !childSortRangeNames.has(childSortRangeConfig.name),
-                                                "Child sort range names must be unique within a sort range",
-                                            );
-                                            childSortRangeNames.add(childSortRangeConfig.name);
-
-                                            return {
-                                                ...childSortRangeConfig,
-                                                attributes:
-                                                    processAttributesSchema(childSortRangeConfig),
-                                            };
-                                        },
-                                    ),
-                                };
-                            },
-                        ),
-                    };
-                },
-            ),
+        this.#state = {
+            isInitialized: false,
+            partitionConfigByName: new Map(),
+            indexDescriptions: [],
+            indexConfigsByItemType: new Map(),
         };
-
-        this._name = config.name;
-
-        this._partitionConfigByName = new Map(
-            config.partitions.map(partitionConfig => [
-                partitionConfig.name,
-                Object.assign(partitionConfig, {
-                    sortRangeByName: new Map(
-                        partitionConfig.sortRanges.map((sortRange, index) => [
-                            sortRange.name,
-                            Object.assign(sortRange, {
-                                index,
-                                childSortRangeByName: new Map(
-                                    (sortRange.childSortRanges ?? []).map(
-                                        (childSortRange, index) => [
-                                            childSortRange.name,
-                                            Object.assign(childSortRange, {index}),
-                                        ],
-                                    ),
-                                ),
-                            }),
-                        ]),
-                    ),
-                }),
-            ]),
-        );
 
         constructedDynamoTableSchemaCount++;
         if (recording) {
             assert(
-                !recording.tableSchemas.has(this._name),
+                !recording.tableSchemas.has(this.#name),
                 "Table names in recording must be unique",
             );
-            recording.tableSchemas.set(this._name, this);
+            recording.tableSchemas.set(this.#name, this);
+        }
+
+        for (const partitionConfig of config.partitions) {
+            this.#addPartitionConfig(partitionConfig);
         }
 
         // DynamoDB table schemas finish initializing a microtask after they're constructed
@@ -559,11 +389,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
 
         dynamoTableSchemaInitializationCallbacks.push(() => {
-            assert(!this._initializationState.isInitialized);
+            assert(!this.#state.isInitialized);
+
             const {description, readCompatibilityError, writeCompatibilityError} =
                 getAndCheckDynamoTableSchemaDescriptions(
-                    config,
-                    this._initializationState.indexDescriptions,
+                    this.#name,
+                    this.#state.partitionConfigByName,
+                    this.#state.indexDescriptions,
                 );
 
             const partitionNamesById = new Map<
@@ -597,9 +429,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 withoutCompatibilityErrors = true;
             }
 
-            this._initializationState = {
+            this.#state = {
                 isInitialized: true,
-                indexConfigsByItemType: this._initializationState.indexConfigsByItemType,
+                partitionConfigByName: this.#state.partitionConfigByName,
+                indexConfigsByItemType: this.#state.indexConfigsByItemType,
                 description: description,
                 readCompatibilityError: !withoutCompatibilityErrors ? readCompatibilityError : null,
                 writeCompatibilityError: !withoutCompatibilityErrors
@@ -610,43 +443,238 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         });
     }
 
-    public getName() {
-        return this._name;
+    #addPartitionConfig(partitionConfig: DynamoTableSchemaTypes.Partition.ConfigBase) {
+        assert(!this.#state.isInitialized, "Schema has finished initializing");
+
+        assert(isIdentifier(partitionConfig.name), "Partition name must be an identifier");
+        assert(
+            partitionConfig.name[0] === partitionConfig.name[0]?.toUpperCase(),
+            "Partition name must start with an uppercase letter",
+        );
+
+        // Use the type system to make sure we write out all the shared attribute names.
+        const sharedAttributeNames: {
+            [K in keyof DynamoTableSchemaTypes.ItemSharedAttributes]: true;
+        } = {
+            updateLockVersion: true,
+        };
+
+        const partitionAttributeNames = new Set<string>([
+            "partitionType",
+            "sortRangeType",
+            "expirationTime",
+            ...Object.keys(sharedAttributeNames),
+        ]);
+
+        const assertValidAttributeName = (attributeName: string) => {
+            assert(isIdentifier(attributeName), "Attribute name must be an identifier");
+            assert(
+                !attributeName.startsWith("_"),
+                "Attribute name must not start with an underscore",
+            );
+            assert(
+                attributeName !== "partitionKey" && attributeName !== "sortKey",
+                "Attribute may not be a reserved key attribute name",
+            );
+            assert(
+                !/^index\d+(PartitionKey|SortKey)$/.test(attributeName),
+                "Attribute name may not be a reserved index key attribute name",
+            );
+        };
+
+        for (const attributeName of Object.keys(partitionConfig.partitionKeyAttributes)) {
+            assertValidAttributeName(attributeName);
+
+            assert(
+                !partitionAttributeNames.has(attributeName),
+                "Attribute names must be unique within an item",
+            );
+            partitionAttributeNames.add(attributeName);
+        }
+
+        function processAttributesSchema(
+            sortRangeConfig: DynamoTableSchemaTypes.SortRange.ChildConfigBase,
+        ): ObjectSchema<any> {
+            const sortRangeAttributeNames = new Set(partitionAttributeNames);
+
+            for (const attributeName of Object.keys(sortRangeConfig.sortKeyAttributes)) {
+                assertValidAttributeName(attributeName);
+
+                assert(
+                    !sortRangeAttributeNames.has(attributeName),
+                    "Attribute names must be unique within an item",
+                );
+                sortRangeAttributeNames.add(attributeName);
+            }
+
+            for (const attributeName of sortRangeConfig.attributes.propertySchemaByKey.keys()) {
+                assertValidAttributeName(attributeName);
+
+                assert(
+                    !sortRangeAttributeNames.has(attributeName),
+                    `Attribute names must be unique within an item`,
+                );
+                sortRangeAttributeNames.add(attributeName);
+            }
+
+            let attributesSchema: ObjectSchema<any> = sortRangeConfig.attributes.merge(
+                DynamoTableItemSharedAttributesSchema,
+            );
+
+            attributesSchema =
+                sortRangeConfig.withExpirationTime === "Optional"
+                    ? attributesSchema.merge(
+                          Schema.object({
+                              expirationTime:
+                                  DynamoTableItemSharedExpirationTimeAttributeSchema.optional(),
+                          }),
+                      )
+                    : sortRangeConfig.withExpirationTime === "Required"
+                      ? attributesSchema.merge(
+                            Schema.object({
+                                expirationTime: DynamoTableItemSharedExpirationTimeAttributeSchema,
+                            }),
+                        )
+                      : sortRangeConfig.withExpirationTime === "RequiredNullable"
+                        ? attributesSchema.merge(
+                              Schema.object({
+                                  expirationTime:
+                                      DynamoTableItemSharedExpirationTimeAttributeSchema.nullable(),
+                              }),
+                          )
+                        : attributesSchema;
+
+            return attributesSchema;
+        }
+
+        const sortRangeNames = new Set<string>();
+
+        partitionConfig = {
+            ...partitionConfig,
+            sortRanges: partitionConfig.sortRanges.map(
+                (sortRangeConfig): DynamoTableSchemaTypes.SortRange.ConfigBase => {
+                    assert(
+                        isIdentifier(sortRangeConfig.name),
+                        "Sort range name must be an identifier",
+                    );
+                    assert(
+                        sortRangeConfig.name[0] === sortRangeConfig.name[0]?.toUpperCase(),
+                        "Sort range name must start with an uppercase letter",
+                    );
+                    assert(
+                        !sortRangeNames.has(sortRangeConfig.name),
+                        "Sort range names must be unique within a partition",
+                    );
+                    sortRangeNames.add(sortRangeConfig.name);
+
+                    const childSortRangeNames = new Set<string>();
+
+                    return {
+                        ...sortRangeConfig,
+                        attributes: processAttributesSchema(sortRangeConfig),
+                        childSortRanges: sortRangeConfig.childSortRanges?.map(
+                            childSortRangeConfig => {
+                                assert(
+                                    isIdentifier(childSortRangeConfig.name),
+                                    "Child sort range name must be an identifier",
+                                );
+                                assert(
+                                    childSortRangeConfig.name[0] ===
+                                        childSortRangeConfig.name[0]?.toUpperCase(),
+                                    "Child sort range name must start with an uppercase letter",
+                                );
+                                assert(
+                                    !childSortRangeNames.has(childSortRangeConfig.name),
+                                    "Child sort range names must be unique within a sort range",
+                                );
+                                childSortRangeNames.add(childSortRangeConfig.name);
+
+                                return {
+                                    ...childSortRangeConfig,
+                                    attributes: processAttributesSchema(childSortRangeConfig),
+                                };
+                            },
+                        ),
+                    };
+                },
+            ),
+        };
+
+        assert(
+            !this.#state.partitionConfigByName.has(partitionConfig.name),
+            "Partition names must be unique within a table",
+        );
+
+        this.#state.partitionConfigByName.set(
+            partitionConfig.name,
+            Object.assign(partitionConfig, {
+                sortRangeByName: new Map(
+                    partitionConfig.sortRanges.map((sortRange, index) => [
+                        sortRange.name,
+                        Object.assign(sortRange, {
+                            index,
+                            childSortRangeByName: new Map(
+                                (sortRange.childSortRanges ?? []).map((childSortRange, index) => [
+                                    childSortRange.name,
+                                    Object.assign(childSortRange, {index}),
+                                ]),
+                            ),
+                        }),
+                    ]),
+                ),
+            }),
+        );
     }
 
-    public isInitialized() {
-        return this._initializationState.isInitialized;
+    /**
+     * Add a partition before the schema has finished initializing.
+     *
+     * This is intended for higher-level table abstractions which need to synthesize
+     * storage items from options declared after the table constructor runs.
+     */
+    _addPartitionBeforeInitialization(
+        partitionConfig: DynamoTableSchemaTypes.Partition.ConfigBase,
+    ) {
+        this.#addPartitionConfig(partitionConfig);
+    }
+
+    getName() {
+        return this.#name;
+    }
+
+    isInitialized() {
+        return this.#state.isInitialized;
     }
 
     /**
      * Returns the schema description. Will throw if the schema has not finished
      * initializing. Wait a microtask for it to finish.
      */
-    public getDescription() {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+    getDescription() {
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
 
         // If our schema is read incompatible with the old schema then always throw an
         // error when a user tries to observe the description.
-        if (this._initializationState.readCompatibilityError !== null)
-            throw this._initializationState.readCompatibilityError;
+        if (this.#state.readCompatibilityError !== null) throw this.#state.readCompatibilityError;
 
-        return this._initializationState.description;
+        return this.#state.description;
     }
 
     /**
      * Return the partition key attributes for a given partition. Throws an error if
      * the partition doesn't exist.
      */
-    public getPartitionKeyAttributes(partitionType: string) {
-        return assertExists(this._partitionConfigByName.get(partitionType)).partitionKeyAttributes;
+    getPartitionKeyAttributes(partitionType: string) {
+        return assertExists(this.#state.partitionConfigByName.get(partitionType))
+            .partitionKeyAttributes;
     }
 
     /**
      * Return the partition key attributes and sort key attributes for a given
      * partition. Throws an error if the partition or sort range doesn't exist.
      */
-    public getKeyAttributes(partitionType: string, sortRangeType: string) {
-        const partitionConfig = assertExists(this._partitionConfigByName.get(partitionType));
+    getKeyAttributes(partitionType: string, sortRangeType: string) {
+        const partitionConfig = assertExists(this.#state.partitionConfigByName.get(partitionType));
 
         return {
             partitionKeyAttributes: partitionConfig.partitionKeyAttributes,
@@ -655,24 +683,23 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         };
     }
 
-    private _ensureLocalTablePromise: Promise<void> | null = null;
-    private _ensureLocalTableGeneration: number = 0;
+    #ensureLocalTablePromise: Promise<void> | null = null;
+    #ensureLocalTableGeneration: number = 0;
 
-    private async _getClient(
+    async #getClient(
         context: DynamoContext,
         checkWriteCompatibility: boolean,
     ): Promise<DynamoClient> {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
 
         // If our schema is read incompatible with the old schema then always throw an
         // error whether we are reading or writing.
-        if (this._initializationState.readCompatibilityError !== null)
-            throw this._initializationState.readCompatibilityError;
+        if (this.#state.readCompatibilityError !== null) throw this.#state.readCompatibilityError;
 
         // If our schema is write incompatible with the old schema then throw an error. Do
         // not allow writing to this table until the generated schema has been updated.
-        if (checkWriteCompatibility && this._initializationState.writeCompatibilityError !== null)
-            throw this._initializationState.writeCompatibilityError;
+        if (checkWriteCompatibility && this.#state.writeCompatibilityError !== null)
+            throw this.#state.writeCompatibilityError;
 
         const client = getDynamoClient(context);
 
@@ -686,13 +713,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             if (internalClient.isLocal()) {
                 if (
-                    !this._ensureLocalTablePromise ||
-                    this._ensureLocalTableGeneration !== localDynamoTableSchemaGeneration
+                    !this.#ensureLocalTablePromise ||
+                    this.#ensureLocalTableGeneration !== localDynamoTableSchemaGeneration
                 ) {
-                    this._ensureLocalTableGeneration = localDynamoTableSchemaGeneration;
-                    this._ensureLocalTablePromise = this._ensureLocalTable(context);
+                    this.#ensureLocalTableGeneration = localDynamoTableSchemaGeneration;
+                    this.#ensureLocalTablePromise = this.#ensureLocalTable(context);
                 }
-                await this._ensureLocalTablePromise;
+                await this.#ensureLocalTablePromise;
             }
         }
 
@@ -707,19 +734,19 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Before we can execute a transaction.
      */
-    private _handleBeforeExecuteTransaction: ((context: DynamoContext) => Promise<void>) | null =
+    #handleBeforeExecuteTransaction: ((context: DynamoContext) => Promise<void>) | null =
         process.env.NODE_ENV !== "production"
             ? async (context: DynamoContext) => {
-                  await this._getClient(context, true);
+                  await this.#getClient(context, true);
               }
             : null;
 
     /**
      * Ensures that our table exists in DynamoDB local.
      */
-    private async _ensureLocalTable(context: DynamoContext): Promise<void> {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const {description} = this._initializationState;
+    async #ensureLocalTable(context: DynamoContext): Promise<void> {
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
+        const {description} = this.#state;
 
         const client = getDynamoClient(context);
 
@@ -736,7 +763,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     client.ensureLocalCachePath,
                     "Must have `ensureLocalCachePath` when running DynamoDB locally",
                 ),
-                `${this._name}.txt`,
+                `${this.#name}.txt`,
             );
 
             ensureLocalCacheHash = murmurhash
@@ -759,7 +786,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        return context.tracer.withSpan("Ensure local DynamoDB table", async context => {
+        return await context.tracer.withSpan("Ensure local DynamoDB table", async context => {
             await retryWithExponentialBackoff(async retry => {
                 const internalClient = client.getInternalClient();
                 const tableName = this.getName();
@@ -967,13 +994,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         });
     }
 
-    private _serializePartitionKey(
-        key: Types["PartitionKey"] | Types["ItemKey"] | Types["Item"],
-    ): string {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._partitionConfigByName.get(key.partitionType);
-        const partitionDescription =
-            this._initializationState.description.partitionByType[key.partitionType];
+    #serializePartitionKey(key: Types["PartitionKey"] | Types["ItemKey"] | Types["Item"]): string {
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this.#state.partitionConfigByName.get(key.partitionType);
+        const partitionDescription = this.#state.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
 
         const partitionKeyEntries = [key.partitionType];
@@ -986,14 +1010,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return partitionKeyEntries.join(dynamoKeySeparator);
     }
 
-    private _serializeSortKey<PartitionKey extends Types["PartitionKey"]>(
+    #serializeSortKey<PartitionKey extends Types["PartitionKey"]>(
         partitionKey: PartitionKey,
         sortKey: Types["SortKeyMap"][PartitionKey["partitionType"]],
     ): string {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._partitionConfigByName.get(partitionKey.partitionType);
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this.#state.partitionConfigByName.get(partitionKey.partitionType);
         const partitionDescription =
-            this._initializationState.description.partitionByType[partitionKey.partitionType];
+            this.#state.description.partitionByType[partitionKey.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
 
         if (!sortKey.sortRangeType.includes("#")) {
@@ -1048,15 +1072,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
     }
 
-    private _serializeItemKey(key: Types["ItemKey"] | Types["Item"]): {
+    #serializeItemKey(key: Types["ItemKey"] | Types["Item"]): {
         partitionKey: string;
         sortKey: string;
         attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
     } {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._partitionConfigByName.get(key.partitionType);
-        const partitionDescription =
-            this._initializationState.description.partitionByType[key.partitionType];
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this.#state.partitionConfigByName.get(key.partitionType);
+        const partitionDescription = this.#state.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
 
         const partitionKeyEntries = [key.partitionType];
@@ -1135,7 +1158,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Also returns the `Schema` object for attributes of the key's sort range.
      */
-    private _deserializeItemKeyInto(
+    #deserializeItemKeyInto(
         partitionKey: string,
         sortKey: string,
         key: any,
@@ -1148,10 +1171,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         assert(partitionType, "Invalid partition key");
         assert(sortRangeType, "Invalid sort key");
 
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._partitionConfigByName.get(partitionType);
-        const partitionDescription =
-            this._initializationState.description.partitionByType[partitionType];
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this.#state.partitionConfigByName.get(partitionType);
+        const partitionDescription = this.#state.description.partitionByType[partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition key");
 
         const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
@@ -1224,14 +1246,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
     }
 
-    private _serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): {
+    #serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): {
         bytes: Uint8Array;
         partitionKeyByteCount: number;
     } {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._partitionConfigByName.get(key.partitionType);
-        const partitionDescription =
-            this._initializationState.description.partitionByType[key.partitionType];
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this.#state.partitionConfigByName.get(key.partitionType);
+        const partitionDescription = this.#state.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
         const sortRangeConfig = partitionConfig.sortRangeByName.get(key.sortRangeType);
         const sortRangeDescription = partitionDescription.sortRangeByType[key.sortRangeType];
@@ -1301,8 +1322,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Remember this data is not secured in any way! If you share this with a client
      * then the client should be able to see all data in the item's primary key.
      */
-    public serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
-        const {bytes} = this._serializeOpaqueItemKey(key);
+    serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
+        const {bytes} = this.#serializeOpaqueItemKey(key);
 
         const opaqueString = encodeBase64(
             bytes,
@@ -1329,14 +1350,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Remember this data is not secured in any way! If you share this with a client
      * then the client should be able to see all data in the item's primary key.
      */
-    public serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(
-        key: Types["ItemKey"] | Types["Item"],
-    ): {
+    serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(key: Types["ItemKey"] | Types["Item"]): {
         getPartitionKey: () => DynamoItemPartitionKey;
         getSortKey: () => DynamoItemSortKey;
         key: DynamoItemKey;
     } {
-        const {bytes, partitionKeyByteCount} = this._serializeOpaqueItemKey(key);
+        const {bytes, partitionKeyByteCount} = this.#serializeOpaqueItemKey(key);
 
         const opaqueKeyString = encodeBase64(
             bytes,
@@ -1389,11 +1408,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Remember this data is not secured in any way! If you share this with a client
      * then the client should be able to see all data in the item's primary key.
      */
-    public serializeOpaqueItemPartitionKeyAndSortKey(key: Types["ItemKey"] | Types["Item"]): {
+    serializeOpaqueItemPartitionKeyAndSortKey(key: Types["ItemKey"] | Types["Item"]): {
         partitionKey: DynamoItemPartitionKey;
         sortKey: DynamoItemSortKey;
     } {
-        const {bytes, partitionKeyByteCount} = this._serializeOpaqueItemKey(key);
+        const {bytes, partitionKeyByteCount} = this.#serializeOpaqueItemKey(key);
 
         const opaquePartitionKeyString = encodeBase64(
             bytes.subarray(0, partitionKeyByteCount),
@@ -1415,8 +1434,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Deserialize the item key from our opaque string format that is shared with
      * clients.
      */
-    public deserializeOpaqueItemKey(opaqueString: DynamoItemKey): Types["ItemKey"] {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+    deserializeOpaqueItemKey(opaqueString: DynamoItemKey): Types["ItemKey"] {
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
 
         try {
             const bytes = decodeBase64(opaqueString, "Rfc4648UrlWithOrderPreservation");
@@ -1424,14 +1443,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             const key: any = {};
             let bytesIndex = 0;
 
-            const partitionNames = this._initializationState.partitionNamesById.get(
-                bytes[bytesIndex++]!,
-            );
+            const partitionNames = this.#state.partitionNamesById.get(bytes[bytesIndex++]!);
             assert(partitionNames, "Invalid partition key");
 
-            const partitionConfig = this._partitionConfigByName.get(partitionNames.partitionName);
+            const partitionConfig = this.#state.partitionConfigByName.get(
+                partitionNames.partitionName,
+            );
             const partitionDescription =
-                this._initializationState.description.partitionByType[partitionNames.partitionName];
+                this.#state.description.partitionByType[partitionNames.partitionName];
             assert(partitionConfig && partitionDescription, "Invalid partition key");
 
             key.partitionType = partitionNames.partitionName;
@@ -1495,13 +1514,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Remember this data is not secured in any way! If you share this with a client
      * then the client should be able to see all data in the item's primary key.
      */
-    public serializeOpaqueItemPartitionKey(
+    serializeOpaqueItemPartitionKey(
         key: Types["PartitionKey"] | Types["ItemKey"] | Types["Item"],
     ): DynamoItemPartitionKey {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._partitionConfigByName.get(key.partitionType);
-        const partitionDescription =
-            this._initializationState.description.partitionByType[key.partitionType];
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this.#state.partitionConfigByName.get(key.partitionType);
+        const partitionDescription = this.#state.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
 
         let totalByteCount = 0;
@@ -1540,11 +1558,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Remember this data is not secured in any way! If you share this with a client
      * then the client should be able to see all data in the item's primary key.
      */
-    public serializeOpaqueItemSortKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemSortKey {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._partitionConfigByName.get(key.partitionType);
-        const partitionDescription =
-            this._initializationState.description.partitionByType[key.partitionType];
+    serializeOpaqueItemSortKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemSortKey {
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this.#state.partitionConfigByName.get(key.partitionType);
+        const partitionDescription = this.#state.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
         const sortRangeConfig = partitionConfig.sortRangeByName.get(key.sortRangeType);
         const sortRangeDescription = partitionDescription.sortRangeByType[key.sortRangeType];
@@ -1589,7 +1606,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Serializes the item's key, attributes, and adds any index attributes.
      */
-    private _serializeItem<Item extends Types["Item"]>(
+    #serializeItem<Item extends Types["Item"]>(
         item: Item,
     ): {
         partitionKey: string;
@@ -1597,28 +1614,28 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
         serializedItem: SchemaSerializedObjectValue;
     } {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
 
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(item);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(item);
 
         const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
         attributesSchema.serializeInto(item, serializedItem);
 
         // Serialize all the index properties for this item.
-        const indexConfigs = this._initializationState.indexConfigsByItemType.get(
+        const indexConfigs = this.#state.indexConfigsByItemType.get(
             `${item.partitionType}#${item.sortRangeType}`,
         );
         if (indexConfigs) {
             for (let i = 0; i < indexConfigs.length; i++) {
                 const indexConfig = indexConfigs[i]!;
-                const indexDescription = this._initializationState.description.indexes[i]!;
+                const indexDescription = this.#state.description.indexes[i]!;
 
                 // If a filter function is defined then don't add index keys for items that return
                 // `false`. This will exclude those items from our index.
                 if (indexConfig.filter === null || indexConfig.filter(item)) {
                     // If the index key is reused, don't add an index partition key attribute.
                     if (indexDescription.partitionKeyBehavior.type !== "Reused") {
-                        const indexPartitionKey = this._serializeIndexPartitionKey(
+                        const indexPartitionKey = this.#serializeIndexPartitionKey(
                             indexConfig,
                             indexDescription,
                             item,
@@ -1628,7 +1645,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                             indexPartitionKey;
                     }
 
-                    const indexSortKey = this._serializeItemIndexSortKey(indexConfig, item);
+                    const indexSortKey = this.#serializeItemIndexSortKey(indexConfig, item);
                     serializedItem[`index${indexConfig.indexNumber}SortKey`] = indexSortKey;
                 }
             }
@@ -1655,7 +1672,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [2]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
-    public async getItemIfExists<Key extends Types["ItemKey"]>(
+    async getItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -1666,11 +1683,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             allowsEventualReadConsistency?: boolean;
         } = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
-        const client = await this._getClient(context, false);
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+        const client = await this.#getClient(context, false);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(key);
 
         const serializedItem = await client.getItemIfExists(context, {
-            tableName: this._name,
+            tableName: this.#name,
             key: {partitionKey, sortKey},
             // As a convenience, we support `DynamoCacheReadConsistency` even though this
             // method doesn't consult any cache. `Strong` provides more guarantees than
@@ -1679,7 +1696,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expectsStrongReadConsistency:
                 !allowsEventualReadConsistency && getDynamoExpectsStrongReadConsistency(context),
             debugItemType: {
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: key.partitionType,
                 sortRangeType: key.sortRangeType,
             },
@@ -1704,12 +1721,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Same as `getItemIfExists()` except we return a `DynamoItem` object. Currently
-     * this is only used by `DynamoGeneralRealtimeTableSchema`. In the future, however,
-     * we may use `DynamoItem` for all `getItem()` calls from `DynamoTableSchema` too!
-     * Since it's core feature (keeping track of `oldItem`) is useful for
-     * `directlyUpdateItem()` calls which need the old item's `updateLockVersion`.
+     * this is only used by `RynamoTableSchema`. In the future, however, we may use
+     * `DynamoItem` for all `getItem()` calls from `DynamoTableSchema` too! Since it's
+     * core feature (keeping track of `oldItem`) is useful for `directlyUpdateItem()`
+     * calls which need the old item's `updateLockVersion`.
      */
-    public async _getItemWithOldItemIfExists<Key extends Types["ItemKey"]>(
+    async _getItemWithOldItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -1720,11 +1737,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             allowsEventualReadConsistency?: boolean;
         } = {},
     ): Promise<DynamoItem<MergeObjectIntersection<Types["Item"] & Key>> | null> {
-        const client = await this._getClient(context, false);
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+        const client = await this.#getClient(context, false);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(key);
 
         const serializedItem = await client.getItemIfExists(context, {
-            tableName: this._name,
+            tableName: this.#name,
             key: {partitionKey, sortKey},
             // As a convenience, we support `DynamoCacheReadConsistency` even though this
             // method doesn't consult any cache. `Strong` provides more guarantees than
@@ -1733,7 +1750,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expectsStrongReadConsistency:
                 !allowsEventualReadConsistency && getDynamoExpectsStrongReadConsistency(context),
             debugItemType: {
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: key.partitionType,
                 sortRangeType: key.sortRangeType,
             },
@@ -1764,7 +1781,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * an error. Same as `getItem()` but throws an error instead of returning null when
      * an item is missing.
      */
-    public async getItem<Key extends Types["ItemKey"]>(
+    async getItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         options?: {
@@ -1792,7 +1809,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * 3. You expect the item may have been recently created so an eventually
      *    consistent read may be stale and not return an item
      */
-    public async getItemWithEventualThenStrongConsistency<Key extends Types["ItemKey"]>(
+    async getItemWithEventualThenStrongConsistency<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         options?: {allowsEventualReadConsistency?: boolean},
@@ -1803,7 +1820,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         });
         if (item) return item;
 
-        return this.getItem(context, key, {
+        return await this.getItem(context, key, {
             ...options,
             consistency: "Strong",
         });
@@ -1830,7 +1847,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
-    public async getPartialItemIfExists<
+    async getPartialItemIfExists<
         Key extends Types["ItemKey"],
         Attributes extends DistributiveKeyOf<Types["Item"]> & string,
     >(
@@ -1848,8 +1865,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     ): Promise<MergeObjectIntersection<
         Key & Pick<Extract<Types["Item"], Key>, Attributes>
     > | null> {
-        const client = await this._getClient(context, false);
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+        const client = await this.#getClient(context, false);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(key);
 
         const projectionExpressionEntries = [];
         const expressionAttributeNames = new Map<string, string>();
@@ -1877,7 +1894,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
 
         const serializedItem = await client.getItemIfExists(context, {
-            tableName: this._name,
+            tableName: this.#name,
             key: {partitionKey, sortKey},
             // As a convenience, we support `DynamoCacheReadConsistency` even though this
             // method doesn't consult any cache. `Strong` provides more guarantees than
@@ -1893,7 +1910,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expectsStrongReadConsistency:
                 !allowsEventualReadConsistency && getDynamoExpectsStrongReadConsistency(context),
             debugItemType: {
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: key.partitionType,
                 sortRangeType: key.sortRangeType,
             },
@@ -1950,7 +1967,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
-    public async getPartialItem<
+    async getPartialItem<
         Key extends Types["ItemKey"],
         Attributes extends DistributiveKeyOf<Types["Item"]> & string,
     >(
@@ -1981,12 +1998,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
-    public async createItem<Item extends Types["Item"]>(
+    async createItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
         {isConditionCheckErrorRetriable = false}: {isConditionCheckErrorRetriable?: boolean} = {},
     ): Promise<void> {
-        await this._putItem(context, item, {
+        await this.#putItem(context, item, {
             condition: DynamoConditionExpression._unsafeRaw(
                 "attribute_not_exists(partitionKey)",
                 DynamoConditionExpressionPrecedence.Function,
@@ -2008,7 +2025,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
-    public async createItemIfNoneExists<Item extends Types["Item"]>(
+    async createItemIfNoneExists<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
     ): Promise<{wasCreated: boolean}> {
@@ -2042,7 +2059,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [2]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
-    public async replaceItem<Item extends Types["Item"]>(
+    async replaceItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
         {
@@ -2056,7 +2073,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             DynamoConditionExpressionPrecedence.Function,
         );
 
-        await this._putItem(context, item, {
+        await this.#putItem(context, item, {
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
@@ -2095,11 +2112,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [3]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    public async createOrReplaceItem<Item extends Types["Item"]>(
+    async createOrReplaceItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
     ): Promise<void> {
-        await this._putItem(context, item);
+        await this.#putItem(context, item);
     }
 
     /**
@@ -2129,7 +2146,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [2]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
-    public updateItem<Key extends Types["ItemKey"]>(
+    updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         update: (
@@ -2141,7 +2158,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>>;
-    public updateItem<Key extends Types["ItemKey"]>(
+    updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         update: (
@@ -2153,7 +2170,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null>;
-    public updateItem<Key extends Types["ItemKey"]>(
+    updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         update: (
@@ -2165,7 +2182,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null>;
-    public updateItem<Key extends Types["ItemKey"]>(
+    updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         // Typed as `never` since a caller should always match one of the overloads, not
@@ -2246,7 +2263,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                           : 1,
                 };
 
-                await this._putItem(context, actualNewItem, {
+                await this.#putItem(context, actualNewItem, {
                     condition,
                     // This operation implements an optimistic locking scheme. Retrying the operation
                     // should read the latest item version and eventually succeed.
@@ -2255,7 +2272,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
                 return actualNewItem;
             } else {
-                await this._deleteItem(context, key, {
+                await this.#deleteItem(context, key, {
                     condition,
                     // This operation implements an optimistic locking scheme. Retrying the operation
                     // should read the latest item version and eventually succeed.
@@ -2288,7 +2305,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
      */
-    public async directlyUpdateItem<Item extends Types["Item"]>(
+    async directlyUpdateItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
         {condition}: {condition?: DynamoCondition<Item>} = {},
@@ -2308,7 +2325,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     : DynamoConditionExpression.exists().not(),
         });
 
-        await this._putItem(context, newItem, {
+        await this.#putItem(context, newItem, {
             condition: condition
                 ? updateLockVersionCondition.and(DynamoConditionExpression.from(condition))
                 : updateLockVersionCondition,
@@ -2343,7 +2360,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [3]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    private async _putItem<Item extends Types["Item"]>(
+    async #putItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
         {
@@ -2369,17 +2386,17 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                   isConditionCheckErrorRetriable?: undefined;
               } = {},
     ): Promise<void> {
-        const client = await this._getClient(context, true);
+        const client = await this.#getClient(context, true);
 
-        const {partitionKey, sortKey, attributesSchema, serializedItem} = this._serializeItem(item);
+        const {partitionKey, sortKey, attributesSchema, serializedItem} = this.#serializeItem(item);
 
         if (condition === undefined) {
-            return client.putItem(context, {
-                tableName: this._name,
+            return await client.putItem(context, {
+                tableName: this.#name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
                 debugItemType: {
-                    tableName: this._name,
+                    tableName: this.#name,
                     partitionType: item.partitionType,
                     sortRangeType: item.sortRangeType,
                 },
@@ -2392,8 +2409,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 conditionCompilationContext,
             );
 
-            return client.putItem(context, {
-                tableName: this._name,
+            return await client.putItem(context, {
+                tableName: this.#name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
                 conditionExpression: conditionExpressionString,
@@ -2405,7 +2422,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     ? getDynamoRetryTransactionIfExists(context)
                     : null,
                 debugItemType: {
-                    tableName: this._name,
+                    tableName: this.#name,
                     partitionType: item.partitionType,
                     sortRangeType: item.sortRangeType,
                 },
@@ -2425,7 +2442,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      */
-    public async deleteItem<Item extends Types["Item"]>(
+    async deleteItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
         {
@@ -2449,7 +2466,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         const baseCondition = itemExistsCondition.and(updateLockVersionCondition);
 
-        await this._deleteItem(context, item as any, {
+        await this.#deleteItem(context, item as any, {
             condition: condition
                 ? baseCondition.and(DynamoConditionExpression.from(condition))
                 : baseCondition,
@@ -2475,7 +2492,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      */
-    public async deleteItemWithKey<Key extends Types["ItemKey"]>(
+    async deleteItemWithKey<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -2489,7 +2506,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             DynamoConditionExpressionPrecedence.Function,
         );
 
-        await this._deleteItem(context, key, {
+        await this.#deleteItem(context, key, {
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
@@ -2519,11 +2536,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [3]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
      */
-    public async deleteItemWithKeyIfExists<Key extends Types["ItemKey"]>(
+    async deleteItemWithKeyIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
     ): Promise<void> {
-        await this._deleteItem(context, key);
+        await this.#deleteItem(context, key);
     }
 
     /**
@@ -2543,7 +2560,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [3]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    private async _deleteItem<Key extends Types["ItemKey"]>(
+    async #deleteItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -2569,15 +2586,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                   isConditionCheckErrorRetriable?: undefined;
               } = {},
     ): Promise<void> {
-        const client = await this._getClient(context, true);
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+        const client = await this.#getClient(context, true);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(key);
 
         if (condition === undefined) {
-            return client.deleteItem(context, {
-                tableName: this._name,
+            return await client.deleteItem(context, {
+                tableName: this.#name,
                 key: {partitionKey, sortKey},
                 debugItemType: {
-                    tableName: this._name,
+                    tableName: this.#name,
                     partitionType: key.partitionType,
                     sortRangeType: key.sortRangeType,
                 },
@@ -2592,8 +2609,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             const retryTransaction = getDynamoRetryTransactionIfExists(context);
 
-            return client.deleteItem(context, {
-                tableName: this._name,
+            return await client.deleteItem(context, {
+                tableName: this.#name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
                 expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
@@ -2602,7 +2619,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 ),
                 retryConditionCheckError: isConditionCheckErrorRetriable ? retryTransaction : null,
                 debugItemType: {
-                    tableName: this._name,
+                    tableName: this.#name,
                     partitionType: key.partitionType,
                     sortRangeType: key.sortRangeType,
                 },
@@ -2618,14 +2635,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
-    public static async executeTransaction(
+    static async executeTransaction(
         context: DynamoContext,
         entries: ReadonlyArray<DynamoTransactionEntry>,
         {clientRequestToken}: {clientRequestToken?: string} = {},
     ): Promise<void> {
         const client = getDynamoClient(context);
 
-        return client.executeTransaction(context, entries, {
+        return await client.executeTransaction(context, entries, {
             clientRequestToken,
             retryConditionCheckError: getDynamoRetryTransactionIfExists(context),
         });
@@ -2638,7 +2655,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionCreateItem<Item extends Types["Item"]>(
+    transactionCreateItem<Item extends Types["Item"]>(
         item: Item,
         {
             isConditionCheckErrorRetriable = false,
@@ -2648,7 +2665,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             onAfterTransactionExecutedSuccessfully?: () => MaybePromise<void>;
         } = {},
     ): DynamoTransactionEntry & {newItem: Item} {
-        return this._transactionPutItem(item, {
+        return this.#transactionPutItem(item, {
             condition: DynamoConditionExpression._unsafeRaw(
                 "attribute_not_exists(partitionKey)",
                 DynamoConditionExpressionPrecedence.Function,
@@ -2668,7 +2685,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionReplaceItem<Item extends Types["Item"]>(
+    transactionReplaceItem<Item extends Types["Item"]>(
         item: Item,
         {
             condition,
@@ -2683,7 +2700,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             DynamoConditionExpressionPrecedence.Function,
         );
 
-        return this._transactionPutItem(item, {
+        return this.#transactionPutItem(item, {
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
@@ -2715,11 +2732,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
      */
-    public transactionCreateOrReplaceItem<Item extends Types["Item"]>(
+    transactionCreateOrReplaceItem<Item extends Types["Item"]>(
         item: Item,
         options?: {onAfterTransactionExecutedSuccessfully?: () => MaybePromise<void>},
     ): DynamoTransactionEntry & {newItem: Item} {
-        return this._transactionPutItem(item, options);
+        return this.#transactionPutItem(item, options);
     }
 
     /**
@@ -2739,7 +2756,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
+    transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         item: Item,
         {
             condition,
@@ -2757,7 +2774,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     : DynamoConditionExpression.exists().not(),
         });
 
-        return this._transactionPutItem(
+        return this.#transactionPutItem(
             {
                 ...item,
                 // Increment the lock version in this new item.
@@ -2789,7 +2806,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    private _transactionPutItem<Item extends Types["Item"]>(
+    #transactionPutItem<Item extends Types["Item"]>(
         item: Item,
         {
             onAfterTransactionExecutedSuccessfully,
@@ -2820,23 +2837,21 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     ): DynamoTransactionEntry & {newItem: Item} {
         // If our schema is write incompatible with the old schema then throw an error. Do
         // not allow writing to this table until the generated schema has been updated.
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        if (this._initializationState.readCompatibilityError !== null)
-            throw this._initializationState.readCompatibilityError;
-        if (this._initializationState.writeCompatibilityError !== null)
-            throw this._initializationState.writeCompatibilityError;
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
+        if (this.#state.readCompatibilityError !== null) throw this.#state.readCompatibilityError;
+        if (this.#state.writeCompatibilityError !== null) throw this.#state.writeCompatibilityError;
 
-        const {attributesSchema, serializedItem} = this._serializeItem(item);
+        const {attributesSchema, serializedItem} = this.#serializeItem(item);
 
         if (condition === undefined) {
             return Object.assign(
                 DynamoClient.transactionPutItem({
-                    tableName: this._name,
+                    tableName: this.#name,
                     item: serializedItem,
-                    onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+                    onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
                     onAfterTransactionExecutedSuccessfully,
                     debugItemType: {
-                        tableName: this._name,
+                        tableName: this.#name,
                         partitionType: item.partitionType,
                         sortRangeType: item.sortRangeType,
                     },
@@ -2853,7 +2868,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             return Object.assign(
                 DynamoClient.transactionPutItem({
-                    tableName: this._name,
+                    tableName: this.#name,
                     item: serializedItem,
                     conditionExpression: conditionExpressionString,
                     expressionAttributeValues: new Map(
@@ -2863,10 +2878,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         conditionCompilationContext.iterateAttributeNames(),
                     ),
                     isConditionCheckErrorRetriable,
-                    onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+                    onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
                     onAfterTransactionExecutedSuccessfully,
                     debugItemType: {
-                        tableName: this._name,
+                        tableName: this.#name,
                         partitionType: item.partitionType,
                         sortRangeType: item.sortRangeType,
                     },
@@ -2883,7 +2898,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionDeleteItem<Item extends Types["Item"]>(
+    transactionDeleteItem<Item extends Types["Item"]>(
         item: Item,
         {
             condition,
@@ -2906,7 +2921,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         const baseCondition = itemExistsCondition.and(updateLockVersionCondition);
 
-        return this._transactionDeleteItem(item as any, {
+        return this.#transactionDeleteItem(item as any, {
             condition: condition
                 ? baseCondition.and(DynamoConditionExpression.from(condition))
                 : baseCondition,
@@ -2923,7 +2938,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionDeleteItemWithKey<Key extends Types["ItemKey"]>(
+    transactionDeleteItemWithKey<Key extends Types["ItemKey"]>(
         key: Key,
         {
             condition,
@@ -2936,7 +2951,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             DynamoConditionExpressionPrecedence.Function,
         );
 
-        return this._transactionDeleteItem(key, {
+        return this.#transactionDeleteItem(key, {
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
@@ -2956,10 +2971,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionDeleteItemIfExists<Key extends Types["ItemKey"]>(
-        key: Key,
-    ): DynamoTransactionEntry {
-        return this._transactionDeleteItem(key);
+    transactionDeleteItemIfExists<Key extends Types["ItemKey"]>(key: Key): DynamoTransactionEntry {
+        return this.#transactionDeleteItem(key);
     }
 
     /**
@@ -2969,7 +2982,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    private _transactionDeleteItem<Key extends Types["ItemKey"]>(
+    #transactionDeleteItem<Key extends Types["ItemKey"]>(
         key: Key,
         {
             condition,
@@ -2996,21 +3009,19 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     ): DynamoTransactionEntry {
         // If our schema is write incompatible with the old schema then throw an error. Do
         // not allow writing to this table until the generated schema has been updated.
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        if (this._initializationState.readCompatibilityError !== null)
-            throw this._initializationState.readCompatibilityError;
-        if (this._initializationState.writeCompatibilityError !== null)
-            throw this._initializationState.writeCompatibilityError;
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
+        if (this.#state.readCompatibilityError !== null) throw this.#state.readCompatibilityError;
+        if (this.#state.writeCompatibilityError !== null) throw this.#state.writeCompatibilityError;
 
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(key);
 
         if (condition === undefined) {
             return DynamoClient.transactionDeleteItem({
-                tableName: this._name,
+                tableName: this.#name,
                 key: {partitionKey, sortKey},
-                onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+                onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
                 debugItemType: {
-                    tableName: this._name,
+                    tableName: this.#name,
                     partitionType: key.partitionType,
                     sortRangeType: key.sortRangeType,
                 },
@@ -3024,7 +3035,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             );
 
             return DynamoClient.transactionDeleteItem({
-                tableName: this._name,
+                tableName: this.#name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
                 expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
@@ -3032,9 +3043,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     conditionCompilationContext.iterateAttributeNames(),
                 ),
                 isConditionCheckErrorRetriable,
-                onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+                onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
                 debugItemType: {
-                    tableName: this._name,
+                    tableName: this.#name,
                     partitionType: key.partitionType,
                     sortRangeType: key.sortRangeType,
                 },
@@ -3055,12 +3066,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
-    public transactionConditionCheck<Key extends Types["ItemKey"]>(
+    transactionConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
         condition?: DynamoCondition<Extract<Types["Item"], Key>>,
         {isConditionCheckErrorRetriable = false}: {isConditionCheckErrorRetriable?: boolean} = {},
     ): DynamoTransactionEntry {
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(key);
 
         const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
             "attribute_exists(partitionKey)",
@@ -3078,15 +3089,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         );
 
         return DynamoClient.transactionConditionCheck({
-            tableName: this._name,
+            tableName: this.#name,
             key: {partitionKey, sortKey},
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
             isConditionCheckErrorRetriable,
-            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+            onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
             debugItemType: {
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: key.partitionType,
                 sortRangeType: key.sortRangeType,
             },
@@ -3101,11 +3112,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionUpdateLockVersionConditionCheck(
+    transactionUpdateLockVersionConditionCheck(
         key: Types["ItemKey"],
         updateLockVersion: number | undefined,
     ): DynamoTransactionEntry {
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(key);
 
         // Verify that the lock version was not changed by a concurrent writer.
         const conditionExpression = DynamoConditionExpression.from({
@@ -3122,7 +3133,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         );
 
         return DynamoClient.transactionConditionCheck({
-            tableName: this._name,
+            tableName: this.#name,
             key: {partitionKey, sortKey},
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
@@ -3130,9 +3141,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             // This operation implements an optimistic locking scheme. Retrying the operation
             // should read the latest item version and eventually succeed.
             isConditionCheckErrorRetriable: true,
-            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+            onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
             debugItemType: {
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: key.partitionType,
                 sortRangeType: key.sortRangeType,
             },
@@ -3145,11 +3156,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionExistsConditionCheck<Key extends Types["ItemKey"]>(
+    transactionExistsConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
         {isConditionCheckErrorRetriable = false}: {isConditionCheckErrorRetriable?: boolean} = {},
     ): DynamoTransactionEntry {
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(key);
 
         const conditionExpression = DynamoConditionExpression._unsafeRaw(
             "attribute_exists(partitionKey)",
@@ -3163,15 +3174,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         );
 
         return DynamoClient.transactionConditionCheck({
-            tableName: this._name,
+            tableName: this.#name,
             key: {partitionKey, sortKey},
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
             isConditionCheckErrorRetriable,
-            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+            onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
             debugItemType: {
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: key.partitionType,
                 sortRangeType: key.sortRangeType,
             },
@@ -3184,11 +3195,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionDoesNotExistConditionCheck<Key extends Types["ItemKey"]>(
+    transactionDoesNotExistConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
         {isConditionCheckErrorRetriable = false}: {isConditionCheckErrorRetriable?: boolean} = {},
     ): DynamoTransactionEntry {
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(key);
 
         const conditionExpression = DynamoConditionExpression._unsafeRaw(
             "attribute_not_exists(partitionKey)",
@@ -3202,15 +3213,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         );
 
         return DynamoClient.transactionConditionCheck({
-            tableName: this._name,
+            tableName: this.#name,
             key: {partitionKey, sortKey},
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
             isConditionCheckErrorRetriable,
-            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+            onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
             debugItemType: {
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: key.partitionType,
                 sortRangeType: key.sortRangeType,
             },
@@ -3229,7 +3240,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * and create this transaction entry. Or you can use `updateItemAttribute()` which
      * handles the retry loop for you.
      */
-    public transactionDirectlyUpdateItemAttribute<
+    transactionDirectlyUpdateItemAttribute<
         Key extends Types["ItemKey"],
         Attribute extends DistributiveKeyOf<Types["Item"]> & string,
     >(
@@ -3238,7 +3249,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         attributeValue: Extract<Types["Item"], Key>[Attribute],
         {updateLockVersion}: {updateLockVersion: number | undefined},
     ): DynamoTransactionEntry {
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this.#serializeItemKey(key);
 
         const propertySchema = attributesSchema.propertySchemaByKey.get(attribute);
         if (!propertySchema)
@@ -3248,7 +3259,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // need to update the associated index attribute (e.g. `indexNPartitionKey` or
         // `indexNSortKey`). It's definitely possible to implement this but we aren't for
         // now to keep things simple.
-        const indexConfigs = this._initializationState.indexConfigsByItemType.get(
+        const indexConfigs = this.#state.indexConfigsByItemType.get(
             `${key.partitionType}#${key.sortRangeType}`,
         );
         if (indexConfigs) {
@@ -3297,10 +3308,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expressionAttributeValues[":value"] = intoDynamoAttributeValue(serializedValue);
         }
 
-        return DynamoTransactionEntry._newFromClient(DynamoClient, {
+        return new DynamoTransactionEntryInternal({
             transactItem: {
                 Update: {
-                    TableName: this._name,
+                    TableName: this.#name,
                     Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
                     UpdateExpression:
                         serializedValue === undefined
@@ -3314,10 +3325,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
             isConditionCheckErrorRetriable: true,
-            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+            onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
             onAfterTransactionExecutedSuccessfully: null,
             debugItemType: {
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: key.partitionType,
                 sortRangeType: key.sortRangeType,
             },
@@ -3336,17 +3347,17 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * old version of the property and the `updateLockVersion`. Then apply an update
      * and create this transaction entry.
      */
-    public transactionDirectlyUpdateItemLockVersion(
+    transactionDirectlyUpdateItemLockVersion(
         key: Types["ItemKey"],
         updateLockVersion: number | undefined,
     ): DynamoTransactionEntry {
-        const {partitionKey, sortKey} = this._serializeItemKey(key);
+        const {partitionKey, sortKey} = this.#serializeItemKey(key);
 
         // Disallow updating indexed attributes. If you update an indexed attribute then we
         // need to update the associated index attribute (e.g. `indexNPartitionKey` or
         // `indexNSortKey`). It's definitely possible to implement this but we aren't for
         // now to keep things simple.
-        const indexConfigs = this._initializationState.indexConfigsByItemType.get(
+        const indexConfigs = this.#state.indexConfigsByItemType.get(
             `${key.partitionType}#${key.sortRangeType}`,
         );
         if (indexConfigs) {
@@ -3373,10 +3384,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             (updateLockVersion ?? 0) + 1,
         );
 
-        return DynamoTransactionEntry._newFromClient(DynamoClient, {
+        return new DynamoTransactionEntryInternal({
             transactItem: {
                 Update: {
-                    TableName: this._name,
+                    TableName: this.#name,
                     Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
                     UpdateExpression: "SET updateLockVersion = :newUpdateLockVersion",
                     ConditionExpression:
@@ -3387,10 +3398,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
             isConditionCheckErrorRetriable: true,
-            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+            onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
             onAfterTransactionExecutedSuccessfully: null,
             debugItemType: {
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: key.partitionType,
                 sortRangeType: key.sortRangeType,
             },
@@ -3405,7 +3416,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * You usually want to update `updateLockVersion` or else a concurrent writer may
      * write over your update.
      */
-    public dangerousTransactionUpdateItemWithCustomUpdateExpression(
+    dangerousTransactionUpdateItemWithCustomUpdateExpression(
         key: Types["ItemKey"],
         {
             updateExpression,
@@ -3415,12 +3426,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expressionAttributeValues: {[key: string]: SchemaSerializedValue};
         },
     ) {
-        const {partitionKey, sortKey} = this._serializeItemKey(key);
+        const {partitionKey, sortKey} = this.#serializeItemKey(key);
 
-        return DynamoTransactionEntry._newFromClient(DynamoClient, {
+        return new DynamoTransactionEntryInternal({
             transactItem: {
                 Update: {
-                    TableName: this._name,
+                    TableName: this.#name,
                     Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
                     UpdateExpression: updateExpression,
                     ExpressionAttributeValues:
@@ -3428,10 +3439,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
             isConditionCheckErrorRetriable: false,
-            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+            onBeforeExecuteTransaction: this.#handleBeforeExecuteTransaction,
             onAfterTransactionExecutedSuccessfully: null,
             debugItemType: {
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: key.partitionType,
                 sortRangeType: key.sortRangeType,
             },
@@ -3456,27 +3467,27 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [2]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html
      */
-    public executeGetItemsTransaction<const Keys extends ReadonlyArray<Types["ItemKey"]>>(
+    executeGetItemsTransaction<const Keys extends ReadonlyArray<Types["ItemKey"]>>(
         context: DynamoContext,
         keys: Keys,
     ): Promise<{
         [Index in keyof Keys]: Extract<Types["Item"], Keys[Index]> | null;
     }> {
         const run = async (retry: (error?: unknown) => never) => {
-            const client = await this._getClient(context, false);
-            const serializedKeys = keys.map(key => this._serializeItemKey(key));
+            const client = await this.#getClient(context, false);
+            const serializedKeys = keys.map(key => this.#serializeItemKey(key));
 
             const serializedItems = await client.executeGetItemsTransaction(
                 context.tracer.getTracer(),
                 {
-                    tableName: this._name,
+                    tableName: this.#name,
                     keys: serializedKeys.map(({partitionKey, sortKey}) => ({
                         partitionKey,
                         sortKey,
                     })),
                     retryTransactionConflictError: retry,
                     debugItemTypes: keys.map(key => ({
-                        tableName: this._name,
+                        tableName: this.#name,
                         partitionType: key.partitionType,
                         sortRangeType: key.sortRangeType,
                     })),
@@ -3529,7 +3540,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      */
-    public async *query<
+    async *query<
         const PartitionKey extends Types["PartitionKey"],
         const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
         const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
@@ -3575,17 +3586,19 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         >
     > {
-        const client = await this._getClient(context, false);
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
 
-        const serializedPartitionKey = this._serializePartitionKey(partitionKey);
+        const client = await this.#getClient(context, false);
+
+        const serializedPartitionKey = this.#serializePartitionKey(partitionKey);
         const serializedStartSortKey = startSortKey
-            ? this._serializeSortKey(partitionKey, startSortKey)
+            ? this.#serializeSortKey(partitionKey, startSortKey)
             : undefined;
         const serializedEndSortKey = endSortKey
-            ? this._serializeSortKey(partitionKey, endSortKey)
+            ? this.#serializeSortKey(partitionKey, endSortKey)
             : undefined;
 
-        const partitionConfig = this._partitionConfigByName.get(partitionKey.partitionType)!;
+        const partitionConfig = this.#state.partitionConfigByName.get(partitionKey.partitionType)!;
 
         const startSortRangeIndex = startSortKey
             ? partitionConfig.sortRangeByName.get(startSortKey.sortRangeType)?.index
@@ -3601,12 +3614,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         let lastEvaluatedKey: SchemaSerializedObjectValue | undefined;
         if (afterItemKey) {
-            const {partitionKey, sortKey} = this._serializeItemKey(afterItemKey);
+            const {partitionKey, sortKey} = this.#serializeItemKey(afterItemKey);
             lastEvaluatedKey = {partitionKey, sortKey};
         }
 
         const iterator = client.query(context.tracer.getTracer(), {
-            tableName: this._name,
+            tableName: this.#name,
             partitionKey: {
                 name: "partitionKey",
                 value: serializedPartitionKey,
@@ -3629,7 +3642,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expectsStrongReadConsistency:
                 !allowsEventualReadConsistency && getDynamoExpectsStrongReadConsistency(context),
             debugItemTypes: sortRanges.map(sortRange => ({
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: partitionKey.partitionType,
                 sortRangeType: sortRange.name,
             })),
@@ -3641,7 +3654,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             const item: any = {};
 
-            const attributesSchema = this._deserializeItemKeyInto(
+            const attributesSchema = this.#deserializeItemKeyInto(
                 serializedItem.partitionKey,
                 serializedItem.sortKey,
                 item,
@@ -3664,12 +3677,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Same as `query()` except we return a `DynamoItem` object. Currently this is only
-     * used by `DynamoGeneralRealtimeTableSchema`. In the future, however, we may use
-     * `DynamoItem` for all `query()` calls from `DynamoTableSchema` too! Since it's
-     * core feature (keeping track of `oldItem`) is useful for `directlyUpdateItem()`
-     * calls which need the old item's `updateLockVersion`.
+     * used by `RynamoTableSchema`. In the future, however, we may use `DynamoItem` for
+     * all `query()` calls from `DynamoTableSchema` too! Since it's core feature
+     * (keeping track of `oldItem`) is useful for `directlyUpdateItem()` calls which
+     * need the old item's `updateLockVersion`.
      */
-    public async *_queryWithOldItems<
+    async *_queryWithOldItems<
         const PartitionKey extends Types["PartitionKey"],
         const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
         const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
@@ -3717,17 +3730,19 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             >
         >
     > {
-        const client = await this._getClient(context, false);
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
 
-        const serializedPartitionKey = this._serializePartitionKey(partitionKey);
+        const client = await this.#getClient(context, false);
+
+        const serializedPartitionKey = this.#serializePartitionKey(partitionKey);
         const serializedStartSortKey = startSortKey
-            ? this._serializeSortKey(partitionKey, startSortKey)
+            ? this.#serializeSortKey(partitionKey, startSortKey)
             : undefined;
         const serializedEndSortKey = endSortKey
-            ? this._serializeSortKey(partitionKey, endSortKey)
+            ? this.#serializeSortKey(partitionKey, endSortKey)
             : undefined;
 
-        const partitionConfig = this._partitionConfigByName.get(partitionKey.partitionType)!;
+        const partitionConfig = this.#state.partitionConfigByName.get(partitionKey.partitionType)!;
 
         const startSortRangeIndex = startSortKey
             ? partitionConfig.sortRangeByName.get(startSortKey.sortRangeType)?.index
@@ -3743,12 +3758,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         let lastEvaluatedKey: SchemaSerializedObjectValue | undefined;
         if (afterItemKey) {
-            const {partitionKey, sortKey} = this._serializeItemKey(afterItemKey);
+            const {partitionKey, sortKey} = this.#serializeItemKey(afterItemKey);
             lastEvaluatedKey = {partitionKey, sortKey};
         }
 
         const iterator = client.query(context.tracer.getTracer(), {
-            tableName: this._name,
+            tableName: this.#name,
             partitionKey: {
                 name: "partitionKey",
                 value: serializedPartitionKey,
@@ -3771,7 +3786,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expectsStrongReadConsistency:
                 !allowsEventualReadConsistency && getDynamoExpectsStrongReadConsistency(context),
             debugItemTypes: sortRanges.map(sortRange => ({
-                tableName: this._name,
+                tableName: this.#name,
                 partitionType: partitionKey.partitionType,
                 sortRangeType: sortRange.name,
             })),
@@ -3785,7 +3800,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             // to be used here.
             const item: any = new DynamoItem();
 
-            const attributesSchema = this._deserializeItemKeyInto(
+            const attributesSchema = this.#deserializeItemKeyInto(
                 serializedItem.partitionKey,
                 serializedItem.sortKey,
                 item,
@@ -3815,7 +3830,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
      */
-    public async *expensiveScan(
+    async *expensiveScan(
         context: DynamoContext,
         {
             limit,
@@ -3831,7 +3846,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             filter?: Types["ItemType"] | Array<Types["ItemType"]>;
         } = {},
     ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"]>> {
-        const client = await this._getClient(context, false);
+        const client = await this.#getClient(context, false);
 
         const filterCompilationContext = DynamoConditionExpressionCompilationContext.new();
         let filterExpressionString: string | undefined;
@@ -3840,13 +3855,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             const filters = Array.isArray(filter) ? filter : [filter];
 
             const filterExpressionStrings = filters.map(filter => {
-                assert(
-                    this._initializationState.isInitialized,
-                    "Schema has not finished initializing",
-                );
+                assert(this.#state.isInitialized, "Schema has not finished initializing");
 
                 const partitionDescription =
-                    this._initializationState.description.partitionByType[filter.partitionType];
+                    this.#state.description.partitionByType[filter.partitionType];
                 assert(partitionDescription, "Invalid partition");
 
                 // NOTE(calebmer): There's no reason we couldn't support a child sort range here.
@@ -3893,7 +3905,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
 
         const iterator = client.expensiveScan(context.tracer.getTracer(), {
-            tableName: this._name,
+            tableName: this.#name,
             consistency,
             limit,
             segment: segmentIndex,
@@ -3909,7 +3921,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             const item: any = {};
 
-            const attributesSchema = this._deserializeItemKeyInto(
+            const attributesSchema = this.#deserializeItemKeyInto(
                 serializedItem.partitionKey,
                 serializedItem.sortKey,
                 item,
@@ -3932,12 +3944,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Same as `expensiveScan()` except we return a `DynamoItem` object. Currently this
-     * is only used by `DynamoGeneralRealtimeTableSchema`. In the future, however, we
-     * may use `DynamoItem` for all `expensiveScan()` calls from `DynamoTableSchema`
-     * too! Since it's core feature (keeping track of `oldItem`) is useful for
+     * is only used by `RynamoTableSchema`. In the future, however, we may use
+     * `DynamoItem` for all `expensiveScan()` calls from `DynamoTableSchema` too! Since
+     * it's core feature (keeping track of `oldItem`) is useful for
      * `directlyUpdateItem()` calls which need the old item's `updateLockVersion`.
      */
-    public async *_expensiveScanWithOldItems(
+    async *_expensiveScanWithOldItems(
         context: DynamoContext,
         {
             limit,
@@ -3953,7 +3965,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             filter?: Types["ItemType"] | Array<Types["ItemType"]>;
         } = {},
     ): AsyncIterableIterator<DynamoItem<MergeObjectIntersection<Types["Item"]>>> {
-        const client = await this._getClient(context, false);
+        const client = await this.#getClient(context, false);
 
         const filterCompilationContext = DynamoConditionExpressionCompilationContext.new();
         let filterExpressionString: string | undefined;
@@ -3962,13 +3974,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             const filters = Array.isArray(filter) ? filter : [filter];
 
             const filterExpressionStrings = filters.map(filter => {
-                assert(
-                    this._initializationState.isInitialized,
-                    "Schema has not finished initializing",
-                );
+                assert(this.#state.isInitialized, "Schema has not finished initializing");
 
                 const partitionDescription =
-                    this._initializationState.description.partitionByType[filter.partitionType];
+                    this.#state.description.partitionByType[filter.partitionType];
                 assert(partitionDescription, "Invalid partition");
 
                 // NOTE(calebmer): There's no reason we couldn't support a child sort range here.
@@ -4015,7 +4024,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
 
         const iterator = client.expensiveScan(context.tracer.getTracer(), {
-            tableName: this._name,
+            tableName: this.#name,
             consistency,
             limit,
             segment: segmentIndex,
@@ -4033,7 +4042,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             // to be used here.
             const item: any = new DynamoItem();
 
-            const attributesSchema = this._deserializeItemKeyInto(
+            const attributesSchema = this.#deserializeItemKeyInto(
                 serializedItem.partitionKey,
                 serializedItem.sortKey,
                 item,
@@ -4098,7 +4107,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [2]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-gsi-overloading.html
      */
-    public addIndex<
+    addIndex<
         ItemTypes extends Types["ItemType"],
         PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
             Types,
@@ -4121,7 +4130,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
-        const indexConfig = this._defineIndex<
+        const indexConfig = this.#defineIndex<
             ItemTypes,
             PartitionKeyAttributesConfig,
             SortKeyAttributesConfig
@@ -4162,33 +4171,33 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     allowsEventualReadConsistency = false,
                 },
             ) {
-                assert(schema._initializationState.isInitialized);
+                assert(schema.#state.isInitialized);
                 const indexDescription =
-                    schema._initializationState.description.indexes[indexConfig.indexNumber - 1]!;
+                    schema.#state.description.indexes[indexConfig.indexNumber - 1]!;
 
-                const client = await schema._getClient(context, false);
+                const client = await schema.#getClient(context, false);
 
                 const serializedPartitionKey =
                     indexDescription.partitionKeyBehavior.type === "Reused"
-                        ? schema._serializePartitionKey({
+                        ? schema.#serializePartitionKey({
                               ...partitionKey,
                               partitionType: indexDescription.partitionKeyBehavior.partitionType,
                           })
-                        : schema._serializeIndexPartitionKey(
+                        : schema.#serializeIndexPartitionKey(
                               indexConfig,
                               indexDescription,
                               partitionKey,
                           );
 
                 const serializedStartSortKey = startSortKey
-                    ? schema._serializeIndexSortKeyBoundWithoutPrimaryKey(
+                    ? schema.#serializeIndexSortKeyBoundWithoutPrimaryKey(
                           indexConfig,
                           startSortKey,
                           isStartSortKeyExclusive ? "StartExclusive" : "StartInclusive",
                       )
                     : undefined;
                 const serializedEndSortKey = endSortKey
-                    ? schema._serializeIndexSortKeyBoundWithoutPrimaryKey(
+                    ? schema.#serializeIndexSortKeyBoundWithoutPrimaryKey(
                           indexConfig,
                           endSortKey,
                           isEndSortKeyExclusive ? "EndExclusive" : "EndInclusive",
@@ -4204,18 +4213,18 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
                 let lastEvaluatedKey: SchemaSerializedObjectValue | undefined;
                 if (afterItemKey) {
-                    const serializedAfterPrimaryKey = schema._serializeItemKey(afterItemKey);
+                    const serializedAfterPrimaryKey = schema.#serializeItemKey(afterItemKey);
 
                     const serializedAfterPartitionKey =
                         indexDescription.partitionKeyBehavior.type === "Reused"
                             ? serializedAfterPrimaryKey.partitionKey
-                            : schema._serializeIndexPartitionKey(
+                            : schema.#serializeIndexPartitionKey(
                                   indexConfig,
                                   indexDescription,
                                   afterItemKey,
                               );
 
-                    const serializedAfterSortKey = schema._serializeItemIndexSortKey(
+                    const serializedAfterSortKey = schema.#serializeItemIndexSortKey(
                         indexConfig,
                         afterItemKey,
                     );
@@ -4229,7 +4238,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 }
 
                 const iterator = client.query(context.tracer.getTracer(), {
-                    tableName: schema._name,
+                    tableName: schema.#name,
                     indexName: `Index${indexConfig.indexNumber}`,
                     partitionKey: {
                         name: partitionKeyAttributeName,
@@ -4252,7 +4261,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         getDynamoExpectsStrongReadConsistency(context),
                     debugIndexName: indexConfig.name,
                     debugItemTypes: config.itemTypes.map(itemType => ({
-                        tableName: schema._name,
+                        tableName: schema.#name,
                         partitionType: itemType.partitionType,
                         sortRangeType: itemType.sortRangeType,
                     })),
@@ -4269,13 +4278,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
                     const item: any = {};
 
-                    schema._deserializeItemKeyInto(
+                    schema.#deserializeItemKeyInto(
                         serializedItem.partitionKey,
                         serializedItem.sortKey,
                         item,
                     );
 
-                    schema._deserializeIndexKeyInto(
+                    schema.#deserializeIndexKeyInto(
                         indexConfig,
                         indexDescription,
                         indexPartitionKey,
@@ -4297,7 +4306,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * See `addIndex()` for more documentation on this function.
      */
-    public addExpensiveFullIndex<
+    addExpensiveFullIndex<
         ItemTypes extends Types["ItemType"],
         PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
             Types,
@@ -4320,7 +4329,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
-        const indexConfig = this._defineIndex<
+        const indexConfig = this.#defineIndex<
             ItemTypes,
             PartitionKeyAttributesConfig,
             SortKeyAttributesConfig
@@ -4361,33 +4370,33 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     allowsEventualReadConsistency = false,
                 },
             ) {
-                assert(schema._initializationState.isInitialized);
+                assert(schema.#state.isInitialized);
                 const indexDescription =
-                    schema._initializationState.description.indexes[indexConfig.indexNumber - 1]!;
+                    schema.#state.description.indexes[indexConfig.indexNumber - 1]!;
 
-                const client = await schema._getClient(context, false);
+                const client = await schema.#getClient(context, false);
 
                 const serializedPartitionKey =
                     indexDescription.partitionKeyBehavior.type === "Reused"
-                        ? schema._serializePartitionKey({
+                        ? schema.#serializePartitionKey({
                               ...partitionKey,
                               partitionType: indexDescription.partitionKeyBehavior.partitionType,
                           })
-                        : schema._serializeIndexPartitionKey(
+                        : schema.#serializeIndexPartitionKey(
                               indexConfig,
                               indexDescription,
                               partitionKey,
                           );
 
                 const serializedStartSortKey = startSortKey
-                    ? schema._serializeIndexSortKeyBoundWithoutPrimaryKey(
+                    ? schema.#serializeIndexSortKeyBoundWithoutPrimaryKey(
                           indexConfig,
                           startSortKey,
                           isStartSortKeyExclusive ? "StartExclusive" : "StartInclusive",
                       )
                     : undefined;
                 const serializedEndSortKey = endSortKey
-                    ? schema._serializeIndexSortKeyBoundWithoutPrimaryKey(
+                    ? schema.#serializeIndexSortKeyBoundWithoutPrimaryKey(
                           indexConfig,
                           endSortKey,
                           isEndSortKeyExclusive ? "EndExclusive" : "EndInclusive",
@@ -4403,18 +4412,18 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
                 let lastEvaluatedKey: SchemaSerializedObjectValue | undefined;
                 if (afterItemKey) {
-                    const serializedAfterPrimaryKey = schema._serializeItemKey(afterItemKey);
+                    const serializedAfterPrimaryKey = schema.#serializeItemKey(afterItemKey);
 
                     const serializedAfterPartitionKey =
                         indexDescription.partitionKeyBehavior.type === "Reused"
                             ? serializedAfterPrimaryKey.partitionKey
-                            : schema._serializeIndexPartitionKey(
+                            : schema.#serializeIndexPartitionKey(
                                   indexConfig,
                                   indexDescription,
                                   afterItemKey,
                               );
 
-                    const serializedAfterSortKey = schema._serializeItemIndexSortKey(
+                    const serializedAfterSortKey = schema.#serializeItemIndexSortKey(
                         indexConfig,
                         afterItemKey,
                     );
@@ -4428,7 +4437,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 }
 
                 const iterator = client.query(context.tracer.getTracer(), {
-                    tableName: schema._name,
+                    tableName: schema.#name,
                     indexName: `Index${indexConfig.indexNumber}`,
                     partitionKey: {
                         name: partitionKeyAttributeName,
@@ -4451,7 +4460,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         getDynamoExpectsStrongReadConsistency(context),
                     debugIndexName: indexConfig.name,
                     debugItemTypes: config.itemTypes.map(itemType => ({
-                        tableName: schema._name,
+                        tableName: schema.#name,
                         partitionType: itemType.partitionType,
                         sortRangeType: itemType.sortRangeType,
                     })),
@@ -4468,7 +4477,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
                     const item: any = {};
 
-                    const attributesSchema = schema._deserializeItemKeyInto(
+                    const attributesSchema = schema.#deserializeItemKeyInto(
                         serializedItem.partitionKey,
                         serializedItem.sortKey,
                         item,
@@ -4485,7 +4494,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         throw error;
                     }
 
-                    schema._deserializeIndexKeyInto(
+                    schema.#deserializeIndexKeyInto(
                         indexConfig,
                         indexDescription,
                         indexPartitionKey,
@@ -4499,7 +4508,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         };
     }
 
-    private _defineIndex<
+    #defineIndex<
         ItemTypes extends Types["ItemType"],
         PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
             Types,
@@ -4526,16 +4535,16 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         projection: "KeysOnly" | "All";
     }): DynamoTableSchemaIndexConfig {
         assert(
-            !this._initializationState.isInitialized,
+            !this.#state.isInitialized,
             "Can not add indexes after schema has finished initializing",
         );
 
         assert(
-            !this._partitionConfigByName.has(name),
+            !this.#state.partitionConfigByName.has(name),
             "Index should not have the same name as a partition",
         );
 
-        for (const indexDescription of this._initializationState.indexDescriptions) {
+        for (const indexDescription of this.#state.indexDescriptions) {
             for (const indexOverloadName of Object.keys(indexDescription.overloadByName)) {
                 assert(name !== indexOverloadName, "Index names must be unique within a table");
             }
@@ -4546,7 +4555,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         let canReusePartitionKey = true;
 
         for (const {partitionType, sortRangeType} of itemTypes) {
-            const partitionConfig = this._partitionConfigByName.get(partitionType);
+            const partitionConfig = this.#state.partitionConfigByName.get(partitionType);
             assert(partitionConfig, "Invalid partition");
 
             // NOTE(calebmer): There's no reason we couldn't support a child sort range here.
@@ -4621,10 +4630,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         // We can add our logical index to an existing physical index if the physical index
         // doesn't have an overload which conflicts with the item types in this index.
-        for (const [
-            i,
-            targetIndexDescription,
-        ] of this._initializationState.indexDescriptions.entries()) {
+        for (const [i, targetIndexDescription] of this.#state.indexDescriptions.entries()) {
             const targetIndexNumber = i + 1;
             const targetItemTypeSet = new Set<string>();
             const targetPartitionTypeSet = new Set<string>();
@@ -4666,8 +4672,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         // Create a new physical index if we couldn't overload an existing physical index.
         if (addedToIndexNumber === null) {
-            addedToIndexNumber = this._initializationState.indexDescriptions.length + 1;
-            this._initializationState.indexDescriptions.push({
+            addedToIndexNumber = this.#state.indexDescriptions.length + 1;
+            this.#state.indexDescriptions.push({
                 projection,
                 overloadByName: {[name]: indexOverloadDescription},
             });
@@ -4687,17 +4693,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // Store the attributes for the item types in this index so we can easily serialize
         // those items in the future.
         for (const itemType of itemTypeSet) {
-            getOrSetDefaultMapValue(
-                this._initializationState.indexConfigsByItemType,
-                itemType,
-                () => [],
-            ).push(indexConfig);
+            getOrSetDefaultMapValue(this.#state.indexConfigsByItemType, itemType, () => []).push(
+                indexConfig,
+            );
         }
 
         if (recording) {
             getOrSetDefaultMapValue(
                 recording.indexNamesByTableName,
-                this._name,
+                this.#name,
                 () => new Set(),
             ).add(`Index${indexConfig.indexNumber}`);
         }
@@ -4705,7 +4709,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return indexConfig;
     }
 
-    private _serializeIndexPartitionKey(
+    #serializeIndexPartitionKey(
         indexConfig: DynamoTableSchemaIndexConfig,
         indexDescription: DynamoTableSchemaTypes.Index.Description,
         item: {[key: string]: unknown},
@@ -4724,7 +4728,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return indexPartitionKeyEntries.join(dynamoKeySeparator);
     }
 
-    private _serializeIndexSortKeyBoundWithoutPrimaryKey(
+    #serializeIndexSortKeyBoundWithoutPrimaryKey(
         indexConfig: DynamoTableSchemaIndexConfig,
         item: {[key: string]: unknown},
         boundType: "StartExclusive" | "StartInclusive" | "EndExclusive" | "EndInclusive",
@@ -4788,16 +4792,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * DynamoDB item sometimes includes the primary key to help sort index items in a
      * well understood way (instead of relying on undocumented DynamoDB internals).
      */
-    private _serializeItemIndexSortKey(
+    #serializeItemIndexSortKey(
         indexConfig: DynamoTableSchemaIndexConfig,
         item: {[key: string]: unknown},
     ) {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
         assert(typeof item.partitionType === "string");
         assert(typeof item.sortRangeType === "string");
-        const partitionConfig = this._partitionConfigByName.get(item.partitionType);
-        const partitionDescription =
-            this._initializationState.description.partitionByType[item.partitionType];
+        const partitionConfig = this.#state.partitionConfigByName.get(item.partitionType);
+        const partitionDescription = this.#state.description.partitionByType[item.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
         const sortRangeConfig = partitionConfig.sortRangeByName.get(item.sortRangeType);
         const sortRangeDescription = partitionDescription.sortRangeByType[item.sortRangeType];
@@ -4850,7 +4853,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return sortKeyEntries.join(dynamoKeySeparator);
     }
 
-    private _deserializeIndexKeyInto(
+    #deserializeIndexKeyInto(
         indexConfig: DynamoTableSchemaIndexConfig,
         indexDescription: DynamoTableSchemaTypes.Index.Description,
         partitionKey: string,
@@ -4890,8 +4893,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return key;
     }
 
-    private _serializeOpaqueIndexPartitionKey(
-        indexConfig: DynamoTableSchemaIndexConfig,
+    _serializeOpaqueIndexPartitionKey(
+        indexConfig: Pick<DynamoTableSchemaIndexConfig, "partitionKeyAttributes">,
         partitionKey: {[key: string]: unknown},
     ): DynamoIndexPartitionKey {
         let totalByteCount = 0;
@@ -4942,11 +4945,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return partitionKeyString;
     }
 
-    private _deserializeOpaqueIndexPartitionKey(
-        indexConfig: DynamoTableSchemaIndexConfig,
+    _deserializeOpaqueIndexPartitionKey(
+        indexConfig: Pick<DynamoTableSchemaIndexConfig, "partitionKeyAttributes">,
         partitionKeyString: DynamoIndexPartitionKey,
     ): {[key: string]: unknown} {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
 
         try {
             const bytes = decodeBase64(partitionKeyString, "Rfc4648UrlWithOrderPreservation");
@@ -4990,16 +4993,18 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     // Both these use cases do not need a partition key. For 1 we should provide the
     // partition key alongside the cursor anyway and for 2 the partition key does not
     // contribute to order.
-    private _serializeOpaqueIndexCursor(
-        indexConfig: DynamoTableSchemaIndexConfig,
+    _serializeOpaqueIndexCursor(
+        indexConfig: Pick<
+            DynamoTableSchemaIndexConfig,
+            "partitionKeyAttributes" | "sortKeyAttributes"
+        >,
         item: {[key: string]: unknown},
     ): DynamoIndexCursor {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
         assert(typeof item.partitionType === "string");
         assert(typeof item.sortRangeType === "string");
-        const partitionConfig = this._partitionConfigByName.get(item.partitionType);
-        const partitionDescription =
-            this._initializationState.description.partitionByType[item.partitionType];
+        const partitionConfig = this.#state.partitionConfigByName.get(item.partitionType);
+        const partitionDescription = this.#state.description.partitionByType[item.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
         const sortRangeConfig = partitionConfig.sortRangeByName.get(item.sortRangeType);
         const sortRangeDescription = partitionDescription.sortRangeByType[item.sortRangeType];
@@ -5146,12 +5151,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return opaqueString;
     }
 
-    private _deserializeOpaqueIndexCursor(
-        indexConfig: DynamoTableSchemaIndexConfig,
+    _deserializeOpaqueIndexCursor(
+        indexConfig: Pick<
+            DynamoTableSchemaIndexConfig,
+            "partitionKeyAttributes" | "sortKeyAttributes"
+        >,
         partitionKey: {[key: string]: any},
         opaqueString: DynamoIndexCursor,
     ) {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        assert(this.#state.isInitialized, "Schema has not finished initializing");
 
         try {
             const bytes = decodeBase64(opaqueString, "Rfc4648UrlWithOrderPreservation");
@@ -5181,14 +5189,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             assert(bytes[bytesIndex++]! === 1, "Expected byte after index attributes");
 
-            const partitionNames = this._initializationState.partitionNamesById.get(
-                bytes[bytesIndex++]!,
-            );
+            const partitionNames = this.#state.partitionNamesById.get(bytes[bytesIndex++]!);
             assert(partitionNames, "Invalid partition key");
 
-            const partitionConfig = this._partitionConfigByName.get(partitionNames.partitionName);
+            const partitionConfig = this.#state.partitionConfigByName.get(
+                partitionNames.partitionName,
+            );
             const partitionDescription =
-                this._initializationState.description.partitionByType[partitionNames.partitionName];
+                this.#state.description.partitionByType[partitionNames.partitionName];
             assert(partitionConfig && partitionDescription, "Invalid partition key");
 
             key.partitionType = partitionNames.partitionName;
@@ -5263,8 +5271,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
     }
 
-    private _serializeOpaqueIndexCursorBound(
-        indexConfig: DynamoTableSchemaIndexConfig,
+    _serializeOpaqueIndexCursorBound(
+        indexConfig: Pick<
+            DynamoTableSchemaIndexConfig,
+            "partitionKeyAttributes" | "sortKeyAttributes"
+        >,
         item: {[key: string]: unknown},
         boundType: "StartExclusive" | "StartInclusive" | "EndExclusive" | "EndInclusive",
     ): string {
@@ -5334,7 +5345,7 @@ class DynamoItemClass<Item extends object> {
     /**
      * The item we originally loaded from the database.
      */
-    public readonly oldItem: Item | null;
+    readonly oldItem: Item | null;
 
     // Should only be instantiated by the `DynamoTableSchema` class.
     private constructor(oldItem: Item | null = this as any) {
@@ -5344,7 +5355,7 @@ class DynamoItemClass<Item extends object> {
     /**
      * Creates a `DynamoItem` with `oldItem` set to `null`.
      */
-    public static create<Item extends object>(item: Item) {
+    static create<Item extends object>(item: Item) {
         const actualItem = new DynamoItemClass<Item>(null);
         Object.assign(actualItem, item);
         return actualItem as DynamoItem<Item>;
@@ -5354,7 +5365,7 @@ class DynamoItemClass<Item extends object> {
      * Calls `DynamoItem.create()` if `oldItem` is `null` otherwise calls
      * `DynamoItem.fullUpdate()`.
      */
-    public static createOrUpdate<Item extends object>(
+    static createOrUpdate<Item extends object>(
         oldItem: DynamoItem<Item> | null,
         item: Item,
     ): DynamoItem<Item> {
@@ -5370,7 +5381,7 @@ class DynamoItemClass<Item extends object> {
      * item and then override those properties with any new ones from the
      * `Partial<Item>`.
      */
-    public update(item: Partial<Item>): DynamoItem<Item> {
+    update(item: Partial<Item>): DynamoItem<Item> {
         const newItem = new DynamoItem(this.oldItem);
 
         for (const [key, value] of Object.entries(this)) {
@@ -5392,7 +5403,7 @@ class DynamoItemClass<Item extends object> {
      * Though you could also call `update({optionalProperty: undefined})` to override
      * an optional property with `undefined`.
      */
-    public fullUpdate(item: Item): DynamoItem<Item> {
+    fullUpdate(item: Item): DynamoItem<Item> {
         const newItem = new DynamoItem(this.oldItem);
 
         for (const [key, value] of Object.entries(item)) {
@@ -5668,6 +5679,8 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
      * clients.
      */
     deserializeOpaqueCursor(
+        // Allow method to be dereferenced without binding `this`.
+        this: void,
         partitionKey: IndexPartitionKey,
         cursor: DynamoIndexCursor,
     ): MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>;
@@ -5704,7 +5717,8 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
  * sort ranges.
  */
 function getAndCheckDynamoTableSchemaDescriptions(
-    config: DynamoTableSchemaTypes.ConfigBase,
+    name: string,
+    partitionConfigByName: ReadonlyMap<string, DynamoTableSchemaTypes.Partition.ConfigBase>,
     indexDescriptions: ReadonlyArray<{
         readonly projection: "KeysOnly" | "All";
         readonly overloadByName: {
@@ -5719,13 +5733,13 @@ function getAndCheckDynamoTableSchemaDescriptions(
     readCompatibilityError: Error | null;
     writeCompatibilityError: Error | null;
 } {
-    const lastDescription = dynamoGeneratedSchemaDescription.tableByName[config.name] ?? null;
+    const lastDescription = dynamoGeneratedSchemaDescription.tableByName[name] ?? null;
 
     const description: DynamoTableSchemaTypes.Description = {
-        name: config.name,
+        name,
         partitionByType: getDynamoTableSchemaPartitionDescriptionByType(
             lastDescription?.partitionByType,
-            config.partitions,
+            partitionConfigByName,
         ),
         indexes: indexDescriptions.map((indexDescription, index) =>
             getDynamoTableSchemaIndexDescription(lastDescription, indexDescription, index),
@@ -5774,7 +5788,7 @@ function getDynamoTableSchemaPartitionDescriptionByType(
     lastPartitionDescriptionByType:
         | {[key: string]: DynamoTableSchemaTypes.Partition.Description}
         | undefined,
-    partitionConfigs: ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
+    partitionConfigByName: ReadonlyMap<string, DynamoTableSchemaTypes.Partition.ConfigBase>,
 ): {[key: string]: DynamoTableSchemaTypes.Partition.Description} {
     const partitionIds = new Set<number>();
 
@@ -5789,7 +5803,7 @@ function getDynamoTableSchemaPartitionDescriptionByType(
     }
 
     return Object.fromEntries(
-        partitionConfigs.map(partitionConfig => {
+        mapIterable(partitionConfigByName.values(), partitionConfig => {
             const lastPartitionDescription = lastPartitionDescriptionByType?.[partitionConfig.name];
 
             // Assign our partition an ID if one was not already assigned. IDs are used in

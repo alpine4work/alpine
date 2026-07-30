@@ -12,7 +12,7 @@ export async function finishUploadingBotAvatar(
 ): Promise<Bot> {
     await authorizeInternalAccess(context);
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const oldBotItem = await getBotWithAvatarItem(context, botId);
         const oldBotAvatar = oldBotItem.avatar;
 

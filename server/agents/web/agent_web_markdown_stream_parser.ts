@@ -10,9 +10,9 @@ import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdo
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {
     parseApiContentFromMarkdownTree,
-    parseApiMentionReferenceIfPossible,
     parseMarkdownTree,
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {parseApiMentionReferenceFromMarkdownUrlIfPossible} from "~/shared/api/markdown/parse_api_content_from_markdown_url_if_possible.js";
 import {
     printApiFileContentUrl,
     printApiMentionReferenceToMentionLinkLabel,
@@ -142,7 +142,6 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                 const getFirstPartContent = () => {
                     return parseApiContentFromMarkdownTree(
                         {type: "root", children: firstMarkdownPart},
-                        {spaceId: this._storage.spaceId},
                         // In our Markdown `convertMarkdownTreeToAgentWebMarkdownTree()` pre-processing we
                         // make sure to provide enough information that our parse function can return
                         // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
@@ -264,7 +263,6 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
 
                 const partContent = parseApiContentFromMarkdownTree(
                     {type: "root", children: markdownPart},
-                    {spaceId: this._storage.spaceId},
                     // In our Markdown `convertMarkdownTreeToAgentWebMarkdownTree()` pre-processing we
                     // make sure to provide enough information that our parse function can return
                     // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
@@ -465,7 +463,7 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
 
         switch (node.type) {
             case "html": {
-                return traverseMarkdownHtmlNode(storage, documentId, node);
+                return await traverseMarkdownHtmlNode(storage, documentId, node);
             }
             // We increment headings by 1 for agent web Markdown. So decrement them back by 1.
             case "heading": {
@@ -502,9 +500,15 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     // `mention` search param! The LLM is only allowed to create mentions via the agent
                     // web markdown syntax. We can't allow the LLM to create mentions this way since we
                     // won't be able to create a response mention object with `title`.
-                    if (url && parseApiMentionReferenceIfPossible(storage.spaceId, url)) {
-                        url.searchParams.delete("mention");
-                        urlString = url.toString();
+                    if (url && parseApiMentionReferenceFromMarkdownUrlIfPossible(url)) {
+                        if (url.pathname.startsWith("/mention/")) {
+                            // NOCOMMIT: Test this!
+                            url.pathname = `/account/${url.pathname.slice("/mention/".length)}${url.pathname.endsWith("/") ? "" : "/"}${storage.spaceId}`;
+                            urlString = url.toString();
+                        } else {
+                            url.searchParams.delete("mention");
+                            urlString = url.toString();
+                        }
                     }
 
                     node = {...node, url: urlString};
@@ -550,10 +554,7 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                                 type: "link",
                                 url: printApiMentionReferenceToMentionUrl(
                                     mentionReferenceResult.reference,
-                                    {
-                                        spaceId: storage.spaceId,
-                                        isAccountShortName,
-                                    },
+                                    {isAccountShortName},
                                 ),
                                 children: [
                                     {
@@ -586,7 +587,7 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                 if (pageLink.type === "File") {
                     return {
                         type: "image",
-                        url: printApiFileContentUrl(storage.spaceId, pageLink.id),
+                        url: printApiFileContentUrl(pageLink.id),
                         alt: null,
                         position: node.position,
                         data: {
@@ -606,7 +607,7 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
 
                 return {
                     type: "image",
-                    url: printApiPreviewReferenceToPreviewUrl(storage.spaceId, previewReference),
+                    url: printApiPreviewReferenceToPreviewUrl(previewReference),
                     alt: printApiMentionReferenceToMentionLinkLabel(previewReference),
                     position: node.position,
                     data: {
@@ -792,10 +793,7 @@ async function traverseMarkdownHtmlNode(
                                 contentLength: pageLink.contentLength,
                             };
 
-                            const replacedUrl = printApiFileContentUrl(
-                                storage.spaceId,
-                                pageLink.id,
-                            );
+                            const replacedUrl = printApiFileContentUrl(pageLink.id);
 
                             fileOrPreviewElementByUrl ??= new Map();
                             fileOrPreviewElementByUrl.set(replacedUrl, fileElement);
@@ -811,10 +809,7 @@ async function traverseMarkdownHtmlNode(
                             reference: previewReference,
                         };
 
-                        const replacedUrl = printApiPreviewReferenceToPreviewUrl(
-                            storage.spaceId,
-                            previewReference,
-                        );
+                        const replacedUrl = printApiPreviewReferenceToPreviewUrl(previewReference);
 
                         fileOrPreviewElementByUrl ??= new Map();
                         fileOrPreviewElementByUrl.set(replacedUrl, previewElement);

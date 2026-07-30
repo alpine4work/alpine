@@ -45,7 +45,7 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
         event,
         {info: {postCreatedTime}, accountId, clientRequestToken},
     ) => {
-        return updateInboxPostCommentsEntry(
+        return await updateInboxPostCommentsEntry(
             context,
             event.authorId,
             {

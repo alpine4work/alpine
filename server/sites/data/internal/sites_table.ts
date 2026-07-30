@@ -1,11 +1,9 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {
-    DynamoGeneralRealtimeTableItemType,
-    DynamoGeneralRealtimeTableSchema,
-} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableItemType, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
-import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {
@@ -19,25 +17,27 @@ import {
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
-import {SiteRootContainerId} from "~/shared/sites/site_entry_id.js";
-import {
-    SiteEntityEntrySchema,
-    SiteSideBarEntrySchema,
-    SiteSideBarSectionEntrySchema,
-    SiteTopBarEntrySchema,
-} from "~/shared/sites/site_entry_schema.js";
 import {
     SiteItemSearchEntityId,
     SiteItemSearchEntityIdSchema,
-} from "~/shared/sites/site_item_search_entity_id.js";
+} from "~/shared/search/site_item_search_entity_id.js";
+import {SiteRootContainerId} from "~/shared/sites/site_entry_id.js";
+import {
+    SiteEntryEntitySchema,
+    SiteEntrySideBarSchema,
+    SiteEntrySideBarSectionSchema,
+    SiteEntryTopBarSchema,
+} from "~/shared/sites/site_entry_schema.js";
 import {
     SiteEntityModel,
+    SiteEntrySearchEntityModel,
     SitePreviewModel,
     SiteSideBarModel,
     SiteSideBarSectionModel,
     SiteTopBarModel,
+    isSiteEntrySearchEntityModelData,
 } from "~/shared/sites/site_model.js";
-import {SiteBroadcastRealtimeEventTransactionSchema} from "~/shared/sites/site_realtime_protocol.js";
+import {SiteBroadcastRealtimeEventsSchema} from "~/shared/sites/site_realtime_protocol.js";
 
 /**
  * Sites Realtime Table
@@ -64,7 +64,7 @@ import {SiteBroadcastRealtimeEventTransactionSchema} from "~/shared/sites/site_r
  * - Direct lookup of a specific container by ID
  * - Direct lookup of an EntityRef by entityId (for entity deletion handling)
  */
-export const SitesTable = DynamoGeneralRealtimeTableSchema.new({
+export const SitesTable = RynamoTableSchema.new({
     features: {
         realtimeQuery: {Site: true},
         deleteItem: {Site: {Entity: true, TopBar: true, SideBar: true, SideBarSection: true}},
@@ -115,7 +115,7 @@ export const SitesTable = DynamoGeneralRealtimeTableSchema.new({
                     sortKeyAttributes: {
                         id: DynamoKeyAttributeSchema.id<SiteTopBarId>(),
                     },
-                    attributes: SiteTopBarEntrySchema,
+                    attributes: SiteEntryTopBarSchema,
                 },
 
                 /**
@@ -128,7 +128,7 @@ export const SitesTable = DynamoGeneralRealtimeTableSchema.new({
                     sortKeyAttributes: {
                         id: DynamoKeyAttributeSchema.id<SiteSideBarId>(),
                     },
-                    attributes: SiteSideBarEntrySchema,
+                    attributes: SiteEntrySideBarSchema,
                 },
 
                 /**
@@ -141,7 +141,7 @@ export const SitesTable = DynamoGeneralRealtimeTableSchema.new({
                     sortKeyAttributes: {
                         id: DynamoKeyAttributeSchema.id<SiteSideBarSectionId>(),
                     },
-                    attributes: SiteSideBarSectionEntrySchema,
+                    attributes: SiteEntrySideBarSectionSchema,
                 },
 
                 /**
@@ -154,7 +154,7 @@ export const SitesTable = DynamoGeneralRealtimeTableSchema.new({
                     sortKeyAttributes: {
                         id: DynamoKeyAttributeSchema.labelString<SiteItemSearchEntityId>(),
                     },
-                    attributes: SiteEntityEntrySchema,
+                    attributes: SiteEntryEntitySchema,
                 },
             ],
         },
@@ -229,16 +229,14 @@ export const SitesTable = DynamoGeneralRealtimeTableSchema.new({
                         throw new SchemaDeserializationError("Entity is private");
                     }
 
+                    const searchEntityData = result.entity.initialData;
+                    assert(isSiteEntrySearchEntityModelData(searchEntityData));
+
                     return new SiteEntityModel({
                         type: "Entity",
                         id: item.id,
                         spaceId: item.spaceId,
-                        initialEntityData: {
-                            id: item.id,
-                            title: result.entity.initialData.title ?? null,
-                            titleVersion: result.entity.initialData.titleVersion ?? null,
-                            media: result.entity.initialData.media ?? null,
-                        },
+                        entity: SiteEntrySearchEntityModel.new(searchEntityData),
                         orderKey: item.orderKey,
                         parentId: item.parentId,
                         version: item.updateLockVersion ?? 0,
@@ -247,12 +245,12 @@ export const SitesTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    broadcastEventTransaction: async (context, eventTransaction) => {
+    broadcastEvents: async (context, events) => {
         // Split up event transactions by siteId. All events in the Site partition go to
         // the same site's durable object.
-        const eventTransactionBySiteId = new Map<SiteId, Array<DynamoGeneralRealtimeEventStub>>();
+        const eventsBySiteId = new Map<SiteId, Array<RynamoEventStub>>();
 
-        for (const {itemKey, eventStub} of eventTransaction) {
+        for (const {itemKey, eventStub} of events) {
             if (itemKey.partitionType === "Site") {
                 const isSiteCreationEvent =
                     itemKey.sortRangeType === "Attributes" && eventStub.item.version === 0;
@@ -260,26 +258,24 @@ export const SitesTable = DynamoGeneralRealtimeTableSchema.new({
                 // Optimization: Don't broadcast site creation events. No one will be subscribed
                 // before the site is created.
                 if (!isSiteCreationEvent) {
-                    getOrSetDefaultMapValue(
-                        eventTransactionBySiteId,
-                        itemKey.siteId,
-                        () => [],
-                    ).push(eventStub);
+                    getOrSetDefaultMapValue(eventsBySiteId, itemKey.siteId, () => []).push(
+                        eventStub,
+                    );
                 }
             }
         }
 
         await runAllPromises(
-            mapIterable(eventTransactionBySiteId, async ([siteId, eventTransactionForSite]) => {
-                if (eventTransactionForSite.length === 0) return;
+            mapIterable(eventsBySiteId, async ([siteId, eventsForSite]) => {
+                if (eventsForSite.length === 0) return;
 
                 await context.edge.broadcastToDurableObject(
                     `/api/durable-objects/sites/${siteId}/broadcast-realtime-event-transaction`,
                     {
                         serviceName: "SiteRealtimeService",
                         route: "/api/durable-objects/sites/:siteId/broadcast-realtime-event-transaction",
-                        body: SiteBroadcastRealtimeEventTransactionSchema.serialize({
-                            eventTransaction: eventTransactionForSite,
+                        body: SiteBroadcastRealtimeEventsSchema.serialize({
+                            events: eventsForSite,
                         }),
                     },
                 );
@@ -289,35 +285,19 @@ export const SitesTable = DynamoGeneralRealtimeTableSchema.new({
 });
 
 // Type exports for the items
-export type SiteAttributesItem = DynamoGeneralRealtimeTableItemType<
-    typeof SitesTable,
-    "Site",
-    "Attributes"
->;
+export type SiteAttributesItem = RynamoTableItemType<typeof SitesTable, "Site", "Attributes">;
 
-export type SiteTopBarItem = DynamoGeneralRealtimeTableItemType<
-    typeof SitesTable,
-    "Site",
-    "TopBar"
->;
+export type SiteTopBarItem = RynamoTableItemType<typeof SitesTable, "Site", "TopBar">;
 
-export type SiteSideBarItem = DynamoGeneralRealtimeTableItemType<
-    typeof SitesTable,
-    "Site",
-    "SideBar"
->;
+export type SiteSideBarItem = RynamoTableItemType<typeof SitesTable, "Site", "SideBar">;
 
-export type SiteSideBarSectionItem = DynamoGeneralRealtimeTableItemType<
+export type SiteSideBarSectionItem = RynamoTableItemType<
     typeof SitesTable,
     "Site",
     "SideBarSection"
 >;
 
-export type SiteEntityItem = DynamoGeneralRealtimeTableItemType<
-    typeof SitesTable,
-    "Site",
-    "Entity"
->;
+export type SiteEntityItem = RynamoTableItemType<typeof SitesTable, "Site", "Entity">;
 
 /** Union of all container types (TopBar, SideBar, SideBarSection). */
 export type SiteContainerItem = SiteTopBarItem | SiteSideBarItem | SiteSideBarSectionItem;

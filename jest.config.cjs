@@ -17,6 +17,12 @@ const baseJestConfig = {
     // Disable Jest's Babel plugin. We already run Jest with SWC compiled JavaScript
     // files (built by Bazel).
     transform: {},
+    moduleNameMapper: {
+        // The `uuid` package used by giphy ships an ESM-only browser build which
+        // `jest-environment-jsdom` resolves by default, causing a `SyntaxError`. Map it to
+        // a simple CJS mock instead.
+        "^uuid$": require.resolve("./admin/jest/uuid_mock.cjs"),
+    },
 };
 
 module.exports = {

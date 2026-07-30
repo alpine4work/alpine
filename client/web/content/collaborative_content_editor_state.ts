@@ -7,13 +7,19 @@ import {
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {ContentEditorClientId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // NOTE(calebmer, 2023-09-21): This file used to be only for document content. But
 // when we introduced task notes collaborative content it was refactored to support
 // both document content and task notes content. `ExtraState` and `ExtraAction`s
 // came about to maintain state unique to documents.
 export type CollaborativeContentEditorState<Content extends ContentWithReferences, ExtraState> = {
+    /**
+     * The space this collaborative content is in.
+     */
+    readonly spaceId: SpaceId;
+
     /**
      * We may get `ReceiveSteps` actions out of order (e.g. the server sends an
      * `UpdateContent` message before a backfill response). If we see an action for a
@@ -95,6 +101,7 @@ export function getInitialCollaborativeContentEditorState<
     Content extends ContentWithReferences,
     ExtraState,
 >({
+    spaceId,
     initialVersion,
     initialContent,
     initialSelection,
@@ -102,6 +109,7 @@ export function getInitialCollaborativeContentEditorState<
     extra,
     disableUndoKeyboardShortcuts,
 }: {
+    spaceId: SpaceId;
     initialVersion: number;
     initialContent: Content;
     initialSelection?: Selection | SelectionBookmark;
@@ -113,6 +121,7 @@ export function getInitialCollaborativeContentEditorState<
     disableUndoKeyboardShortcuts?: boolean;
 }): CollaborativeContentEditorState<Content, ExtraState> {
     const editorState = ContentEditorState.createCollaborative({
+        spaceId,
         version: initialVersion,
         content: initialContent,
         selection: initialSelection,
@@ -121,6 +130,7 @@ export function getInitialCollaborativeContentEditorState<
     });
 
     return {
+        spaceId,
         pendingActions: [],
         editorState,
         pendingSendableSteps: null,
@@ -128,6 +138,37 @@ export function getInitialCollaborativeContentEditorState<
         errorState: {hasError: false},
         extra,
     };
+}
+
+/**
+ * Get the persisted content doc based on a collaborative content editor state. The
+ * persisted content lags behind the content in the editor state since the editor
+ * state may include local changes and optimistic changes that have been accepted
+ * by the collaboration service but not yet persisted to our database.
+ *
+ * Relies on `extra.rememberedSteps` holding the content before each step received
+ * between `persistedVersion` and the editor's confirmed version. The version of
+ * the content in the first remembered step's `contentBeforeStep` is
+ * `editorState.getVersion() - rememberedSteps.length`.
+ */
+export function getCollaborativeContentEditorStatePersistedContent<
+    Content extends ContentWithReferences,
+    ExtraState extends {
+        readonly rememberedSteps: ReadonlyArray<{readonly contentBeforeStep: Lazy<Content["doc"]>}>;
+    },
+>(state: CollaborativeContentEditorState<Content, ExtraState>): Content["doc"] {
+    const version = state.editorState.getVersion();
+
+    // If we're at (or somehow behind) the persisted version then return the doc as-is.
+    // We may be behind the persisted version if we received realtime events out of
+    // order.
+    if (version <= state.persistedVersion) {
+        return state.editorState.getDocWithoutSendableSteps();
+    }
+
+    return state.extra.rememberedSteps[
+        state.extra.rememberedSteps.length - (version - state.persistedVersion)
+    ]!.contentBeforeStep.get();
 }
 
 /**

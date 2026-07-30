@@ -38,7 +38,7 @@ export async function createOrUpdateAccountWebPushSubscriptionWithoutAuthorizati
         spaceIdToOptIn?: SpaceId;
     },
 ): Promise<void> {
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const transactionEntries: Array<DynamoTransactionEntry> = [];
         const currentTime = new Date();
 

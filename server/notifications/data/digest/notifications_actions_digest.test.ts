@@ -1231,12 +1231,13 @@ describe("getNotificationDigestContent", () => {
             digestEntries: [
                 {
                     brandIconType: "Chat",
-                    firstAccount: {
+                    featuredAccount: {
                         avatar: null,
                         botId: undefined,
                         id: scenario.session3.account.id,
                         name: scenario.session3.account.initialName,
                         nameVersion: 0,
+                        plan: undefined,
                         space: {
                             addedTime: expect.any(Date),
                             role: "Member",
@@ -1248,13 +1249,14 @@ describe("getNotificationDigestContent", () => {
                     },
                     loudNotificationCount: 1,
                     preview: "Test: message1",
-                    secondAccount: {
+                    otherAccount: {
                         avatar: null,
                         botId: undefined,
                         id: scenario.session2.account.id,
                         name: scenario.session2.account.initialName,
 
                         nameVersion: 0,
+                        plan: undefined,
                         space: {
                             addedTime: expect.any(Date),
                             role: "Member",
@@ -1264,7 +1266,7 @@ describe("getNotificationDigestContent", () => {
                         version: 0,
                         reactionCharacter: expect.any(Object),
                     },
-                    summary: [
+                    title: [
                         {
                             name: parseAccountNameAssumingWesternNameOrder(
                                 scenario.session3.account.initialName,
@@ -1285,7 +1287,7 @@ describe("getNotificationDigestContent", () => {
                     url: expect.any(URL),
                 },
             ],
-            inboxUrl: new URL(`/s/${scenario.space.id}/inbox`, context.constants.edgeServiceUrl),
+            inboxUrl: new URL(`/inbox/${scenario.space.id}`, context.constants.edgeServiceUrl),
             remainingEntryCount: 0,
         };
         expect(content).toEqual(expectedContent);
@@ -1319,7 +1321,7 @@ describe("getNotificationDigestContent", () => {
 
         const expectedContent = {
             digestEntries: [],
-            inboxUrl: new URL(`/s/${scenario.space.id}/inbox`, context.constants.edgeServiceUrl),
+            inboxUrl: new URL(`/inbox/${scenario.space.id}`, context.constants.edgeServiceUrl),
             remainingEntryCount: 0,
         };
         expect(content).toEqual(expectedContent);

@@ -5,8 +5,9 @@ we started posting April 2026. Each demo is two halves glued together:
 
 1. **A Playwright-driven screen recording** of the Alpine app, seeded with fixture data (spaces,
    accounts, documents, chats, etc.).
-2. **A Remotion composition** that frames the recording on a desktop background with a big reaction
-   character overlay.
+2. **A Remotion composition** that trims and frames the recording for export. New demos should
+   default to the plain full-frame composition style used in demos 023+ unless there's a specific
+   reason to do something custom.
 
 > **When you discover a new way to add an entity or interaction to a demo, update this file in the
 > same change.** The cookbook only stays useful if it reflects how we actually build demos today.
@@ -31,7 +32,8 @@ demo` subcommands:
 - `dev demo studio` — launch Remotion Studio
 - `dev demo assets` — build the `:public` filegroup (run after adding a real URL + integrity to
   `scalable_demo_repositories.bzl`)
-- `dev demo content-prompt` — generate X/LinkedIn post text via the interactive helper
+- `dev demo content-prompt` — generate X/LinkedIn post text. With no args it stays interactive; for
+  scripting use flags like `--platform=x --demo=027 --url=... --notes="..." --output=...`
 - `dev demo run <number-or-name>` — run the recorder for an existing demo. Accepts a bare number
   (`5`), zero-padded (`005`), or the full leading slug (`005_export_table_to_markdown`). Shorthand
   for `bazel run //admin/marketing/2026_04_scalable_demos:{NNN}_{name}_demo_recorder`.
@@ -103,10 +105,26 @@ Demos have the following parts:
   `scalable_demos_remotion_root.tsx`, when it changes the entire Remotion studio must re-render.)
 
 - `bazel run //admin/marketing/2026_04_scalable_demos:content_prompt` uses the Claude Code CLI to
-  help you generate X and LinkedIn text for your demo. Run the command, it's interactive, select the
-  platform, and select the demo. The way it works is it uses the `*_demo_recorder.ts` code you wrote
-  to understand what the demo is about. So make sure the `instructions` in your `*_demo_recorder.ts`
-  file are useful both for humans and for agents!
+  help you generate X and LinkedIn text for your demo. With no args it prompts for platform, demo,
+  and notes. For scripting you can pass `--platform=x|linkedin`, `--demo=<number-or-slug>`,
+  `--url=<public-recording-url>`, `--notes="..."`, and `--output=<path>`. The tool uses the
+  `*_demo_recorder.ts` code you wrote to understand what the demo is about, so make sure the
+  `instructions` in your `*_demo_recorder.ts` file are useful both for humans and for agents.
+
+### When asked to generate demo content
+
+When the request is something like "generate content", "write the X and LinkedIn copy", or "run
+content generation" for one or more demos:
+
+- Prefer the **non-interactive** path via `dev demo content-prompt --platform=... --demo=...`.
+- Look up the public recording URL in `scalable_demo_repositories.bzl` and pass it with `--url`.
+- Pass short, concrete framing with `--notes` so the prompt emphasizes the right hook.
+- Save each generated result with `--output=...` and then assemble the outputs into a markdown file
+  in this directory for review.
+- If no CLI args are provided, the tool remains interactive; use that only when the user wants to
+  drive the selection manually.
+- If `CLAUDE_CODE_OAUTH_TOKEN` is missing in this worktree, check sibling worktrees for the same
+  local env var and copy it into the local development env file before running the generator.
 
 ---
 
@@ -116,7 +134,7 @@ Prefer **`createDemoSpace()`** from `//admin/environment/demo_space` over ad-hoc
 `TestSpace.create()` whenever the demo will show an account's name/avatar or needs more than one
 person in it. The demo space is one "Alpine" space with seven pre-seeded accounts — the same cast
 defined in [`UNIVERSE.md`](../../../admin/environment/demo_space/UNIVERSE.md#cast) — each with a
-consistent avatar and reaction character.
+consistent avatar.
 
 ```ts
 import {createDemoSpace} from "~/admin/environment/demo_space/create_demo_space.js";
@@ -130,15 +148,15 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 The code-level quick reference — for the voice, tenure, working hours, and "typical content" of each
 persona, read their section in `UNIVERSE.md`:
 
-| Account key      | Display name    | Role in UNIVERSE.md    | Reaction character |
-| ---------------- | --------------- | ---------------------- | ------------------ |
-| `cassCade`       | Cass Cade       | Chief of Staff (Admin) | Yeti, Blue         |
-| `roseCompas`     | Rose Compás     | CEO (Owner)            | Tree, Green        |
-| `mattRHorn`      | Matt R. Horn    | Product Designer       | Frog, Green        |
-| `masonClay`      | Mason Clay      | Engineer (Frontend)    | Pigeon, Plain      |
-| `elleKappaTan`   | Elle Kappa-Tan  | Engineer (Backend)     | Cat, Yellow        |
-| `cliffWeathers`  | Cliff Weathers  | Account Executive      | Tree, Blue         |
-| `hollyEvergreen` | Holly Evergreen | Marketing + CS         | Tulip, Pink        |
+| Account key      | Display name    | Role in UNIVERSE.md    |
+| ---------------- | --------------- | ---------------------- |
+| `cassCade`       | Cass Cade       | Chief of Staff (Admin) |
+| `roseCompas`     | Rose Compás     | CEO (Owner)            |
+| `mattRHorn`      | Matt R. Horn    | Product Designer       |
+| `masonClay`      | Mason Clay      | Engineer (Frontend)    |
+| `elleKappaTan`   | Elle Kappa-Tan  | Engineer (Backend)     |
+| `cliffWeathers`  | Cliff Weathers  | Account Executive      |
+| `hollyEvergreen` | Holly Evergreen | Marketing + CS         |
 
 **Persona voice cheat sheet** (details in `UNIVERSE.md`):
 
@@ -168,20 +186,9 @@ Single-person demos (demo 001, 003, 005) still use a throwaway
 `TestSpace.create(context, {name: "Alpine"})` + `space.createSession()`. Fine for demos where no
 human face appears.
 
-**Reaction characters everywhere.** The big character that hovers outside the recording frame is
-configured on the Remotion composition:
-
-```tsx
-<ScalableDemoCompositionLayout
-    reaction={{character: {type: "Tree", variant: "Green"}, emotion: "Shock"}}
-    // ...
-/>
-```
-
-Match the `reaction` prop to the person who's "driving" the demo so the character personality stays
-consistent (e.g. Cass → Yeti Blue, Rose → Tree Green). The full set: types
-`Cat | Tree | Yeti | Frog | Pigeon | Tulip`, variants vary per type, emotions
-`Celebrate | DeadInside | Hardship | Happy | Laugh | Lolsob | Shock | Heart | Yes | No | ThankYou`.
+**Composition default.** New demos should use the plain full-frame composition template like demos
+023–026: no desktop background, no reaction character, just the recorded app footage trimmed inside
+the export frame. Only reach for a custom composition when the recording shape truly demands it.
 
 ---
 
@@ -355,7 +362,7 @@ Reference implementation:
 ### Tasks
 
 ```ts
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {CalendarDate} from "@internationalized/date";
 
 const parent = await TestTask.create(accounts.cassCade, {title: "Q2 launch"});
@@ -393,7 +400,7 @@ Use `runAllPromises([...])` when creating siblings in bulk (see demo 003).
 ```ts
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
+import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
 const notesSchema = TaskNotesContentProsemirrorSchema;
@@ -501,29 +508,27 @@ inline mention link.** Mentions make the demo feel like a real, connected worksp
 names feel like a screenshot, mentions feel like a product. Use them in document bodies, post
 bodies, chat messages, and task notes.
 
-The URL shape is `https://alpine.inc/s/{spaceId}/{entityPath}?mention`. The `?mention` query
-parameter tells the renderer to display the link as an inline mention chip rather than a plain
-hyperlink. The link text in the markdown is a fallback label; the UI replaces it with the real
-entity name at render time.
+The URL shape is `https://alpine.inc/{entityPath}?mention`. The `?mention` query parameter tells the
+renderer to display the link as an inline mention chip rather than a plain hyperlink. The link text
+in the markdown is a fallback label; the UI replaces it with the real entity name at render time.
 
 **Account mentions use `?mention=short` by default**, which renders the person's first name only
 (e.g. "Mason" instead of "Mason Clay"). Use plain `?mention` only when you specifically want the
 full name.
 
-| Entity   | URL path                              |
-| -------- | ------------------------------------- |
-| Account  | `/accounts/{accountId}?mention=short` |
-| Document | `/documents/{documentId}?mention`     |
-| Channel  | `/channels/{channelId}?mention`       |
-| Task     | `/tasks/{taskId}?mention`             |
+| Entity   | URL path                       |
+| -------- | ------------------------------ |
+| Account  | `/mention/{accountId}?short`   |
+| Document | `/doc/{documentId}?mention`    |
+| Channel  | `/channel/{channelId}?mention` |
+| Task     | `/task/{taskId}?mention`       |
 
 Because the `markdown` tag doesn't support interpolation (see Style & authoring tips), build a
 helper and use placeholder + `.replace()`:
 
 ```ts
-const spaceUrl = `https://alpine.inc/s/${spaceId}`;
 const mentionUrl = (session: {account: {id: string}}) =>
-    `${spaceUrl}/accounts/${session.account.id}?mention=short`;
+    `https://alpine.inc/mention/${session.account.id}?short`;
 
 const body = markdown`
 [Mason](MASON_MENTION) is leading the redesign. [Elle](ELLE_MENTION) is scoping SSO.
@@ -535,7 +540,7 @@ const body = markdown`
 For document mentions:
 
 ```ts
-const docMentionUrl = `${spaceUrl}/documents/${document.id}?mention`;
+const docMentionUrl = `https://alpine.inc/doc/${document.id}?mention`;
 
 const body = markdown`
 Full context in the [FY2026 Q2 Update](DOC_MENTION).
@@ -547,8 +552,8 @@ Reference implementation: `014_feed_post_with_collection_preview_demo_recorder.t
 ### Feed entries (hero feed / demo feed surfaces)
 
 Feed entries aren't written into the database. They're **passed through a URL query param to the
-special `/s/{spaceId}/dev/feed` page**, which renders them as if they came from the real feed. This
-is what `landing_page_scenario.ts` and the hero/demo scenarios do:
+special `/dev/feed/{spaceId}` page**, which renders them as if they came from the real feed. This is
+what `landing_page_scenario.ts` and the hero/demo scenarios do:
 
 ```ts
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
@@ -573,7 +578,7 @@ const entries: Array<FeedEntry> = [
     },
 ];
 
-const url = new UrlPath(`/s/${space.id}/dev/feed`);
+const url = new UrlPath(`/dev/feed/${space.id}`);
 url.searchParams.set(
     "entries",
     JSON.stringify(Schema.array(FeedEntrySchema).serialize(entries)),
@@ -681,7 +686,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
         // The user to act as in the demo
         session: accounts.cassCade,
         // The starting page for the demo
-        path: `/s/${space.id}/documents/${doc.id}`,
+        path: `/doc/${doc.id}`,
         // The size of the viewport
         viewport: {width: scalableDemoNarrowViewportWidth},
         // Anything to run in the browser before we start. Default to toggling the
@@ -700,8 +705,9 @@ Handy knobs:
   **Use narrow when the sidebar will be hidden in `prepare` — use `scalableDemoDefaultViewport`
   (1280 wide) when the sidebar needs to stay visible** (e.g. the viewer is going to click the search
   entry point). When you switch a demo to default viewport, also update the composition and the
-  `<Composition recordingWidth={…}>` in `scalable_demos_remotion_root.tsx` to use
-  `scalableDemoDefaultViewportWidth` so the frame matches. See demo 011 for an example.
+  `<Composition width={…}>` in `scalable_demos_remotion_root.tsx` to use
+  `scalableDemoDefaultViewportWidth` so the frame matches. See demos 023–026 for the current
+  full-frame pattern.
 - **`prepare`.** Runs after the page loads, before instructions are shown to you. Good for hiding
   the sidebar, dismissing tooltips, pre-filling a field, etc. `dev.spaceSideBar.toggleVisibility()`
   is the canonical sidebar hide. Omit `prepare` entirely when the demo needs the sidebar to stay
@@ -734,6 +740,61 @@ Handy knobs:
     If `collaborators` actions are also specified, these actions run concurrently with the `actions`
     array. There is no built-in delay scheduling — use `wait(ms)` when you need a pause.
 
+    **Cursor + typing pattern.** For polished automated demos, prefer the fake cursor helper from
+    `~/admin/marketing/2026_04_scalable_demos/helpers/demo_cursor.js` over raw Playwright mouse
+    jumps. It animates smoothly, can mirror CSS cursor changes, and keeps clicks looking human.
+
+    ```ts
+    import {createDemoCursor} from "~/admin/marketing/2026_04_scalable_demos/helpers/demo_cursor.js";
+    import {wait} from "~/shared/helpers/async/wait.js";
+
+    actions: [
+        async page => {
+            const searchButton = page.getByRole("button", {name: "Search"});
+            const searchInput = page.getByTestId("SearchModal").locator("input").first();
+
+            const cursor = await createDemoCursor(page, {
+                scale: 1.5,
+                watchCssCursor: true,
+            });
+
+            await cursor.hide();
+            await wait(400);
+            await cursor.jumpTo(120, 220);
+            await cursor.show();
+            await wait(600);
+            await cursor.moveToElement(searchButton, 1000);
+            await cursor.clickElement(searchButton, 700, {watchCssCursor: true});
+
+            await searchInput.waitFor({state: "visible"});
+            await cursor.clickElement(searchInput, 800, {
+                watchCssCursor: true,
+                xOffset: -180,
+            });
+            await cursor.setCursorType("text");
+            await wait(200);
+
+            await searchInput.pressSequentially("tasks closed by mason last week", {
+                delay: 70,
+            });
+        },
+    ],
+    ```
+
+    Helpful cursor methods:
+    - `cursor.jumpTo(x, y)` — instant reposition before the viewer should notice the cursor.
+    - `cursor.moveToElement(locator, durationMs)` — smooth move to the element center.
+    - `cursor.clickElement(locator, durationMs, {xOffset, yOffset})` — natural click inside a
+      target.
+    - `cursor.setCursorType("text" | "default" | "pointer")` — force the visible cursor when needed.
+    - `cursor.hide()` / `cursor.show()` — hide between beats so dead time feels intentional.
+
+    For typing, prefer `locator.pressSequentially("...", {delay})` when the text is going into a
+    focused input or editor and you want a visible, human typing cadence. By default, choose the
+    delay so the full string appears in about 1.5 seconds unless the specific interaction needs a
+    different pace. Use `page.keyboard.press(...)` for discrete keys like `Enter`, `Escape`, arrows,
+    or modifier-based edits.
+
 - **`collaborators`.** Other signed-in browser windows that drive realtime state during the
   recording — typing indicators, incoming chat messages, another account's presence, reactions from
   someone else, etc. Keyed by an arbitrary string identifier you pick (it's only used for log
@@ -747,8 +808,8 @@ Handy knobs:
             actions: [
                 async cliffBrowser => {
                     // The collaborator\u2019s context has `baseURL` set, so relative
-                    // `page.goto("/s/...")` works.
-                    await cliffBrowser.goto(`/s/${space.id}/chat/${chat.id}`);
+                    // `page.goto("/chat/...")` works.
+                    await cliffBrowser.goto(`/chat/${chat.id}`);
 
                     const input = cliffBrowser.getByLabel("New message");
                     await input.click();

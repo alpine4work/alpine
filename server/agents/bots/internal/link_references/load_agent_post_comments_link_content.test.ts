@@ -7,7 +7,9 @@ import {AgentPostCommentsLink} from "~/server/agents/bots/internal/link_referenc
 import {createAgentLink} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {loadAgentPostCommentsLinkContent as actuallyLoadAgentPostCommentsLinkContent} from "~/server/agents/bots/internal/link_references/load_agent_post_comments_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
@@ -35,15 +37,22 @@ const conversationState = {
 
 const losAngelesTimeZone = assertTimeZone("America/Los_Angeles");
 const chicagoTimeZone = assertTimeZone("America/Chicago");
+const mockEntityId = "Post:mock";
+const mockApiContentKeyEncoder = new ApiContentKeyEncoder({entityId: mockEntityId, version: 0});
 
 // Helper to create sample content
 function createSampleContent(...texts: Array<string>): ApiContentResponse {
     return {
-        elements: texts.map(text => ({
+        elements: texts.map((text, pos) => ({
             type: "Paragraph",
+            key: createMockApiContentKey(pos),
             elements: [{type: "Text", text}],
         })),
     };
+}
+
+function createMockApiContentKey(pos: number): ApiContentKey {
+    return mockApiContentKeyEncoder.encode({pos, nodeSize: 0});
 }
 
 async function loadAgentPostCommentsLinkContent(
@@ -99,6 +108,7 @@ describe("loadAgentPostCommentsLinkContent", () => {
                         payload: {
                             type: "Content",
                             content: createSampleContent("This is a comment on the post."),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -170,6 +180,7 @@ This is a comment on the post.
                             content: createSampleContent(
                                 "This is a comment on the post.".repeat(200),
                             ),
+                            files: [],
                         },
                         createdTimeZone: losAngelesTimeZone,
                     },
@@ -182,6 +193,7 @@ This is a comment on the post.
                         payload: {
                             type: "Content",
                             content: createSampleContent("This is a second comment on the post."),
+                            files: [],
                         },
                         createdTimeZone: losAngelesTimeZone,
                     },
@@ -248,6 +260,7 @@ ${"This is a comment on the post.".repeat(200)}
                     payload: {
                         type: "Content",
                         content: createSampleContent("Hello Bob!"),
+                        files: [],
                     },
                     createdTimeZone: losAngelesTimeZone,
                 },
@@ -265,6 +278,7 @@ ${"This is a comment on the post.".repeat(200)}
                     payload: {
                         type: "Content",
                         content: createSampleContent("Hi Alice, how are you?".repeat(200)),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -275,6 +289,7 @@ ${"This is a comment on the post.".repeat(200)}
                     payload: {
                         type: "Content",
                         content: createSampleContent("I'm doing great, thanks!"),
+                        files: [],
                     },
                     createdTimeZone: losAngelesTimeZone,
                 },
@@ -343,6 +358,7 @@ ${"Hi Alice, how are you?".repeat(200)}
                     payload: {
                         type: "Content",
                         content: createSampleContent("Nice post!"),
+                        files: [],
                     },
                     createdTimeZone: chicagoTimeZone,
                 },
@@ -361,8 +377,8 @@ ${"Hi Alice, how are you?".repeat(200)}
     - with a nested list
     - item
 `,
-                            {spaceId},
                         ) as ApiContentResponse,
+                        files: [],
                     },
                     createdTimeZone: losAngelesTimeZone,
                 },
@@ -441,6 +457,7 @@ Nice post!
                     payload: {
                         type: "Content",
                         content: createSampleContent("First comment!"),
+                        files: [],
                     },
                     createdTimeZone: chicagoTimeZone,
                 },
@@ -451,6 +468,7 @@ Nice post!
                     payload: {
                         type: "Content",
                         content: createSampleContent("Second comment!"),
+                        files: [],
                     },
                     createdTimeZone: losAngelesTimeZone,
                 },
@@ -461,6 +479,7 @@ Nice post!
                     payload: {
                         type: "Content",
                         content: createSampleContent("Third comment!"),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -534,6 +553,7 @@ Third comment!
                     payload: {
                         type: "Content",
                         content: createSampleContent("Second comment!".repeat(200)),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -551,6 +571,7 @@ Third comment!
                     payload: {
                         type: "Content",
                         content: createSampleContent("Third comment!"),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -561,6 +582,7 @@ Third comment!
                     payload: {
                         type: "Content",
                         content: createSampleContent("Fourth comment!".repeat(200)),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -634,6 +656,7 @@ ${"Fourth comment!".repeat(200)}
                     payload: {
                         type: "Content",
                         content: createSampleContent("Exciting stuff!".repeat(400)),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -644,6 +667,7 @@ ${"Fourth comment!".repeat(200)}
                     payload: {
                         type: "Content",
                         content: createSampleContent("Thanks Alice!"),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -710,6 +734,7 @@ Thanks Alice!
                     payload: {
                         type: "Content",
                         content: createSampleContent("First comment!"),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -720,6 +745,7 @@ Thanks Alice!
                     payload: {
                         type: "Content",
                         content: createSampleContent("Second comment!"),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },

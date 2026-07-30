@@ -3,25 +3,26 @@ import {getMessageReferences} from "~/server/messaging/helpers/get_message_refer
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
+import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
+import {deleteTaskAndAllChildren} from "~/server/tasks/data/delete_task_and_all_children.js";
+import {duplicateTaskAndAllChildren} from "~/server/tasks/data/duplicate_task_and_all_children.js";
+import {getTaskNotesContentSteps} from "~/server/tasks/data/get_task_notes_content_steps.js";
+import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task_notes_content_without_references.js";
 import {
-    FileTaskAuthorizer,
-    authorizeTaskAccess,
     backfillTaskComments,
-    commitTaskActionTransaction,
     createTaskComment,
-    deleteTaskAndAllChildren,
     deleteTaskComment,
     deleteTaskCommentReaction,
-    duplicateTaskAndAllChildren,
     getTaskCommentAtVersion,
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
-    getTaskNotesContentWithoutReferences,
     setTaskCommentReaction,
     updateTaskCommentContent,
-    updateTaskGridViewExpansionState,
-    updateTaskNotesContent,
-} from "~/server/tasks/data/task_table.js";
+} from "~/server/tasks/data/task_messaging.js";
+import {updateTaskGridViewExpansionState} from "~/server/tasks/data/update_task_grid_view_expansion_state.js";
+import {updateTaskNotesContentIdempotently} from "~/server/tasks/data/update_task_notes_content.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {AccountId, SiteId} from "~/shared/id/types/id_types.js";
@@ -33,19 +34,17 @@ export default implementRpcs(definitions, {
     commitTaskActionTransaction: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {extraActions, getDynamoGeneralRealtimeEventTransactionForSite} =
-                await commitTaskActionTransaction(
-                    context.actor.authorizeSession(),
-                    input.spaceId,
-                    input.actions,
-                    {
-                        clientId: input.clientId,
-                        leaseId: input.leaseId,
-                        createLeaseIfLostAccess: input.createLeaseIfLostAccess,
-                        updateAccessPolicyShareNotification:
-                            input.updateAccessPolicyShareNotification,
-                    },
-                );
+            const {extraActions, getRynamoEventsForSite} = await commitTaskActionTransaction(
+                context.actor.authorizeSession(),
+                input.spaceId,
+                input.actions,
+                {
+                    clientId: input.clientId,
+                    leaseId: input.leaseId,
+                    createLeaseIfLostAccess: input.createLeaseIfLostAccess,
+                    updateAccessPolicyShareNotification: input.updateAccessPolicyShareNotification,
+                },
+            );
 
             const accountIds = new Set<AccountId>();
             const siteIds = new Set<SiteId>();
@@ -61,7 +60,12 @@ export default implementRpcs(definitions, {
                     ),
                 ),
                 runAllPromises(
-                    Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+                    Array.from(siteIds, async siteId => {
+                        const result = await getSitePreviewIfPossible(context, siteId);
+                        return result?.ok
+                            ? ({isPrivate: false, site: result.value} as const)
+                            : ({isPrivate: true} as const);
+                    }),
                 ),
             ]);
 
@@ -69,8 +73,7 @@ export default implementRpcs(definitions, {
                 extraActions,
                 referencedAccounts,
                 referencedSites: referencedSites.filter(isNonNullable),
-                eventTransactionForSite:
-                    await getDynamoGeneralRealtimeEventTransactionForSite(context),
+                eventsForSite: await getRynamoEventsForSite(context),
             };
         },
     },
@@ -97,7 +100,12 @@ export default implementRpcs(definitions, {
                     Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
                 ),
                 runAllPromises(
-                    Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+                    Array.from(siteIds, async siteId => {
+                        const result = await getSitePreviewIfPossible(context, siteId);
+                        return result?.ok
+                            ? ({isPrivate: false, site: result.value} as const)
+                            : ({isPrivate: true} as const);
+                    }),
                 ),
             ]);
 
@@ -129,7 +137,12 @@ export default implementRpcs(definitions, {
                     Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
                 ),
                 runAllPromises(
-                    Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+                    Array.from(siteIds, async siteId => {
+                        const result = await getSitePreviewIfPossible(context, siteId);
+                        return result?.ok
+                            ? ({isPrivate: false, site: result.value} as const)
+                            : ({isPrivate: true} as const);
+                    }),
                 ),
             ]);
 
@@ -153,8 +166,8 @@ export default implementRpcs(definitions, {
     getTaskNotesContent: {
         visibility: ["TaskNotesCollaborationService"],
         execute: async (context, input) => {
-            return getTaskNotesContentWithoutReferences(
-                context.actor.authorizeSession(),
+            return await getTaskNotesContentWithoutReferences(
+                context.actor.authorizeAccount(),
                 input.taskId,
             );
         },
@@ -162,9 +175,27 @@ export default implementRpcs(definitions, {
 
     updateTaskNotesContent: {
         visibility: ["TaskNotesCollaborationService"],
+        execute: async (context, {spaceId, taskId, version, steps, clientId}, {callId}) => {
+            const {newVersion} = await updateTaskNotesContentIdempotently(
+                context.actor.authorizeAccount(),
+                {
+                    spaceId,
+                    taskId,
+                    clientId,
+                    clientVersion: version,
+                    clientSteps: steps,
+                    clientRequestToken: callId,
+                },
+            );
+            return {newVersion};
+        },
+    },
+
+    getTaskNotesContentSteps: {
+        visibility: ["TaskNotesCollaborationService"],
         execute: async (context, input) => {
-            await updateTaskNotesContent(context.actor.authorizeSession(), input);
-            return {};
+            const steps = await getTaskNotesContentSteps(context.actor.authorizeAccount(), input);
+            return {steps};
         },
     },
 
@@ -184,7 +215,7 @@ export default implementRpcs(definitions, {
     authorizeTaskAccess: {
         visibility: ["TaskNotesCollaborationService"],
         execute: async (_context, input) => {
-            const context = _context.actor.authorizeSession();
+            const context = _context.actor.authorizeAccount();
 
             const {spaceId} = await authorizeTaskAccess(
                 context,

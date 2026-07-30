@@ -31,6 +31,7 @@ import {
     searchAffinityEntityHighIntentUpdateInteractionPoints,
     searchAffinityEntityLowIntentUpdateInteractionPoints,
     searchAffinityEntityMediumIntentUpdateInteractionPoints,
+    searchAffinityEntitySiteCascadeRatio,
     searchAffinityEntityVeryLowIntentUpdateInteractionPoints,
     searchAffinityEntityViewInteractionPoints,
 } from "~/server/spaces/search_affinity_entity_interaction_points.js";
@@ -73,6 +74,7 @@ import {
     AccountId,
     ChannelId,
     DocumentId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
@@ -860,10 +862,17 @@ export function markSearchAffinityEntityInteraction(
         spaceId,
         entityId,
         interaction,
+        siteId,
     }: {
         spaceId: SpaceId;
         entityId: SearchAffinityEntityId;
         interaction: SearchAffinityEntityInteraction;
+        // Pass the id of the site the entity inherits its access policy from, or `null` if
+        // it isn't in a site (or the entity itself is the site). Required so callers
+        // consciously decide whether to cascade points to a parent site — when set, an
+        // additional `searchAffinityEntitySiteCascadeRatio` of `points` accrues to
+        // `Site:${siteId}`.
+        siteId: SiteId | null;
     },
 ): Promise<number> {
     return addSearchAffinityEntityPoints(context, {
@@ -872,6 +881,7 @@ export function markSearchAffinityEntityInteraction(
         entityId,
         points: getSearchAffinityEntityInteractionPoints(interaction),
         isViewInteraction: interaction.type === "View",
+        siteId,
     });
 }
 
@@ -894,11 +904,13 @@ export function markSearchAffinityEntityInteractionForAccount(
         accountId,
         entityId,
         interaction,
+        siteId,
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
         entityId: SearchAffinityEntityId;
         interaction: SearchAffinityEntityInteraction;
+        siteId: SiteId | null;
     },
 ): Promise<number> {
     // Make sure we're using a system actor.
@@ -910,6 +922,7 @@ export function markSearchAffinityEntityInteractionForAccount(
         entityId,
         points: getSearchAffinityEntityInteractionPoints(interaction),
         isViewInteraction: interaction.type === "View",
+        siteId,
     });
 }
 
@@ -918,26 +931,48 @@ export function markSearchAffinityEntityInteractionForAccount(
  * document" interaction. This interaction may only be performed on the server as
  * it adds a lot of points we don't want the client to be able to add.
  */
-export function markSearchAffinityCreateDocumentEntityInteraction(
+export async function markSearchAffinityCreateDocumentEntityInteraction(
     context: ServerMinimalActionContext,
     {
         spaceId,
         documentId,
         creatorId,
+        siteId,
     }: {
         spaceId: SpaceId;
         documentId: DocumentId;
         creatorId: AccountId;
+        siteId: SiteId | null;
     },
 ): Promise<number> {
-    return addSearchAffinityEntityPoints(context, {
-        spaceId,
-        accountId: creatorId,
-        entityId: `Document:${documentId}`,
-        points: searchAffinityEntityDocumentCreatorPoints,
-        erosion: searchAffinityEntityDocumentCreatorErosion,
-        isViewInteraction: false,
-    });
+    const [primaryPoints] = await runAllPromises([
+        addSearchAffinityEntityPoints(context, {
+            spaceId,
+            accountId: creatorId,
+            entityId: `Document:${documentId}`,
+            points: searchAffinityEntityDocumentCreatorPoints,
+            erosion: searchAffinityEntityDocumentCreatorErosion,
+            isViewInteraction: false,
+            siteId: null,
+        }),
+        // The document creator interaction uses a custom points + erosion curve tuned for
+        // the document author experience. We don't want to cascade those values to the
+        // parent site, so cascade `searchAffinityEntitySiteCascadeRatio` (80% at time of
+        // writing) of a high intent update's points with normal erosion instead.
+        siteId !== null
+            ? addSearchAffinityEntityPoints(context, {
+                  spaceId,
+                  accountId: creatorId,
+                  entityId: `Site:${siteId}`,
+                  points:
+                      searchAffinityEntityHighIntentUpdateInteractionPoints *
+                      searchAffinityEntitySiteCascadeRatio,
+                  isViewInteraction: false,
+                  siteId: null,
+              })
+            : null,
+    ]);
+    return primaryPoints;
 }
 
 async function addSearchAffinityEntityPoints(
@@ -956,13 +991,14 @@ async function addSearchAffinityEntityPoints(
         points: number;
         erosion?: number;
         isViewInteraction: boolean;
+        siteId: SiteId | null;
     },
 ): Promise<number> {
     // Optimization: We don't authorize whether the actor has access to the entity.
     // Since this is a personal score it doesn't really matter if the user gives
     // themselves affinity points to an entity they don't have access to.
 
-    const {spaceId, accountId} = options;
+    const {spaceId, accountId, siteId, points, erosion, entityId} = options;
 
     const [, , isBot] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
@@ -974,7 +1010,7 @@ async function addSearchAffinityEntityPoints(
             if (isActorBot) return;
 
             // If the actor is not a bot, assert that they have access to the account.
-            return authorizeOwnSpaceAccountAccess(context, accountId);
+            return await authorizeOwnSpaceAccountAccess(context, accountId);
         })(),
         isBotSpaceAccount(context, spaceId, accountId),
     ]);
@@ -982,7 +1018,24 @@ async function addSearchAffinityEntityPoints(
     // Bots don't accumulate affinity points
     if (isBot) return 0;
 
-    return dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization(context, options);
+    const [primaryPoints] = await runAllPromises([
+        dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization(context, options),
+        // If the entity inherits from a site, also cascade a fraction of these points to
+        // the site itself. The cascade is fire-and-forget alongside the primary entity
+        // update; we return the primary entity's point total below.
+        siteId !== null && entityId !== `Site:${siteId}`
+            ? dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization(context, {
+                  spaceId,
+                  accountId,
+                  entityId: `Site:${siteId}`,
+                  points: points * searchAffinityEntitySiteCascadeRatio,
+                  erosion,
+                  isViewInteraction: options.isViewInteraction,
+              })
+            : null,
+    ]);
+
+    return primaryPoints;
 }
 
 /**
@@ -1183,7 +1236,11 @@ export async function addSearchAffinityEntityPointsForTest(
 ) {
     assert(isTestNodeEnvOrAdminScenariosScript);
 
-    await addSearchAffinityEntityPoints(context, {...options, isViewInteraction: false});
+    await addSearchAffinityEntityPoints(context, {
+        ...options,
+        isViewInteraction: false,
+        siteId: null,
+    });
 }
 
 /**
@@ -1585,7 +1642,7 @@ export async function internalGetUnorderedSearchAffinityEntitiesWithStrongReadCo
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ) {
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         SearchEntityTable.query(context, {
             consistency: "Strong",
             limit,
@@ -1622,7 +1679,7 @@ export async function internalDangerouslyGetSpaceChannelSearchAffinityEntities(
         item: {channelId: ChannelId};
     }>
 > {
-    return internalGetSearchAffinitiesEntitiesBase(context, {
+    return await internalGetSearchAffinitiesEntitiesBase(context, {
         spaceId,
         limit,
         queryItems: () =>
@@ -1667,7 +1724,7 @@ export async function internalDangerouslyGetSpaceTaskCollectionSearchAffinityEnt
         item: {collectionId: TaskCollectionId};
     }>
 > {
-    return internalGetSearchAffinitiesEntitiesBase(context, {
+    return await internalGetSearchAffinitiesEntitiesBase(context, {
         spaceId,
         limit,
         queryItems: () =>
@@ -1963,7 +2020,7 @@ export async function getPossiblyStaleAccountSearchAffinityEntityIds(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
 ): Promise<Iterable<{id: AccountId; points: number}>> {
-    return querySessionActorSearchAffinityEntities<AccountId>(context, spaceId, "Account");
+    return await querySessionActorSearchAffinityEntities<AccountId>(context, spaceId, "Account");
 }
 
 /**
@@ -2037,7 +2094,7 @@ export async function favoriteSearchEntity(
         authorizeNotBotSpaceAccount(context, spaceId, accountId),
     ]);
 
-    return dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
+    return await dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
         spaceId,
         accountId,
         entityId,
@@ -2292,7 +2349,7 @@ export async function internalGetSearchFavoriteEntities(
 ): Promise<Array<{entityId: SearchAffinityEntityId; orderKey: OrderKey}>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         AccountSearchFavoriteEntitiesIndex.query(context, {
             partitionKey: {
                 spaceId,

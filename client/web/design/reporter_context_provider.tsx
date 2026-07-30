@@ -24,6 +24,7 @@ import {
 } from "~/client/web/design/internal/reporter_context.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {toastStyles} from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
@@ -49,7 +50,7 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
  * [1]:
  *     https://sheribyrnehaber.medium.com/designing-toast-messages-for-accessibility-fb610ac364be
  */
-const defaultToastDurationSeconds = 6;
+export const defaultToastDurationSeconds = 6;
 
 /**
  * Toasts display brief, temporary notifications. They're meant to be noticed but
@@ -63,7 +64,9 @@ type Toast = InfoToast | ErrorToast;
 type InfoToast = {
     readonly type: "Info";
     readonly message: ReactNode;
+    readonly key?: unknown;
     readonly durationSeconds?: number;
+    readonly pendingPromise?: Promise<unknown>;
 };
 
 /**
@@ -95,7 +98,9 @@ type ErrorToast = {
      */
     readonly reportingContext: AppContext;
 
+    readonly key?: undefined;
     readonly durationSeconds?: undefined;
+    readonly pendingPromise?: undefined;
 };
 
 let nextReporterModalDialogId = 1;
@@ -113,6 +118,7 @@ type ReporterState = {
     | {
           readonly platform: "mobile";
           readonly activeToast?: undefined;
+          readonly toastQueue?: undefined;
       }
     | {
           readonly platform: "desktop";
@@ -366,6 +372,7 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
                         context,
                     ),
                     showInfoToast: reporter.showInfoToast.bind(undefined, context),
+                    hasInfoToastWithKey: reporter.hasInfoToastWithKey,
                 };
 
                 return newReporter as Memo<typeof newReporter>;
@@ -412,9 +419,18 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
                     toast: {
                         type: "Info",
                         message,
+                        key: options?.key,
                         durationSeconds: options?.durationSeconds,
+                        pendingPromise: options?.pendingPromise,
                     },
                 });
+            },
+
+            hasInfoToastWithKey: key => {
+                return (
+                    stateRef.current.activeToast?.toast.key === key ||
+                    !!stateRef.current.toastQueue?.some(toast => toast.key === key)
+                );
             },
         };
 
@@ -522,7 +538,12 @@ function ToastView({
         [startTime, toast.durationSeconds],
     );
 
+    const pendingPromiseState = usePromise(toast.pendingPromise ?? null);
+
     useEffect(() => {
+        // Don't dismiss if there's a `pendingPromise`.
+        if (pendingPromiseState.isPending) return;
+
         const remainingDuration = expirationTime.getTime() - Date.now();
         if (remainingDuration <= 0) {
             onDismiss();
@@ -531,7 +552,7 @@ function ToastView({
 
         const timeout = createTimeout(onDismiss, remainingDuration);
         return () => timeout.clear();
-    }, [expirationTime, onDismiss, startTime]);
+    }, [expirationTime, onDismiss, pendingPromiseState.isPending, startTime]);
 
     const [isInitialRender, setIsInitialRender] = useState(true);
     useLayoutEffect(() => {
@@ -585,17 +606,22 @@ function ToastView({
                         ))}
                 </Box>
             </Box>
-            <Box flexShrink="0" paddingTop="0.5" paddingBottom="1.5" paddingRight="0.5">
-                <IconButton
-                    size="xs"
-                    description="Dismiss alert"
-                    withoutTooltip={true}
-                    onPress={() => onDismiss({withoutAnimation: true})}
-                >
-                    <X />
-                </IconButton>
-                <ToastViewTimer startTime={startTime} expirationTime={expirationTime} />
-            </Box>
+            {!toast.pendingPromise && (
+                // If we have a `pendingPromise` then we don't know when the toast will finish so
+                // don't show a timer. Or the "X" button because `pendingPromise` probably means we
+                // want to keep showing the toast until the promise is done.
+                <Box flexShrink="0" paddingTop="0.5" paddingBottom="1.5" paddingRight="0.5">
+                    <IconButton
+                        size="xs"
+                        description="Dismiss alert"
+                        withoutTooltip={true}
+                        onPress={() => onDismiss({withoutAnimation: true})}
+                    >
+                        <X />
+                    </IconButton>
+                    <ToastViewTimer startTime={startTime} expirationTime={expirationTime} />
+                </Box>
+            )}
         </Box>
     );
 }

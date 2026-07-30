@@ -8,6 +8,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {CalendarDateSchema} from "~/shared/tasks/calendar_date_schema.js";
 import {TaskAssigneeSchema} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatusSchema} from "~/shared/tasks/task_assignee_status.js";
+import {TaskCreatorSchema} from "~/shared/tasks/task_creator.js";
 import {TaskLayoutSchema} from "~/shared/tasks/task_layout.js";
 import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
 import {TaskPrioritySchema} from "~/shared/tasks/task_priority.js";
@@ -45,8 +46,11 @@ export type TaskCreateAction = SchemaType<typeof TaskCreateActionSchema>;
 
 const TaskCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
-    creatorId: Schema.id<AccountId>(),
+    creator: TaskCreatorSchema.wrapOriginalPropertyInObject("accountId", {
+        from: null,
+    }).originalPropertyKey("creatorId"),
     creatorTimeZone: TimeZoneSchema,
+    accessPolicy: CreateOrUpdateAccessPolicySchema.optional(),
 });
 
 /**

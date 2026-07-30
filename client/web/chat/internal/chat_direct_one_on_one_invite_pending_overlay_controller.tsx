@@ -5,7 +5,7 @@ import {Button} from "~/client/web/design/button.js";
 import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
 import {TooltipContent, defaultTooltipOffset} from "~/client/web/design/tooltip.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";

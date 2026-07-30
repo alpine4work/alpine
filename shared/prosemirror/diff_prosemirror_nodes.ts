@@ -197,6 +197,15 @@ function getNodeCompatibilityKey(node: Node): string {
         // Text nodes should be handled when traversing children.
         assert(!node.isText);
 
+        // If we're diffing a document, a `title` node is a required singleton that's
+        // always the first child of the `doc`. Give it a content-independent key so any
+        // title is compatible with any other title. Otherwise emptying the title (e.g.
+        // `title(text)` to `title`) would make it incompatible with the previous title and
+        // misalign the diff against the sibling body nodes.
+        if (node.type.name === "title") {
+            return "title";
+        }
+
         const contentStrings: Array<string> = [];
 
         for (const childNode of node.content.content) {

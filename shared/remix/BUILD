@@ -8,6 +8,7 @@ ts_project(
         "//:node_modules/@remix-run/router",
         "//shared/helpers",
         "//shared/schema",
+        "//shared/search/path",
         "//shared/tasks",
     ],
 )

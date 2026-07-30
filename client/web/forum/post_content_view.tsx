@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {ChatCircleDots, Check, DotsThree} from "phosphor-react";
 import {NodeSelection} from "prosemirror-state";
-import {Memo, useEffect, useMemo, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/web/accounts/account_avatar_pile.js";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
@@ -40,7 +40,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
@@ -69,7 +69,7 @@ import {
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
@@ -127,7 +127,7 @@ export function PostContentView({
     onScrollToIfNotVisible,
     isShowingAllContent,
     onIsShowingAllContentChange,
-    onOptimisticPostRealtimeEventTransaction,
+    onOptimisticPostRealtimeEvents,
     isPostArchived,
     onArchivePost,
     onUnarchivePost,
@@ -147,8 +147,8 @@ export function PostContentView({
     onScrollToIfNotVisible: () => void;
     isShowingAllContent: boolean;
     onIsShowingAllContentChange: (isShowingAllContent: boolean) => void;
-    onOptimisticPostRealtimeEventTransaction: (
-        promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
+    onOptimisticPostRealtimeEvents: (
+        promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
         postId: PostId,
         update: (post: PostModel) => PostModel,
     ) => void;
@@ -159,7 +159,7 @@ export function PostContentView({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
@@ -174,7 +174,13 @@ export function PostContentView({
             useMemo(() => {
                 return computeStore(get => {
                     return new SearchEntityModel({
-                        id: `Post:${post.id}`,
+                        type: "Post",
+                        post: {
+                            id: post.id,
+                            version: post.version,
+                            channelVersion: post.channel.version,
+                            author: post.author,
+                        },
                         title: createPostSearchEntityTitle(
                             post.channel.name,
                             post.content.doc,
@@ -184,11 +190,6 @@ export function PostContentView({
                                 {accountRegistry, searchEntityRegistry, fileRegistry},
                             ),
                         ),
-                        titleVersion: {
-                            type: "Integers",
-                            versions: [post.version, post.channel.version],
-                        },
-                        media: {type: "Account", account: post.author},
                     });
                 });
             }, [
@@ -428,6 +429,7 @@ export function PostContentView({
                                 onStartEditingPost: () => {
                                     postEditing.dispatch({
                                         type: "StartEditing",
+                                        spaceId: space.id,
                                         postId: post.id,
                                         contentVersion: post.contentUpdate?.mappings.length ?? 0,
                                         content: post.content,
@@ -532,7 +534,7 @@ export function PostContentView({
                 isReadOnly={isReadOnly}
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
-                onOptimisticPostRealtimeEventTransaction={onOptimisticPostRealtimeEventTransaction}
+                onOptimisticPostRealtimeEvents={onOptimisticPostRealtimeEvents}
             />
         </Box>
     );
@@ -545,7 +547,7 @@ function PostContentViewFooter({
     isReadOnly,
     onTogglePostComments,
     onLoadInitialPostComments,
-    onOptimisticPostRealtimeEventTransaction,
+    onOptimisticPostRealtimeEvents,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
@@ -553,8 +555,8 @@ function PostContentViewFooter({
     isReadOnly: boolean;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
-    onOptimisticPostRealtimeEventTransaction: (
-        promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
+    onOptimisticPostRealtimeEvents: (
+        promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
         postId: PostId,
         update: (post: PostModel) => PostModel,
     ) => void;
@@ -562,7 +564,7 @@ function PostContentViewFooter({
     const context = useAppContext();
     const {locale} = useClientInfo();
     const platform = usePlatform();
-    const {space, currentAccount} = useSpaceContext();
+    const {currentAccount} = useSpaceContext();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const reporter = useReporter();
@@ -619,7 +621,7 @@ function PostContentViewFooter({
                         if (isNavigatePending) return;
 
                         setIsNavigatePending(true);
-                        navigate(`/s/${space.id}/posts/${post.id}/reactions`).finally(() => {
+                        navigate(`/post/${post.id}/reactions`).finally(() => {
                             setIsNavigatePending(false);
                         });
                     }}
@@ -639,7 +641,7 @@ function PostContentViewFooter({
                         if (!currentAccount) return;
 
                         const promise = setPostReaction(context, {postId: post.id, reaction}).then(
-                            ({eventTransaction}) => eventTransaction,
+                            ({events}) => events,
                         );
 
                         promise.catch(error => {
@@ -651,7 +653,7 @@ function PostContentViewFooter({
                         // use the same logic on the client as well.
                         inboxContext?.onSetMessageReactionOptimistically(promise, post.id);
 
-                        onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
+                        onOptimisticPostRealtimeEvents(promise, post.id, post => {
                             const newReactions = new Map(post.reactions.get());
                             newReactions.set(currentAccount.id, reaction);
                             return post.clone({reactions: new ReactionSet(newReactions)});
@@ -661,21 +663,21 @@ function PostContentViewFooter({
                         if (!currentAccount) return;
 
                         const promise = deletePostReaction(context, {postId: post.id}).then(
-                            ({eventTransaction}) => eventTransaction,
+                            ({events}) => events,
                         );
 
                         promise.catch(error => {
                             reporter.displayError("Couldn\u2019t remove reaction from post", error);
                         });
 
-                        onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
+                        onOptimisticPostRealtimeEvents(promise, post.id, post => {
                             const newReactions = new Map(post.reactions.get());
                             newReactions.delete(currentAccount.id);
                             return post.clone({reactions: new ReactionSet(newReactions)});
                         });
                     }}
                     onPressSeeReactions={async () => {
-                        await navigate(`/s/${space.id}/posts/${post.id}/reactions`);
+                        await navigate(`/post/${post.id}/reactions`);
                     }}
                 />
             </Box>
@@ -733,7 +735,7 @@ function PostContentViewFooter({
                         pressErrorTitle="Couldn&#x2019;t open comments"
                         onPress={async () => {
                             if (routeLayout === "narrow") {
-                                await navigate(`/s/${post.spaceId}/posts/${post.id}`);
+                                await navigate(`/post/${post.id}`);
                                 return;
                             }
 
@@ -932,6 +934,10 @@ function PostContentViewEditor({
         if (isPostView) onScrollToIfNotVisible();
     }, [isPostView, onScrollToIfNotVisible]);
 
+    const onSelectGif = useCallback((url: URL) => {
+        editorRef.current?.insertFileFromUrl(url);
+    }, []);
+
     const hasContentChanged =
         postEditingForThisPost.state.contentEditorState.getDoc() !==
         postEditingForThisPost.state.initialContent;
@@ -1020,6 +1026,7 @@ function PostContentViewEditor({
                             if (postEditingForThisPost.state.isSaving) return;
                             postEditingForThisPost.dispatch({type: "CancelEditing"});
                         }}
+                        onSelectGif={onSelectGif}
                     />
                     <InlineEditorToolbar
                         isSaving={postEditingForThisPost.state.isSaving}

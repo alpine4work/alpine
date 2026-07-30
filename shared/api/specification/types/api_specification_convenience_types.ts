@@ -229,15 +229,25 @@ export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
 export type ApiTaskResponse = ApiSpecification.components["schemas"]["Task_Response"];
 
+export type ApiTaskNotesResponse = ApiSpecification.components["schemas"]["TaskNotes_Response"];
+
 export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
 export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];
+
+export type ApiPostPreview = ApiSpecification.components["schemas"]["PostPreview"];
 
 export type ApiMessagePayloadResponse =
     ApiSpecification.components["schemas"]["MessagePayload_Response"];
 
 export type ApiMessageContentPayloadResponse =
     ApiSpecification.components["schemas"]["MessageContentPayload_Response"];
+
+export type ApiMessageContentPayloadFile =
+    ApiSpecification.components["schemas"]["MessageContentPayloadFile"];
+
+export type ApiMessageContentPayloadFileResponse =
+    ApiSpecification.components["schemas"]["MessageContentPayloadFile_Response"];
 
 export type ApiMessageContentPayloadParent =
     ApiSpecification.components["schemas"]["MessageContentPayloadParent"];
@@ -311,7 +321,7 @@ export type ApiBotWebhookCreatedMessageEventMessageParent =
 export type ApiBotWebhookCreatedMessageEventPostParent =
     ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEventPostParent"];
 
-export type ApiTaskWithoutContent = ApiSpecification.components["schemas"]["TaskWithoutContent"];
+export type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWithoutNotes"];
 
 export type ApiTaskStatus = ApiSpecification.components["schemas"]["TaskStatus"];
 
@@ -328,3 +338,43 @@ export type ApiGetDocumentResponse =
 
 export type ApiCreateDocumentRequestBody =
     ApiSpecification.paths["/documents"]["post"]["requestBody"]["content"]["application/json"];
+
+export type ApiInboxEntryShared = ApiSpecification.components["schemas"]["InboxEntryShared"];
+
+export type ApiInboxEntryTitleItem = ApiSpecification.components["schemas"]["InboxEntryTitleItem"];
+
+export type ApiInboxEntryTitleTextItem =
+    ApiSpecification.components["schemas"]["InboxEntryTitleTextItem"];
+
+export type ApiInboxEntryTitleAccountItem =
+    ApiSpecification.components["schemas"]["InboxEntryTitleAccountItem"];
+
+export type ApiInboxEntry = ApiSpecification.components["schemas"]["InboxEntry"];
+
+export type ApiInboxChatEntry = ApiSpecification.components["schemas"]["InboxChatEntry"];
+
+export type ApiInboxCreatedChannelPostsEntry =
+    ApiSpecification.components["schemas"]["InboxCreatedChannelPostsEntry"];
+
+export type ApiInboxPostEntry = ApiSpecification.components["schemas"]["InboxPostEntry"];
+
+export type ApiInboxCreatedDocumentThreadsEntry =
+    ApiSpecification.components["schemas"]["InboxCreatedDocumentThreadsEntry"];
+
+export type ApiInboxDocumentThreadEntry =
+    ApiSpecification.components["schemas"]["InboxDocumentThreadEntry"];
+
+export type ApiInboxTaskMessagesEntry =
+    ApiSpecification.components["schemas"]["InboxTaskMessagesEntry"];
+
+export type ApiGetTaskResponse =
+    ApiSpecification.components["responses"]["GetTask"]["content"]["application/json"];
+
+export type ApiCreateTaskRequestBody =
+    ApiSpecification.paths["/tasks"]["post"]["requestBody"]["content"]["application/json"];
+
+export type ApiGetTaskCollectionResponse =
+    ApiSpecification.paths["/task-collections/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
+
+export type ApiCreateTaskCollectionRequestBody =
+    ApiSpecification.paths["/task-collections"]["post"]["requestBody"]["content"]["application/json"];

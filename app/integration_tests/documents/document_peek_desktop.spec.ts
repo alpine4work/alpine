@@ -21,7 +21,7 @@ test("can create document from peek", async ({browser, context: browserContext1,
     });
 
     await services.signIn(browserContext1, session);
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await page1.getByRole("button", {name: "Create"}).click();
     await page1.getByRole("menuitem", {name: "Document"}).click();
@@ -72,7 +72,7 @@ test("clicking a link will open a peek", async ({context: browserContext, page})
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document2.id}`,
                         }),
                     ]),
                 ]),
@@ -81,7 +81,7 @@ test("clicking a link will open a peek", async ({context: browserContext, page})
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+    await page.goto(`/doc/${document1.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -112,7 +112,7 @@ test("clicking close will close a peek", async ({context: browserContext, page})
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document2.id}`,
                         }),
                     ]),
                 ]),
@@ -121,7 +121,7 @@ test("clicking close will close a peek", async ({context: browserContext, page})
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+    await page.goto(`/doc/${document1.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -157,7 +157,7 @@ test("clicking expand will expand a peek", async ({context: browserContext, page
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document2.id}`,
                         }),
                     ]),
                 ]),
@@ -166,7 +166,7 @@ test("clicking expand will expand a peek", async ({context: browserContext, page
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+    await page.goto(`/doc/${document1.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -202,7 +202,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 4", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document4.id}`,
                         }),
                     ]),
                 ]),
@@ -221,7 +221,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 3", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document3.id}`,
                         }),
                     ]),
                 ]),
@@ -240,7 +240,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document2.id}`,
                         }),
                     ]),
                 ]),
@@ -249,7 +249,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+    await page.goto(`/doc/${document1.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -322,21 +322,21 @@ test("can open multiple peeks", async ({context: browserContext, page}) => {
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document2.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 3", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document3.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 4", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document4.id}`,
                         }),
                     ]),
                 ]),
@@ -345,7 +345,7 @@ test("can open multiple peeks", async ({context: browserContext, page}) => {
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+    await page.goto(`/doc/${document1.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -425,21 +425,21 @@ test("can close all peeks with a shift click", async ({context: browserContext, 
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document2.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 3", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document3.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 4", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document4.id}`,
                         }),
                     ]),
                 ]),
@@ -448,7 +448,7 @@ test("can close all peeks with a shift click", async ({context: browserContext, 
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+    await page.goto(`/doc/${document1.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -511,7 +511,7 @@ test("remembers peek state across page reloads", async ({context: browserContext
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 4", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document4.id}`,
                         }),
                     ]),
                 ]),
@@ -535,21 +535,21 @@ test("remembers peek state across page reloads", async ({context: browserContext
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document2.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 3", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document3.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 5", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document5.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document5.id}`,
                         }),
                     ]),
                 ]),
@@ -558,7 +558,7 @@ test("remembers peek state across page reloads", async ({context: browserContext
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+    await page.goto(`/doc/${document1.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -683,21 +683,21 @@ test("expand remembers peeks on the previous page including the expanded peek", 
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document2.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 3", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document3.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 4", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
+                            url: `${services.getBaseUrl()}/doc/${document4.id}`,
                         }),
                     ]),
                 ]),
@@ -706,7 +706,7 @@ test("expand remembers peeks on the previous page including the expanded peek", 
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+    await page.goto(`/doc/${document1.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");

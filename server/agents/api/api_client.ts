@@ -443,13 +443,17 @@ export async function putApiMessageStreamPart(
 
     switch (room.type) {
         case "Chat": {
-            return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: room.id, index: messageIndex, partIndex}},
-                body,
-            });
+            return await apiClient.put(
+                tracer,
+                "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {path: {id: room.id, index: messageIndex, partIndex}},
+                    body,
+                },
+            );
         }
         case "DocumentThread": {
-            return apiClient.put(
+            return await apiClient.put(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}",
                 {
@@ -466,16 +470,24 @@ export async function putApiMessageStreamPart(
             );
         }
         case "Post": {
-            return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: room.id, index: messageIndex, partIndex}},
-                body,
-            });
+            return await apiClient.put(
+                tracer,
+                "/posts/{id}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {path: {id: room.id, index: messageIndex, partIndex}},
+                    body,
+                },
+            );
         }
         case "Task": {
-            return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: room.id, index: messageIndex, partIndex}},
-                body,
-            });
+            return await apiClient.put(
+                tracer,
+                "/tasks/{id}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {path: {id: room.id, index: messageIndex, partIndex}},
+                    body,
+                },
+            );
         }
         default:
             throw exhaustive(room);
@@ -609,6 +621,11 @@ export function getApiReference(
         }
         case "Post": {
             return apiClient.get(tracer, "/posts/{id}/reference", {
+                params: {path: {id: reference.id}},
+            });
+        }
+        case "Site": {
+            return apiClient.get(tracer, "/sites/{id}/reference", {
                 params: {path: {id: reference.id}},
             });
         }

@@ -20,9 +20,9 @@ import {
     indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint,
 } from "~/server/tasks/data/task_index.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -62,7 +62,7 @@ test("can\u2019t update task from a different space", async () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -125,6 +125,42 @@ test("can\u2019t update task from a different space", async () => {
     );
 });
 
+test("indexes task access policy from create action", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const taskId = generateId<TaskId>();
+    const time = clock.now();
+    const accessPolicy = {
+        type: "Local" as const,
+        accountGrantById: new Map(),
+        defaultGrant: {level: "Manage" as const, generation: 0},
+        urlGrant: null,
+    };
+
+    await indexTaskActionTransactionAssumingItsCommittedForTest(
+        context.systemAction(space.id),
+        space.id,
+        null,
+        [
+            {
+                type: "UpdateTask",
+                time,
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {accountId: session1.account.id, from: null},
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+        ],
+    );
+
+    expect((await getTaskIndexDocIfExistsForTest(context, space.id, taskId))?.accessPolicy).toEqual(
+        {value: accessPolicy, version: time},
+    );
+});
+
 test("can\u2019t update collection from a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
@@ -142,7 +178,7 @@ test("can\u2019t update collection from a different space", async () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: null,
+                    creator: null,
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -682,21 +718,25 @@ test("processing account name update action only updates one space", async () =>
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task2.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task3.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task4.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -718,21 +758,25 @@ test("processing account name update action only updates one space", async () =>
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
     expect((await task2.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
     expect((await task3.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task4.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -754,21 +798,25 @@ test("processing account name update action only updates one space", async () =>
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
     expect((await task2.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
     expect((await task3.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task4.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
@@ -790,21 +838,25 @@ test("processing account name update action only updates one space", async () =>
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task2.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task3.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task4.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
@@ -826,21 +878,25 @@ test("processing account name update action only updates one space", async () =>
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task2.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task3.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task4.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
@@ -1149,6 +1205,7 @@ test("if account name updates during indexing it will still be correctly updated
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
@@ -1166,6 +1223,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: session.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -1186,6 +1244,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await getTaskIndexDocIfExistsForTest(context, space.id, task.id))?.creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
@@ -1197,6 +1256,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
@@ -1232,6 +1292,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: session1.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -1270,6 +1331,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await getTaskIndexDocIfExistsForTest(context, space.id, task.id))?.creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
@@ -1293,6 +1355,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
@@ -1323,6 +1386,7 @@ test("account name update will still work when there\u2019s a version conflict",
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: session.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -1344,6 +1408,7 @@ test("account name update will still work when there\u2019s a version conflict",
 
     expect((await getTaskIndexDocIfExistsForTest(context, space.id, task.id))?.creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: session.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -1364,6 +1429,7 @@ test("account name update will still work when there\u2019s a version conflict",
 
     expect((await getTaskIndexDocIfExistsForTest(context, space.id, task.id))?.creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });

@@ -13,7 +13,7 @@ import {useInboxState} from "~/client/web/inbox/use_inbox_state.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {
@@ -22,26 +22,23 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 
 export function InboxMobileView({
     filter,
     initialEntriesResult,
 }: {
-    filter: "New" | "Archive";
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
 }) {
     // This component only supports rendering on mobile platforms. Unlike
-    // `<SearchMobileView>` where the `/s/:spaceId/search` route also renders the
-    // mobile UI on desktop. On desktop the `/s/:spaceId/inbox` route renders
-    // `<InboxView>`.
+    // `<SearchMobileView>` where the `/search/:spaceId` route also renders the mobile
+    // UI on desktop. On desktop the `/inbox/:spaceId` route renders `<InboxView>`.
     assert(usePlatform() === "mobile");
 
     const navigate = useNavigate();
@@ -60,7 +57,7 @@ export function InboxMobileView({
     });
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        title: filter === "New" ? "Inbox" : "Inbox (old)",
+        title: filter === "New" ? "Inbox" : "Inbox (done)",
         withoutDisappearingTitle: true,
         titleJustifyContent: "center",
         // This is a route for a root tab in our mobile app so don't show the back button.
@@ -74,16 +71,16 @@ export function InboxMobileView({
                     pressErrorTitle: "Can\u2019t open new notifications",
                     onPress: async () => {
                         if (filter === "New") return;
-                        await navigate(`/s/${space.id}/inbox`, {replace: true});
+                        await navigate(`/inbox/${space.id}`, {replace: true});
                     },
                 },
                 {
-                    label: "Old notifications",
-                    isSelected: filter === "Archive",
-                    pressErrorTitle: "Can\u2019t open old notifications",
+                    label: "Done notifications",
+                    isSelected: filter === "Done",
+                    pressErrorTitle: "Can\u2019t open done notifications",
                     onPress: async () => {
-                        if (filter === "Archive") return;
-                        await navigate(`/s/${space.id}/inbox?tab=old`, {replace: true});
+                        if (filter === "Done") return;
+                        await navigate(`/inbox/${space.id}?tab=done`, {replace: true});
                     },
                 },
             ],
@@ -287,13 +284,13 @@ function InboxMobileEntryView({
     isLastItem,
     deletedItemAnimation,
 }: {
-    filter: "New" | "Archive";
-    entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    entry: RynamoItem<InboxEntryModel>;
     isFirstItem: boolean;
     isLastItem: boolean;
     deletedItemAnimation: {
         offset: number;
-        deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
+        deletedItem: {item: RynamoItem<InboxEntryModel>};
     } | null;
 }) {
     const navigate = useNavigate();

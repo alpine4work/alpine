@@ -6,7 +6,10 @@ import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
+import {
+    createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 const defaultTestTaskAccountId = assertId<AccountId>("ne9xp93dwgcwccj661x3ntdb9w");
 
@@ -42,7 +45,7 @@ export function createTestTaskModel({
         createdTime,
         {
             type: "Create",
-            creatorId,
+            creator: {accountId: creatorId, from: null},
             creatorTimeZone: defaultTimeZone,
         },
         getActionReferencedSortableAccount,
@@ -82,7 +85,10 @@ export function updateTestTaskWithTitle({
             type: "UpdateTask",
             taskId: task.id,
             time: [Date.now(), 0],
-            taskAction: {type: "UpdateTitle", titleUpdate: createTaskTitleFromText(title)},
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: createTaskTitleFromText(randomlyGenerateTaskTitleClientId(), title),
+            },
         },
         getActionReferencedSortableAccount,
     );

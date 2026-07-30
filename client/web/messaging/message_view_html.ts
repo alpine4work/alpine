@@ -130,7 +130,7 @@ export function renderMessageView(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         suppressHydrationWarning: () => void;
     },
 ) {

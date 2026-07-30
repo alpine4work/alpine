@@ -55,7 +55,6 @@ export async function printApiContentToAgentWebMarkdownTree(
     };
 
     const node = printApiContentToMarkdownTree(content, {
-        spaceId: storage.spaceId,
         withCommentTagHtml: true,
     });
 
@@ -186,10 +185,7 @@ async function traverseApiContentMarkdownNode(
                                 item.element.reference,
                             );
 
-                            url = printApiPreviewReferenceToPreviewUrl(
-                                storage.spaceId,
-                                item.element.reference,
-                            );
+                            url = printApiPreviewReferenceToPreviewUrl(item.element.reference);
                         } else {
                             pageLink = {
                                 type: "File",
@@ -198,7 +194,7 @@ async function traverseApiContentMarkdownNode(
                                 contentLength: item.element.contentLength,
                             };
 
-                            url = printApiFileContentUrl(storage.spaceId, item.element.id);
+                            url = printApiFileContentUrl(item.element.id);
                         }
 
                         const pageLinkPathname = await createAgentWebPageStoredLinkPathname(
@@ -240,7 +236,7 @@ async function traverseApiContentMarkdownNode(
                 };
             }
 
-            return traverseApiContentMarkdownHtmlNode(storage, node, state);
+            return await traverseApiContentMarkdownHtmlNode(storage, node, state);
         }
         case "link": {
             // TODO(ifitzsimmons, #ai): As implemented, non-mentionable content (e.g. a chat

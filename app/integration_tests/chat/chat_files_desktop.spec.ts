@@ -39,7 +39,7 @@ test("can drop files into chat", async ({context: browserContext, page}) => {
     await page.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page.goto(`/chat/${chat.id}`);
 
     const file1Contents = await fs.readFile(
         joinPath(
@@ -237,7 +237,7 @@ test("can remove files after dropping them into chat", async ({context: browserC
     await page.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page.goto(`/chat/${chat.id}`);
 
     const file1Contents = await fs.readFile(
         joinPath(
@@ -374,7 +374,7 @@ test("can drop file into new chat then change account recipients", async ({
     await page.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     const file1Contents = await fs.readFile(
         joinPath(
@@ -573,12 +573,12 @@ test("can drag file we didn\u2019t upload from document into new chat", async ({
     await page1.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session1);
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const file1Contents = await fs.readFile(
         joinPath(
@@ -734,7 +734,7 @@ test("can drag file from message input in new chat to another new chat", async (
     await page.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     await page.getByRole("combobox", {name: "To"}).click();
     await page.getByRole("option", {name: session2.account.initialName}).click();

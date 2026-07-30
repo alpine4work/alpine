@@ -32,7 +32,7 @@ export async function sendApnsPushNotification(
         entryPath?: string;
     },
 ) {
-    return context.tracer.withSpan("Send APNs push notification", async (context, span) => {
+    return await context.tracer.withSpan("Send APNs push notification", async (context, span) => {
         const accountDevices = await getRegisteredAppleDevicesForAccount(context, accountId);
         span.addData({common: {count: accountDevices.length}});
         await runAllPromises(

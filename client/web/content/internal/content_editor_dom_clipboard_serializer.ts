@@ -4,7 +4,6 @@ import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {renderContentMentionToTextForClient} from "~/client/web/content/render_content_mention_to_text_for_client.js";
 import {layoutContentFileParent} from "~/client/web/content/state/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/web/helpers/elements/is_node_block_level.js";
-import {getSearchDynamicEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {fileRowBlockWidthPxForServerAndClipboard} from "~/shared/content/compute_file_row_widths.js";
@@ -22,12 +21,17 @@ import {
     isFileWebSafeAudioContentType,
     isFileWebSafeImageContentType,
 } from "~/shared/files/file_content_type.js";
-import {FileEntityId, printFileEntityIdIntoPath} from "~/shared/files/file_entity_id.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    getDynamicSearchEntityPathForFileEntity,
+    getSearchDynamicEntityPath,
+    getSearchDynamicEntityPathFromEntityIdObject,
+} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 // Augment with types for some internal methods from:
@@ -113,13 +117,14 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const mention: ContentMention = node.attrs.mention;
             const spaceId = this._getSpaceId();
 
+            const searchEntityRegistry = getSearchEntityRegistry(spaceId);
             const mentionText = renderContentMentionToTextForClient(
                 store => store.getSnapshot(),
                 node.attrs.mention,
                 this._getContentReferences(),
                 {
                     accountRegistry: getAccountRegistry(spaceId),
-                    searchEntityRegistry: getSearchEntityRegistry(spaceId),
+                    searchEntityRegistry,
                     fileRegistry: getFileRegistry(spaceId),
                 },
             );
@@ -140,17 +145,39 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 case "SearchEntity": {
                     const dom = document.createElement("a");
 
-                    dom.setAttribute(
-                        "href",
-                        new URL(
-                            getSearchDynamicEntityPath(
-                                spaceId,
-                                parseSearchDynamicEntityId(mention.entityId),
-                                "wide",
-                            ),
-                            window.location.href,
-                        ).toString(),
+                    const searchEntity = this._getContentReferences().searchEntityById.get(
+                        mention.entityId,
                     );
+
+                    let path: string;
+
+                    if (!searchEntity || searchEntity.isPrivate) {
+                        const idObject = parseSearchDynamicEntityId(mention.entityId);
+                        path = getSearchDynamicEntityPathFromEntityIdObject(
+                            spaceId,
+                            idObject.type !== "Site"
+                                ? idObject
+                                : {...idObject, firstEntityId: null},
+                            "wide",
+                        );
+                    } else {
+                        const entityData = searchEntityRegistry
+                            .getEntityStore(searchEntity.entity)
+                            .getSnapshot();
+
+                        assert(entityData.type !== "Static");
+                        path = getSearchDynamicEntityPath(spaceId, entityData, "wide");
+
+                        if (entityData.type === "Site" && entityData.site.firstEntityId) {
+                            // When a site has a `firstEntityId` the `<a>`'s `href` points to that first entity
+                            // (e.g. a Document URL) for navigation. Set `data-cy-site` to the `SiteId` so we
+                            // can reconstruct the `Site:` mention on paste instead of parsing it back as the
+                            // first entity from the URL.
+                            dom.setAttribute("data-cy-site", entityData.site.id);
+                        }
+                    }
+
+                    dom.setAttribute("href", new URL(path, window.location.href).toString());
 
                     dom.setAttribute("data-cy-mention", "");
 
@@ -302,10 +329,15 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 fileDom.setAttribute(
                     "src",
                     new URL(
-                        printFileEntityIdIntoPath(this._getSpaceId(), fileId),
+                        getDynamicSearchEntityPathForFileEntity({
+                            spaceId: this._getSpaceId(),
+                            fileEntityId: fileId,
+                            fileEntityResult:
+                                this._getContentReferences().fileEntityById?.get(fileId) ?? null,
+                        }),
                         // NOTE(calebmer): This must be `window.location.origin` not `resourceServiceUrl`.
-                        // Since the URL is something like `/s/:spaceId/documents/:documentId`. It's a URL
-                        // into our app since we're dealing with a file entity here.
+                        // Since the URL is something like `/doc/:documentId`. It's a URL into our app
+                        // since we're dealing with a file entity here.
                         window.location.origin,
                     ).toString(),
                 );

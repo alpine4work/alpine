@@ -186,17 +186,17 @@ describe("renderReactEmailTemplate", () => {
                 baseUrl: "http://localhost:3000",
                 unsubscribeUrl: expect.any(URL),
                 digestContent: {
-                    inboxUrl: "/s/1234567890/inbox",
+                    inboxUrl: "/inbox/1234567890",
                     remainingEntryCount: 10,
                     digestEntries: [
                         {
-                            summary: [{type: "Account", name: "Bob"}, " sent you a message"],
+                            title: [{type: "Account", name: "Bob"}, " sent you a message"],
                             preview: "Bob: Did you see Alice\u2019s photos? They\u2019re amazing!",
                             brandIconType: "Chat",
                             time: new Date("2025-08-21T08:42:11Z"),
-                            url: "/s/1234/inbox?selected=3",
+                            url: "/inbox/1234?selected=3",
                             loudNotificationCount: 1,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "1" as AccountId,
                                 name: "Bob Test",
                                 version: 1,
@@ -215,16 +215,16 @@ describe("renderReactEmailTemplate", () => {
                             },
                         },
                         {
-                            summary: [
+                            title: [
                                 "New comment thread on \u201CMy Important Document\u201D by ",
                                 {type: "Account", name: "Caominhe"},
                             ],
                             preview: "Caominhe: Good thinking! 👍",
                             brandIconType: "Document",
                             time: new Date("2025-08-21T11:11Z"),
-                            url: "/s/1234/inbox?selected=5",
+                            url: "/inbox/1234?selected=5",
                             loudNotificationCount: 100,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "1" as AccountId,
                                 name: "Bob",
                                 version: 1,
@@ -241,7 +241,7 @@ describe("renderReactEmailTemplate", () => {
                                     role: "Member",
                                 },
                             },
-                            secondAccount: {
+                            otherAccount: {
                                 id: "3" as AccountId,
                                 name: "Caominhe",
                                 version: 1,
@@ -256,14 +256,14 @@ describe("renderReactEmailTemplate", () => {
                             },
                         },
                         {
-                            summary: ["New post in General by ", {type: "Account", name: "Alice"}],
+                            title: ["New post in General by ", {type: "Account", name: "Alice"}],
                             preview:
                                 "Alice: Hey! I just got back from Colorado and have some photos to share.",
                             brandIconType: "Post",
                             time: new Date("2025-08-22T08:11Z"),
-                            url: "/s/1234/inbox?selected=1",
+                            url: "/inbox/1234?selected=1",
                             loudNotificationCount: 10,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "2" as AccountId,
                                 name: "Alice Murphy",
                                 version: 1,
@@ -278,13 +278,13 @@ describe("renderReactEmailTemplate", () => {
                             },
                         },
                         {
-                            summary: ["Your post in Weekly Recap has new comments"],
+                            title: ["Your post in Weekly Recap has new comments"],
                             preview: "Bob: OMG! 🤩 I\u2019m so excited for this feature!",
                             brandIconType: "Post",
                             time: new Date("2025-08-21T17:11Z"),
-                            url: "/s/1234/inbox?selected=5",
+                            url: "/inbox/1234?selected=5",
                             loudNotificationCount: 0,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "1" as AccountId,
                                 name: "Bob",
                                 version: 1,
@@ -301,7 +301,7 @@ describe("renderReactEmailTemplate", () => {
                                     role: "Member",
                                 },
                             },
-                            secondAccount: {
+                            otherAccount: {
                                 id: "5" as AccountId,
                                 name: "Kenji",
                                 version: 1,
@@ -321,7 +321,7 @@ describe("renderReactEmailTemplate", () => {
                         },
 
                         {
-                            summary: [
+                            title: [
                                 "New post in Product & Design by ",
                                 {type: "Account", name: "Felicia"},
                             ],
@@ -329,9 +329,9 @@ describe("renderReactEmailTemplate", () => {
                                 "Felicia: I\u2019m working on the new design for diagrams and need some feedback. Please take a look!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T22:36:11Z"),
-                            url: "/s/1234/inbox?selected=2",
+                            url: "/inbox/1234?selected=2",
                             loudNotificationCount: 0,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "4" as AccountId,
                                 name: "Felicia",
                                 version: 1,
@@ -346,13 +346,13 @@ describe("renderReactEmailTemplate", () => {
                             },
                         },
                         {
-                            summary: ["Your post in General has new comments"],
+                            title: ["Your post in General has new comments"],
                             preview: "Kenji: Wow! I love that idea!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T10:42:11Z"),
-                            url: "/s/1234/inbox?selected=4",
+                            url: "/inbox/1234?selected=4",
                             loudNotificationCount: 0,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "5" as AccountId,
                                 name: "Kenji",
                                 version: 1,

@@ -34,6 +34,7 @@ import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -52,7 +53,10 @@ import {
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
-import {getDocumentContentForCollaborationServiceInitialization} from "~/shared/rpc/documents_rpc_definitions.js";
+import {
+    authorizeDocumentAccess,
+    getDocumentContentForCollaborationServiceInitialization,
+} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -60,12 +64,13 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 type DocumentCollaborationDurableObjectRoute =
     | {type: "Main"; accessLevel: AccessLevel | null}
     | {type: "NotFound"}
-    | {type: "BroadcastSpellCheckRealtimeEventTransaction"}
+    | {type: "BroadcastSpellCheckRealtimeEvents"}
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
     | {type: "UpdateContentWithDiff"}
-    | {type: "UpdateContentWithoutOptimisticBroadcast"};
+    | {type: "UpdateContentWithoutOptimisticBroadcast"}
+    | {type: "ResetForTest"};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -285,19 +290,14 @@ class DocumentCollaborationDurableObject {
             ];
         }
 
-        // TODO(#sites): Remove this after deploy that removes all calls to
-        // `/put-content-without-optimistic-broadcast`.
-        if (url.pathname === "/put-content-without-optimistic-broadcast") {
-            return [
-                "/put-content-without-optimistic-broadcast",
-                {type: "UpdateContentWithoutOptimisticBroadcast"},
-            ];
+        if (url.pathname === "/reset-for-test") {
+            return ["/reset-for-test", {type: "ResetForTest"}];
         }
 
         if (url.pathname === "/broadcast-spell-check-realtime-event-transaction") {
             return [
                 "/broadcast-spell-check-realtime-event-transaction",
-                {type: "BroadcastSpellCheckRealtimeEventTransaction"},
+                {type: "BroadcastSpellCheckRealtimeEvents"},
             ];
         }
 
@@ -323,7 +323,7 @@ class DocumentCollaborationDurableObject {
                 if (!route.accessLevel)
                     throw new InvalidArgumentError("Invalid `access` search param");
 
-                return this._webSocketServerByAccessLevel[route.accessLevel].upgrade(
+                return await this._webSocketServerByAccessLevel[route.accessLevel].upgrade(
                     context.actor.authorizeSession(),
                     request,
                 );
@@ -414,18 +414,17 @@ class DocumentCollaborationDurableObject {
 
                 return new Response(null, {status: 200});
             }
-            case "BroadcastSpellCheckRealtimeEventTransaction": {
-                const {eventTransaction} =
-                    SpellCheckIgnoredLintRealtimeTransactionSchema.deserialize(
-                        await request.json(),
-                    );
+            case "BroadcastSpellCheckRealtimeEvents": {
+                const {events} = SpellCheckIgnoredLintRealtimeTransactionSchema.deserialize(
+                    await request.json(),
+                );
 
                 for (const accessLevel of allAccessLevels) {
                     const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
 
                     webSocketServer.sendEventToAll(context, {
-                        type: "SpellCheckRealtimeEventTransaction",
-                        eventTransaction,
+                        type: "SpellCheckRealtimeEvents",
+                        events,
                     });
                 }
 
@@ -447,29 +446,44 @@ class DocumentCollaborationDurableObject {
                             await request.json(),
                         );
 
-                    const oldContent = await this._contentManager.getContentAtVersion(
-                        accountContext,
-                        requestBody.version,
-                    );
+                    // Authorizing document access is a round-trip to AWS. Run it in parallel with
+                    // computing and applying the update to avoid an extra serial round-trip. The
+                    // `update()` call awaits `authorizationPromise` before mutating any durable object
+                    // state so an account without access can't put the durable object in a bad state.
+                    const authorizationPromise = authorizeDocumentAccess(accountContext, {
+                        documentId: this._contentManager.id,
+                        expectedAccessLevel: "Edit",
+                    });
 
-                    const requestContent = DocumentContentProsemirrorSchema.nodes.doc.create(
-                        // This method isn't currently allowed to update document attributes like
-                        // `AccessPolicy`.
-                        oldContent.attrs,
-                        requestBody.content,
-                    );
+                    const [, {newVersion, newContent, persistencePromise}] = await runAllPromises([
+                        authorizationPromise,
+                        (async () => {
+                            const oldContent = await this._contentManager.getContentAtVersion(
+                                accountContext,
+                                requestBody.version,
+                            );
 
-                    const steps = diffProsemirrorNodes(oldContent, requestContent);
+                            const requestContent =
+                                DocumentContentProsemirrorSchema.nodes.doc.create(
+                                    // This method isn't currently allowed to update document attributes like
+                                    // `AccessPolicy`.
+                                    oldContent.attrs,
+                                    requestBody.content,
+                                );
 
-                    const {newVersion, newContent, persistencePromise} =
-                        await this._contentManager.update(accountContext, null, {
-                            version: requestBody.version,
-                            steps,
-                            clientId: generateId(),
-                            createCommentThreads: [],
-                            intentionallyUpdateAccessPolicy: null,
-                            updateOurPresenceState: {state: null},
-                        });
+                            const steps = diffProsemirrorNodes(oldContent, requestContent);
+
+                            return await this._contentManager.update(accountContext, null, {
+                                version: requestBody.version,
+                                steps,
+                                clientId: generateId(),
+                                createCommentThreads: [],
+                                intentionallyUpdateAccessPolicy: null,
+                                updateOurPresenceState: {state: null},
+                                validationPromise: authorizationPromise,
+                            });
+                        })(),
+                    ]);
 
                     // Wait for our update to actually persist before responding. This endpoint is
                     // called by the API which provides read-after-write semantics to API clients.
@@ -522,24 +536,49 @@ class DocumentCollaborationDurableObject {
                         await request.json(),
                     );
 
-                const {newVersion, getDynamoGeneralRealtimeEventTransactionForSite} =
+                const {newVersion, getRynamoEventsForSite} =
                     await this._contentManager.updateAndWaitForPersistence(
                         accountContext,
                         null,
                         requestBody,
                     );
 
-                const eventTransactionForSite =
-                    await getDynamoGeneralRealtimeEventTransactionForSite();
+                const eventsForSite = await getRynamoEventsForSite();
 
                 return new Response(
                     JSON.stringify(
                         DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.outputSchema.serialize(
-                            {newVersion, eventTransactionForSite},
+                            {newVersion, eventsForSite},
                         ),
                     ),
                     {status: 200},
                 );
+            }
+            case "ResetForTest": {
+                // Integration tests mutate document content directly in the database (e.g. adding
+                // a document to a site), which desyncs this durable object's authoritative
+                // in-memory version. Tests call this route to evict the durable object so the next
+                // request reinitializes it fresh from the database. In production the durable
+                // object is the sole writer, so this is never needed — gate it off there.
+                // (`process.env.NODE_ENV` is baked into the edge bundle at build time, so this is
+                // the standard non-production check in the edge service; it is never `"test"`
+                // here.)
+                //
+                // The alternative to this test-only route would be to route `TestDocument`'s
+                // content mutations through the durable object (like production does) so it never
+                // goes stale, instead of writing them straight to the database. That's a broader
+                // change to the test helpers, so we evict here instead.
+                assert(
+                    process.env.NODE_ENV !== "production",
+                    "The `/reset-for-test` route is not available in production",
+                );
+
+                this._destroy(context);
+
+                return new Response(JSON.stringify(null), {
+                    status: 200,
+                    headers: {"content-type": "application/json"},
+                });
             }
             default:
                 throw exhaustive(route);
@@ -625,7 +664,7 @@ function stripDocumentCollaborationEventComments(
         // Never send comment realtime events to view-only clients.
         case "Comments":
         // We don't show lints on view-only clients
-        case "SpellCheckRealtimeEventTransaction": {
+        case "SpellCheckRealtimeEvents": {
             return null;
         }
         default:

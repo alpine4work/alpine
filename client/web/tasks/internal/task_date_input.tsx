@@ -3,6 +3,7 @@ import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
 import {useEffect, useId, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
+import {DateInputCalendar} from "~/client/web/design/date_input_calendar.js";
 import {getNextFocusableElementIfExists} from "~/client/web/design/helpers/get_next_focusable_element.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
@@ -20,7 +21,6 @@ import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {formatTaskDate} from "~/client/web/tasks/format_task_date.js";
-import {TaskDateInputCalendar} from "~/client/web/tasks/internal/task_date_input_calendar.js";
 import {TaskDateInputText} from "~/client/web/tasks/internal/task_date_input_text.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
@@ -514,7 +514,12 @@ export function TaskDateInput({
                             });
                         }}
                     >
-                        <TaskDateInputCalendar date={date} onDateChange={onDateChange} />
+                        <DateInputCalendar
+                            date={date}
+                            onDateChange={onDateChange}
+                            monthCount={platform === "mobile" ? 1 : 2}
+                            onClear={() => onDateChange(null)}
+                        />
                     </div>
                 }
             >

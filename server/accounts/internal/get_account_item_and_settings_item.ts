@@ -38,7 +38,7 @@ export async function getAccountItemAndSettingsItemIfExists(
     // error.
     if (accountId === unknownAccountId) return null;
 
-    return AccountItemAndSettingsItemContextCache.get(
+    return await AccountItemAndSettingsItemContextCache.get(
         context,
         consistency,
         accountId,

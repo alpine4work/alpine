@@ -2,12 +2,10 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {stripLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/internal/cursor/strip_links_from_markdown_tree_for_cursor_agent.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/content/into_api_content.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-
-const spaceId = generateId<SpaceId>();
+import {AccountId, DocumentId, TaskId} from "~/shared/id/types/id_types.js";
 
 const storage = new DurableObjectStorage(new MemoryStorage());
 
@@ -19,7 +17,7 @@ describe("account mentions", () => {
     test("converts account mention to @ mention", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -36,9 +34,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -51,7 +47,7 @@ describe("account mentions", () => {
         const aliceId = generateId<AccountId>();
         const bobId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -74,9 +70,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -88,7 +82,7 @@ describe("account mentions", () => {
     test("account link kept as link when shouldKeepLink returns true", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -105,9 +99,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         // When shouldKeepLink returns true, the link is kept (not stripped)
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
@@ -124,7 +116,7 @@ describe("account mentions", () => {
         // important context for the agent to know it's being addressed
         const cursorAccountId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -141,9 +133,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -159,7 +149,7 @@ describe("non-account links", () => {
     test("strips document links when shouldKeepLink returns false", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -176,9 +166,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -191,7 +179,7 @@ describe("non-account links", () => {
     test("keeps document links when shouldKeepLink returns true", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -208,9 +196,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => true,
@@ -224,7 +210,7 @@ describe("non-account links", () => {
     test("strips task links without @ prefix", async () => {
         const taskId = generateId<TaskId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -245,9 +231,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -263,7 +247,7 @@ describe("mixed content", () => {
         const accountId = generateId<AccountId>();
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -285,9 +269,7 @@ describe("mixed content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -301,7 +283,7 @@ describe("mixed content", () => {
         const accountId = generateId<AccountId>();
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -323,9 +305,7 @@ describe("mixed content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         // Keep only document links
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
@@ -343,7 +323,7 @@ describe("nested content", () => {
     test("strips links in nested list content", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "UnorderedList",
@@ -368,9 +348,7 @@ describe("nested content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -382,7 +360,7 @@ describe("nested content", () => {
     test("strips links in blockquotes", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Quote",
@@ -403,9 +381,7 @@ describe("nested content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -417,7 +393,7 @@ describe("nested content", () => {
     test("strips links in headings", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Heading",
@@ -434,9 +410,7 @@ describe("nested content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -448,7 +422,7 @@ describe("nested content", () => {
 
 describe("edge cases", () => {
     test("handles content with no links", async () => {
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -457,9 +431,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -469,13 +441,11 @@ describe("edge cases", () => {
     });
 
     test("handles empty content", async () => {
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -487,7 +457,7 @@ describe("edge cases", () => {
     test("handles link at start of paragraph", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -503,9 +473,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -517,7 +485,7 @@ describe("edge cases", () => {
     test("handles link at end of paragraph", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -533,9 +501,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -547,7 +513,7 @@ describe("edge cases", () => {
     test("handles link as only content", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -562,9 +528,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -578,7 +542,7 @@ describe("edge cases", () => {
         const bobId = generateId<AccountId>();
         const charlieId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -605,9 +569,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,

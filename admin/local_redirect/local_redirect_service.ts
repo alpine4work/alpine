@@ -49,7 +49,7 @@ async function fetch(
 
     const url = new URL(request.url);
 
-    return traceServerResponse(tracer, request, url, "/*", async () => {
+    return await traceServerResponse(tracer, request, url, "/*", async () => {
         let redirectUrl: URL;
         try {
             const redirectUrlString = request.url.substring(url.origin.length + 1);

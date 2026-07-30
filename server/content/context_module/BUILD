@@ -12,7 +12,7 @@ ts_project(
         "//server/messaging/helpers",
         "//server/spaces",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//shared/helpers:helpers_core",
         "//shared/messaging",
         "//shared/test_helpers",

@@ -48,6 +48,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
@@ -160,57 +161,63 @@ export async function createApiServiceRequestListener(
                 // wouldn't respect this header from public API calls (only from internal API
                 // calls) since it would allow public API users to mess with our traces (though
                 // maybe it's not an issue since what's the use case for that?).
-                return traceServerResponse(tracer, request, url, route, async (span, request) => {
-                    let isHtmlRequest = false;
+                return await traceServerResponse(
+                    tracer,
+                    request,
+                    url,
+                    route,
+                    async (span, request) => {
+                        let isHtmlRequest = false;
 
-                    if (request.headers.has("accept")) {
-                        const negotiator = new Negotiator(req);
-                        const negotiatedMediaType = negotiator.mediaType([
-                            "application/json",
-                            "text/html",
-                        ]);
+                        if (request.headers.has("accept")) {
+                            const negotiator = new Negotiator(req);
+                            const negotiatedMediaType = negotiator.mediaType([
+                                "application/json",
+                                "text/html",
+                            ]);
 
-                        isHtmlRequest = negotiatedMediaType === "text/html";
-                    }
+                            isHtmlRequest = negotiatedMediaType === "text/html";
+                        }
 
-                    // If the request doesn't have an `Authorization` header but does have a `Cookie`
-                    // header and this is a browser requesting HTTP then create a new `Request` object
-                    // where the cookie named `authorization` is used as the `Authorization` header.
-                    if (isHtmlRequest && !request.headers.has("authorization")) {
-                        const cookieHeader = request.headers.get("cookie");
-                        if (cookieHeader) {
-                            const authorizationCookie =
-                                parseCookieHeader(cookieHeader)["authorization"];
+                        // If the request doesn't have an `Authorization` header but does have a `Cookie`
+                        // header and this is a browser requesting HTTP then create a new `Request` object
+                        // where the cookie named `authorization` is used as the `Authorization` header.
+                        if (isHtmlRequest && !request.headers.has("authorization")) {
+                            const cookieHeader = request.headers.get("cookie");
+                            if (cookieHeader) {
+                                const authorizationCookie =
+                                    parseCookieHeader(cookieHeader)["authorization"];
 
-                            if (authorizationCookie) {
-                                const headers = new Headers(request.headers);
-                                headers.delete("cookie");
-                                headers.set("authorization", authorizationCookie);
+                                if (authorizationCookie) {
+                                    const headers = new Headers(request.headers);
+                                    headers.delete("cookie");
+                                    headers.set("authorization", authorizationCookie);
 
-                                request = new Request(request.url, {
-                                    method: request.method,
-                                    headers,
-                                    body: request.body,
-                                    signal: request.signal,
-                                });
+                                    request = new Request(request.url, {
+                                        method: request.method,
+                                        headers,
+                                        body: request.body,
+                                        signal: request.signal,
+                                    });
+                                }
                             }
                         }
-                    }
 
-                    const response = await action(span, request, url, pathParameters);
+                        const response = await action(span, request, url, pathParameters);
 
-                    if (isHtmlRequest) {
-                        return renderApiBrowser({
-                            request,
-                            response,
-                            resourceServiceUrl,
-                            url,
-                            route,
-                        });
-                    }
+                        if (isHtmlRequest) {
+                            return await renderApiBrowser({
+                                request,
+                                response,
+                                resourceServiceUrl,
+                                url,
+                                route,
+                            });
+                        }
 
-                    return response;
-                });
+                        return response;
+                    },
+                );
             });
         };
     }
@@ -238,7 +245,7 @@ export async function createApiServiceRequestListener(
             standardizedRequestListener(tracer, req, res, async request => {
                 const url = new URL(request.url);
 
-                return traceServerResponse(tracer, request, url, redirectPath, async () => {
+                return await traceServerResponse(tracer, request, url, redirectPath, async () => {
                     return new Response(null, {
                         status: 301,
                         headers: {location: `${edgeServiceUrl}${redirectPath}`},
@@ -251,7 +258,7 @@ export async function createApiServiceRequestListener(
     router.on("GET", "/healthcheck", (req, res) => {
         standardizedRequestListener(tracer, req, res, async request => {
             const url = new URL(request.url);
-            return traceServerResponse(
+            return await traceServerResponse(
                 tracer,
                 request,
                 url,
@@ -268,7 +275,7 @@ export async function createApiServiceRequestListener(
     router.on("GET", "/specification.yaml", (req, res) => {
         standardizedRequestListener(tracer, req, res, async request => {
             const url = new URL(request.url);
-            return traceServerResponse(
+            return await traceServerResponse(
                 tracer,
                 request,
                 url,
@@ -933,7 +940,7 @@ export async function createApiServiceRequestListener(
                  *                                 Execution                                  *
                 \* ========================================================================== */
 
-                const {content} = await executeOperation(contextWithActor, {
+                const operationResult = await executeOperation(contextWithActor, {
                     pathParameters,
                     queryParameters,
                     url,
@@ -941,6 +948,12 @@ export async function createApiServiceRequestListener(
                     requestBody,
                     span,
                 });
+
+                if (hasOwnProperty(operationResult, "response")) {
+                    return operationResult.response;
+                }
+
+                const {content} = operationResult;
 
                 const status = 200;
 

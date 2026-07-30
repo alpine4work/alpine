@@ -19,7 +19,7 @@ export async function updateSpaceName(
         errorDisplayMessagePrefix: errorDisplayMessage`The name you typed`,
     });
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const spaceItem = await getSpaceItem(context, spaceId);
 
         const newSpaceAttributesItem = {

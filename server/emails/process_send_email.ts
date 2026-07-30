@@ -16,7 +16,7 @@ export async function processSendEmail(
         renderedEmail: RenderedEmail;
     },
 ) {
-    return context.tracer.withSpan("Process send email job", async context => {
+    return await context.tracer.withSpan("Process send email job", async context => {
         await context.email.sendPrerenderedEmailImmediately(
             fromEmailAddress,
             // We trust here that email address has already been validated when the SendEmail

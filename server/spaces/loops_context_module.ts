@@ -57,8 +57,8 @@ export class LoopsContextModule extends LoopsContextModuleBase {
         lastName?: string;
         fullName?: string;
     }): Promise<void> {
-        return retryWithExponentialBackoff(async retry => {
-            return fetchWithTracer(
+        return await retryWithExponentialBackoff(async retry => {
+            return await fetchWithTracer(
                 this._context.tracer.getTracer(),
                 `https://app.loops.so/api/v1/contacts/create`,
                 {

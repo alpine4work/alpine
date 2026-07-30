@@ -1,4 +1,5 @@
 import {Page, expect, test} from "@playwright/test";
+import {activateMobileButton} from "~/app/integration_tests/helpers/activate_mobile_button.js";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
@@ -48,7 +49,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     const editTestId = async (testId: string) => {
         const message = page.getByTestId(testId).getByTestId("MessageViewContent");
@@ -93,6 +94,9 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     } else {
         await expect(page.getByRole("button", {name: "Save"})).toBeEnabled();
 
+        // Blur the comment input so the on-screen keyboard dismisses before we tap.
+        await page.getByRole("textbox", {name: "Comment", exact: true}).blur();
+
         // Make sure the keyboard toolbar isn't animating when we tap.
         await (await page.getByRole("button", {name: "Save"}).elementHandle())!.waitForElementState(
             "stable",
@@ -134,7 +138,7 @@ test("can\u2019t edit or delete a post comment that\u2019s not yours", async ({
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
 
@@ -193,7 +197,7 @@ test("can see a post comment edited in realtime", async ({
     });
 
     await services.signIn(browserContext1, session2);
-    await page1.goto(`/s/${space.id}/posts/${post.id}`);
+    await page1.goto(`/post/${post.id}`);
 
     const editTestId = async (page: Page, testId: string) => {
         const message = page.getByTestId(testId).getByTestId("MessageViewContent");
@@ -220,7 +224,7 @@ test("can see a post comment edited in realtime", async ({
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/posts/${post.id}`);
+    await page2.goto(`/post/${post.id}`);
 
     await expect(page1.getByLabel("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
@@ -241,6 +245,9 @@ test("can see a post comment edited in realtime", async ({
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Enter");
     } else {
         await expect(page2.getByRole("button", {name: "Save"})).toBeEnabled();
+
+        // Blur the comment input so the on-screen keyboard dismisses before we tap.
+        await page2.getByRole("textbox", {name: "Comment", exact: true}).blur();
 
         // Make sure the keyboard toolbar isn't animating when we tap.
         await (await page2
@@ -280,7 +287,7 @@ test("can delete a post comment", async ({page, context: browserContext, isMobil
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     const deleteTestId = async (testId: string) => {
         const message = page.getByTestId(testId).getByTestId("MessageViewContent");
@@ -345,7 +352,7 @@ test("can see a post comment deleted in realtime", async ({
     });
 
     await services.signIn(browserContext1, session2);
-    await page1.goto(`/s/${space.id}/posts/${post.id}`);
+    await page1.goto(`/post/${post.id}`);
 
     const deleteTestId = async (page: Page, testId: string) => {
         const message = page.getByTestId(testId).getByTestId("MessageViewContent");
@@ -383,7 +390,7 @@ test("can see a post comment deleted in realtime", async ({
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/posts/${post.id}`);
+    await page2.goto(`/post/${post.id}`);
 
     await deleteTestId(page2, `MessageView:${post.id}:${comment.index}`);
 
@@ -426,7 +433,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     });
 
     await services.signIn(browserContext1, session2);
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     const editTestId = async (page: Page, testId: string) => {
         const message = page.getByTestId(testId).getByTestId("MessageViewContent");
@@ -451,7 +458,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/posts/${post.id}`);
+    await page2.goto(`/post/${post.id}`);
 
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Test post comment content 2")).toBeHidden();
@@ -461,7 +468,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     if (!isMobile) {
         await page1.getByRole("button", {name: "1 comment"}).click();
     } else {
-        await page1.getByRole("button", {name: "Go back"}).click();
+        await activateMobileButton(page1, "Go back");
     }
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Test post comment content 2")).toBeHidden();
@@ -480,6 +487,9 @@ test("will backfill an edit in realtime when comments are reopened", async ({
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Enter");
     } else {
         await expect(page2.getByRole("button", {name: "Save"})).toBeEnabled();
+
+        // Blur the comment input so the on-screen keyboard dismisses before we tap.
+        await page2.getByRole("textbox", {name: "Comment", exact: true}).blur();
 
         // Make sure the keyboard toolbar isn't animating when we tap.
         await (await page2
@@ -525,7 +535,7 @@ test("will backfill a delete in realtime when comments are reopened", async ({
     });
 
     await services.signIn(browserContext1, session2);
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     const deleteTestId = async (page: Page, testId: string) => {
         const message = page.getByTestId(testId).getByTestId("MessageViewContent");
@@ -556,7 +566,7 @@ test("will backfill a delete in realtime when comments are reopened", async ({
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/posts/${post.id}`);
+    await page2.goto(`/post/${post.id}`);
 
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Deleted comment")).toBeHidden();
@@ -566,7 +576,7 @@ test("will backfill a delete in realtime when comments are reopened", async ({
     if (!isMobile) {
         await page1.getByRole("button", {name: "1 comment"}).click();
     } else {
-        await page1.getByRole("button", {name: "Go back"}).click();
+        await activateMobileButton(page1, "Go back");
     }
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Deleted comment")).toBeHidden();

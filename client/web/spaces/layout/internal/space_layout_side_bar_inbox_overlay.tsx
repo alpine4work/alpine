@@ -13,7 +13,7 @@ import {
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/web/dynamo/dynamo_general_realtime_index_query.js";
+import {RynamoIndexQuery} from "~/client/web/dynamo/rynamo_index_query.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {
     useArchiveInboxEntry,
@@ -27,7 +27,7 @@ import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {InboxEntryShimmer} from "~/client/web/shimmer/inbox_entry_shimmer.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {colorSchemeVars, inboxStyles, spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {
@@ -35,15 +35,13 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {
     InboxEntryModel,
     getEncodedInboxEntryPath,
@@ -61,10 +59,8 @@ export function SpaceLayoutSideBarInboxOverlay({
     onArchivePress,
     onClose,
 }: {
-    filter: "New" | "Archive";
-    initialEntriesResultPromise: PromiseImmediate<
-        DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>
-    >;
+    filter: InboxEntryStatus;
+    initialEntriesResultPromise: PromiseImmediate<RynamoIndexQueryResult<InboxEntryModel>>;
     onNewPress: () => MaybePromise<void>;
     onArchivePress: () => MaybePromise<void>;
     onClose: Memo<() => void>;
@@ -127,7 +123,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
     entriesRef,
     onClose,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     withoutAnimation: boolean;
     entriesRef: RefObject<SpaceLayoutTopBarInboxOverlayEntriesRef | null>;
     onClose: () => void;
@@ -196,8 +192,8 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
             onPress={async () => {
                 const searchParams = new URLSearchParams();
 
-                if (filter === "Archive") {
-                    searchParams.set("tab", "old");
+                if (filter === "Done") {
+                    searchParams.set("tab", "done");
                 }
 
                 // Optimization: Since we know the first inbox entry we can include it in the URL
@@ -207,7 +203,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
                     searchParams.set("selected", getEncodedInboxEntryPath(firstItem.model, "wide"));
                 }
                 await rootNavigate(
-                    `/s/${space.id}/inbox${
+                    `/inbox/${space.id}${
                         searchParams.size > 0 ? `?${searchParams.toString()}` : ""
                     }`,
                 ).then(onClose);
@@ -221,7 +217,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
 }
 
 type SpaceLayoutTopBarInboxOverlayEntriesRef = {
-    getFirstItemIfExists(): DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    getFirstItemIfExists(): RynamoItem<InboxEntryModel> | null;
 };
 
 const SpaceLayoutTopBarInboxOverlayEntries = forwardRef(
@@ -231,8 +227,8 @@ const SpaceLayoutTopBarInboxOverlayEntries = forwardRef(
             initialEntriesResult,
             onClose,
         }: {
-            filter: "New" | "Archive";
-            initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+            filter: InboxEntryStatus;
+            initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
             onClose: Memo<() => void>;
         },
         ref: Ref<SpaceLayoutTopBarInboxOverlayEntriesRef>,
@@ -272,8 +268,8 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
     tryLoadingMore,
     onClose,
 }: {
-    filter: "New" | "Archive";
-    query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    query: RynamoIndexQuery<InboxEntryModel>;
     tryLoadingMore: (
         viewHeight: number,
         renderedRange: {startIndex: number; endIndex: number} | null,
@@ -399,8 +395,8 @@ function SpaceLayoutTopBarInboxOverlayEntry({
     isLastItem,
     onClose,
 }: {
-    filter: "New" | "Archive";
-    entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    entry: RynamoItem<InboxEntryModel>;
     isFirstItem: boolean;
     isLastItem: boolean;
     onClose: () => void;

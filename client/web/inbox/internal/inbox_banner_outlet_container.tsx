@@ -8,7 +8,7 @@ import {Button} from "~/client/web/design/button.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {Spacer} from "~/client/web/design/spacer.js";
-import {useDynamoGeneralRealtimeItemBase} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {useRynamoItemBase} from "~/client/web/dynamo/use_rynamo_item.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
@@ -29,11 +29,11 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxBannerHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {createInboxDocumentCommentThreadEntryDynamoItemKey} from "~/shared/notifications/create_inbox_document_comment_thread_entry_dynamo_item_key.js";
 import {createInboxPostCommentsEntryDynamoItemKey} from "~/shared/notifications/create_inbox_post_comments_entry_dynamo_item_key.js";
@@ -45,7 +45,7 @@ import {
     InboxEntryModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
-import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
+import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
 export function InboxBannerOutletContainer({
@@ -56,8 +56,8 @@ export function InboxBannerOutletContainer({
     withoutArchiveButton,
     children,
 }: {
-    initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel>;
-    parentEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    initialEntry: RynamoItem<InboxEntryModel>;
+    parentEntry: RynamoItem<InboxEntryModel> | null;
     navigation: InboxContextNavigation | null;
     maxWidth: Spacing | "full";
     withoutArchiveButton?: boolean;
@@ -81,9 +81,9 @@ export function InboxBannerOutletContainer({
     const doneButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
     const [entry, updateEntry, actuallyUpdateEntryOptimistically, entryWithoutOptimisticUpdates] =
-        useStateWithOptimisticUpdates<
-            DynamoGeneralRealtimeItem<InboxEntryModel> & {readonly isDeleted?: true}
-        >(parentEntry ?? initialEntry);
+        useStateWithOptimisticUpdates<RynamoItem<InboxEntryModel> & {readonly isDeleted?: true}>(
+            parentEntry ?? initialEntry,
+        );
 
     // If the parent provided a newer version of the entry we're rendering then use the
     // parent's version.
@@ -105,9 +105,7 @@ export function InboxBannerOutletContainer({
     const updateEntryOptimistically = useCallback(
         (
             promise: Promise<unknown>,
-            update: (
-                entry: DynamoGeneralRealtimeItem<InboxEntryModel>,
-            ) => DynamoGeneralRealtimeItem<InboxEntryModel>,
+            update: (entry: RynamoItem<InboxEntryModel>) => RynamoItem<InboxEntryModel>,
         ) => {
             actuallyUpdateEntryOptimistically(
                 promise.then(() =>
@@ -245,6 +243,7 @@ export function InboxBannerOutletContainer({
                         latestComment: {
                             author: entry.model.firstCommentThread.author,
                             createdTime: entry.model.firstCommentThread.createdTime,
+                            index: 0,
                             contentTextSnippet: entry.model.firstCommentThread.contentTextSnippet,
                             isStickyMention: false,
                         },
@@ -273,12 +272,12 @@ export function InboxBannerOutletContainer({
     const withoutReloadItem: boolean =
         !!parentEntry && parentEntry.key === entryWithoutOptimisticUpdates.key;
 
-    useDynamoGeneralRealtimeItemBase(
+    useRynamoItemBase(
         {item: entryWithoutOptimisticUpdates, onUpdateItem: updateEntry},
         {
             isConnected,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                subscriber => subscribeToEvents(event => subscriber(event.events)),
                 [subscribeToEvents],
             ),
             reloadItemWithStrongReadConsistency: useCallback(async () => {
@@ -306,9 +305,9 @@ export function InboxBannerOutletContainer({
             () =>
                 printInboxEntryDisplayContentSummaryWithoutInteractivityStore(
                     accountRegistry,
-                    entryDisplay.summary,
+                    entryDisplay.title,
                 ),
-            [accountRegistry, entryDisplay.summary],
+            [accountRegistry, entryDisplay.title],
         ),
     );
 
@@ -329,7 +328,7 @@ export function InboxBannerOutletContainer({
                 if (navigationState.hasPreviousLocation) {
                     await navigate(-1);
                 } else {
-                    await navigate(`/s/${entry.model.spaceId}/inbox`);
+                    await navigate(`/inbox/${entry.model.spaceId}`);
                 }
             }
 
@@ -351,7 +350,7 @@ export function InboxBannerOutletContainer({
                 withAnimation: true,
             });
 
-            if (navigation?.filter === "Archive") {
+            if (navigation?.filter === "Done") {
                 if (navigation.nextEntry) {
                     await navigation.selectEntry(navigation.nextEntry);
                 } else if (navigation.previousEntry) {
@@ -476,28 +475,19 @@ export function InboxBannerOutletContainer({
                                         );
                                         newSearchParams.delete("inbox");
 
-                                        const result = convertPeekPathToSpacePathParts(
-                                            location.pathname,
-                                            newSearchParams,
+                                        const newLocation = convertPeekPathToSpacePath(
+                                            {...location, search: newSearchParams.toString()},
                                             {routeLayout: "wide"},
                                         );
 
-                                        const newLocation = {
-                                            ...location,
-                                            pathname:
-                                                result?.pathnameParts[1].slice(1) ??
-                                                location.pathname.replace(/^\/s\/[^/]+\//, ""),
-                                            search: result?.search ?? newSearchParams.toString(),
-                                        };
-
                                         const selectedSearchParam = encodeBase64(
-                                            textEncoder.encode(createPath(newLocation)),
+                                            textEncoder.encode(createPath(newLocation ?? location)),
                                             "Rfc4648Url",
                                         );
 
                                         await rootNavigate(
-                                            `/s/${space.id}/inbox?${
-                                                entry.model.isArchived ? `tab=old&` : ""
+                                            `/inbox/${space.id}?${
+                                                entry.model.isArchived ? `tab=done&` : ""
                                             }selected=${selectedSearchParam}`,
                                         );
                                     }}

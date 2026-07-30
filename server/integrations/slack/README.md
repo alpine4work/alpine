@@ -36,7 +36,7 @@ SLACK_AUTH_REDIRECT_ORIGIN=https://local-redirect.cyberworlds.dev/http://localho
 The redirect URI Alpine sends to Slack is:
 
 ```
-{SLACK_AUTH_REDIRECT_ORIGIN}/s/{spaceId}/integrations/slack/oauth
+{SLACK_AUTH_REDIRECT_ORIGIN}/integrations/slack/oauth/{spaceId}
 ```
 
 ### Slack app dashboard
@@ -128,7 +128,7 @@ Settings page                  Popup window                  Slack
 
 2.                                                            User approves
                                                               Redirects to
-                               ◄──────── /s/:spaceId/integrations/slack/oauth
+                               ◄──────── /integrations/slack/oauth/:spaceId
                                          ?code=...&state=<token>
 
 3.                             Loader reads state from URL
@@ -161,7 +161,7 @@ Settings page                  Popup window                  Slack
    Shows connected state
 ```
 
-**Route:** `app/routes/s.$spaceId.integrations.slack.oauth.tsx`
+**Route:** `app/routes/_space.integrations.slack.oauth.$spaceId.tsx`
 
 **Key function:**
 `server/integrations/slack/exchange_oauth_code_for_token_and_connect_slack_workspace.ts` —

@@ -178,7 +178,7 @@ export class TaskRealtimeStore {
         loadedState: TaskRealtimeQueryLoadedState;
         tasks: Array<TaskIndexDoc>;
     }> {
-        return this._withFatalErrorHandling(context, () =>
+        return await this._withFatalErrorHandling(context, () =>
             this._internal.loadQuery(context, options),
         );
     }
@@ -736,7 +736,7 @@ export class TaskRealtimeStoreInternal {
                         const task = createEmptyTaskIndexDoc(action.time, action.taskAction);
 
                         const account = assertExists(
-                            actionReferencedAccountById.get(action.taskAction.creatorId),
+                            actionReferencedAccountById.get(action.taskAction.creator.accountId),
                         );
 
                         const taskEntry = new TaskRealtimeStoreTaskEntry(this, {
@@ -744,9 +744,10 @@ export class TaskRealtimeStoreInternal {
                             spaceId: this.spaceId,
                             ...task,
                             creator: {
-                                accountId: action.taskAction.creatorId,
+                                accountId: action.taskAction.creator.accountId,
                                 workingAccountName: account.initialData.name,
                                 workingAccountNameVersion: account.initialData.nameVersion,
+                                from: task.creator.from,
                             },
                         });
                         this._taskEntryById.set(action.taskId, taskEntry);
@@ -1249,7 +1250,7 @@ export class TaskRealtimeStoreInternal {
                     );
 
                     if (!taskEntry) {
-                        throw retry(new InternalError("Task not found"));
+                        throw retry(new InternalError("Task collection not found"));
                     }
 
                     return taskEntry;

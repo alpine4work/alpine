@@ -27,6 +27,7 @@ export function expectInboxChatEntryModel({
         | {author: AccountModel; createdTime: Date; message?: undefined}
     ) & {
         contentTextSnippet: string;
+        index?: number;
         isStickyMention?: boolean;
         clerical?: MessageContentPayloadClerical;
     };
@@ -62,6 +63,7 @@ export function expectInboxChatEntryModel({
             contentTextSnippet: latestMessage.contentTextSnippet,
             isStickyMention: latestMessage.isStickyMention ?? false,
             clerical: latestMessage.clerical,
+            index: latestMessage.message?.index ?? latestMessage.index ?? 0,
         },
         otherChatAccount:
             otherChatAccount instanceof TestSession

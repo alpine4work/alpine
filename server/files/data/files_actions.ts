@@ -145,6 +145,41 @@ function getFileAttachmentTargetItemKey(
 }
 
 /**
+ * Create (or replace) a file attachment target record. This is used by code
+ * outside `files_actions.ts` that needs to create attachment records without
+ * access to the private `getFileAttachmentTargetItemKey` helper.
+ */
+export async function createFileAttachmentTarget(
+    context: ServerActionContext,
+    fileId: FileId,
+    target: FileAttachmentTarget,
+): Promise<void> {
+    await FilesTable.createOrReplaceItem(context, {
+        ...getFileAttachmentTargetItemKey(fileId, target),
+        createdTime: new Date(),
+    });
+}
+
+/**
+ * Get the uploader account ID for a file, verifying it exists in the given space.
+ * Returns `null` if the file doesn't exist or belongs to a different space. Used
+ * by bot file attachment to decide whether the bot uploaded the file or needs to
+ * prove access through an existing attachment.
+ */
+export async function getFileUploaderIdIfExists(
+    context: ServerActionContext,
+    fileId: FileId,
+    spaceId: SpaceId,
+): Promise<AccountId | null> {
+    const item = await getFileItemIfExistsWithCache(context, fileId, {
+        consistency: "StrongWithinCache",
+    });
+    if (!item) return null;
+    if (item.spaceId !== spaceId) return null;
+    return item.uploaderId;
+}
+
+/**
  * The total number of bytes you're allowed to store in an Alpine space on the free
  * plan (5 GB). After you exceed this amount we'll start deleting old files. This
  * is the same as Slack's file limit for their free plan.
@@ -288,7 +323,7 @@ export async function startUploadingFile(
         fileId = providedFileId;
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const fileTotalsItem = (await FilesTable.getItemIfExists(context, {
             partitionType: "Space",
             sortRangeType: "FileTotals",
@@ -439,7 +474,7 @@ export async function finishUploadingAndStartProcessingFile(
         assert(process.env.NODE_ENV === "test");
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         let item = await getFileItemIfExistsAsUploader(context, fileId, {
             consistency: "Eventual",
         });
@@ -942,7 +977,7 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             if (!itemRef.current.preview) {
                 throw new InternalError("File doesn\u2019t have a preview");
             }
@@ -1019,7 +1054,7 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
@@ -1074,7 +1109,7 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
@@ -1131,7 +1166,7 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
@@ -1462,20 +1497,14 @@ export async function getFileIfExistsFromAttachment(
         getFileItemIfExistsWithCache(context, fileId, {consistency}),
 
         // 1. Make sure we have access to the file's attachment target
-        targetAuthorizer.authorizeTargetAccess(context, accessLevel),
+        targetAuthorizer.authorizeTargetAccess(context, accessLevel, {consistency}),
 
         // 2. Make sure the file is actually attached to the provided target
         (async () => {
             let targetItem = await FilesTable.getItemIfExists(
                 context,
                 getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
-                {
-                    consistency,
-                    // It's ok to call this function when expecting strong read consistency. This
-                    // authorization check is mostly strongly consistent since we retry with strong
-                    // consistency below if our eventually consistent read fails.
-                    allowsEventualReadConsistency: true,
-                },
+                {consistency},
             );
 
             if (!targetItem && consistency === "Eventual") {
@@ -1550,7 +1579,7 @@ export async function attachFileAsUploader(
             consistency: "Eventual",
         });
         if (file) return file;
-        return getFileAsUploader(context, fileId, {consistency: "Strong"});
+        return await getFileAsUploader(context, fileId, {consistency: "Strong"});
     })();
 
     await targetAuthorizer.authorizeTargetAccess(context, "Edit");
@@ -1657,7 +1686,7 @@ export async function getPostDraftFileAttachments(
         .bind({type: "PostDraft", spaceId, accountId, draftId})
         .authorizeTargetAccess(context, "View");
 
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         mapAsyncIterableIterator(
             PostDraftFile2AttachmentsIndex.query(context, {
                 partitionKey: {accountId, draftId},

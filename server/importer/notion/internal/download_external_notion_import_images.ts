@@ -203,11 +203,14 @@ export async function downloadExternalNotionImportImages(
                 downloadedFiles.set(relativePath, {relativePath, id: fileId});
             }
 
-            // Rewrite this link to point to the local file. Use `![alt](path)` syntax so the
-            // markdown parser treats it as an image.
+            // Rewrite to point to the local file. Use link syntax (not image syntax) because
+            // our markdown parser doesn't support inline images/videos/files directly. It only
+            // recognizes files via URLs matching our alpine.inc format. Link syntax preserves
+            // the URL as a Text element with a Link mark, which the conversion phase uses for
+            // file resolution.
             modifiedMarkdown = modifiedMarkdown.replace(
                 fullMatch,
-                `![${altText}](${encodeURIComponent(fileName)})`,
+                `[${altText}](${encodeURIComponent(fileName)})`,
             );
         }
 

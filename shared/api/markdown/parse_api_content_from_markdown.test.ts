@@ -7,13 +7,11 @@ import {
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
-
-const spaceId = generateId<SpaceId>();
+import {ChannelId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
 
 // Inline HTML elements tests
 test("inline HTML <strong> tag", () => {
-    expect(parseApiContentFromMarkdown("<strong>bold text</strong>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<strong>bold text</strong>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -30,7 +28,7 @@ test("inline HTML <strong> tag", () => {
 });
 
 test("inline HTML <b> tag", () => {
-    expect(parseApiContentFromMarkdown("<b>bold text</b>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<b>bold text</b>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -47,7 +45,7 @@ test("inline HTML <b> tag", () => {
 });
 
 test("inline HTML <em> tag", () => {
-    expect(parseApiContentFromMarkdown("<em>italic text</em>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<em>italic text</em>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -64,7 +62,7 @@ test("inline HTML <em> tag", () => {
 });
 
 test("inline HTML <i> tag", () => {
-    expect(parseApiContentFromMarkdown("<i>italic text</i>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<i>italic text</i>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -81,7 +79,7 @@ test("inline HTML <i> tag", () => {
 });
 
 test("inline HTML <del> tag", () => {
-    expect(parseApiContentFromMarkdown("<del>strikethrough text</del>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<del>strikethrough text</del>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -98,9 +96,7 @@ test("inline HTML <del> tag", () => {
 });
 
 test("inline HTML <code> tag", () => {
-    expect(
-        parseApiContentFromMarkdown("Text with <code>inline code</code> in it", {spaceId}),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("Text with <code>inline code</code> in it")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -119,9 +115,7 @@ test("inline HTML <code> tag", () => {
 });
 
 test("nested inline HTML tags", () => {
-    expect(
-        parseApiContentFromMarkdown("<strong><em>bold and italic</em></strong>", {spaceId}),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("<strong><em>bold and italic</em></strong>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -138,9 +132,7 @@ test("nested inline HTML tags", () => {
 });
 
 test("mixed inline HTML and markdown", () => {
-    expect(
-        parseApiContentFromMarkdown("**Bold** and <strong>also bold</strong>", {spaceId}),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("**Bold** and <strong>also bold</strong>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -163,9 +155,7 @@ test("mixed inline HTML and markdown", () => {
 });
 
 test("inline HTML <a> tag with href", () => {
-    expect(
-        parseApiContentFromMarkdown('<a href="https://example.com">link text</a>', {spaceId}),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown('<a href="https://example.com">link text</a>')).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -182,7 +172,7 @@ test("inline HTML <a> tag with href", () => {
 });
 
 test("inline HTML <a> tag without href", () => {
-    expect(parseApiContentFromMarkdown("<a>link text</a>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<a>link text</a>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -199,7 +189,7 @@ test("inline HTML <a> tag without href", () => {
 });
 
 test("HTML entity in text", () => {
-    expect(parseApiContentFromMarkdown("Text with &amp; entity", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("Text with &amp; entity")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -211,9 +201,7 @@ test("HTML entity in text", () => {
 
 test("HTML entity in attribute", () => {
     expect(
-        parseApiContentFromMarkdown('<a href="https://example.com?a=1&amp;b=2">link</a>', {
-            spaceId,
-        }),
+        parseApiContentFromMarkdown('<a href="https://example.com?a=1&amp;b=2">link</a>'),
     ).toEqual({
         elements: [
             {
@@ -232,7 +220,7 @@ test("HTML entity in attribute", () => {
 
 // Block HTML tests
 test("HTML <p> tag", () => {
-    expect(parseApiContentFromMarkdown("<p>Paragraph text</p>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<p>Paragraph text</p>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -243,7 +231,7 @@ test("HTML <p> tag", () => {
 });
 
 test("empty HTML <p> tag", () => {
-    expect(parseApiContentFromMarkdown("<p></p>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<p></p>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -254,7 +242,7 @@ test("empty HTML <p> tag", () => {
 });
 
 test("HTML <br> tag", () => {
-    expect(parseApiContentFromMarkdown("Line 1<br>Line 2", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("Line 1<br>Line 2")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -269,7 +257,7 @@ test("HTML <br> tag", () => {
 });
 
 test("HTML <br/> self-closing tag", () => {
-    expect(parseApiContentFromMarkdown("Line 1<br/>Line 2", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("Line 1<br/>Line 2")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -284,33 +272,33 @@ test("HTML <br/> self-closing tag", () => {
 });
 
 test("HTML marks in <p> tag", () => {
-    expect(
-        parseApiContentFromMarkdown("<p><strong>Bold</strong> and <em>italic</em></p>", {spaceId}),
-    ).toEqual({
-        elements: [
-            {
-                type: "Paragraph",
-                elements: [
-                    {
-                        type: "Text",
-                        text: "Bold",
-                        marks: [{type: "Bold"}],
-                    },
-                    {type: "Text", text: " and "},
-                    {
-                        type: "Text",
-                        text: "italic",
-                        marks: [{type: "Italic"}],
-                    },
-                ],
-            },
-        ],
-    });
+    expect(parseApiContentFromMarkdown("<p><strong>Bold</strong> and <em>italic</em></p>")).toEqual(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: "Bold",
+                            marks: [{type: "Bold"}],
+                        },
+                        {type: "Text", text: " and "},
+                        {
+                            type: "Text",
+                            text: "italic",
+                            marks: [{type: "Italic"}],
+                        },
+                    ],
+                },
+            ],
+        },
+    );
 });
 
 // Code block HTML tests
 test("HTML <pre><code> block", () => {
-    expect(parseApiContentFromMarkdown("<pre><code>const x = 1;</code></pre>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<pre><code>const x = 1;</code></pre>")).toEqual({
         elements: [
             {
                 type: "Code",
@@ -325,7 +313,6 @@ test("HTML <pre><code> block with language class", () => {
     expect(
         parseApiContentFromMarkdown(
             '<pre><code class="language-javascript">const x = 1;</code></pre>',
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -340,9 +327,7 @@ test("HTML <pre><code> block with language class", () => {
 
 test("HTML <pre><code> block with marks", () => {
     expect(
-        parseApiContentFromMarkdown("<pre><code><strong>bold</strong> code</code></pre>", {
-            spaceId,
-        }),
+        parseApiContentFromMarkdown("<pre><code><strong>bold</strong> code</code></pre>"),
     ).toEqual({
         elements: [
             {
@@ -362,11 +347,7 @@ test("HTML <pre><code> block with marks", () => {
 });
 
 test("HTML <pre><code> block with marks (classic tag names)", () => {
-    expect(
-        parseApiContentFromMarkdown("<pre><code><b>bold</b> <i>code</i></code></pre>", {
-            spaceId,
-        }),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("<pre><code><b>bold</b> <i>code</i></code></pre>")).toEqual({
         elements: [
             {
                 type: "Code",
@@ -386,9 +367,7 @@ test("HTML <pre><code> block with marks (classic tag names)", () => {
 });
 
 test("HTML <pre><code> block with leading/trailing newlines", () => {
-    expect(
-        parseApiContentFromMarkdown("<pre><code>\nconst x = 1;\n</code></pre>", {spaceId}),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("<pre><code>\nconst x = 1;\n</code></pre>")).toEqual({
         elements: [
             {
                 type: "Code",
@@ -400,9 +379,7 @@ test("HTML <pre><code> block with leading/trailing newlines", () => {
 });
 
 test("HTML <pre><code> block with multiple lines", () => {
-    expect(
-        parseApiContentFromMarkdown("<pre><code>line1\nline2\nline3</code></pre>", {spaceId}),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("<pre><code>line1\nline2\nline3</code></pre>")).toEqual({
         elements: [
             {
                 type: "Code",
@@ -418,9 +395,7 @@ test("HTML <pre><code> block with multiple lines", () => {
 });
 
 test("HTML <pre><code> block with empty lines", () => {
-    expect(
-        parseApiContentFromMarkdown("<pre><code>line1\n\nline3</code></pre>", {spaceId}),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("<pre><code>line1\n\nline3</code></pre>")).toEqual({
         elements: [
             {
                 type: "Code",
@@ -439,7 +414,6 @@ test("HTML <pre><code> block with link marks", () => {
     expect(
         parseApiContentFromMarkdown(
             '<pre><code>Visit <a href="https://example.com">example.com</a></code></pre>',
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -474,7 +448,6 @@ test("simple HTML table", () => {
 <td>Cell 2</td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -517,7 +490,6 @@ test("HTML table without tbody", () => {
 <td>D</td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -572,7 +544,6 @@ test("HTML table with tbody", () => {
 </tr>
 </tbody>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -619,7 +590,6 @@ test("HTML table with thead and tbody", () => {
 </tr>
 </tbody>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -679,7 +649,6 @@ test("HTML table with th elements", () => {
 <td>Data</td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -727,7 +696,6 @@ test("HTML table with scope attributes", () => {
 </tr>
 </tbody>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -791,7 +759,6 @@ test("HTML table with data-width attribute", () => {
 <td>Cell 2</td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -831,7 +798,6 @@ test("HTML table with data-column-widths attribute", () => {
 <td>C</td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -874,7 +840,6 @@ test("HTML table with invalid data attributes", () => {
 <td>Cell</td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -912,7 +877,6 @@ test("HTML table with empty cells", () => {
 <td></td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -959,7 +923,6 @@ test("HTML table with irregular rows", () => {
 <td>F</td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -1037,7 +1000,6 @@ test("HTML table with complex cell content", () => {
 </td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -1122,7 +1084,6 @@ Regular text
 <td>## Another heading</td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -1189,7 +1150,6 @@ After divider
 <td>Regular content</td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -1269,7 +1229,6 @@ More content
 </td>
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -1337,7 +1296,6 @@ test("table HTML in list throws error", () => {
             `\
 - List item
   <table><tr><td>Table in list</td></tr></table>`,
-            {spaceId},
         ),
     ).toThrow("Table HTML isn\u2019t supported in this Markdown block content parent");
 });
@@ -1348,7 +1306,6 @@ test("table HTML in blockquote throws error", () => {
             `\
 > Quote
 > <table><tr><td>Table in quote</td></tr></table>`,
-            {spaceId},
         ),
     ).toThrow("Table HTML isn\u2019t supported in this Markdown block content parent");
 });
@@ -1356,7 +1313,7 @@ test("table HTML in blockquote throws error", () => {
 test("empty blockquote creates empty Quote element", () => {
     // Notion exports can have empty blockquotes like "> \n> \n" These should be parsed
     // as Quote with empty elements
-    expect(parseApiContentFromMarkdown("> \n> \n", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("> \n> \n")).toEqual({
         elements: [
             {
                 type: "Quote",
@@ -1370,14 +1327,13 @@ test("table HTML in inline content throws error", () => {
     expect(() =>
         parseApiContentFromMarkdown(
             "Text with <table><tr><td>inline table</td></tr></table> in it",
-            {spaceId},
         ),
     ).toThrow("Table HTML isn\u2019t supported in Markdown phrasing content");
 });
 
 // Markdown break edge cases
 test("bold formatted break with adjacent content", () => {
-    expect(parseApiContentFromMarkdown("text**<br/>**more text", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("text**<br/>**more text")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -1392,7 +1348,7 @@ test("bold formatted break with adjacent content", () => {
 });
 
 test("italic formatted break with asterisk", () => {
-    expect(parseApiContentFromMarkdown("text*<br/>*more text", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("text*<br/>*more text")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -1407,7 +1363,7 @@ test("italic formatted break with asterisk", () => {
 });
 
 test("italic formatted break with underscore", () => {
-    expect(parseApiContentFromMarkdown("text_<br/>_more text", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("text_<br/>_more text")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -1422,9 +1378,7 @@ test("italic formatted break with underscore", () => {
 });
 
 test("strikethrough link", () => {
-    expect(
-        parseApiContentFromMarkdown("text~~[link](https://example.com)~~more", {spaceId}),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("text~~[link](https://example.com)~~more")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -1455,7 +1409,6 @@ test("list item with paragraphs then nested list then more paragraphs", () => {
   - Nested item 2
 
   Third paragraph`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -1513,7 +1466,7 @@ test("list item with paragraphs then nested list then more paragraphs", () => {
 
 describe("checklist", () => {
     test("checklist closing bracket followed by EOF renders unordered list", () => {
-        expect(parseApiContentFromMarkdown(`\n- [ ]`, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(`\n- [ ]`)).toEqual({
             elements: [
                 {
                     type: "UnorderedList",
@@ -1532,7 +1485,7 @@ describe("checklist", () => {
         });
     });
     test("checklist closing bracket followed by EOL renders unordered list", () => {
-        expect(parseApiContentFromMarkdown(`\n- [ ]\n\n`, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(`\n- [ ]\n\n`)).toEqual({
             elements: [
                 {
                     type: "UnorderedList",
@@ -1561,7 +1514,6 @@ describe("checklist", () => {
 
       - [ ]
 `,
-                {spaceId},
             ),
         ).toEqual({
             elements: [
@@ -1621,10 +1573,7 @@ describe("checklist", () => {
 test("mention with short name format", () => {
     const accountId = "n93hre935d0yd7akahtrwcvv30";
     expect(
-        parseApiContentFromMarkdown(
-            `[@alice](https://alpine.inc/s/${spaceId}/accounts/${accountId}?mention=short)`,
-            {spaceId},
-        ),
+        parseApiContentFromMarkdown(`[@alice](https://alpine.inc/mention/${accountId}?short)`),
     ).toEqual({
         elements: [
             {
@@ -1644,10 +1593,7 @@ test("mention with short name format", () => {
 test("channel mention", () => {
     const channelId = "c93hre935d0yd7akahtrwcvv30";
     expect(
-        parseApiContentFromMarkdown(
-            `[#general](https://alpine.inc/s/${spaceId}/channels/${channelId}?mention)`,
-            {spaceId},
-        ),
+        parseApiContentFromMarkdown(`[#general](https://alpine.inc/channel/${channelId}?mention)`),
     ).toEqual({
         elements: [
             {
@@ -1666,12 +1612,7 @@ test("channel mention", () => {
 test("document mention", () => {
     const documentId = "d93hre935d0yd7akahtrwcvv30";
     expect(
-        parseApiContentFromMarkdown(
-            `[Doc](https://alpine.inc/s/${spaceId}/documents/${documentId}?mention)`,
-            {
-                spaceId,
-            },
-        ),
+        parseApiContentFromMarkdown(`[Doc](https://alpine.inc/doc/${documentId}?mention)`),
     ).toEqual({
         elements: [
             {
@@ -1689,14 +1630,7 @@ test("document mention", () => {
 
 test("document mention with autolink syntax", () => {
     const documentId = "d93hre935d0yd7akahtrwcvv30";
-    expect(
-        parseApiContentFromMarkdown(
-            `<https://alpine.inc/s/${spaceId}/documents/${documentId}?mention>`,
-            {
-                spaceId,
-            },
-        ),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown(`<https://alpine.inc/doc/${documentId}?mention>`)).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -1714,14 +1648,7 @@ test("document mention with autolink syntax", () => {
 // Only https://alpine.inc is allowed for mentions
 test("parses mention from alpine.inc", () => {
     const documentId = "d93hre935d0yd7akahtrwcvv30";
-    expect(
-        parseApiContentFromMarkdown(
-            `<https://alpine.inc/s/${spaceId}/documents/${documentId}?mention>`,
-            {
-                spaceId,
-            },
-        ),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown(`<https://alpine.inc/doc/${documentId}?mention>`)).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -1753,8 +1680,8 @@ test.each(disallowedMentionDomains)(
     "does not parse mention from disallowed domain: %s (%s)",
     baseUrl => {
         const documentId = "d93hre935d0yd7akahtrwcvv30";
-        const url = `${baseUrl}/s/${spaceId}/documents/${documentId}?mention`;
-        expect(parseApiContentFromMarkdown(`<${url}>`, {spaceId})).toEqual({
+        const url = `${baseUrl}/doc/${documentId}?mention`;
+        expect(parseApiContentFromMarkdown(`<${url}>`)).toEqual({
             elements: [
                 {
                     type: "Paragraph",
@@ -1774,10 +1701,7 @@ test.each(disallowedMentionDomains)(
 test("post mention", () => {
     const postId = "p93hre935d0yd7akahtrwcvv30";
     expect(
-        parseApiContentFromMarkdown(
-            `[Post](https://alpine.inc/s/${spaceId}/posts/${postId}?mention)`,
-            {spaceId},
-        ),
+        parseApiContentFromMarkdown(`[Post](https://alpine.inc/post/${postId}?mention)`),
     ).toEqual({
         elements: [
             {
@@ -1796,10 +1720,7 @@ test("post mention", () => {
 test("task mention", () => {
     const taskId = "t93hre935d0yd7akahtrwcvv30";
     expect(
-        parseApiContentFromMarkdown(
-            `[Task](https://alpine.inc/s/${spaceId}/tasks/${taskId}?mention)`,
-            {spaceId},
-        ),
+        parseApiContentFromMarkdown(`[Task](https://alpine.inc/task/${taskId}?mention)`),
     ).toEqual({
         elements: [
             {
@@ -1819,8 +1740,7 @@ test("task collection mention", () => {
     const collectionId = "tc3hre935d0yd7akahtrwcvv30";
     expect(
         parseApiContentFromMarkdown(
-            `[Collection](https://alpine.inc/s/${spaceId}/tasks/collections/${collectionId}?mention)`,
-            {spaceId},
+            `[Collection](https://alpine.inc/task-collection/${collectionId}?mention)`,
         ),
     ).toEqual({
         elements: [
@@ -1838,14 +1758,7 @@ test("task collection mention", () => {
 });
 
 test("link that looks like mention but isn't", () => {
-    expect(
-        parseApiContentFromMarkdown(
-            `[Not a mention](https://alpine.inc/s/different-space/accounts/123?mention)`,
-            {
-                spaceId,
-            },
-        ),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown(`[Not a mention](https://alpine.inc/mention/123)`)).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -1856,7 +1769,7 @@ test("link that looks like mention but isn't", () => {
                         marks: [
                             {
                                 type: "Link",
-                                url: "https://alpine.inc/s/different-space/accounts/123?mention",
+                                url: "https://alpine.inc/mention/123",
                             },
                         ],
                     },
@@ -1868,10 +1781,7 @@ test("link that looks like mention but isn't", () => {
 
 test("link with invalid mention ID", () => {
     expect(
-        parseApiContentFromMarkdown(
-            `[Invalid](https://alpine.inc/s/${spaceId}/accounts/not-a-valid-id?mention)`,
-            {spaceId},
-        ),
+        parseApiContentFromMarkdown(`[Invalid](https://alpine.inc/mention/not-a-valid-id)`),
     ).toEqual({
         elements: [
             {
@@ -1883,7 +1793,7 @@ test("link with invalid mention ID", () => {
                         marks: [
                             {
                                 type: "Link",
-                                url: `https://alpine.inc/s/${spaceId}/accounts/not-a-valid-id?mention`,
+                                url: `https://alpine.inc/mention/not-a-valid-id`,
                             },
                         ],
                     },
@@ -1900,7 +1810,6 @@ test("GFM table with span data-width", () => {
             `| Col 1 | Col 2 |
 | --- | --- |
 | A | B<span hidden data-width="2.5"/> |`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -1950,7 +1859,6 @@ test("GFM table with span data-column-widths", () => {
             `| A | B | C |
 | --- | --- | --- |
 | 1 | 2 | 3<span hidden data-column-widths="2,1,3"/> |`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2012,7 +1920,6 @@ test("code block with invalid language", () => {
 \`\`\`not-a-real-language
 code here
 \`\`\``,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2031,7 +1938,6 @@ test("empty code block", () => {
             `\
 \`\`\`
 \`\`\``,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2052,7 +1958,6 @@ test("nested quotes are flattened", () => {
 > Outer quote
 >
 > > Inner quote`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2077,7 +1982,6 @@ test("code block in quote becomes paragraphs with code marks", () => {
 > code line 1
 > code line 2
 > \`\`\``,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2107,7 +2011,6 @@ test("table in quote cell is flattened", () => {
 > | A | B |
 > | --- | --- |
 > | Nested | Table |`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2130,7 +2033,6 @@ test("heading in quote becomes paragraph with bold", () => {
             `\
 > # Quoted heading
 > Regular quoted text`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2157,7 +2059,6 @@ test("divider in quote becomes paragraph with dashes", () => {
 > ---
 >
 > After divider`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2175,7 +2076,7 @@ test("divider in quote becomes paragraph with dashes", () => {
 
 // Tests for headings
 test("heading level 1", () => {
-    expect(parseApiContentFromMarkdown("# Heading 1", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("# Heading 1")).toEqual({
         elements: [
             {
                 type: "Heading",
@@ -2187,7 +2088,7 @@ test("heading level 1", () => {
 });
 
 test("heading level 2", () => {
-    expect(parseApiContentFromMarkdown("## Heading 2", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("## Heading 2")).toEqual({
         elements: [
             {
                 type: "Heading",
@@ -2199,7 +2100,7 @@ test("heading level 2", () => {
 });
 
 test("heading level 3", () => {
-    expect(parseApiContentFromMarkdown("### Heading 3", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("### Heading 3")).toEqual({
         elements: [
             {
                 type: "Heading",
@@ -2211,7 +2112,7 @@ test("heading level 3", () => {
 });
 
 test("heading with marks", () => {
-    expect(parseApiContentFromMarkdown("## **Bold** and *italic* heading", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("## **Bold** and *italic* heading")).toEqual({
         elements: [
             {
                 type: "Heading",
@@ -2234,7 +2135,6 @@ test("multiple heading levels", () => {
 # Level 1
 ## Level 2
 ### Level 3`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2258,7 +2158,7 @@ test("multiple heading levels", () => {
 });
 
 test("heading with empty content", () => {
-    expect(parseApiContentFromMarkdown("# ", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("# ")).toEqual({
         elements: [
             {
                 type: "Heading",
@@ -2271,7 +2171,7 @@ test("heading with empty content", () => {
 
 // Tests for thematic breaks (dividers)
 test("thematic break becomes divider", () => {
-    expect(parseApiContentFromMarkdown("---", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("---")).toEqual({
         elements: [
             {
                 type: "Divider",
@@ -2289,7 +2189,6 @@ First paragraph
 ---
 
 Second paragraph`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2309,7 +2208,7 @@ Second paragraph`,
 });
 
 test("thematic break with asterisks", () => {
-    expect(parseApiContentFromMarkdown("***", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("***")).toEqual({
         elements: [
             {
                 type: "Divider",
@@ -2319,7 +2218,7 @@ test("thematic break with asterisks", () => {
 });
 
 test("thematic break with underscores", () => {
-    expect(parseApiContentFromMarkdown("___", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("___")).toEqual({
         elements: [
             {
                 type: "Divider",
@@ -2336,7 +2235,6 @@ test("block math becomes paragraph with breaks", () => {
 $$
 x^2 + y^2 = z^2
 $$`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2361,7 +2259,6 @@ test("block math with complex formula", () => {
 $$
 \\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}
 $$`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2381,20 +2278,18 @@ $$`,
 
 // Tests for inline math
 test("inline math becomes text", () => {
-    expect(parseApiContentFromMarkdown("The formula $x^2 + y^2$ is important.", {spaceId})).toEqual(
-        {
-            elements: [
-                {
-                    type: "Paragraph",
-                    elements: [{type: "Text", text: "The formula $x^2 + y^2$ is important."}],
-                },
-            ],
-        },
-    );
+    expect(parseApiContentFromMarkdown("The formula $x^2 + y^2$ is important.")).toEqual({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "The formula $x^2 + y^2$ is important."}],
+            },
+        ],
+    });
 });
 
 test("inline math with marks", () => {
-    expect(parseApiContentFromMarkdown("**Bold $E = mc^2$ equation**", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("**Bold $E = mc^2$ equation**")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -2408,7 +2303,7 @@ test("inline math with marks", () => {
 
 // Tests for images (ignored)
 test("image is ignored", () => {
-    expect(parseApiContentFromMarkdown("![alt text](image.png)", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("![alt text](image.png)")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -2419,9 +2314,7 @@ test("image is ignored", () => {
 });
 
 test("image in paragraph is ignored", () => {
-    expect(
-        parseApiContentFromMarkdown("Text before ![alt](img.png) text after", {spaceId}),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("Text before ![alt](img.png) text after")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -2438,7 +2331,6 @@ test("image reference is ignored", () => {
 Text ![alt][img] here.
 
 [img]: image.png`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2458,7 +2350,6 @@ test("footnote reference is ignored", () => {
 Text with footnote[^1] here.
 
 [^1]: This is the footnote.`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2483,7 +2374,6 @@ Paragraph text.
 [^1]: This is a footnote definition.
 
 Another paragraph.`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2505,7 +2395,7 @@ Another paragraph.`,
 
 // Tests for edge cases in merging
 test("adjacent text elements with same marks are merged", () => {
-    expect(parseApiContentFromMarkdown("**Bold** **text**", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("**Bold** **text**")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -2520,7 +2410,7 @@ test("adjacent text elements with same marks are merged", () => {
 });
 
 test("adjacent text elements with different marks are not merged", () => {
-    expect(parseApiContentFromMarkdown("**Bold** *italic*", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("**Bold** *italic*")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -2536,7 +2426,7 @@ test("adjacent text elements with different marks are not merged", () => {
 
 // Empty table edge case
 test("completely empty HTML table", () => {
-    expect(parseApiContentFromMarkdown("<table></table>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<table></table>")).toEqual({
         elements: [
             {
                 type: "Table",
@@ -2556,7 +2446,6 @@ test("HTML table with empty row", () => {
             `<table>
 <tr></tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2575,9 +2464,7 @@ test("HTML table with empty row", () => {
 // Test HTML entities in code blocks
 test("HTML entities in code block", () => {
     expect(
-        parseApiContentFromMarkdown("<pre><code>if (a &lt; b) &amp;&amp; (c &gt; d)</code></pre>", {
-            spaceId,
-        }),
+        parseApiContentFromMarkdown("<pre><code>if (a &lt; b) &amp;&amp; (c &gt; d)</code></pre>"),
     ).toEqual({
         elements: [
             {
@@ -2594,7 +2481,6 @@ test("marks in HTML paragraph", () => {
     expect(
         parseApiContentFromMarkdown(
             "<p>Text with <strong>bold</strong>, <em>italic</em>, and <code>code</code></p>",
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2617,9 +2503,6 @@ test("overlapped marks", () => {
     expect(
         parseApiContentFromMarkdown(
             "Text with <strong>bold and <em>italic</em> isn't that neat</strong>",
-            {
-                spaceId,
-            },
         ),
     ).toEqual({
         elements: [
@@ -2640,9 +2523,6 @@ test("overlapped marks that end oddly", () => {
     expect(
         parseApiContentFromMarkdown(
             "Text with <strong>bold and <em>italic</strong> isn't that neat</em>",
-            {
-                spaceId,
-            },
         ),
     ).toEqual({
         elements: [
@@ -2661,9 +2541,7 @@ test("overlapped marks that end oddly", () => {
 
 test("overlapped marks (classic tag names)", () => {
     expect(
-        parseApiContentFromMarkdown("Text with <b>bold and <i>italic</i> isn't that neat</b>", {
-            spaceId,
-        }),
+        parseApiContentFromMarkdown("Text with <b>bold and <i>italic</i> isn't that neat</b>"),
     ).toEqual({
         elements: [
             {
@@ -2681,9 +2559,7 @@ test("overlapped marks (classic tag names)", () => {
 
 test("overlapped marks that end oddly (classic tag names)", () => {
     expect(
-        parseApiContentFromMarkdown("Text with <b>bold and <i>italic</b> isn't that neat</i>", {
-            spaceId,
-        }),
+        parseApiContentFromMarkdown("Text with <b>bold and <i>italic</b> isn't that neat</i>"),
     ).toEqual({
         elements: [
             {
@@ -2706,9 +2582,6 @@ test("marks that aren\u2019t closed don\u2019t bleed to next paragraph", () => {
 Text with <strong>bold and
 
 _italic_ isn't that neat`,
-            {
-                spaceId,
-            },
         ),
     ).toEqual({
         elements: [
@@ -2734,7 +2607,6 @@ test("multiple nested marks in HTML", () => {
     expect(
         parseApiContentFromMarkdown(
             '<strong><em><del><a href="https://example.com">all marks</a></del></em></strong>',
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2769,7 +2641,6 @@ test("whitespace between table cells is ignored", () => {
     <td>Cell 2</td>
   </tr>
 </table>`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2818,7 +2689,7 @@ test("whitespace between table cells is ignored", () => {
 
 // Test unclosed tags
 test("unclosed HTML tags are handled gracefully", () => {
-    expect(parseApiContentFromMarkdown("<strong>Bold text", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<strong>Bold text")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -2829,9 +2700,7 @@ test("unclosed HTML tags are handled gracefully", () => {
 });
 
 test("mismatched HTML tags", () => {
-    expect(
-        parseApiContentFromMarkdown("<strong>Bold <em>italic</strong> text</em>", {spaceId}),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("<strong>Bold <em>italic</strong> text</em>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -2867,7 +2736,6 @@ foo</td>bar
 
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toThrow("Table HTML isn\u2019t supported in Markdown phrasing content");
 });
@@ -2898,7 +2766,6 @@ Cell 2
 
 </tr>
 </table>`,
-            {spaceId},
         ),
     ).toThrow("Table HTML isn\u2019t supported in this Markdown block content parent");
 });
@@ -2911,7 +2778,6 @@ test("link reference with definition later", () => {
 My [link][example].
 
 [example]: https://example.com`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2936,7 +2802,6 @@ test("link reference with no definitions", () => {
         parseApiContentFromMarkdown(
             `\
 My [link][example] has no definition.`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2955,7 +2820,6 @@ test("link reference with definition earlier", () => {
 [example]: https://example.com
 
 My [link][example].`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -2984,7 +2848,6 @@ My [link][example].
 [example]: https://first.com
 [example]: https://second.com
 [example]: https://third.com`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3013,7 +2876,6 @@ test("link reference with multiple definitions earlier (uses first)", () => {
 [example]: https://third.com
 
 My [link][example].`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3044,7 +2906,6 @@ My [link][example].
 
 [example]: https://later1.com
 [example]: https://later2.com`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3073,7 +2934,6 @@ test("link reference with definition in quote block", () => {
 > [example]: https://quoted.com
 
 Regular [text][example].`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3117,7 +2977,6 @@ test("multiple link references with same identifier", () => {
 First [link][example] and second [link][example].
 
 [example]: https://example.com`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3151,7 +3010,6 @@ test("link reference with different identifiers", () => {
 
 [one]: https://one.com
 [two]: https://two.com`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3183,7 +3041,6 @@ test("link reference with marks", () => {
 **Bold [link][example]** and *italic [link][example]*.
 
 [example]: https://example.com`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3217,7 +3074,6 @@ test("link reference case insensitive matching", () => {
 [Link][Example] and [another][EXAMPLE].
 
 [example]: https://example.com`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3250,7 +3106,6 @@ test("link reference in list", () => {
 - Second [item][example]
 
 [example]: https://example.com`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3302,7 +3157,6 @@ First paragraph with [link][example].
 [example]: https://example.com
 
 Second paragraph with [link][example].`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3341,7 +3195,6 @@ test("link reference with invalid definition (no URL)", () => {
 My [link][example].
 
 [example]:`,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3367,7 +3220,6 @@ title: Hello, world!
 
 The quick brown fox jumps over the lazy dog.
 `,
-            {spaceId},
         ),
     ).toEqual({
         elements: [
@@ -3380,7 +3232,7 @@ The quick brown fox jumps over the lazy dog.
 });
 
 test("inline HTML <mark> tag without attributes defaults to orange highlight", () => {
-    expect(parseApiContentFromMarkdown("<mark>highlighted text</mark>", {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown("<mark>highlighted text</mark>")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -3398,9 +3250,7 @@ test("inline HTML <mark> tag without attributes defaults to orange highlight", (
 
 test("inline HTML <mark> tag in code block without attributes defaults to orange highlight", () => {
     expect(
-        parseApiContentFromMarkdown("<pre><code><mark>highlighted text</mark></code></pre>", {
-            spaceId,
-        }),
+        parseApiContentFromMarkdown("<pre><code><mark>highlighted text</mark></code></pre>"),
     ).toEqual({
         elements: [
             {
@@ -3572,11 +3422,7 @@ test("`parseMarkdownTree()` parses link reference in curly quotes without valid 
 });
 
 test("single newlines are turned into spaces", () => {
-    expect(
-        parseApiContentFromMarkdown("This is\na test\ncool.", {
-            spaceId: generateId<SpaceId>(),
-        }),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("This is\na test\ncool.")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -3587,11 +3433,7 @@ test("single newlines are turned into spaces", () => {
 });
 
 test("double newlines create new paragraphs", () => {
-    expect(
-        parseApiContentFromMarkdown("This is\n\na test\n\ncool.", {
-            spaceId: generateId<SpaceId>(),
-        }),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("This is\n\na test\n\ncool.")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -3610,11 +3452,7 @@ test("double newlines create new paragraphs", () => {
 });
 
 test("triple newlines create new paragraphs", () => {
-    expect(
-        parseApiContentFromMarkdown("This is\n\n\na test\n\n\ncool.", {
-            spaceId: generateId<SpaceId>(),
-        }),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("This is\n\n\na test\n\n\ncool.")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -3633,11 +3471,7 @@ test("triple newlines create new paragraphs", () => {
 });
 
 test("escaped newlines are turned into a break", () => {
-    expect(
-        parseApiContentFromMarkdown("A paragraph\\\nwith a break!", {
-            spaceId: generateId<SpaceId>(),
-        }),
-    ).toEqual({
+    expect(parseApiContentFromMarkdown("A paragraph\\\nwith a break!")).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -3680,10 +3514,9 @@ test("FileGallery with single-item rows is allowed in table cells via fromApiCon
     expect(() =>
         parseApiContentFromMarkdown(
             `<table><tr><td>` +
-                `<img src="https://alpine.inc/s/${spaceId}/files/${fileId1}"/>` +
-                `<img src="https://alpine.inc/s/${spaceId}/files/${fileId2}"/>` +
+                `<img src="https://alpine.inc/file/${fileId1}/content"/>` +
+                `<img src="https://alpine.inc/file/${fileId2}/content"/>` +
                 `</td></tr></table>`,
-            {spaceId},
         ),
     ).not.toThrow();
 });
@@ -3692,8 +3525,8 @@ test("gallery row div with style after other attributes still parses", () => {
     const fileId = generateChronologicalId<FileId>();
     // Style is the second attribute, not the first. The parser should still recognize
     // this as a gallery row.
-    const html = `<div id="foo" style="display: flex"><img src="https://alpine.inc/s/${spaceId}/files/${fileId}"/><img src="https://alpine.inc/s/${spaceId}/files/${fileId}"/></div>`;
-    expect(parseApiContentFromMarkdown(html, {spaceId})).toEqual({
+    const html = `<div id="foo" style="display: flex"><img src="https://alpine.inc/file/${fileId}/content"/><img src="https://alpine.inc/file/${fileId}/content"/></div>`;
+    expect(parseApiContentFromMarkdown(html)).toEqual({
         elements: [
             {
                 type: "FileGallery",
@@ -3713,8 +3546,8 @@ test("gallery row div with style after other attributes still parses", () => {
 test("gallery row div with style before other attributes still parses", () => {
     const fileId = generateChronologicalId<FileId>();
     // Style is the first attribute, followed by an unrelated attribute.
-    const html = `<div style="display: flex" id="bar"><img src="https://alpine.inc/s/${spaceId}/files/${fileId}"/><img src="https://alpine.inc/s/${spaceId}/files/${fileId}"/></div>`;
-    expect(parseApiContentFromMarkdown(html, {spaceId})).toEqual({
+    const html = `<div style="display: flex" id="bar"><img src="https://alpine.inc/file/${fileId}/content"/><img src="https://alpine.inc/file/${fileId}/content"/></div>`;
+    expect(parseApiContentFromMarkdown(html)).toEqual({
         elements: [
             {
                 type: "FileGallery",
@@ -3745,13 +3578,13 @@ test("FileFloat throws when used in table cells", () => {
 
 describe("inline HTML media elements", () => {
     function fileUrl(fileId: FileId): string {
-        return `https://alpine.inc/s/${spaceId}/files/${fileId}/content`;
+        return `https://alpine.inc/file/${fileId}/content`;
     }
 
     test("standalone video", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [{type: "File", id: fileId}],
         });
     });
@@ -3759,7 +3592,7 @@ describe("inline HTML media elements", () => {
     test("standalone audio", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<audio controls><source type="audio/mpeg" src="${fileUrl(fileId)}"/></audio>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [{type: "File", id: fileId}],
         });
     });
@@ -3767,7 +3600,7 @@ describe("inline HTML media elements", () => {
     test("standalone object (PDF)", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<object type="application/pdf" data="${fileUrl(fileId)}"/>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [{type: "File", id: fileId}],
         });
     });
@@ -3775,7 +3608,7 @@ describe("inline HTML media elements", () => {
     test("standalone image still parses as markdown image", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `![](${fileUrl(fileId)})\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [{type: "File", id: fileId}],
         });
     });
@@ -3783,7 +3616,7 @@ describe("inline HTML media elements", () => {
     test("video with text before", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `Here is a video: <video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [
                 {
                     type: "Paragraph",
@@ -3797,7 +3630,7 @@ describe("inline HTML media elements", () => {
     test("video with text after", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video> and some text\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [
                 {type: "File", id: fileId},
                 {
@@ -3811,7 +3644,7 @@ describe("inline HTML media elements", () => {
     test("video between paragraphs", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `First paragraph.\n\n<video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video>\n\nSecond paragraph.\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [
                 {
                     type: "Paragraph",
@@ -3829,7 +3662,7 @@ describe("inline HTML media elements", () => {
     test("video with src attribute instead of source child", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<video controls src="${fileUrl(fileId)}"></video>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [{type: "File", id: fileId}],
         });
     });
@@ -3837,7 +3670,7 @@ describe("inline HTML media elements", () => {
     test("video wrapped in div still works", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<div><video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video></div>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [{type: "File", id: fileId}],
         });
     });
@@ -3845,7 +3678,7 @@ describe("inline HTML media elements", () => {
     test("audio wrapped in div still works", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<div><audio controls><source type="audio/mpeg" src="${fileUrl(fileId)}"/></audio></div>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [{type: "File", id: fileId}],
         });
     });
@@ -3853,7 +3686,7 @@ describe("inline HTML media elements", () => {
     test("object wrapped in div still works", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<div><object type="application/pdf" data="${fileUrl(fileId)}"/></div>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [{type: "File", id: fileId}],
         });
     });
@@ -3864,7 +3697,7 @@ describe("inline HTML media elements", () => {
         const md =
             `<video controls><source type="video/mp4" src="${fileUrl(fileId1)}"/></video>\n\n` +
             `<video controls><source type="video/mp4" src="${fileUrl(fileId2)}"/></video>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [
                 {
                     type: "FileGallery",
@@ -3883,7 +3716,7 @@ describe("inline HTML media elements", () => {
         const md =
             `![](${fileUrl(fileId1)})\n\n` +
             `<video controls><source type="video/mp4" src="${fileUrl(fileId2)}"/></video>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [
                 {
                     type: "FileGallery",
@@ -3904,7 +3737,7 @@ describe("inline HTML media elements", () => {
             `<img alt="" src="${fileUrl(fileId1)}" style="flex: 0 0 50%"/>\n` +
             `<video controls style="flex: 0 0 50%"><source type="video/mp4" src="${fileUrl(fileId2)}"/></video>\n` +
             `</div>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [
                 {
                     type: "FileGallery",
@@ -3929,7 +3762,7 @@ describe("inline HTML media elements", () => {
             `<img alt="" src="${fileUrl(fileId1)}" style="flex: 0 0 50%"/>\n` +
             `<audio controls style="flex: 0 0 50%"><source type="audio/mpeg" src="${fileUrl(fileId2)}"/></audio>\n` +
             `</div>\n`;
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [
                 {
                     type: "FileGallery",
@@ -4005,7 +3838,7 @@ describe("inline HTML media elements", () => {
             ``,
         ].join("\n");
 
-        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+        expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [
                 // 1. Text
                 {
@@ -4095,10 +3928,7 @@ test("File throws when used in quote blocks", () => {
 test("link to document preview URL parses as Preview", () => {
     const documentId = generateId<DocumentId>();
     expect(
-        parseApiContentFromMarkdown(
-            `[My Document](https://alpine.inc/s/${spaceId}/documents/${documentId}/preview)`,
-            {spaceId},
-        ),
+        parseApiContentFromMarkdown(`[My Document](https://alpine.inc/doc/${documentId}/preview)`),
     ).toEqual({
         elements: [
             {
@@ -4112,10 +3942,7 @@ test("link to document preview URL parses as Preview", () => {
 test("link to channel preview URL parses as Preview", () => {
     const channelId = generateId<ChannelId>();
     expect(
-        parseApiContentFromMarkdown(
-            `[General](https://alpine.inc/s/${spaceId}/channels/${channelId}/preview)`,
-            {spaceId},
-        ),
+        parseApiContentFromMarkdown(`[General](https://alpine.inc/channel/${channelId}/preview)`),
     ).toEqual({
         elements: [
             {
@@ -4130,8 +3957,7 @@ test("HTML <a> tag inside <div> with preview URL parses as Preview", () => {
     const documentId = generateId<DocumentId>();
     expect(
         parseApiContentFromMarkdown(
-            `<div><a href="https://alpine.inc/s/${spaceId}/documents/${documentId}/preview">My Document</a></div>`,
-            {spaceId},
+            `<div><a href="https://alpine.inc/doc/${documentId}/preview">My Document</a></div>`,
         ),
     ).toEqual({
         elements: [
@@ -4144,7 +3970,7 @@ test("HTML <a> tag inside <div> with preview URL parses as Preview", () => {
 });
 
 test("link to non-preview URL parses as Paragraph with Link mark", () => {
-    expect(parseApiContentFromMarkdown(`[click here](https://example.com)`, {spaceId})).toEqual({
+    expect(parseApiContentFromMarkdown(`[click here](https://example.com)`)).toEqual({
         elements: [
             {
                 type: "Paragraph",

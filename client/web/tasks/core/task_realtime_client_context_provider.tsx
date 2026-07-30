@@ -15,7 +15,7 @@ import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_s
 import {unwrapLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable} from "~/client/web/tasks/core/subscribe_to_task_client_store_subscriptions_if_realtime_unavailable.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
@@ -136,8 +136,8 @@ function loadTaskDataIntoClient(client: TaskRealtimeClient, loaderData: SchemaSe
  *
  * We use the `clientLoader` feature we've added to Remix to imperatively update
  * `TaskRealtimeClient` before a render. `<TaskRealtimeClientContextProvider>`
- * lives on `/s/:spaceId` but we can't use the `/s/:spaceId` route's `clientLoader`
- * since `/s/:spaceId` doesn't revalidate unless the `SpaceId` changes. So it's the
+ * lives on the `_space` route but we can't use the `_space` route's `clientLoader`
+ * since `_space` doesn't revalidate unless the `SpaceId` changes. So it's the
  * route which loaded `loadTaskQueryData`'s responsibility to imperatively update
  * `TaskRealtimeClient` in their `clientLoader`. You can perform this update with
  * this function.
@@ -193,8 +193,8 @@ export function useTaskStoreLoaderDataWithoutRetaining(): {
 const TaskClientStoreContext = createContext<TaskClientStore | null>(null);
 
 /**
- * The task realtime client lives at the space route (`/s/:spaceId`) so the client
- * is available to any UI that needs it in the space.
+ * The task realtime client lives at the space route (`_space`) so the client is
+ * available to any UI that needs it in the space.
  */
 export function TaskRealtimeClientContextProvider({
     spaceId,
@@ -269,9 +269,9 @@ export function TaskRealtimeClientContextProvider({
             for (const loaderData of Object.values(dataRouterStateContext.loaderData)) {
                 loadTaskDataIntoClient(client, loaderData);
 
-                // If this is the inbox route (`s.$spaceId.inbox`) then check `peekData` for any
-                // task loader data we need to load into our store. Since before initialization in
-                // `app_client_routes.ts` won't have loaded task data into the store.
+                // If this is the inbox route (`_space.inbox.$spaceId`) then check `peekData` for
+                // any task loader data we need to load into our store. Since before initialization
+                // in `app_client_routes.ts` won't have loaded task data into the store.
                 if (isPlainObject(loaderData) && isObject(loaderData.peekData)) {
                     for (const peekLoaderData of Object.values<any>(
                         (loaderData as any).peekData.hydrationData.loaderData,

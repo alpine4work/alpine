@@ -151,6 +151,9 @@ function actuallyPrintAgentWebPageStoredLinkPathname(
         case "TaskCollection": {
             return `/task-collection/${slugify(link.title)}${dedupe}`;
         }
+        case "Site": {
+            return `/site/${slugify(link.title)}${dedupe}`;
+        }
         case "File": {
             return `/file/${slugify(getFileContentTypeNoun(link.contentType))}${dedupe}.${getFileContentTypePreferredExtension(link.contentType)}`;
         }
@@ -179,7 +182,8 @@ export function printAgentWebPageStoredLinkLabel(link: AgentWebPageStoredLink): 
         case "Account":
         case "Channel":
         case "Document":
-        case "TaskCollection": {
+        case "TaskCollection":
+        case "Site": {
             return link.title;
         }
         case "Chat": {

@@ -19,7 +19,7 @@ import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles, tasksStyles} from "~/client/web/styles/styles.js";
 import {
     taskDetailViewTitleFontSize,
@@ -35,6 +35,7 @@ import {
     TaskTitleModel,
     TaskTitleProsemirrorSchema,
     TaskTitleUpdateModel,
+    generateTaskTitleClientIdFromRealmId,
 } from "~/shared/tasks/title/task_title.js";
 
 export type TaskDetailTitleInputRef = {
@@ -65,6 +66,7 @@ export {TaskDetailTitleInputForwardRef as TaskDetailTitleInput};
 function TaskDetailTitleInput(
     props: {
         title: TaskTitleModel;
+        taskEntryRevertCount: number;
         onTitleChange: (titleUpdate: TaskTitleUpdateModel) => void;
         placeholder: string;
         isReadOnly: boolean;
@@ -169,6 +171,11 @@ function TaskDetailTitleInput(
 
                         const {update: titleUpdate, truncatedCharacterCount} =
                             propsRef.current.title.replaceManyWithStepWithTruncatedCharacterCount(
+                                // Very important that we use a consistent `TaskTitleClientId` here across updates
+                                // so the Yjs adjacent item merging optimization applies!
+                                generateTaskTitleClientIdFromRealmId({
+                                    revertCount: propsRef.current.taskEntryRevertCount,
+                                }),
                                 mapIterable(transaction.steps, step => {
                                     assert(step instanceof ReplaceStep);
                                     return step;

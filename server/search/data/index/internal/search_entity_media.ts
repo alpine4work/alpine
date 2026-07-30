@@ -6,6 +6,7 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SiteItemSearchEntityIdSchema} from "~/shared/search/site_item_search_entity_id.js";
 
 export type SearchEntityMedia = SchemaType<typeof SearchEntityMediaSchema>;
 
@@ -50,9 +51,21 @@ export const SearchEntityTaskDisplayStatusMediaSchema = Schema.object({
     version: HybridLogicalTimeSchema.default(zeroHybridLogicalTime),
 });
 
+// NOTE(ifitzsimmons, 2026-05-04): This breaks the convention of having a media
+// object for a very specific piece of data (e.g. task status or task collection
+// color). However, the existing convention breaks down if the search entity needs
+// multiple pieces of information. For example, a site needs the first entity id
+// and it may also need to root container id or root container type in order to
+// render something like a site preview.
+export const SearchEntitySiteMediaSchema = Schema.object({
+    type: Schema.value("Site"),
+    firstEntityId: SiteItemSearchEntityIdSchema.nullable(),
+});
+
 export const SearchEntityMediaSchema = Schema.union({
     Account: SearchEntityAccountMediaSchema,
     AccountPile: SearchEntityAccountPileMediaSchema,
     TaskCollectionColor: SearchEntityTaskCollectionColorMediaSchema,
     TaskDisplayStatus: SearchEntityTaskDisplayStatusMediaSchema,
+    Site: SearchEntitySiteMediaSchema,
 });

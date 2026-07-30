@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 function createDocumentContentFromMarkdown(markdown: string): ApiContentResponse {
-    return parseApiContentFromMarkdown(markdown, {spaceId}) as ApiContentResponse;
+    return parseApiContentFromMarkdown(markdown) as ApiContentResponse;
 }
 
 async function seedDocumentPathViaPrint(documentId: DocumentId, title: string): Promise<string> {

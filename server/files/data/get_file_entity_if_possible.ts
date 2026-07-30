@@ -2,6 +2,7 @@ import {ServerActionContextModules} from "~/server/context/server_action_context
 import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_document_file_entity_model_if_possible.js";
 import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
 import {getFileChatEntityModelIfPossible} from "~/server/files/data/get_file_chat_entity_model_if_possible.js";
+import {getFileSiteEntityModelIfPossible} from "~/server/files/data/get_file_site_entity_model_if_possible.js";
 import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
 import {getFileTaskEntityModelIfPossible} from "~/server/files/data/get_file_task_entity_model_if_possible.js";
 import {FileChatEntityModelSchema} from "~/shared/chat/file_chat_entity_model_schema.js";
@@ -9,7 +10,7 @@ import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
-import {ErrorBase, UnimplementedError} from "~/shared/error/error.js";
+import {ErrorBase} from "~/shared/error/error.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {fileEntityMaxRecursionDepth} from "~/shared/files/file_entity_max_recursion_depth.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
@@ -21,6 +22,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {FileSiteEntityModelSchema} from "~/shared/sites/file_site_entity_model_schema.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {FileTaskCollectionEntityModelSchema} from "~/shared/tasks/file_task_collection_entity_model.js";
 import {FileTaskEntityModelSchema} from "~/shared/tasks/file_task_entity_model.js";
 
@@ -42,6 +45,15 @@ export async function getFileEntityIfPossible(
     context: Context<ServerActionContextModules & {fileEntityDepth?: FileEntityDepthContextModule}>,
     spaceId: SpaceId,
     entityId: FileEntityId,
+    options?: {
+        /**
+         * If the caller already has a `SitePreviewModel` loaded (e.g. the site file entity
+         * loader passing its own site down to its first entity) and it matches the inner
+         * entity's site, the inner loader can reuse it instead of fetching the same site
+         * preview again.
+         */
+        siteIfAlreadyLoaded?: SitePreviewModel;
+    },
 ): Promise<Result<FileEntityModel, ErrorBase> | null> {
     const depth = context.fileEntityDepth?.depth ?? 0;
 
@@ -66,6 +78,7 @@ export async function getFileEntityIfPossible(
             const result = await getFileDocumentEntityModelIfPossible(
                 context,
                 entityIdObject.documentId,
+                {siteIfAlreadyLoaded: options?.siteIfAlreadyLoaded},
             );
             return mapResult(
                 result,
@@ -98,6 +111,7 @@ export async function getFileEntityIfPossible(
             const result = await getFileChannelEntityModelIfPossible(
                 context,
                 entityIdObject.channelId,
+                {siteIfAlreadyLoaded: options?.siteIfAlreadyLoaded},
             );
             return mapResult(
                 result,
@@ -105,7 +119,9 @@ export async function getFileEntityIfPossible(
             );
         }
         case "Chat": {
-            const result = await getFileChatEntityModelIfPossible(context, entityIdObject.chatId);
+            const result = await getFileChatEntityModelIfPossible(context, entityIdObject.chatId, {
+                siteIfAlreadyLoaded: options?.siteIfAlreadyLoaded,
+            });
             return mapResult(
                 result,
                 model => new FileEntityModel(FileChatEntityModelSchema, model),
@@ -143,8 +159,11 @@ export async function getFileEntityIfPossible(
             };
         }
         case "Site": {
-            // TODO(#sites): Implement site file entity model.
-            throw new UnimplementedError("Site file entities aren\u2019t implemented");
+            const result = await getFileSiteEntityModelIfPossible(context, entityIdObject.siteId);
+            return mapResult(
+                result,
+                model => new FileEntityModel(FileSiteEntityModelSchema, model),
+            );
         }
         default:
             throw exhaustive(entityIdObject);

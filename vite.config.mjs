@@ -74,6 +74,16 @@ export default defineConfig(({mode}) => {
             __RESOURCE_SERVICE_URL__: JSON.stringify(
                 process.env.NODE_ENV === "production" ? "https://resources.alpine.inc" : "",
             ),
+            // Giphy API keys are designed to be public client-side keys. They are exposed in
+            // browser network requests and restricted by domain in the Giphy developer
+            // dashboard.
+            __GIPHY_SDK_API_KEY__: JSON.stringify(
+                process.env.NODE_ENV === "production"
+                    ? // Production Key, held under josh@alpine.inc on developers.giphy.com
+                      "OiJEhJmfiLfP7GXCVsXxXnxie3HM8bZJ"
+                    : // Development Key, held under josh@alpine.inc on developers.giphy.com
+                      "gvltSVwZhG8LHYm27KI3AM2xsAO6i8Mx",
+            ),
         },
         plugins: [
             process.env.VITE_CONFIG_WITHOUT_REMIX_PLUGIN !== "true" &&

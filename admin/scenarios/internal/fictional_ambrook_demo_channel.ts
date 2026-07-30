@@ -5,8 +5,8 @@ import {createDebug} from "~/admin/helpers/create_debug.js";
 import {uploadScenarioFile} from "~/admin/scenarios/internal/upload_scenario_file.js";
 import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {PostContentProsemirrorSchema} from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -82,9 +82,8 @@ export async function createFictionalAmbrookDemoChannel(
 📣 Brainstorm and share ideas for outreach, social content, campaigns, and growth. Everything from
 big-picture strategy to post drafts lives here.
 
-Refer to
-[Social Content Calendar](https://alpine.inc/s/{{spaceId}}/tasks/collections/{{collectionId}}?mention)
-for the current plan.
+Refer to [Social Content Calendar](https://alpine.inc/tasks/{{collectionId}}?mention) for the
+current plan.
             `,
             {
                 spaceId: space.id,

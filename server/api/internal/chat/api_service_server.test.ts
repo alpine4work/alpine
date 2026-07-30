@@ -975,11 +975,9 @@ test("can read messages", async () => {
         }),
     });
 
-    expect(
-        printApiContentToMarkdown(response.body.messages[0].payload.content, {
-            spaceId: space.id,
-        }),
-    ).toEqual("Hello, world!\n");
+    expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+        "Hello, world!\n",
+    );
 });
 
 test("can\u2019t read message with invalid string query parameter", async () => {

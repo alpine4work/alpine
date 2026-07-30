@@ -6,12 +6,12 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -45,94 +45,97 @@ export async function updateRoomChatAccessPolicy(
      * general-realtime table so chat-side events flow through a separate mechanism —
      * only site events are surfaced here.
      */
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventsForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const currentTime = new Date();
 
-    const {
-        spaceId,
-        creatorId,
-        shouldAddFeedCandidateEntry,
-        getChatModel,
-        getDynamoGeneralRealtimeEventTransactionForSite,
-    } = await context.dynamo.retryTransaction(async context => {
-        const attributesItem = await authorizeChatAccessAndReturnItem(context, chatId, "Manage");
-
-        if (attributesItem.definition.type !== "Room") {
-            throw new FailedPreconditionError("Can only update a room chat\u2019s access policy");
-        }
-
-        const {creatorId} = attributesItem.definition;
-
-        const oldHasAddedFeedCandidateEntry = attributesItem.definition.hasAddedFeedCandidateEntry;
-
-        const {resolvedAccessPolicy: newEffectiveAccessPolicy, transactionEntries} =
-            await validateAccessPolicyUpdateForServer(
+    const {spaceId, creatorId, shouldAddFeedCandidateEntry, getChatModel, getRynamoEventsForSite} =
+        await context.dynamo.retryTransaction(async context => {
+            const attributesItem = await authorizeChatAccessAndReturnItem(
                 context,
-                attributesItem.spaceId,
-                `Chat:${chatId}`,
-                attributesItem.definition.accessPolicy,
-                accessPolicy,
+                chatId,
+                "Manage",
             );
 
-        const newHasAddedFeedCandidateEntry =
-            oldHasAddedFeedCandidateEntry || !!newEffectiveAccessPolicy.defaultGrant;
+            if (attributesItem.definition.type !== "Room") {
+                throw new FailedPreconditionError(
+                    "Can only update a room chat\u2019s access policy",
+                );
+            }
 
-        const updatedAttributesItem = {
-            ...attributesItem,
-            definition: {
-                ...attributesItem.definition,
-                accessPolicy,
-                hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
-            },
-        };
+            const {creatorId} = attributesItem.definition;
 
-        if (transactionEntries.length === 0) {
-            const newAttributesItem = await ChatTable.directlyUpdateItem(
-                context,
-                updatedAttributesItem,
-            );
+            const oldHasAddedFeedCandidateEntry =
+                attributesItem.definition.hasAddedFeedCandidateEntry;
 
-            return {
-                spaceId: attributesItem.spaceId,
-                creatorId,
-                shouldAddFeedCandidateEntry:
-                    newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
-                getChatModel: (context: ServerActionContext) =>
-                    createChatModelFromItem(context, {
-                        attributesItem: newAttributesItem,
-                        accountItems: emptyArray,
-                    }),
-                getDynamoGeneralRealtimeEventTransactionForSite: async () => emptyArray,
+            const {resolvedAccessPolicy: newEffectiveAccessPolicy, transactionEntries} =
+                await validateAccessPolicyUpdateForServer(
+                    context,
+                    attributesItem.spaceId,
+                    `Chat:${chatId}`,
+                    attributesItem.definition.accessPolicy,
+                    accessPolicy,
+                );
+
+            const newHasAddedFeedCandidateEntry =
+                oldHasAddedFeedCandidateEntry || !!newEffectiveAccessPolicy.defaultGrant;
+
+            const updatedAttributesItem = {
+                ...attributesItem,
+                definition: {
+                    ...attributesItem.definition,
+                    accessPolicy,
+                    hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
+                },
             };
-        } else {
-            const updateAttrtibutesTransactionEntry =
-                ChatTable.transactionDirectlyUpdateItem(updatedAttributesItem);
-            // Commit the chat update and the site item writes in a single transaction so the
-            // chat's access policy and the site membership stay consistent.
-            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
-                updateAttrtibutesTransactionEntry,
-                ...transactionEntries.map(entry => entry.transactionEntry),
-            ]);
 
-            return {
-                spaceId: attributesItem.spaceId,
-                creatorId,
-                shouldAddFeedCandidateEntry:
-                    newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
-                getChatModel: (context: ServerActionContext) =>
-                    createChatModelFromItem(context, {
-                        attributesItem: updateAttrtibutesTransactionEntry.newItem,
-                        accountItems: emptyArray,
-                    }),
-                getDynamoGeneralRealtimeEventTransactionForSite: async (
-                    eventContext: ServerActionContext,
-                ) => runAllPromises(transactionEntries.map(entry => entry.getEvent(eventContext))),
-            };
-        }
-    });
+            if (transactionEntries.length === 0) {
+                const newAttributesItem = await ChatTable.directlyUpdateItem(
+                    context,
+                    updatedAttributesItem,
+                );
+
+                return {
+                    spaceId: attributesItem.spaceId,
+                    creatorId,
+                    shouldAddFeedCandidateEntry:
+                        newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
+                    getChatModel: (context: ServerActionContext) =>
+                        createChatModelFromItem(context, {
+                            attributesItem: newAttributesItem,
+                            accountItems: emptyArray,
+                        }),
+                    getRynamoEventsForSite: async () => emptyArray,
+                };
+            } else {
+                const updateAttrtibutesTransactionEntry =
+                    ChatTable.transactionDirectlyUpdateItem(updatedAttributesItem);
+                // Commit the chat update and the site item writes in a single transaction so the
+                // chat's access policy and the site membership stay consistent.
+                await RynamoTableSchema.executeTransaction(context, [
+                    updateAttrtibutesTransactionEntry,
+                    ...transactionEntries.map(entry => entry.transactionEntry),
+                ]);
+
+                return {
+                    spaceId: attributesItem.spaceId,
+                    creatorId,
+                    shouldAddFeedCandidateEntry:
+                        newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
+                    getChatModel: (context: ServerActionContext) =>
+                        createChatModelFromItem(context, {
+                            attributesItem: updateAttrtibutesTransactionEntry.newItem,
+                            accountItems: emptyArray,
+                        }),
+                    getRynamoEventsForSite: async (eventContext: ServerActionContext) =>
+                        await runAllPromises(
+                            transactionEntries.map(entry => entry.getEvent(eventContext)),
+                        ),
+                };
+            }
+        });
 
     if (shouldAddFeedCandidateEntry) {
         context.process.waitUntil(async () => {
@@ -170,5 +173,5 @@ export async function updateRoomChatAccessPolicy(
         });
     }
 
-    return {get: getChatModel, getDynamoGeneralRealtimeEventTransactionForSite};
+    return {get: getChatModel, getRynamoEventsForSite};
 }

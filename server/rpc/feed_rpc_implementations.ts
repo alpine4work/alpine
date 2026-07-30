@@ -6,7 +6,7 @@ export default implementRpcs(definitions, {
     getFeedEntries: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            return getFeedEntries(context.actor.authorizeSession(), input);
+            return await getFeedEntries(context.actor.authorizeSession(), input);
         },
     },
 });

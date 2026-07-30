@@ -62,7 +62,7 @@ export async function getChannelContributors(
     // `ChannelPreviewModel` cache to avoid extra fetches.
     ChannelPreviewItemAuthorizationCache.set(context, consistency, channelId, cachedPromise);
 
-    return (async () => {
+    return await (async () => {
         const result = await promise;
         if (!result) throw createChannelNotFoundError(channelId);
 
@@ -97,7 +97,7 @@ export async function getChannelContributors(
             }
         }
 
-        return runAllPromises(contributorPromises);
+        return await runAllPromises(contributorPromises);
     })();
 }
 

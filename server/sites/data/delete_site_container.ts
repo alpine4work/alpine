@@ -2,10 +2,11 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {getSiteTreeForUpdate} from "~/server/sites/data/internal/get_site_tree_for_update.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -37,11 +38,11 @@ export async function deleteSiteContainer(
     },
     {clientRequestToken}: {clientRequestToken?: string} = {},
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
-    return context.dynamo.retryTransaction(async () => {
+    return await context.dynamo.retryTransaction(async () => {
         const {siteTree, siteAttributesItem} = await getSiteTreeForUpdate(
             context,
             siteId,
@@ -67,14 +68,23 @@ export async function deleteSiteContainer(
 
         const deleteItemEntry = SitesTable.transactionDeleteItemWithEvent(oldEntry.item);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(
+        await RynamoTableSchema.executeTransaction(
             context,
             [deleteItemEntry.transactionEntry, updateSiteAttributesEntry.transactionEntry],
             {clientRequestToken},
         );
 
+        context.process.waitUntil(
+            markSearchAffinityEntityInteraction(context, {
+                spaceId: siteAttributesItem.spaceId,
+                entityId: `Site:${siteId}`,
+                interaction: {type: "MediumIntentUpdate"},
+                siteId: null,
+            }),
+        );
+
         return {
-            getDynamoGeneralRealtimeEventTransaction: context =>
+            getRynamoEvents: context =>
                 runAllPromises([
                     updateSiteAttributesEntry.getEvent(context),
                     deleteItemEntry.event,

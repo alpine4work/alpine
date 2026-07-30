@@ -45,7 +45,7 @@ export async function getAccountSettingsItem(
         if (item) return item.settingsItem;
     }
 
-    return AccountSettingsItemContextCache.get(
+    return await AccountSettingsItemContextCache.get(
         context,
         consistency,
         accountId,

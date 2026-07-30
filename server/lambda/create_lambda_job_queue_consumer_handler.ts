@@ -91,7 +91,7 @@ export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobD
             tokenAgentAndOptionsPromise ??= parentSpan.withSpan(
                 "Allocate token agent and context options",
                 async childSpan =>
-                    getLambdaActionContextOptions(serviceSecretsSchema, childSpan).then(
+                    await getLambdaActionContextOptions(serviceSecretsSchema, childSpan).then(
                         async options => {
                             const tokenAgent = await childSpan.withSpan(
                                 "Creating token agent",
@@ -236,10 +236,18 @@ async function _processJob<TJobDescription extends JobDescription>(
                 actor: SystemActorContextModule.dangerouslyNew(serviceName, spaceId),
             },
             context =>
-                withLambdaTimeout(lambdaContext, new AbortController(), async () =>
-                    // TODO(ifitzsimmons, 2025-09-16): Update processJob signature to include the abort
-                    // controller.
-                    processJob(context, messageBody.job as TJobDescription, jobStartTime, span!),
+                withLambdaTimeout(
+                    lambdaContext,
+                    new AbortController(),
+                    async () =>
+                        // TODO(ifitzsimmons, 2025-09-16): Update processJob signature to include the abort
+                        // controller.
+                        await processJob(
+                            context,
+                            messageBody.job as TJobDescription,
+                            jobStartTime,
+                            span!,
+                        ),
                 ),
         );
         finishSpan();

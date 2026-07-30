@@ -16,7 +16,7 @@ import {getGlobalContext} from "~/client/web/helpers/global_context.js";
 import {getErrorDisplayMessageForPartialInviteAccountsFailure} from "~/client/web/navigation/internal/get_error_display_message_for_partial_invite_accounts_failure.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/web/styles/styles.js";
 import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";

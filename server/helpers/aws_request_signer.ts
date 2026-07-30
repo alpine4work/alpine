@@ -100,10 +100,10 @@ export class AwsRequestSigner {
                 if (this._nextState !== null) {
                     this._currentState = this._nextState;
                     this._nextState = null;
-                    return this._getState(span);
+                    return await this._getState(span);
                 } else {
                     this._currentState = this._fetchState(span);
-                    return this._getState(span);
+                    return await this._getState(span);
                 }
             }
         }
@@ -123,6 +123,6 @@ export class AwsRequestSigner {
     // `fetch(url, {sign: signer.sign})`.
     public readonly sign = async (request: Request, span?: TracerSpan): Promise<Request> => {
         const state = await this._getState(span);
-        return state.client.sign(request);
+        return await state.client.sign(request);
     };
 }

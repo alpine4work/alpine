@@ -51,8 +51,8 @@ import {WaveformIcon} from "~/client/web/icons/waveform_icon.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     messageInputEditorBorderRadiusPx,
     messageInputEditorIconButtonSize,
@@ -165,7 +165,7 @@ export function ContentEditorCommentInputFloater({
     }, [range.from, range.to, state.doc, state.schema.marks.comment]);
 
     const [commentState, setCommentState] = useState(() =>
-        ContentEditorState.create(emptyMessageContentWithReferences),
+        ContentEditorState.create({spaceId: space.id, content: emptyMessageContentWithReferences}),
     );
     const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
 

@@ -280,7 +280,9 @@ export function processPdfDocumentFile(
                     });
                 }
 
-                return sharpInstance.toFile(previewContentPath).catch(rethrowClassifiedSharpError);
+                return await sharpInstance
+                    .toFile(previewContentPath)
+                    .catch(rethrowClassifiedSharpError);
             },
         );
 
@@ -295,12 +297,12 @@ export function processPdfDocumentFile(
         if (extractPreview) {
             const previewContent = await previewContentPromise;
 
-            return processFileImagePreviewPlaceholder(context, previewContentPath, {
+            return await processFileImagePreviewPlaceholder(context, previewContentPath, {
                 contentType: previewContent.contentType,
                 contentLength: previewContent.contentLength,
             });
         } else {
-            return processFileImagePreviewPlaceholder(context, inputPath, {
+            return await processFileImagePreviewPlaceholder(context, inputPath, {
                 contentType: "application/pdf",
                 contentLength,
             });

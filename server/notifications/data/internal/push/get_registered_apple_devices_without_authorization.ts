@@ -22,7 +22,7 @@ export async function getRegisteredAppleDevicesForAccountWithoutAuthorization(
     context: Context<DynamoContextModules & {actor: ActorContextModule}>,
     accountId: AccountId,
 ): Promise<ReadonlyArray<AppleDeviceTarget>> {
-    return arrayFromAsyncIterable<AppleDeviceTokenItem, AppleDeviceTarget>(
+    return await arrayFromAsyncIterable<AppleDeviceTokenItem, AppleDeviceTarget>(
         NotificationsTable.query(context, {
             partitionKey: {partitionType: "PushTargets", accountId},
             startSortKey: {

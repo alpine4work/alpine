@@ -8,7 +8,7 @@ import {createOrReplacePostDraft} from "~/server/forum/data/create_or_replace_po
 import {createPost} from "~/server/forum/data/create_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {createSimpleDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {createSimplePostContent, emptyPostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -44,7 +44,7 @@ const testCases: Array<{
                 otherAccountIds: [otherSession.account.id],
             });
 
-            await page.goto(`/s/${space.id}/chat/${chatId}`);
+            await page.goto(`/chat/${chatId}`);
 
             return {
                 editorLocator: page.getByRole("textbox", {name: "New message"}),
@@ -65,7 +65,7 @@ const testCases: Array<{
                 createdTimeZone: defaultTimeZone,
             });
 
-            await page.goto(`/s/${space.id}/posts/${post.id}`);
+            await page.goto(`/post/${post.id}`);
 
             return {
                 editorLocator: page.getByRole("textbox", {name: "New comment"}),
@@ -93,7 +93,7 @@ const testCases: Array<{
                 },
             );
 
-            await page.goto(`/s/${space.id}/posts/new/${draftId}`);
+            await page.goto(`/post/new/${draftId}/${space.id}`);
 
             return {
                 editorLocator: page.getByRole("textbox", {name: "New post"}),
@@ -117,7 +117,7 @@ const testCases: Array<{
                 createdTimeZone: defaultTimeZone,
             });
 
-            await page.goto(`/s/${space.id}/posts/${post.id}`);
+            await page.goto(`/post/${post.id}`);
 
             await page.getByRole("button", {name: "More"}).click();
             await page.getByRole("menuitem", {name: "Edit"}).click();
@@ -138,7 +138,7 @@ const testCases: Array<{
                 spaceId: space.id,
             });
 
-            await page.goto(`/s/${space.id}/documents/${document.id}`);
+            await page.goto(`/doc/${document.id}`);
 
             const editorLocator = page.getByRole("textbox", {name: "Document"});
 
@@ -175,7 +175,7 @@ const testCases: Array<{
                 content: createSimpleDocumentContent(session.account.id, "foobar"),
             });
 
-            await page.goto(`/s/${space.id}/documents/${document.id}`);
+            await page.goto(`/doc/${document.id}`);
 
             const canPrimaryInputHover = await page.evaluate(
                 () => !window.matchMedia("(hover: none)").matches,
@@ -216,7 +216,7 @@ const testCases: Array<{
     },
     {
         name: "document comment (existing thread)",
-        setup: async ({page, isMobile, viewport, space, session}) => {
+        setup: async ({page, isMobile, viewport, session}) => {
             assert(viewport);
 
             const document = await TestDocument.create(session);
@@ -229,12 +229,12 @@ const testCases: Array<{
                 "Test comment",
             );
 
-            await page.goto(`/s/${space.id}/documents/${document.id}?comments=${commentThread.id}`);
+            await page.goto(`/doc/${document.id}?thread=${commentThread.id}`);
 
             const editorLocator = page.getByRole("textbox", {name: "New comment"});
 
             if (isMobile) {
-                await page.getByText("Add a comment").tap();
+                await page.getByText("Add a comment", {exact: true}).tap();
                 await expect(editorLocator).toBeVisible();
                 await (await editorLocator.elementHandle())!.waitForElementState("stable");
             }
@@ -249,10 +249,10 @@ const testCases: Array<{
     },
     {
         name: "task notes",
-        setup: async ({page, isMobile, space, session}) => {
+        setup: async ({page, isMobile, session}) => {
             const task = await TestTask.create(session);
 
-            await page.goto(`/s/${space.id}/tasks/${task.id}`);
+            await page.goto(`/task/${task.id}`);
 
             const editorLocator = page.getByRole("textbox", {name: "Notes"});
 

@@ -9,6 +9,7 @@ import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {backfillTaskActionTransactionHistoryTestCounter} from "~/server/tasks/data/backfill_task_action_transaction_history_test_counter.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
     getTaskIndexDocIfExistsForTest,
@@ -18,16 +19,15 @@ import {
     queryTaskIndexTestCounter,
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {backfillTaskActionTransactionHistoryTestCounter} from "~/server/tasks/data/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {taskRealtimeStoreBeforeLoadTaskTestCheckpoint} from "~/server/tasks/realtime/task_realtime_store.js";
 import {
     TestTaskRealtimeServer,
     waitForIndexActionTransactionsWithoutClearingActionHistory,
 } from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -163,7 +163,7 @@ test("loadQueries authorizes tasks shared via access policy", async () => {
     const task1 = await TestTask.create(session1);
 
     const loadQueries = async () =>
-        server.action(session2).tasks.loadQueries(space.id, {
+        await server.action(session2).tasks.loadQueries(space.id, {
             queries: [],
             taskIds: [task1.id],
             collectionIds: [],
@@ -4290,22 +4290,26 @@ test("query after creator account name update applied and refreshed", async () =
 
     expect((await task1.getIndexDoc({realtime: false})).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
     expect((await task1.getIndexDoc({realtime: true})).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
 
     expect((await task2.getIndexDoc({realtime: false})).creator).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task2.getIndexDoc({realtime: true})).creator).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4317,6 +4321,7 @@ test("query after creator account name update applied and refreshed", async () =
                 id: task1.id,
                 creator: {
                     accountId: session1.account.id,
+                    from: null,
                     workingAccountName: newAccountName,
                     workingAccountNameVersion: 1,
                 },
@@ -4325,6 +4330,7 @@ test("query after creator account name update applied and refreshed", async () =
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: session2.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -4360,22 +4366,26 @@ test("query after creator account name update applied but not refreshed", async 
 
     expect((await task1.getIndexDoc({realtime: false})).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: session1.account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task1.getIndexDoc({realtime: true})).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
 
     expect((await task2.getIndexDoc({realtime: false})).creator).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task2.getIndexDoc({realtime: true})).creator).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4387,6 +4397,7 @@ test("query after creator account name update applied but not refreshed", async 
                 id: task1.id,
                 creator: {
                     accountId: session1.account.id,
+                    from: null,
                     workingAccountName: newAccountName,
                     workingAccountNameVersion: 1,
                 },
@@ -4395,6 +4406,7 @@ test("query after creator account name update applied but not refreshed", async 
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: session2.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -4430,6 +4442,7 @@ test("query before creator account name update applied but not refreshed", async
                 id: task1.id,
                 creator: {
                     accountId: session1.account.id,
+                    from: null,
                     workingAccountName: session1.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -4438,6 +4451,7 @@ test("query before creator account name update applied but not refreshed", async
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: session2.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -4452,22 +4466,26 @@ test("query before creator account name update applied but not refreshed", async
 
     expect((await task1.getIndexDoc({realtime: false})).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: session1.account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task1.getIndexDoc({realtime: true})).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
 
     expect((await task2.getIndexDoc({realtime: false})).creator).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task2.getIndexDoc({realtime: true})).creator).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4479,6 +4497,7 @@ test("query before creator account name update applied but not refreshed", async
                 id: task1.id,
                 creator: {
                     accountId: session1.account.id,
+                    from: null,
                     workingAccountName: newAccountName,
                     workingAccountNameVersion: 1,
                 },
@@ -4487,6 +4506,7 @@ test("query before creator account name update applied but not refreshed", async
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: session2.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -4533,6 +4553,7 @@ test("update introduces task with creator account name update to query when inde
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: session2.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -4555,6 +4576,7 @@ test("update introduces task with creator account name update to query when inde
             ?.creator,
     ).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: session1.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4563,6 +4585,7 @@ test("update introduces task with creator account name update to query when inde
             ?.creator,
     ).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: session1.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4572,6 +4595,7 @@ test("update introduces task with creator account name update to query when inde
             ?.creator,
     ).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4580,6 +4604,7 @@ test("update introduces task with creator account name update to query when inde
             ?.creator,
     ).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4593,6 +4618,7 @@ test("update introduces task with creator account name update to query when inde
             ?.creator,
     ).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: session1.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4601,6 +4627,7 @@ test("update introduces task with creator account name update to query when inde
             ?.creator,
     ).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: session1.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4610,6 +4637,7 @@ test("update introduces task with creator account name update to query when inde
             ?.creator,
     ).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4618,6 +4646,7 @@ test("update introduces task with creator account name update to query when inde
             ?.creator,
     ).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4638,6 +4667,7 @@ test("update introduces task with creator account name update to query when inde
                 id: task1.id,
                 creator: {
                     accountId: session1.account.id,
+                    from: null,
                     workingAccountName: newAccountName,
                     workingAccountNameVersion: 1,
                 },
@@ -4646,6 +4676,7 @@ test("update introduces task with creator account name update to query when inde
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: session2.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -4658,22 +4689,26 @@ test("update introduces task with creator account name update to query when inde
 
     expect((await task1.getIndexDoc({realtime: false})).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: session1.account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task1.getIndexDoc({realtime: true})).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
 
     expect((await task2.getIndexDoc({realtime: false})).creator).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task2.getIndexDoc({realtime: true})).creator).toEqual({
         accountId: session2.account.id,
+        from: null,
         workingAccountName: session2.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -4694,6 +4729,7 @@ test("update introduces task with creator account name update to query when inde
                 id: task1.id,
                 creator: {
                     accountId: session1.account.id,
+                    from: null,
                     workingAccountName: newAccountName,
                     workingAccountNameVersion: 1,
                 },
@@ -4702,6 +4738,7 @@ test("update introduces task with creator account name update to query when inde
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: session2.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -6560,6 +6597,7 @@ test("query before creator, closer, assignee, and assigner account name update a
                 id: task.id,
                 creator: {
                     accountId: session.account.id,
+                    from: null,
                     workingAccountName: session.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -6600,6 +6638,7 @@ test("query before creator, closer, assignee, and assigner account name update a
             id: task.id,
             creator: {
                 accountId: session.account.id,
+                from: null,
                 workingAccountName: session.account.initialName,
                 workingAccountNameVersion: 0,
             },
@@ -6633,6 +6672,7 @@ test("query before creator, closer, assignee, and assigner account name update a
             id: task.id,
             creator: {
                 accountId: session.account.id,
+                from: null,
                 workingAccountName: newAccountName,
                 workingAccountNameVersion: 1,
             },
@@ -6678,6 +6718,7 @@ test("query before creator, closer, assignee, and assigner account name update a
                 id: task.id,
                 creator: {
                     accountId: session.account.id,
+                    from: null,
                     workingAccountName: newAccountName,
                     workingAccountNameVersion: 1,
                 },
@@ -6747,6 +6788,7 @@ test("referenced creator gets correct account name when query is loaded before",
                 id: task1.id,
                 creator: {
                     accountId: session1.account.id,
+                    from: null,
                     workingAccountName: newAccountName,
                     workingAccountNameVersion: 1,
                 },
@@ -6755,6 +6797,7 @@ test("referenced creator gets correct account name when query is loaded before",
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: session2.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -6796,6 +6839,7 @@ test("referenced creator gets correct account name when query is loaded after", 
                 id: task1.id,
                 creator: {
                     accountId: session1.account.id,
+                    from: null,
                     workingAccountName: newAccountName,
                     workingAccountNameVersion: 1,
                 },
@@ -6804,6 +6848,7 @@ test("referenced creator gets correct account name when query is loaded after", 
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: session2.account.initialName,
                     workingAccountNameVersion: 0,
                 },
@@ -7346,6 +7391,7 @@ test("tasks reorder when creator account name changes", async () => {
                 id: task1.id,
                 creator: {
                     accountId: session1.account.id,
+                    from: null,
                     workingAccountName: "a",
                     workingAccountNameVersion: 1,
                 },
@@ -7354,6 +7400,7 @@ test("tasks reorder when creator account name changes", async () => {
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: "b",
                     workingAccountNameVersion: 1,
                 },
@@ -7376,6 +7423,7 @@ test("tasks reorder when creator account name changes", async () => {
                 id: task2.id,
                 creator: {
                     accountId: session2.account.id,
+                    from: null,
                     workingAccountName: "b",
                     workingAccountNameVersion: 1,
                 },
@@ -7384,6 +7432,7 @@ test("tasks reorder when creator account name changes", async () => {
                 id: task1.id,
                 creator: {
                     accountId: session1.account.id,
+                    from: null,
                     workingAccountName: "c",
                     workingAccountNameVersion: 2,
                 },

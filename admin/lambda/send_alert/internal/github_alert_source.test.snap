@@ -1,0 +1,148 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GitHubAlertSource build failure 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: c62kgg77zybqev6kkm77wza5gr
+
+## 🚨 Build failed: CI
+
+[View Run](https://github.com/cyberworlds/cyberworlds/actions/runs/123456789)
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Commit: [\`abc123d\`](https://github.com/cyberworlds/cyberworlds/commit/abc123def456)
+
+> Fix bug in user authentication
+
+Author: [developer123](https://github.com/developer123) • Triggered by: [developer123](https://github.com/developer123)
+"
+`;
+
+exports[`GitHubAlertSource build failure with PR reference 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: c62kgg77zybqev6kkm77wza5gr
+
+## 🚨 Build failed: CI
+
+[View Run](https://github.com/cyberworlds/cyberworlds/actions/runs/123456789)
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Commit: [\`abc123d\`](https://github.com/cyberworlds/cyberworlds/commit/abc123def456)
+
+> Small alert formatting [(#746)](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/746)
+
+Author: [developer123](https://github.com/developer123) • Triggered by: [developer123](https://github.com/developer123)
+"
+`;
+
+exports[`GitHubAlertSource build failure with multiple PR references 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: c62kgg77zybqev6kkm77wza5gr
+
+## 🚨 Build failed: CI
+
+[View Run](https://github.com/cyberworlds/cyberworlds/actions/runs/123456789)
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Commit: [\`abc123d\`](https://github.com/cyberworlds/cyberworlds/commit/abc123def456)
+
+> Merge multiple PRs: feature A [(#123)](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/123) and bug fix [(#456)](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/456)
+
+Author: [developer123](https://github.com/developer123) • Triggered by: [developer123](https://github.com/developer123)
+"
+`;
+
+exports[`GitHubAlertSource deploy notifications comments on posts with commit hash when deploy fails 1`] = `
+[
+  {
+    "postId": "builds-post-id",
+    "type": "PostPreview",
+  },
+]
+`;
+
+exports[`GitHubAlertSource deploy notifications comments on posts with commit hash when deploy succeeds 1`] = `
+"URL: https://api.test.cyberworlds.com/posts/test-post-id-1/messages
+Channel: undefined
+
+✅ Deploy succeeded: [\`abc123d\`](https://github.com/cyberworlds/cyberworlds/actions/runs/123456789)
+"
+`;
+
+exports[`GitHubAlertSource push maps real GitHub usernames to first names 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+Caleb[ pushed 3 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...3333333cccccc):
+
+Ian: Add support for GitHub push alerts ([1111111](https://github.com/cyberworlds/cyberworlds/commit/1111111aaaaaa))
+
+Rachel: Polish push alert copy ([2222222](https://github.com/cyberworlds/cyberworlds/commit/2222222bbbbbb))
+
+Josh: Wire push alert channel ([3333333](https://github.com/cyberworlds/cyberworlds/commit/3333333cccccc))
+"
+`;
+
+exports[`GitHubAlertSource push pulls only the final PR reference out of the commit message 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+Josh pushed: Backfill alert 404 handling [(#811)](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/811) ([#812](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812), [def456a](https://github.com/cyberworlds/cyberworlds/commit/def456abc789))
+"
+`;
+
+exports[`GitHubAlertSource push to main by Graphite with mixed-author commits uses Graphite 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+[graphite-app\\[bot\\]](https://github.com/apps/graphite-app)[ pushed 2 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...2222222bbbbbb):
+
+Mona Lisa: Add Graphite attribution ([1111111](https://github.com/cyberworlds/cyberworlds/commit/1111111aaaaaa))
+
+Josh: Polish Graphite attribution ([2222222](https://github.com/cyberworlds/cyberworlds/commit/2222222bbbbbb))
+"
+`;
+
+exports[`GitHubAlertSource push to main by Graphite with one commit uses the commit author 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+Mona Lisa pushed: Ship GitHub commit alert ([#812](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812), [def456a](https://github.com/cyberworlds/cyberworlds/commit/def456abc789))
+"
+`;
+
+exports[`GitHubAlertSource push to main by Graphite with same-author commits uses the commit author 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+Mona Lisa[ pushed 2 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...2222222bbbbbb):
+
+Add Graphite attribution ([1111111](https://github.com/cyberworlds/cyberworlds/commit/1111111aaaaaa))
+
+Polish Graphite attribution ([2222222](https://github.com/cyberworlds/cyberworlds/commit/2222222bbbbbb))
+"
+`;
+
+exports[`GitHubAlertSource push to main with multiple commits 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+Josh[ pushed 2 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...fed321cba987):
+
+Josh: Ship GitHub commit alert ([#812](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812), [def456a](https://github.com/cyberworlds/cyberworlds/commit/def456abc789))
+
+Mona Lisa: Follow-up alert polish ([fed321c](https://github.com/cyberworlds/cyberworlds/commit/fed321cba987))
+"
+`;
+
+exports[`GitHubAlertSource push to main with one commit 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+Josh pushed: Ship GitHub commit alert ([#812](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812), [def456a](https://github.com/cyberworlds/cyberworlds/commit/def456abc789))
+"
+`;
+
+exports[`GitHubAlertSource push uses the first line of a multiline commit message 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+Josh pushed: Add source edge tests ([def456a](https://github.com/cyberworlds/cyberworlds/commit/def456abc789))
+"
+`;

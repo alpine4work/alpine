@@ -55,7 +55,7 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateId} from "~/shared/id/id.js";
-import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
+import {MyAccountBroadcastInboxRealtimeEventsSchema} from "~/shared/notifications/my_account_protocol.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -137,10 +137,12 @@ const context = createTestContext({
             return {
                 isPrivate: false,
                 entity: new SearchEntityModel({
-                    id: entityId,
+                    type: "Document",
                     title: documentResult.value.getTitle(),
-                    titleVersion: {type: "Integer", version: documentResult.value.version},
-                    media: null,
+                    document: {
+                        id: entityIdObject.documentId,
+                        version: documentResult.value.version,
+                    },
                 }),
             };
         },
@@ -2924,6 +2926,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     latestMessage: {
                         author: expect.objectContaining({id: session1.account.id}),
                         createdTime: new Date(mockTime1),
+                        index: 2,
                         contentTextSnippet: "message3",
                         clerical: {
                             type: "ShareNotification",
@@ -3094,7 +3097,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
                         return [
                             match[1],
-                            MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(body),
+                            MyAccountBroadcastInboxRealtimeEventsSchema.deserialize(body),
                         ];
                     }),
                 ),
@@ -3103,7 +3106,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     [
                         session2.account.id,
                         {
-                            eventTransaction: [
+                            events: [
                                 {
                                     type: "PutItem",
                                     indexes: expect.any(Map),
@@ -3143,7 +3146,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     [
                         session3.account.id,
                         {
-                            eventTransaction: [
+                            events: [
                                 {
                                     type: "PutItem",
                                     indexes: expect.any(Map),
@@ -3366,7 +3369,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3397,7 +3400,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3428,7 +3431,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3471,7 +3474,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3510,7 +3513,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3549,7 +3552,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3602,7 +3605,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             await message3.setReaction(session2);
 
@@ -3610,7 +3613,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3668,7 +3671,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3687,7 +3690,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,

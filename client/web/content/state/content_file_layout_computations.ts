@@ -4,6 +4,7 @@ import {contentStyles} from "~/client/web/styles/styles.js";
 import {
     type ContentFileLayout,
     computeFileRowLayout,
+    fileRowMaxFileCount,
     minAspectRatioIfNotSingleFileRow,
 } from "~/shared/content/compute_file_row_widths.js";
 import {getFileEntityPreviewHeight} from "~/shared/content/get_file_entity_preview_height.js";
@@ -72,7 +73,7 @@ export function computeContentFileRowLikeLayout(
     },
 ): ReadonlyArray<ContentFileLayout> {
     assert(files.length >= 1);
-    assert(files.length <= 3);
+    assert(files.length <= fileRowMaxFileCount);
 
     const {blockWidth, spacingScale} = options;
 

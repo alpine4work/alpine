@@ -52,6 +52,7 @@ import {
     TaskAssigneeStatusSchema,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
 import {
     TaskDisplayStatus,
     TaskDisplayStatusIntegerMapping,
@@ -99,6 +100,15 @@ const TaskIndexSortableAccountType = OpensearchIndexObjectType.new({
         accountId: new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
         workingAccountName: new OpensearchIndexKeywordType({isSortable: true}),
         workingAccountNameVersion: new OpensearchIndexIntegerType({isFilterable: true}),
+    },
+});
+
+const TaskIndexCreatorType = OpensearchIndexObjectType.new({
+    fields: {
+        accountId: new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
+        workingAccountName: new OpensearchIndexKeywordType({isSortable: true}),
+        workingAccountNameVersion: new OpensearchIndexIntegerType({isFilterable: true}),
+        from: new OpensearchIndexIgnoredObjectType(TaskCreatorFromSchema).nullable().default(null),
     },
 });
 
@@ -560,7 +570,7 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             isSortable: true,
         }).validate<SpaceId>(isId),
 
-        creator: TaskIndexSortableAccountType,
+        creator: TaskIndexCreatorType,
         createdTime: TaskIndexFilterableTimeType,
         // The `isDeleted` computed property definitively tells us whether a task is
         // deleted or not.

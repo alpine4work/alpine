@@ -37,7 +37,7 @@ export async function loadInitialPeekDataForClient(
             request.signal.addEventListener("abort", handleAbort);
 
             try {
-                const shouldCallLazy = match.route.id.startsWith("routes/s.$spaceId.peek");
+                const shouldCallLazy = match.route.id.startsWith("routes/_space.peek");
 
                 const [result] = await Promise.race([
                     // eslint-disable-next-line @typescript-eslint/await-thenable

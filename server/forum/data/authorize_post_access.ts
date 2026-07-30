@@ -43,6 +43,10 @@ export async function authorizePostAccessIfPossible(
 > {
     const postItem = await getPostItemForAuthorization(context, id, options);
 
+    // Optimization: Don't wait until the channel loads (and so we call
+    // `evaluateAccessPolicy()`) to report the post's `SpaceId` as discovered.
+    context.discovery?.discoverSpaceId(postItem.spaceId, "AuthorizeAccess");
+
     const result = await authorizeChannelAccessIfPossible(
         context,
         postItem.channelId,

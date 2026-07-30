@@ -7,9 +7,9 @@ import {PostListView, PostListViewRef} from "~/client/web/forum/post_list_view.j
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
@@ -28,7 +28,7 @@ export function PostView({
     initialParent,
 }: {
     initialCheckpoint: ServerSynchronizationCheckpoint;
-    initialPost: DynamoGeneralRealtimeItem<PostModel>;
+    initialPost: RynamoItem<PostModel>;
     initialPostComments: ReadonlyArray<PostCommentModel>;
     initialOtherReferencedPostComments: ReadonlyArray<PostCommentModel>;
     initialScroll: Memo<PostViewInitialScroll> | null;
@@ -116,8 +116,8 @@ export function PostView({
             },
         }),
         defaultPreviousRoute: inboxContext?.entry
-            ? `/s/${inboxContext.entry.model.spaceId}/inbox`
-            : `/s/${initialPost.model.spaceId}/posts/${initialPost.model.id}`,
+            ? `/inbox/${inboxContext.entry.model.spaceId}`
+            : `/post/${initialPost.model.id}`,
     });
 
     return (
@@ -146,19 +146,19 @@ export function PostView({
                 [setPostsOptimistically],
             )}
             shouldBeConnectedToChannelRealtime={false}
-            onPostRealtimeEventTransaction={useCallback(
-                eventTransaction => {
-                    setPosts(posts => posts.handleEventTransaction(eventTransaction));
+            onPostRealtimeEvents={useCallback(
+                events => {
+                    setPosts(posts => posts.handleEvents(events));
                 },
                 [setPosts],
             )}
-            onOptimisticPostRealtimeEventTransaction={useCallback(
+            onOptimisticPostRealtimeEvents={useCallback(
                 (promise, postId, update) => {
                     setPostsOptimistically(promise, (posts, promiseValue) => {
                         // Once `promise` resolves, use the event transaction from `promise` to update the
                         // posts instead of our optimistic updater.
                         if (promiseValue) {
-                            return posts.handleEventTransaction(promiseValue);
+                            return posts.handleEvents(promiseValue);
                         }
 
                         const oldPostItem = posts.getPostRealtimeItemIfExists(postId);
@@ -174,7 +174,7 @@ export function PostView({
                             model: newPost,
                         };
 
-                        return posts.handleEventTransaction([
+                        return posts.handleEvents([
                             {type: "PutItem", item: newPostItem, indexes: new Map()},
                         ]);
                     });

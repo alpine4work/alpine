@@ -54,7 +54,7 @@ const webPushStore = new Lazy(
         };
 
         const initializeDatabase = async () => {
-            return new Promise<IDBDatabase>((resolve, reject) => {
+            return await new Promise<IDBDatabase>((resolve, reject) => {
                 openRequest.onsuccess = () => {
                     resolve(openRequest.result);
                 };
@@ -69,7 +69,7 @@ const webPushStore = new Lazy(
 
         async function setVapidCredentials(vapidPublicKey: string) {
             const database = await databasePromise;
-            return new Promise<void>((resolve, reject) => {
+            return await new Promise<void>((resolve, reject) => {
                 const request = database
                     .transaction("vapidCredentials", "readwrite")
                     .objectStore("vapidCredentials")
@@ -85,7 +85,7 @@ const webPushStore = new Lazy(
 
         async function getVapidCredentials() {
             const database = await databasePromise;
-            return new Promise<{version: number; vapidPublicKey: string} | null>(
+            return await new Promise<{version: number; vapidPublicKey: string} | null>(
                 (resolve, reject) => {
                     const request = database
                         .transaction("vapidCredentials", "readonly")
@@ -104,7 +104,7 @@ const webPushStore = new Lazy(
 
         async function getWebPushSubscription(browserId: BrowserId) {
             const database = await databasePromise;
-            return new Promise<ClientWebPushSubscriptionItem | null>((resolve, reject) => {
+            return await new Promise<ClientWebPushSubscriptionItem | null>((resolve, reject) => {
                 const request = database
                     .transaction("webPushSubscriptions", "readonly")
                     .objectStore("webPushSubscriptions")
@@ -122,7 +122,7 @@ const webPushStore = new Lazy(
 
         async function getAllWebPushSubscriptions() {
             const database = await databasePromise;
-            return new Promise<Array<ClientWebPushSubscriptionItem>>((resolve, reject) => {
+            return await new Promise<Array<ClientWebPushSubscriptionItem>>((resolve, reject) => {
                 const request = database
                     .transaction("webPushSubscriptions", "readonly")
                     .objectStore("webPushSubscriptions")
@@ -165,7 +165,7 @@ const webPushStore = new Lazy(
                 };
             }
 
-            return new Promise<void>((resolve, reject) => {
+            return await new Promise<void>((resolve, reject) => {
                 const objectStore = database
                     .transaction("webPushSubscriptions", "readwrite")
                     .objectStore("webPushSubscriptions");
@@ -181,7 +181,7 @@ const webPushStore = new Lazy(
 
         async function deleteWebPushSubscription(browserId: BrowserId) {
             const database = await databasePromise;
-            return new Promise<void>((resolve, reject) => {
+            return await new Promise<void>((resolve, reject) => {
                 const request = database
                     .transaction("webPushSubscriptions", "readwrite")
                     .objectStore("webPushSubscriptions")
@@ -199,7 +199,7 @@ const webPushStore = new Lazy(
 
         async function clearAllWebPushSubscriptions() {
             const database = await databasePromise;
-            return new Promise<void>((resolve, reject) => {
+            return await new Promise<void>((resolve, reject) => {
                 const request = database
                     .transaction("webPushSubscriptions", "readwrite")
                     .objectStore("webPushSubscriptions")

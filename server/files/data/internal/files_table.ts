@@ -1,7 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {FileAlternativeSchema} from "~/shared/files/file_alternative.js";
 import {
     FileAttachmentTarget,
@@ -10,7 +11,9 @@ import {
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {If} from "~/shared/helpers/types/if.js";
 import {
@@ -524,11 +527,28 @@ const fileAuthorizerAttachmentTargetTypesByTableSchema = new WeakMap<object, Set
  * attackers shouldn't be able to inject code so we only need to encourage the safe
  * patterns for developers.
  */
+export type FileAuthorizerOptions = {
+    readonly consistency?: DynamoCacheReadConsistency;
+};
+
 class FileAuthorizer<Bound extends boolean = true> {
     public readonly target: If<Bound, FileAttachmentTarget, null>;
     public readonly authorizeTargetAccess: If<
         Bound,
-        (context: ServerActionContext, expectedAccessLevel: "View" | "Edit") => Promise<void>,
+        (
+            context: ServerActionContext,
+            expectedAccessLevel: "View" | "Edit",
+            options?: FileAuthorizerOptions,
+        ) => Promise<void>,
+        null
+    >;
+    public readonly authorizeTargetAccessIfPossible: If<
+        Bound,
+        (
+            context: ServerActionContext,
+            expectedAccessLevel: "View" | "Edit",
+            options?: FileAuthorizerOptions,
+        ) => Promise<Result<void, Error>>,
         null
     >;
 
@@ -536,24 +556,39 @@ class FileAuthorizer<Bound extends boolean = true> {
         target: If<Bound, FileAttachmentTarget, null>,
         authorizeTargetAccess: If<
             Bound,
-            (context: ServerActionContext, expectedAccessLevel: "View" | "Edit") => Promise<void>,
+            (
+                context: ServerActionContext,
+                expectedAccessLevel: "View" | "Edit",
+                options?: FileAuthorizerOptions,
+            ) => Promise<void>,
+            null
+        >,
+        authorizeTargetAccessIfPossible: If<
+            Bound,
+            (
+                context: ServerActionContext,
+                expectedAccessLevel: "View" | "Edit",
+                options?: FileAuthorizerOptions,
+            ) => Promise<Result<void, Error>>,
             null
         >,
     ) {
         this.target = target;
         this.authorizeTargetAccess = authorizeTargetAccess;
+        this.authorizeTargetAccessIfPossible = authorizeTargetAccessIfPossible;
     }
 
     public static new<Area extends keyof FileAttachmentTargetByArea>(
-        tableSchema: DynamoTableSchema<any> | DynamoGeneralRealtimeTableSchema<any, any>,
+        tableSchema: DynamoTableSchema<any> | RynamoTableSchema<any, any>,
         area: Area,
-        authorizeTargetAccess: (
+        authorizeTargetAccessIfPossible: (
             context: ServerActionContext,
             target: FileAttachmentTargetByArea[Area],
             expectedAccessLevel: "View" | "Edit",
-        ) => Promise<unknown>,
+            options?: FileAuthorizerOptions,
+        ) => Promise<Result<void, Error>>,
     ) {
-        return new FileAuthorizerUnbound<Area>(tableSchema, area, authorizeTargetAccess);
+        return new FileAuthorizerUnbound<Area>(tableSchema, area, authorizeTargetAccessIfPossible);
     }
 }
 
@@ -565,20 +600,22 @@ class FileAuthorizerUnbound<
     Area extends keyof FileAttachmentTargetByArea,
 > extends FileAuthorizer<false> {
     public readonly area: Area;
-    private readonly _authorizeTargetAccess: (
+    private readonly _authorizeTargetAccessIfPossible: (
         context: ServerActionContext,
         target: FileAttachmentTargetByArea[Area],
         expectedAccessLevel: "View" | "Edit",
-    ) => Promise<unknown>;
+        options?: FileAuthorizerOptions,
+    ) => Promise<Result<void, Error>>;
 
     constructor(
-        tableSchema: DynamoTableSchema<any> | DynamoGeneralRealtimeTableSchema<any, any>,
+        tableSchema: DynamoTableSchema<any> | RynamoTableSchema<any, any>,
         area: Area,
-        authorizeTargetAccess: (
+        authorizeTargetAccessIfPossible: (
             context: ServerActionContext,
             target: FileAttachmentTargetByArea[Area],
             expectedAccessLevel: "View" | "Edit",
-        ) => Promise<unknown>,
+            options?: FileAuthorizerOptions,
+        ) => Promise<Result<void, Error>>,
     ) {
         // We only want one authorizer instance per attachment target type. To enforce this
         // we require you to pass in a `DynamoTableSchema` with the right name before the
@@ -591,8 +628,7 @@ class FileAuthorizerUnbound<
         //
         // Authorizers may be exported.
         assert(
-            tableSchema instanceof DynamoTableSchema ||
-                tableSchema instanceof DynamoGeneralRealtimeTableSchema,
+            tableSchema instanceof DynamoTableSchema || tableSchema instanceof RynamoTableSchema,
         );
         assert(!tableSchema.isInitialized());
 
@@ -627,15 +663,28 @@ class FileAuthorizerUnbound<
                 throw exhaustive(area);
         }
 
-        super(null, null);
+        super(null, null, null);
         this.area = area;
-        this._authorizeTargetAccess = authorizeTargetAccess;
+        this._authorizeTargetAccessIfPossible = authorizeTargetAccessIfPossible;
     }
 
     public bind(target: FileAttachmentTargetByArea[Area]) {
-        return new FileAuthorizer(target, async (context, expectedAccessLevel) => {
-            await this._authorizeTargetAccess(context, target, expectedAccessLevel);
-        });
+        const authorizeTargetAccessIfPossible = (
+            context: ServerActionContext,
+            expectedAccessLevel: "View" | "Edit",
+            options?: FileAuthorizerOptions,
+        ): Promise<Result<void, Error>> =>
+            this._authorizeTargetAccessIfPossible(context, target, expectedAccessLevel, options);
+
+        return new FileAuthorizer(
+            target,
+            async (context, expectedAccessLevel, options) => {
+                unwrapResult(
+                    await authorizeTargetAccessIfPossible(context, expectedAccessLevel, options),
+                );
+            },
+            authorizeTargetAccessIfPossible,
+        );
     }
 }
 

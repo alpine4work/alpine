@@ -13,11 +13,11 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {SearchAffinityEntityView} from "~/client/web/search/search_affinity_entity_view.js";
 import {useSetSearchQueryText} from "~/client/web/search/use_set_search_query_text.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {CreateWidgetPrimaryMenuBar} from "~/client/web/spaces/layout/create_widget_primary_menu_bar.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     createWidgetPrimaryMenuBarItemBackgroundInsetY,
     createWidgetPrimaryMenuBarItemDesktopPaddingX,
@@ -45,6 +45,7 @@ import {
     markSearchAffinityEntityInteraction,
     searchByAffinity,
 } from "~/shared/rpc/search_rpc_definitions.js";
+import {getSearchEntityPath} from "~/shared/search/path/get_search_entity_path.js";
 import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 
 export function FeedCreateSection({
@@ -244,6 +245,7 @@ function FeedCreateSectionMobileSearchAffinityView({
     const reporter = useReporter();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
+    const entityData = useSearchEntityModel(result.model);
 
     const hasMarkedAffinityInteractionRef = useRef(false);
 
@@ -251,7 +253,7 @@ function FeedCreateSectionMobileSearchAffinityView({
         onPress: () => {
             const path = getSearchEntityPath({
                 spaceId: space.id,
-                entityId: result.id,
+                entityData,
                 randomSeed,
                 currentTime: new Date(),
                 routeLayout: "narrow",
@@ -277,6 +279,10 @@ function FeedCreateSectionMobileSearchAffinityView({
                     spaceId: space.id,
                     entityId: result.id,
                     interaction: {type: "HighIntentUpdate"},
+                    // The feed sidebar suggestions don't carry access-policy info. The entity's own
+                    // view-time affinity hook will fire once they land on it (with a known siteId), so
+                    // engagement still cascades to the site.
+                    siteId: null,
                 }).catch(error => {
                     // Silently fail. This doesn't affect anything the user sees so we don't need to
                     // report the error to the user.

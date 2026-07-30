@@ -6,10 +6,10 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {getSearchDynamicEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSiteActivation, useSiteContext} from "~/client/web/sites/context/site_context.js";
 import {computeAdjacentEntityId} from "~/client/web/sites/internal/compute_adjacent_entity_id.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -34,7 +34,16 @@ import {
     updateSiteName,
 } from "~/shared/rpc/sites_rpc_definitions.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {
+    getSearchDynamicEntityPath,
+    getSearchDynamicEntityPathFromEntityIdObject,
+} from "~/shared/search/path/get_search_entity_path.js";
 import {SearchEntityModelData} from "~/shared/search/search_entity_model.js";
+import {
+    SiteItemSearchEntityId,
+    isSiteItemSearchEntityId,
+    parseSiteItemSearchEntityId,
+} from "~/shared/search/site_item_search_entity_id.js";
 import {doesSiteEntryMoveIntroduceCycle} from "~/shared/sites/does_site_entry_move_introduce_cycle.js";
 import {mergeNewSitePositionIntoSiteEntry} from "~/shared/sites/merge_new_site_position_into_site_entry.js";
 import {
@@ -47,11 +56,6 @@ import {
     parseSiteSideBarSectionContainerId,
     printSiteContainerId,
 } from "~/shared/sites/site_entry_id.js";
-import {
-    SiteItemSearchEntityId,
-    isSiteItemSearchEntityId,
-    parseSiteItemSearchEntityId,
-} from "~/shared/sites/site_item_search_entity_id.js";
 import {SiteSideBarSectionModel} from "~/shared/sites/site_model.js";
 import {validateSiteContainerIsEmpty} from "~/shared/sites/validate_site_container_is_empty.js";
 
@@ -140,7 +144,7 @@ export function useSiteMutations() {
             // success/failure, not the returned event stubs.
             updateTreeOptimistically(
                 rpcPromise
-                    .then(result => handleEventForSite(result.eventTransaction))
+                    .then(result => handleEventForSite(result.events))
                     .catch(error => {
                         reporter.displayError("Couldn\u2019t create sidebar section", error);
                         throw error;
@@ -188,17 +192,21 @@ export function useSiteMutations() {
     // loads against server-consistent access policy state. The client should handle
     // the lag between user-action and site addition gracefully.
     const addEntity = useCallback(
-        async (
-            entity: SearchEntityModelData & {id: SiteItemSearchEntityId},
-            orderKey: OrderKey,
-            parentId: SiteContainerId,
-        ): Promise<{entityId: SiteItemSearchEntityId}> => {
+        async ({
+            entity,
+            orderKey,
+            parentId,
+        }: {
+            entity: SearchEntityModelData & {id: SiteItemSearchEntityId};
+            orderKey: OrderKey;
+            parentId: SiteContainerId;
+        }): Promise<{entityId: SiteItemSearchEntityId}> => {
             // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
             // events, the entity may appear in the site chrome before we navigate to it.
-            return withPausedRealtimeEvents(async () => {
+            return await withPausedRealtimeEvents(async () => {
                 // TODO(#sites): How should we handle entities in other sites? For now, we add them
                 // to the new site if possible, otherwise we throw an access error.
-                const {eventTransaction} = await addEntityToSite(context, {
+                const {events} = await addEntityToSite(context, {
                     siteId,
                     spaceId: space.id,
                     entityId: entity.id,
@@ -216,14 +224,8 @@ export function useSiteMutations() {
                 // you'd probaly see the entity disappear from the site chrome before actually
                 // navigating to the next entity, which introduces some pretty obvious screen
                 // flicker.
-                await navigateWithinSite(
-                    getSearchDynamicEntityPath(
-                        space.id,
-                        parseSiteItemSearchEntityId(entity.id),
-                        routeLayout,
-                    ),
-                );
-                flushSync(() => handleEventForSite(eventTransaction));
+                await navigateWithinSite(getSearchDynamicEntityPath(space.id, entity, routeLayout));
+                flushSync(() => handleEventForSite(events));
 
                 return {entityId: entity.id};
             });
@@ -239,6 +241,36 @@ export function useSiteMutations() {
         ],
     );
 
+    const addMultipleEntities = useCallback(
+        async (
+            entities: Array<{
+                entityId: SiteItemSearchEntityId;
+                orderKey: OrderKey;
+                parentId: SiteContainerId;
+            }>,
+        ) => {
+            // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
+            // events, the entity may appear in the site chrome before we navigate to it.
+            return await withPausedRealtimeEvents(async () => {
+                // TODO(#sites): How should we handle entities in other sites? For now, we add them
+                // to the new site if possible, otherwise we throw an access error. \
+                // TODO(#sites): Handle errors
+                const eventTransactions = await runAllPromises(
+                    entities.map(entity =>
+                        addEntityToSite(context, {
+                            siteId,
+                            spaceId: space.id,
+                            ...entity,
+                        }),
+                    ),
+                );
+
+                handleEventForSite(eventTransactions.flatMap(result => result.events));
+            });
+        },
+        [context, handleEventForSite, space.id, siteId, withPausedRealtimeEvents],
+    );
+
     const deleteContainer = useCallback(
         (containerId: SiteSideBarContainerId | SiteSideBarSectionContainerId) => {
             validateSiteContainerIsEmpty(containerId, tree);
@@ -249,7 +281,7 @@ export function useSiteMutations() {
             });
 
             updateTreeOptimistically(
-                rpcPromise.then(result => handleEventForSite(result.eventTransaction)),
+                rpcPromise.then(result => handleEventForSite(result.events)),
                 (oldTree, promiseValue) => {
                     // If promise value is defined, that means rpcPromise resolved and
                     // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -270,7 +302,7 @@ export function useSiteMutations() {
             const rpcPromise = updateSiteContainerLabel(context, {siteId, id: containerId, label});
 
             updateTreeOptimistically(
-                rpcPromise.then(result => handleEventForSite(result.eventTransaction)),
+                rpcPromise.then(result => handleEventForSite(result.events)),
                 (oldTree, promiseValue) => {
                     // If promise value is defined, that means rpcPromise resolved and
                     // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -287,11 +319,11 @@ export function useSiteMutations() {
     );
 
     const renameSite = useCallback(
-        (name: string) => {
+        async (name: string): Promise<void> => {
             const rpcPromise = updateSiteName(context, {siteId, name});
 
             updateTreeOptimistically(
-                rpcPromise.then(result => handleEventForSite([result.eventTransaction])),
+                rpcPromise.then(result => handleEventForSite([result.events])),
                 (oldTree, promiseValue) => {
                     // If promise value is defined, that means rpcPromise resolved and
                     // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -303,6 +335,11 @@ export function useSiteMutations() {
                     return oldTree.updateSite(site => ({...site, name}));
                 },
             );
+
+            // Surface RPC failures to the caller so editors can keep the user in edit mode and
+            // report the error. The optimistic update has already reverted by the time this
+            // promise rejects — we don't have to undo anything here.
+            await rpcPromise;
         },
         [context, handleEventForSite, siteId, updateTreeOptimistically],
     );
@@ -325,7 +362,7 @@ export function useSiteMutations() {
                     entityId,
                 });
                 updateTreeOptimistically(
-                    rpcPromise.then(result => handleEventForSite(result.eventTransaction)),
+                    rpcPromise.then(result => handleEventForSite(result.events)),
                     (oldTree, promiseValue) => {
                         // If promise value is defined, that means rpcPromise resolved and
                         // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -333,6 +370,14 @@ export function useSiteMutations() {
                         if (promiseValue !== undefined) {
                             return oldTree;
                         }
+
+                        // It's possible that the realtime service broadcasted the removal back to the
+                        // client before the promise resolves. In that case, the entry wil no longer exist
+                        // in the tree.
+                        if (oldTree.getEntryIfExists(entityId) === undefined) {
+                            return oldTree;
+                        }
+
                         return oldTree.deleteEntry(entityId);
                     },
                 );
@@ -353,16 +398,16 @@ export function useSiteMutations() {
             //
             // If (2) wins out, then the site tree in context will be updated with the removal
             // of the current entity. This would cause a flicker on the screen, because when we
-            // look for the current entity in the tree in `useSiteChromeContainer`, we don't
-            // find it. Since we don't find it, we won't render the site chrome. What the user
-            // sees is a brief paint of the current entity without the site chrome, and then
-            // they see the site pop back onto the screen for the next entity after (1)
-            // resolves and navigation completes.
+            // look for the current entity in the tree in `SiteChromeContainer`, we don't find
+            // it. Since we don't find it, we won't render the site chrome. What the user sees
+            // is a brief paint of the current entity without the site chrome, and then they
+            // see the site pop back onto the screen for the next entity after (1) resolves and
+            // navigation completes.
             //
             // To avoid this, we pause the realtime subsription, so that even if (2) wins out,
             // the event will be queued and applied to the tree after (1) resolves.
             await withPausedRealtimeEvents(async () => {
-                const {eventTransaction} = await removeEntityFromSite(context, {
+                const {events} = await removeEntityFromSite(context, {
                     siteId,
                     spaceId: space.id,
                     entityId,
@@ -370,14 +415,14 @@ export function useSiteMutations() {
 
                 await navigateWithinSite(
                     adjacentEntityId
-                        ? getSearchDynamicEntityPath(
+                        ? getSearchDynamicEntityPathFromEntityIdObject(
                               space.id,
                               parseSiteItemSearchEntityId(adjacentEntityId),
                               routeLayout,
                           )
-                        : `/s/${space.id}/sites/${siteId}`,
+                        : `/site/${siteId}`,
                 );
-                flushSync(() => handleEventForSite(eventTransaction));
+                flushSync(() => handleEventForSite(events));
             });
         },
         [
@@ -427,7 +472,7 @@ export function useSiteMutations() {
                 moveSiteEntry(context, {
                     siteId,
                     item: createMoveSiteEntryItem(entry),
-                }).then(result => handleEventForSite(result.eventTransaction)),
+                }).then(result => handleEventForSite(result.events)),
                 (oldTree, promiseValue) => {
                     // If promise value is defined, that means rpcPromise resolved and
                     // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -457,14 +502,14 @@ export function useSiteMutations() {
             // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
             // events, the document may appear in the site chrome before we navigate to it.
             await withPausedRealtimeEvents(async () => {
-                const {eventTransactionForSite} = await createDocument(context, {
+                const {eventsForSite} = await createDocument(context, {
                     spaceId: space.id,
                     documentId,
                     sitePosition: {siteId, parentId, orderKey},
                 });
 
-                await navigateWithinSite(`/s/${space.id}/documents/${documentId}`);
-                flushSync(() => handleEventForSite(eventTransactionForSite));
+                await navigateWithinSite(`/doc/${documentId}`);
+                flushSync(() => handleEventForSite(eventsForSite));
             });
         },
         [
@@ -484,7 +529,7 @@ export function useSiteMutations() {
             // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
             // events, the task may appear in the site chrome before we navigate to it.
             await withPausedRealtimeEvents(async () => {
-                const {eventTransactionForSite} = await commitTaskActionTransaction(context, {
+                const {eventsForSite} = await commitTaskActionTransaction(context, {
                     spaceId: space.id,
                     clientId: null,
                     actions: [
@@ -494,7 +539,7 @@ export function useSiteMutations() {
                             taskId,
                             taskAction: {
                                 type: "Create",
-                                creatorId: assertExists(currentAccount).id,
+                                creator: {accountId: assertExists(currentAccount).id, from: null},
                                 creatorTimeZone: clientInfo.timeZone,
                             },
                         },
@@ -517,9 +562,9 @@ export function useSiteMutations() {
                     ],
                 });
 
-                await navigateWithinSite(`/s/${space.id}/tasks/${taskId}`);
-                if (eventTransactionForSite) {
-                    flushSync(() => handleEventForSite(eventTransactionForSite));
+                await navigateWithinSite(`/task/${taskId}`);
+                if (eventsForSite) {
+                    flushSync(() => handleEventForSite(eventsForSite));
                 }
             });
         },
@@ -542,16 +587,16 @@ export function useSiteMutations() {
             // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
             // events, the channel may appear in the site chrome before we navigate to it.
             await withPausedRealtimeEvents(async () => {
-                const {eventTransactionForSite} = await createChannel(context, {
+                const {eventsForSite} = await createChannel(context, {
                     spaceId: space.id,
                     channelId,
                     name: "Untitled channel",
                     accessPolicy: {type: "Site", siteId, position: {parentId, orderKey}},
                 });
 
-                await navigateWithinSite(`/s/${space.id}/channels/${channelId}`);
+                await navigateWithinSite(`/channel/${channelId}`);
 
-                flushSync(() => handleEventForSite(eventTransactionForSite));
+                flushSync(() => handleEventForSite(eventsForSite));
             });
         },
         [
@@ -572,7 +617,7 @@ export function useSiteMutations() {
             // events, the task collection may appear in the site chrome before we navigate to
             // it.
             await withPausedRealtimeEvents(async () => {
-                const {eventTransactionForSite} = await commitTaskActionTransaction(context, {
+                const {eventsForSite} = await commitTaskActionTransaction(context, {
                     spaceId: space.id,
                     clientId: null,
                     actions: [
@@ -582,7 +627,7 @@ export function useSiteMutations() {
                             collectionId,
                             collectionAction: {
                                 type: "Create",
-                                creatorId: assertExists(currentAccount).id,
+                                creator: {accountId: assertExists(currentAccount).id, from: null},
                                 name: "Untitled collection",
                                 accessPolicy: {
                                     type: "Site",
@@ -597,9 +642,9 @@ export function useSiteMutations() {
                     ],
                 });
 
-                await navigateWithinSite(`/s/${space.id}/tasks/collections/${collectionId}`);
-                if (eventTransactionForSite) {
-                    flushSync(() => handleEventForSite(eventTransactionForSite));
+                await navigateWithinSite(`/task-collection/${collectionId}`);
+                if (eventsForSite) {
+                    flushSync(() => handleEventForSite(eventsForSite));
                 }
             });
         },
@@ -615,6 +660,7 @@ export function useSiteMutations() {
     );
 
     return {
+        addMultipleEntities,
         createSidebarSection,
         deleteContainer,
         renameContainer,

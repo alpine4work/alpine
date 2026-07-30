@@ -3693,7 +3693,7 @@ test("correctly chunks document content", async () => {
                                     {
                                         type: "link",
                                         attrs: {
-                                            url: "https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/9rfgay7czbxcbzvgarpyb1ycz8",
+                                            url: "https://cyberworlds.dev/doc/9rfgay7czbxcbzvgarpyb1ycz8",
                                         },
                                     },
                                 ],
@@ -4419,7 +4419,7 @@ test("correctly chunks document content", async () => {
                                     {
                                         type: "link",
                                         attrs: {
-                                            url: "https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/w1675bxd15e10cf0mhrmdcgq24",
+                                            url: "https://cyberworlds.dev/doc/w1675bxd15e10cf0mhrmdcgq24",
                                         },
                                     },
                                 ],
@@ -4432,7 +4432,7 @@ test("correctly chunks document content", async () => {
                                     {
                                         type: "link",
                                         attrs: {
-                                            url: "https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/947dbjnmhvv1h2txwxkycmp320",
+                                            url: "https://cyberworlds.dev/doc/947dbjnmhvv1h2txwxkycmp320",
                                         },
                                     },
                                 ],
@@ -4448,7 +4448,7 @@ test("correctly chunks document content", async () => {
                                     {
                                         type: "link",
                                         attrs: {
-                                            url: "https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/9rfgay7czbxcbzvgarpyb1ycz8",
+                                            url: "https://cyberworlds.dev/doc/9rfgay7czbxcbzvgarpyb1ycz8",
                                         },
                                     },
                                 ],

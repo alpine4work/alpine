@@ -2,7 +2,6 @@ import {Node} from "prosemirror-model";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {intoApiContentSnippetInlineElementMarks} from "~/shared/api/content/into_api_content.js";
 import {
     ApiMessageContentPayloadParentContentSnippet,
@@ -15,6 +14,7 @@ import {truncateContentForMessageReplyPreview} from "~/shared/content/truncate_c
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
 
 export async function intoApiMessageContentPayloadParent(
     context: ServerBotActionContext,
@@ -108,14 +108,11 @@ async function intoApiContentSnippet(
             if (!entity) return null;
             if (entity.isPrivate) return entity;
 
-            const {media} = entity.entity.initialData;
+            const author = getAuthorFromSearchEntityIfExists(entity.entity.initialData);
             return {
                 isPrivate: false,
                 title: entity.entity.initialData.title,
-                getAccountMediaShortName:
-                    media && media.type === "Account"
-                        ? () => getAccountShortNameWithoutFullNameTooltip(media.account.initialData)
-                        : null,
+                getAuthorData: author ? () => author.initialData : null,
             };
         },
         getFileIfExists: fileId => references.fileById?.get(fileId)?.file.initialData ?? null,

@@ -2,50 +2,66 @@ import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {
     ApiBotWebhookCreatedMessageEventParent,
-    ApiContentMentionInlineElement,
     ApiContentTextInlineElement,
     ApiCreateDocumentRequestBody,
+    ApiCreateTaskCollectionRequestBody,
+    ApiCreateTaskRequestBody,
     ApiGetDocumentResponse,
+    ApiGetTaskCollectionResponse,
+    ApiGetTaskResponse,
     ApiMentionReference,
     ApiMentionReferenceResponse,
+    ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageContentPayloadParentResponse,
     ApiMessageStreamToolCallPartCreateCallReference,
     ApiSearchResult,
+    ApiSearchResultBodyMatch,
+    ApiSearchResultParsedFilter,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+
+test("all search results have the same common properties", () => {
+    assertAssignableTypes<
+        ApiSearchResult,
+        {
+            title: string | null;
+            bodyMatch: ApiSearchResultBodyMatch | null;
+            parsedFilter?: ApiSearchResultParsedFilter;
+        }
+    >();
+});
 
 test("all `ApiReferenceResponse` are assignable to `ApiReference`", () => {
     assertAssignableTypes<ApiReferenceResponse, ApiReference>();
 });
 
-test("all search results are assignable to `ApiReferenceResponse`", () => {
-    assertAssignableTypes<ApiSearchResult, ApiReferenceResponse>();
-});
-
-test("all mention targets are assignable to `ApiReferenceResponse`", () => {
-    assertAssignableTypes<ApiMentionReferenceResponse, ApiReferenceResponse>();
+test("all search results are assignable to `ApiReference`", () => {
+    // TODO(@#sites-api): Add Site to ApiReference once we decide how to share site
+    // data across the API. I'm still not exactly sure about what that should look
+    // like. Theoretically, if it were to look like the app, fetching a Site's entity
+    // should also return the site chrome. And since our hypothesis is generally that
+    // you can't understand a site's entity without the site context (e.g. a "Status"
+    // channel in a Site named "Add meeting notetaker to Alpine"), it may make sense to
+    // load the two together as opposed to making callers fetch them separately? Or
+    // maybe we just load the site Id and name, and have the caller fetch the rest of
+    // the site if so desired? And what does it look like? Do we load the "access" for
+    // the client which can be "Site" or "Local"? Do we expose all of the grants? Lots
+    // of open questions...
+    assertAssignableTypes<Exclude<ApiSearchResult, {type: "Site"}>, ApiReference>();
 });
 
 test("create tool call target is assignable to ApiMentionReference", () => {
     assertAssignableTypes<ApiMessageStreamToolCallPartCreateCallReference, ApiMentionReference>();
 });
 
-test("`ApiContentMentionInlineElement` is assignable to `ApiMention`", () => {
-    assertAssignableTypes<ApiContentMentionInlineElement, ApiMention>();
-});
-
-test("`/mention` paths are assignable to `ApiMentionResponse`", () => {
+test("`/reference` paths are assignable to `ApiReferenceResponse`", () => {
     type Left = ApiSpecification.paths[{
-        [Key in keyof ApiSpecification.paths]: Key extends `${string}/mention` ? Key : never;
-    }[keyof ApiSpecification.paths]]["get"]["responses"]["200"]["content"]["application/json"]["mention"];
+        [Key in keyof ApiSpecification.paths]: Key extends `${string}/reference` ? Key : never;
+    }[keyof ApiSpecification.paths]]["get"]["responses"]["200"]["content"]["application/json"]["reference"];
 
-    assertAssignableTypes<Left, ApiMentionResponse>();
-});
-
-test("all mention targets are assignable to `ApiReference`", () => {
-    assertAssignableTypes<ApiMentionReference, ApiReference>();
+    assertAssignableTypes<Left, ApiReferenceResponse>();
 });
 
 test("`ApiMentionReferenceResponse` is assignable to `ApiMentionReference`", () => {
@@ -54,6 +70,14 @@ test("`ApiMentionReferenceResponse` is assignable to `ApiMentionReference`", () 
 
 test("ApiGetDocumentResponse is assignable to ApiCreateDocumentRequestBody", () => {
     assertAssignableTypes<ApiGetDocumentResponse, ApiCreateDocumentRequestBody>();
+});
+
+test("ApiGetTaskResponse is assignable to ApiCreateTaskRequestBody", () => {
+    assertAssignableTypes<ApiGetTaskResponse, ApiCreateTaskRequestBody>();
+});
+
+test("ApiGetTaskCollectionResponse is assignable to ApiCreateTaskCollectionRequestBody", () => {
+    assertAssignableTypes<ApiGetTaskCollectionResponse, ApiCreateTaskCollectionRequestBody>();
 });
 
 test("`MessageContentPayloadParentContentSnippetTextInlineElement` is assignable to `ContentTextInlineElement`", () => {
@@ -88,7 +112,15 @@ test("all `_Response` schemas are assignable to the corresponding base schema", 
     }
 });
 
-test("`ApiMessageContentPayloadParentResponse` is assignable to `ApiBotWebhookNewMessageEventParent`", () => {
+test("response file elements are assignable to `CreateMessage` request body files", () => {
+    type CreateMessageFiles = NonNullable<
+        ApiSpecification.components["requestBodies"]["CreateMessage"]["content"]["application/json"]["files"]
+    >[number];
+
+    assertAssignableTypes<ApiMessageContentPayloadFileResponse, CreateMessageFiles>();
+});
+
+test("`ApiMessageContentPayloadParentResponse` is assignable to `ApiBotWebhookCreatedMessageEventParent`", () => {
     assertAssignableTypes<
         ApiMessageContentPayloadParentResponse,
         ApiBotWebhookCreatedMessageEventParent

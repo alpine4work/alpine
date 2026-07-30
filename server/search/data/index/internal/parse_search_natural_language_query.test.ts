@@ -2947,6 +2947,67 @@ describe("parses standalone entity type", () => {
             ],
         });
     });
+
+    test("sites", () => {
+        expect(parseSearchNaturalLanguageQuery("sites", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: [],
+            controlQueryTexts: ["sites"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("project x sites", () => {
+        expect(parseSearchNaturalLanguageQuery("project x sites", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: ["project x"],
+            controlQueryTexts: ["sites"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("sites project x", () => {
+        expect(parseSearchNaturalLanguageQuery("sites project x", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: ["project x"],
+            controlQueryTexts: ["sites"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("singular 'site' is recognized", () => {
+        // The stemmer normalizes "site" to the same root as "sites".
+        expect(parseSearchNaturalLanguageQuery("site", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: [],
+            controlQueryTexts: ["site"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("'side' is not fuzzy-matched as 'site'", () => {
+        // "site" is special-cased to disable fuzzy matching since "side", "size", and
+        // "sits" are all within one Levenshtein edit. So a query containing "side" should
+        // produce no entity-type filter.
+        expect(parseSearchNaturalLanguageQuery("side", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: ["side"],
+            controlQueryTexts: [],
+            filters: [],
+        });
+    });
+
+    test("tasks in a site fall through to keyword tag matching", () => {
+        // We intentionally don't have grammar for "tasks in site X". The leading "tasks"
+        // gives [Task, TaskCollection], and the rest ("in project x wiki") becomes
+        // free-text query that matches each task's site-name tag.
+        expect(parseSearchNaturalLanguageQuery("tasks in project x wiki", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: ["in project x wiki"],
+            controlQueryTexts: ["tasks"],
+            filters: [createDefaultedFilter({entityTypes: ["Task", "TaskCollection"]})],
+        });
+    });
 });
 
 describe("correctly splits query texts", () => {
@@ -4291,6 +4352,40 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks opened by me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks opened by me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks opened by me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Creator",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks created by me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks created by me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks created by me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Creator",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
                 }),
             ],
@@ -7051,6 +7146,51 @@ describe("Complex combinations with all filters", () => {
                             inclusiveUpperBound: new CalendarDate(2024, 1, 3),
                             inclusiveLowerBound: new CalendarDate(2024, 1, 3),
                         },
+                    },
+                    openness: ["Closed"],
+                }),
+            ],
+        });
+    });
+
+    test("tasks closed by John Smith last week", () => {
+        expect(
+            parseSearchNaturalLanguageQuery("tasks closed by John Smith last week", options),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks closed by John Smith last week"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                    openness: ["Closed"],
+                    time: {
+                        field: "LastUpdated",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2023-12-25T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks closed by me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks closed by me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks closed by me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
                     openness: ["Closed"],
                 }),

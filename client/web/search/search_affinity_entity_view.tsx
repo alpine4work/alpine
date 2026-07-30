@@ -1,8 +1,7 @@
-import {memo, useMemo} from "react";
+import {memo} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
-import {getSearchEntityTypeDisplay} from "~/client/web/search/core/search_entity_type_display.js";
 import {SearchEntityViewTitle} from "~/client/web/search/core/search_entity_view_title.js";
 import {
     searchAffinityEntityViewMinHeightPx,
@@ -23,7 +22,6 @@ function SearchAffinityEntityView({
     const spacingScale = useSpacingScale();
 
     const entityData = useSearchEntityModel(result.model);
-    const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(result.id), [result.id]);
 
     return (
         <Box
@@ -36,11 +34,7 @@ function SearchAffinityEntityView({
                     lineClamp !== 1 ? searchAffinityEntityViewMinHeightPx[spacingScale] : undefined,
             }}
         >
-            <SearchEntityViewTitle
-                typeDisplay={typeDisplay}
-                entityData={entityData}
-                lineClamp={lineClamp}
-            />
+            <SearchEntityViewTitle entityData={entityData} lineClamp={lineClamp} />
         </Box>
     );
 }

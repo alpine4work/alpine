@@ -17,8 +17,8 @@ import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
 //
 // Pages include:
 //
-// - `/s/$spaceId/more/settings`
-// - `/s/$spaceId/create/more`
+// - `/more/settings/$spaceId`
+// - `/create/$spaceId/more`
 export function MobileSettingsRowsShimmer({
     titleWidth,
     sectionCounts,

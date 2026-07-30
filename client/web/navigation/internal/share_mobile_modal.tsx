@@ -13,7 +13,7 @@ import {ShareOverlayAccountInput} from "~/client/web/navigation/internal/share_o
 import {ShareSwitch} from "~/client/web/navigation/internal/share_switch.js";
 import {NavigationBarContent} from "~/client/web/navigation/navigation_bar_content.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {backgroundColorVar} from "~/client/web/styles/styles.js";
 import {
     AccessLevel,

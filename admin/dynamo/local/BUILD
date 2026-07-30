@@ -1,4 +1,4 @@
-load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("@npm//:dynamodb-admin/package_json.bzl", dynamodb_admin_bin = "bin")
 
@@ -13,14 +13,24 @@ ts_project(
         "//admin/environment/test/unit:__pkg__",
     ],
     deps = [
+        "//:node_modules/@aws-sdk/client-dynamodb",
+        "//:node_modules/@types/yargs",
         "//:node_modules/aws4fetch",
         "//:node_modules/fs-extra",
         "//:node_modules/is-port-reachable",
+        "//:node_modules/yargs",
         "//admin/helpers",
         "//server/helpers/node",
         "//shared/error",
         "//shared/helpers",
     ],
+)
+
+js_binary(
+    name = "inspect",
+    data = [":local"],
+    entry_point = "inspect_local_dynamo_main.js",
+    env = {"NODE_ENV": "development"},
 )
 
 genrule(

@@ -15,13 +15,13 @@ import {
     searchFavoriteEntityIconPressedColor,
 } from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {usePreloadSearchByAffinity} from "~/client/web/search/use_search_state.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {SpaceLayoutSideBarSearchEducationHint} from "~/client/web/spaces/layout/internal/space_layout_side_bar_search_education_hint.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_space_button.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {spaceLayoutStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {createLifetimeAccessCheckoutSessionUrl} from "~/shared/rpc/accounts_rpc_definitions.js";
@@ -37,7 +37,7 @@ export function SpaceLayoutSideBar({
 }: {
     space: SpaceModel;
     currentAccount: AccountModel;
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    initialInbox: RynamoItem<InboxModel>;
     isSearchModalOpen: boolean;
     onSearchPress: () => void;
 }) {
@@ -70,7 +70,7 @@ export function SpaceLayoutSideBar({
                         tooltipPlacement="right"
                         pressErrorTitle="Couldn&#x2019;t open home"
                         onPress={async () => {
-                            await rootNavigate(`/s/${space.id}`);
+                            await rootNavigate(`/home/${space.id}`);
                         }}
                     >
                         <House />
@@ -181,7 +181,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                         icon: <Gear />,
                         label: "Settings",
                         pressErrorTitle: "Couldn\u2019t open settings",
-                        onPress: () => rootNavigate(`/s/${space.id}/settings/profile`),
+                        onPress: () => rootNavigate(`/settings/${space.id}/profile`),
                     },
                     ...(currentAccountData.plan !== "LifetimeAccess"
                         ? [

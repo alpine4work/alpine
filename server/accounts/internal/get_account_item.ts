@@ -59,7 +59,7 @@ export async function getAccountItemWithoutAvatarIfExists(
         if (item) return item;
     }
 
-    return AccountItemWithoutAvatarContextCache.get(
+    return await AccountItemWithoutAvatarContextCache.get(
         context,
         consistency,
         accountId,
@@ -112,7 +112,7 @@ export async function getAccountItemIfExists(
     // error.
     if (accountId === unknownAccountId) return null;
 
-    return AccountItemContextCache.get(context, consistency, accountId, async consistency => {
+    return await AccountItemContextCache.get(context, consistency, accountId, async consistency => {
         const items = await arrayFromAsyncIterable(
             AccountsTable.query(context, {
                 limit: 2,
@@ -161,7 +161,7 @@ export async function getAccountItemWithoutAvatarWithEventualThenStrongConsisten
     });
     if (item) return item;
 
-    return getAccountItemWithoutAvatar(context, accountId, {
+    return await getAccountItemWithoutAvatar(context, accountId, {
         consistency: "Strong",
     });
 }

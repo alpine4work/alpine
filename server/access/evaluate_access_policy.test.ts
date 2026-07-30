@@ -3,17 +3,23 @@ import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {SitesInjection} from "~/server/context/injection_context_module.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {
+    AccessLevel,
     AccessPolicy,
     LocalAccessPolicy,
     allAccessLevels,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -60,8 +66,10 @@ const sitesInjection: SitesInjection = {
 
 const context = createTestContext({
     chatInjection,
+    documentsInjection,
     forumInjection,
     sitesInjection,
+    tasksInjection,
 });
 
 const account1Id = generateId<AccountId>();
@@ -75,6 +83,7 @@ const post3Id = generateId<PostId>();
 const post4Id = generateId<PostId>();
 const post5Id = generateId<PostId>();
 const post6Id = generateId<PostId>();
+const post7Id = generateId<PostId>();
 
 let scenario: Awaited<ReturnType<typeof createScenario>>;
 
@@ -126,6 +135,37 @@ async function createScenario() {
     const post5 = await channel5.createPost(session1, {id: post5Id});
     const post6 = await channel6.createPost(removedSession, {id: post6Id});
 
+    const channelWithUrlGrant = await TestChannel.create(session1, {
+        access: {
+            type: "Local",
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: {level: "View"},
+        },
+    });
+    const postInChannelWithUrlGrant = await channelWithUrlGrant.createPost(session1, {
+        id: post7Id,
+    });
+
+    const accessPolicyUrlGrantViewOnlyAccount1Manage: CreateOrUpdateAccessPolicy = {
+        type: "Local",
+        accountGrantById: new Map([[account1Id, {level: "Manage", generation: 0}]]),
+        defaultGrant: null,
+        urlGrant: {level: "View"},
+    };
+
+    const documentWithUrlGrantOnly = await TestDocument.create(session1, {
+        access: accessPolicyUrlGrantViewOnlyAccount1Manage,
+        title: "Document with URL grant",
+    });
+
+    const roomChatWithUrlGrantOnly = await TestChat.createRoom(session1, {
+        access: accessPolicyUrlGrantViewOnlyAccount1Manage,
+    });
+
+    const taskWithUrlGrantOnly = await TestTask.create(session1);
+    await taskWithUrlGrantOnly.access.set(session1, accessPolicyUrlGrantViewOnlyAccount1Manage);
+
     await space.removeAccount(removedSession);
 
     return {
@@ -149,6 +189,10 @@ async function createScenario() {
         post4,
         post5,
         post6,
+        postInChannelWithUrlGrant,
+        documentWithUrlGrantOnly,
+        roomChatWithUrlGrantOnly,
+        taskWithUrlGrantOnly,
         chat1,
     };
 }
@@ -427,15 +471,172 @@ const testCases: Array<TestCase> = [
     ),
 ];
 
+function hasUrlGrantAccessForLocalPolicyAtLevel(
+    accessPolicy: LocalAccessPolicy,
+    expectedAccessLevel: AccessLevel,
+): boolean {
+    return (
+        accessPolicy.urlGrant !== null &&
+        hasAccessLevel(accessPolicy.urlGrant.level, expectedAccessLevel)
+    );
+}
+
+function hasDefaultGrantAccessForLocalPolicyAtLevel(
+    accessPolicy: LocalAccessPolicy,
+    expectedAccessLevel: AccessLevel,
+): boolean {
+    return (
+        accessPolicy.defaultGrant !== null &&
+        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
+    );
+}
+
+function hasAccountGrantForLocalPolicyAtLevel(
+    accessPolicy: LocalAccessPolicy,
+    policyAccountId: AccountId,
+    expectedAccessLevel: AccessLevel,
+): boolean {
+    return hasAccessLevel(
+        accessPolicy.accountGrantById.get(policyAccountId)?.level ?? null,
+        expectedAccessLevel,
+    );
+}
+
+/**
+ * Bot scope is an entity whose effective policy is **account1** `Manage` plus
+ * **`urlGrant`** `View` only (no `defaultGrant`): forum post (via channel),
+ * document, room chat, or task.
+ *
+ * Bots scoped via a URL-granted entity can only reach the target through the
+ * target's own `urlGrant` or `defaultGrant`. `evaluateAccessPolicy()` denies all
+ * other paths (including account-grant intersection) because the bot's URL-grant
+ * scope is treated as anonymous-adjacent.
+ */
+function expectedEvaluateAccessForBotScopedToEntityWithUrlGrantViewOnlyAndAccount1Manage({
+    accessPolicy,
+    expectedAccessLevel,
+}: {
+    accessPolicy: LocalAccessPolicy;
+    expectedAccessLevel: AccessLevel;
+}): boolean {
+    const viaTargetUrlGrant = hasUrlGrantAccessForLocalPolicyAtLevel(
+        accessPolicy,
+        expectedAccessLevel,
+    );
+    const viaTargetDefaultGrant = hasDefaultGrantAccessForLocalPolicyAtLevel(
+        accessPolicy,
+        expectedAccessLevel,
+    );
+    return viaTargetUrlGrant || viaTargetDefaultGrant;
+}
+
+/**
+ * Matches `Session` and in-space `ImpersonatedAccount` after the universal
+ * `urlGrant` shortcut in `evaluateAccessPolicy()` (membership is satisfied by the
+ * sessions in this fixture).
+ */
+function accountActorExpectsAccessAtLevel({
+    accessPolicy,
+    expectedAccessLevel,
+    policyAccountId,
+}: {
+    accessPolicy: LocalAccessPolicy;
+    expectedAccessLevel: AccessLevel;
+    policyAccountId: AccountId;
+}): boolean {
+    return (
+        hasUrlGrantAccessForLocalPolicyAtLevel(accessPolicy, expectedAccessLevel) ||
+        hasDefaultGrantAccessForLocalPolicyAtLevel(accessPolicy, expectedAccessLevel) ||
+        hasAccountGrantForLocalPolicyAtLevel(accessPolicy, policyAccountId, expectedAccessLevel)
+    );
+}
+
+/**
+ * Bot scoped to a post whose channel visibility is the intersection of **two**
+ * accounts (e.g. private channel shared with account1 and account2).
+ */
+function postScopedBotIntersectionTwoAccountsExpectsAccessAtLevel({
+    accessPolicy,
+    expectedAccessLevel,
+    accountId1,
+    accountId2,
+}: {
+    accessPolicy: LocalAccessPolicy;
+    expectedAccessLevel: AccessLevel;
+    accountId1: AccountId;
+    accountId2: AccountId;
+}): boolean {
+    return (
+        hasUrlGrantAccessForLocalPolicyAtLevel(accessPolicy, expectedAccessLevel) ||
+        hasDefaultGrantAccessForLocalPolicyAtLevel(accessPolicy, expectedAccessLevel) ||
+        (hasAccountGrantForLocalPolicyAtLevel(accessPolicy, accountId1, expectedAccessLevel) &&
+            hasAccountGrantForLocalPolicyAtLevel(accessPolicy, accountId2, expectedAccessLevel))
+    );
+}
+
+/**
+ * Bot with `Space` scope, or post scope on a **public** channel: `urlGrant` or
+ * `defaultGrant` on the target policy only (see `evaluateAccessPolicy()` `Bot`
+ * branch before `getBotAccessPolicy()`).
+ */
+function spaceScopedBotExpectsAccessAtLevel(
+    accessPolicy: LocalAccessPolicy,
+    expectedAccessLevel: AccessLevel,
+): boolean {
+    return (
+        hasUrlGrantAccessForLocalPolicyAtLevel(accessPolicy, expectedAccessLevel) ||
+        hasDefaultGrantAccessForLocalPolicyAtLevel(accessPolicy, expectedAccessLevel)
+    );
+}
+
+/**
+ * Short fragment for `test()` titles; the suite path already names the policy and
+ * level.
+ */
+function titleExpectsAccessAtLevel(expectsAccess: boolean): string {
+    return expectsAccess ? "expects access" : "does not expect access";
+}
+
 test("bot account has the right `AccountId`", async () => {
     expect(
         await isBotSpaceAccount(scenario.session1.action(), scenario.space.id, bot1AccountId),
     ).toEqual(true);
 });
 
-for (const {name: accessPolicyName, accessPolicy} of testCases) {
-    for (const expectedAccessLevel of allAccessLevels) {
-        test(`anonymous actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+describe.each(testCases)("$name", ({accessPolicy}) => {
+    describe.each(allAccessLevels)("expected access level: %s", expectedAccessLevel => {
+        function sessionExpectsAccessForPolicyAccount(policyAccountId: AccountId): boolean {
+            return accountActorExpectsAccessAtLevel({
+                accessPolicy,
+                expectedAccessLevel,
+                policyAccountId,
+            });
+        }
+
+        const onlyViaUrlGrant = hasUrlGrantAccessForLocalPolicyAtLevel(
+            accessPolicy,
+            expectedAccessLevel,
+        );
+
+        const botPostScopeOnlyAccount1ExpectsAccess =
+            sessionExpectsAccessForPolicyAccount(account1Id);
+        const botPostScopeAccount1And2IntersectionExpectsAccess =
+            postScopedBotIntersectionTwoAccountsExpectsAccessAtLevel({
+                accessPolicy,
+                expectedAccessLevel,
+                accountId1: account1Id,
+                accountId2: account2Id,
+            });
+        const botPostScopeRemovedAccountGrantExpectsAccess =
+            sessionExpectsAccessForPolicyAccount(removedAccountId);
+        const botUrlGrantScopedEntityExpectsAccess =
+            expectedEvaluateAccessForBotScopedToEntityWithUrlGrantViewOnlyAndAccount1Manage({
+                accessPolicy,
+                expectedAccessLevel,
+            });
+        const chat1BotExpectsAccess = sessionExpectsAccessForPolicyAccount(account1Id);
+
+        test(`anonymous actor (${titleExpectsAccessAtLevel(onlyViaUrlGrant)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     context.anonymousAction(),
@@ -443,10 +644,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(accessPolicy.urlGrant !== null && expectedAccessLevel === "View");
+            ).toEqual(onlyViaUrlGrant);
         });
 
-        test(`system actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`system actor (${titleExpectsAccessAtLevel(true)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.space.systemAction(),
@@ -457,7 +658,7 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
             ).toEqual(true);
         });
 
-        test(`system actor (from wrong space) with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`system actor (from wrong space) (${titleExpectsAccessAtLevel(onlyViaUrlGrant)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.otherSpace.systemAction(),
@@ -465,10 +666,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(accessPolicy.urlGrant !== null && expectedAccessLevel === "View");
+            ).toEqual(onlyViaUrlGrant);
         });
 
-        test(`session 1 actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`session 1 actor (${titleExpectsAccessAtLevel(sessionExpectsAccessForPolicyAccount(account1Id))})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.session1.action(),
@@ -476,19 +677,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(scenario.session1.account.id)?.level ??
-                            null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(sessionExpectsAccessForPolicyAccount(account1Id));
         });
 
-        test(`session 2 actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`session 2 actor (${titleExpectsAccessAtLevel(sessionExpectsAccessForPolicyAccount(account2Id))})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.session2.action(),
@@ -496,19 +688,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(scenario.session2.account.id)?.level ??
-                            null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(sessionExpectsAccessForPolicyAccount(account2Id));
         });
 
-        test(`session 3 actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`session 3 actor (${titleExpectsAccessAtLevel(sessionExpectsAccessForPolicyAccount(account3Id))})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.session3.action(),
@@ -516,14 +699,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)),
-            );
+            ).toEqual(sessionExpectsAccessForPolicyAccount(account3Id));
         });
 
-        test(`removed session actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`removed session actor (${titleExpectsAccessAtLevel(onlyViaUrlGrant)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.removedSession.action(),
@@ -531,10 +710,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(accessPolicy.urlGrant !== null && expectedAccessLevel === "View");
+            ).toEqual(onlyViaUrlGrant);
         });
 
-        test(`other session actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`other session actor (${titleExpectsAccessAtLevel(onlyViaUrlGrant)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.otherSession.action(),
@@ -542,10 +721,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(accessPolicy.urlGrant !== null && expectedAccessLevel === "View");
+            ).toEqual(onlyViaUrlGrant);
         });
 
-        test(`impersonated account 1 actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`impersonated account 1 actor (${titleExpectsAccessAtLevel(sessionExpectsAccessForPolicyAccount(account1Id))})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.space.impersonatedAction(scenario.session1),
@@ -553,19 +732,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(scenario.session1.account.id)?.level ??
-                            null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(sessionExpectsAccessForPolicyAccount(account1Id));
         });
 
-        test(`impersonated account 2 actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`impersonated account 2 actor (${titleExpectsAccessAtLevel(sessionExpectsAccessForPolicyAccount(account2Id))})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.space.impersonatedAction(scenario.session2),
@@ -573,19 +743,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(scenario.session2.account.id)?.level ??
-                            null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(sessionExpectsAccessForPolicyAccount(account2Id));
         });
 
-        test(`impersonated account 3 actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`impersonated account 3 actor (${titleExpectsAccessAtLevel(sessionExpectsAccessForPolicyAccount(account3Id))})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.space.impersonatedAction(scenario.session3),
@@ -593,14 +754,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)),
-            );
+            ).toEqual(sessionExpectsAccessForPolicyAccount(account3Id));
         });
 
-        test(`impersonated removed account actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`impersonated removed account actor (${titleExpectsAccessAtLevel(onlyViaUrlGrant)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.space.impersonatedAction(scenario.removedSession),
@@ -608,10 +765,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(accessPolicy.urlGrant !== null && expectedAccessLevel === "View");
+            ).toEqual(onlyViaUrlGrant);
         });
 
-        test(`impersonated account other session actor with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`impersonated account other session actor (${titleExpectsAccessAtLevel(onlyViaUrlGrant)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.otherSpace.impersonatedAction(scenario.otherSession),
@@ -619,10 +776,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(accessPolicy.urlGrant !== null && expectedAccessLevel === "View");
+            ).toEqual(onlyViaUrlGrant);
         });
 
-        test(`impersonated account 1 actor (from wrong space) with access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`impersonated account 1 actor (from wrong space) (${titleExpectsAccessAtLevel(onlyViaUrlGrant)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.otherSpace.impersonatedAction(scenario.session1),
@@ -630,10 +787,12 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(accessPolicy.urlGrant !== null && expectedAccessLevel === "View");
+            ).toEqual(onlyViaUrlGrant);
         });
 
-        test(`bot 1 actor with space scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot 1 actor with space scope (${titleExpectsAccessAtLevel(
+            spaceScopedBotExpectsAccessAtLevel(accessPolicy, expectedAccessLevel),
+        )})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot1Account.action({type: "Space"}),
@@ -641,14 +800,12 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)),
-            );
+            ).toEqual(spaceScopedBotExpectsAccessAtLevel(accessPolicy, expectedAccessLevel));
         });
 
-        test(`bot 2 actor with space scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot 2 actor with space scope (${titleExpectsAccessAtLevel(
+            spaceScopedBotExpectsAccessAtLevel(accessPolicy, expectedAccessLevel),
+        )})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot2Account.action({type: "Space"}),
@@ -656,14 +813,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)),
-            );
+            ).toEqual(spaceScopedBotExpectsAccessAtLevel(accessPolicy, expectedAccessLevel));
         });
 
-        test(`bot 2 actor (other account) with space scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot 2 actor (other account) with space scope (${titleExpectsAccessAtLevel(onlyViaUrlGrant)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot2OtherAccount.action({type: "Space"}),
@@ -671,10 +824,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(accessPolicy.urlGrant !== null && expectedAccessLevel === "View");
+            ).toEqual(onlyViaUrlGrant);
         });
 
-        test(`bot 3 actor with space scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot 3 actor with space scope (${titleExpectsAccessAtLevel(onlyViaUrlGrant)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot3Account.action({type: "Space"}),
@@ -682,10 +835,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(accessPolicy.urlGrant !== null && expectedAccessLevel === "View");
+            ).toEqual(onlyViaUrlGrant);
         });
 
-        test(`bot actor with account 1 scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot actor with account 1 scope (${titleExpectsAccessAtLevel(sessionExpectsAccessForPolicyAccount(account1Id))})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot1Account.action({type: "Account", accountId: account1Id}),
@@ -693,18 +846,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(account1Id)?.level ?? null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(sessionExpectsAccessForPolicyAccount(account1Id));
         });
 
-        test(`bot actor with account 2 scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot actor with account 2 scope (${titleExpectsAccessAtLevel(sessionExpectsAccessForPolicyAccount(account2Id))})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot1Account.action({type: "Account", accountId: account2Id}),
@@ -712,18 +857,12 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(account2Id)?.level ?? null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(sessionExpectsAccessForPolicyAccount(account2Id));
         });
 
-        test(`bot actor with post 1 scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot actor with post 1 scope (${titleExpectsAccessAtLevel(
+            spaceScopedBotExpectsAccessAtLevel(accessPolicy, expectedAccessLevel),
+        )})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot1Account.action({type: "Post", postId: post1Id}),
@@ -731,14 +870,12 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)),
-            );
+            ).toEqual(spaceScopedBotExpectsAccessAtLevel(accessPolicy, expectedAccessLevel));
         });
 
-        test(`bot actor with post 2 scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot actor with post 2 scope (${titleExpectsAccessAtLevel(
+            botPostScopeOnlyAccount1ExpectsAccess,
+        )})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot1Account.action({type: "Post", postId: post2Id}),
@@ -746,18 +883,12 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(account1Id)?.level ?? null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(botPostScopeOnlyAccount1ExpectsAccess);
         });
 
-        test(`bot actor with post 3 scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot actor with post 3 scope (${titleExpectsAccessAtLevel(
+            botPostScopeAccount1And2IntersectionExpectsAccess,
+        )})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot1Account.action({type: "Post", postId: post3Id}),
@@ -765,22 +896,12 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    (hasAccessLevel(
-                        accessPolicy.accountGrantById.get(account1Id)?.level ?? null,
-                        expectedAccessLevel,
-                    ) &&
-                        hasAccessLevel(
-                            accessPolicy.accountGrantById.get(account2Id)?.level ?? null,
-                            expectedAccessLevel,
-                        )),
-            );
+            ).toEqual(botPostScopeAccount1And2IntersectionExpectsAccess);
         });
 
-        test(`bot actor with post 4 scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot actor with post 4 scope (${titleExpectsAccessAtLevel(
+            botPostScopeOnlyAccount1ExpectsAccess,
+        )})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot1Account.action({type: "Post", postId: post4Id}),
@@ -788,18 +909,12 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(account1Id)?.level ?? null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(botPostScopeOnlyAccount1ExpectsAccess);
         });
 
-        test(`bot actor with post 5 scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot actor with post 5 scope (${titleExpectsAccessAtLevel(
+            botPostScopeAccount1And2IntersectionExpectsAccess,
+        )})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot1Account.action({type: "Post", postId: post5Id}),
@@ -807,22 +922,12 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    (hasAccessLevel(
-                        accessPolicy.accountGrantById.get(account1Id)?.level ?? null,
-                        expectedAccessLevel,
-                    ) &&
-                        hasAccessLevel(
-                            accessPolicy.accountGrantById.get(account2Id)?.level ?? null,
-                            expectedAccessLevel,
-                        )),
-            );
+            ).toEqual(botPostScopeAccount1And2IntersectionExpectsAccess);
         });
 
-        test(`bot actor with post 6 scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot actor with post 6 scope (${titleExpectsAccessAtLevel(
+            botPostScopeRemovedAccountGrantExpectsAccess,
+        )})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot1Account.action({type: "Post", postId: post6Id}),
@@ -830,18 +935,74 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(removedAccountId)?.level ?? null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(botPostScopeRemovedAccountGrantExpectsAccess);
         });
 
-        test(`bot actor with chat 1 scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot actor with post in channel with urlGrant scope (${titleExpectsAccessAtLevel(
+            botUrlGrantScopedEntityExpectsAccess,
+        )})`, async () => {
+            expect(
+                await evaluateAccessPolicy(
+                    scenario.bot1Account.action({
+                        type: "Post",
+                        postId: scenario.postInChannelWithUrlGrant.id,
+                    }),
+                    scenario.space.id,
+                    accessPolicy,
+                    expectedAccessLevel,
+                ),
+            ).toEqual(botUrlGrantScopedEntityExpectsAccess);
+        });
+
+        test(`bot actor with document with urlGrant scope (${titleExpectsAccessAtLevel(
+            botUrlGrantScopedEntityExpectsAccess,
+        )})`, async () => {
+            expect(
+                await evaluateAccessPolicy(
+                    scenario.bot1Account.action({
+                        type: "Document",
+                        documentId: scenario.documentWithUrlGrantOnly.id,
+                    }),
+                    scenario.space.id,
+                    accessPolicy,
+                    expectedAccessLevel,
+                ),
+            ).toEqual(botUrlGrantScopedEntityExpectsAccess);
+        });
+
+        test(`bot actor with room chat with urlGrant scope (${titleExpectsAccessAtLevel(
+            botUrlGrantScopedEntityExpectsAccess,
+        )})`, async () => {
+            expect(
+                await evaluateAccessPolicy(
+                    scenario.bot1Account.action({
+                        type: "Chat",
+                        chatId: scenario.roomChatWithUrlGrantOnly.id,
+                    }),
+                    scenario.space.id,
+                    accessPolicy,
+                    expectedAccessLevel,
+                ),
+            ).toEqual(botUrlGrantScopedEntityExpectsAccess);
+        });
+
+        test(`bot actor with task with urlGrant scope (${titleExpectsAccessAtLevel(
+            botUrlGrantScopedEntityExpectsAccess,
+        )})`, async () => {
+            expect(
+                await evaluateAccessPolicy(
+                    scenario.bot1Account.action({
+                        type: "Task",
+                        taskId: scenario.taskWithUrlGrantOnly.id,
+                    }),
+                    scenario.space.id,
+                    accessPolicy,
+                    expectedAccessLevel,
+                ),
+            ).toEqual(botUrlGrantScopedEntityExpectsAccess);
+        });
+
+        test(`bot actor with chat 1 scope (${titleExpectsAccessAtLevel(chat1BotExpectsAccess)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot1Account.action({type: "Chat", chatId: scenario.chat1.id}),
@@ -849,18 +1010,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(account1Id)?.level ?? null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(chat1BotExpectsAccess);
         });
 
-        test(`bot 2 actor with chat 1 scope and access policy: ${accessPolicyName} (expected access level: \`${expectedAccessLevel}\`)`, async () => {
+        test(`bot 2 actor with chat 1 scope (${titleExpectsAccessAtLevel(chat1BotExpectsAccess)})`, async () => {
             expect(
                 await evaluateAccessPolicy(
                     scenario.bot2Account.action({type: "Chat", chatId: scenario.chat1.id}),
@@ -868,18 +1021,10 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
                     accessPolicy,
                     expectedAccessLevel,
                 ),
-            ).toEqual(
-                (accessPolicy.urlGrant !== null && expectedAccessLevel === "View") ||
-                    (accessPolicy.defaultGrant !== null &&
-                        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)) ||
-                    hasAccessLevel(
-                        accessPolicy.accountGrantById.get(account1Id)?.level ?? null,
-                        expectedAccessLevel,
-                    ),
-            );
+            ).toEqual(chat1BotExpectsAccess);
         });
-    }
-}
+    });
+});
 
 // =============================================================================
 // Site access policy tests

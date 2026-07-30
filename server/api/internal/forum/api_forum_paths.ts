@@ -9,10 +9,13 @@ import {
     intoApiMessageContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {parseFileIdFromApiFileElement} from "~/server/api/internal/shared/parse_file_id_or_file_entity_id.js";
 import {getContentReferencesForServerPrintSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
+import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
+import {getChannelPostContents} from "~/server/forum/data/get_channel_posts.js";
 import {getPostContentWithCustomReferencesAndChannelPreview} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
 import {
     completePostCommentStream,
@@ -23,7 +26,10 @@ import {
     pingPostCommentStream,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -34,9 +40,11 @@ import {
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {generateId, isId} from "~/shared/id/id.js";
+import {FileId, PostId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -57,12 +65,61 @@ export const apiForumPaths: Pick<
                     channel: {
                         id: pathParameters.id,
                         name: channel.name,
-                        description: await intoApiMessageContentWithReferences(
-                            context,
-                            channel.spaceId,
-                            channel.description,
-                        ),
+                        description: await intoApiMessageContentWithReferences(context, {
+                            spaceId: channel.spaceId,
+                            node: channel.description,
+                            encoder: new ApiContentKeyEncoder({
+                                entityId: `Channel:${pathParameters.id}`,
+                                // We don't track channel versions like we do for messages/posts
+                                version: 0,
+                            }),
+                        }),
                     },
+                },
+            };
+        },
+    },
+
+    "/channels/{id}/posts": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const postsResult = await getChannelPostContents(context, {
+                consistency: "StrongWithinCache",
+                channelId: pathParameters.id,
+                limit: queryParameters.limit ?? 10,
+                beforeCreatedTime:
+                    queryParameters.cursor !== undefined
+                        ? deserializeDateString(queryParameters.cursor)
+                        : null,
+            });
+
+            const lastPost = postsResult.posts[postsResult.posts.length - 1];
+
+            const nextCursor =
+                postsResult.hasNextPage && lastPost
+                    ? serializeDateString(lastPost.createdTime)
+                    : null;
+
+            return {
+                content: {
+                    spaceId: postsResult.spaceId,
+                    nextCursor,
+                    posts: await runAllPromises(
+                        postsResult.posts.map(async post => ({
+                            id: post.postId,
+                            author: await getApiAccount(
+                                context,
+                                postsResult.spaceId,
+                                post.authorId,
+                                {consistency: "StrongWithinCache"},
+                            ),
+                            createdTime: serializeDateString(post.createdTime),
+                            createdTimeZone: post.createdTimeZone,
+                            channel: {
+                                id: pathParameters.id,
+                                name: postsResult.channelName,
+                            },
+                        })),
+                    ),
                 },
             };
         },
@@ -94,33 +151,59 @@ export const apiForumPaths: Pick<
     "/posts": {
         post: async (context, {requestBody}) => {
             const channelId = requestBody.channelId;
+            const postId = generateId<PostId>();
 
             const content = assertPostContent(
                 fromApiContent(PostContentProsemirrorSchema, requestBody.content),
             );
 
-            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+            // Attach files referenced in the content to the post before creating the post so
+            // there's no race where a reader sees the post before its files are attached.
+            const fileIds = extractFileIdsFromApiContent(requestBody.content);
+            fileIds.delete(unknownFileId);
+            if (fileIds.size > 0) {
+                await runAllPromises(
+                    [...fileIds].map(fileId =>
+                        attachFileToTargetAsBot(
+                            context,
+                            fileId,
+                            FilePostAuthorizer.bind({type: "Post", postId}),
+                        ),
+                    ),
+                );
+            }
 
-            const [post, author, {content: contentWithReferences, references}] =
-                await runAllPromises([
-                    createPost(context, {
-                        channelId,
-                        createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
-                        content,
-                        consistency: "Strong",
-                    }),
-                    getApiAccount(
-                        referencesContext,
-                        referencesContext.actor.getSpaceId(),
-                        referencesContext.actor.getBotAccountId(),
-                    ),
-                    intoApiContentWithReferencesAndReturnReferences(
-                        referencesContext,
-                        referencesContext.actor.getSpaceId(),
-                        "AssertHasNoFiles",
-                        content,
-                    ),
-                ]);
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+            const [post, author] = await runAllPromises([
+                createPost(context, {
+                    id: postId,
+                    channelId,
+                    createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
+                    content,
+                    consistency: "Strong",
+                }),
+                getApiAccount(
+                    referencesContext,
+                    referencesContext.actor.getSpaceId(),
+                    referencesContext.actor.getBotAccountId(),
+                ),
+            ]);
+
+            // Resolve content references after creating the post so the file authorizer can
+            // find the post attachment target.
+            const {content: contentWithReferences, references} =
+                await intoApiContentWithReferencesAndReturnReferences(
+                    referencesContext,
+                    referencesContext.actor.getSpaceId(),
+                    FilePostAuthorizer.bind({type: "Post", postId}),
+                    content,
+                    {
+                        encoder: new ApiContentKeyEncoder({
+                            entityId: `Post:${postId}`,
+                            version: 0,
+                        }),
+                    },
+                );
 
             return {
                 content: {
@@ -139,9 +222,7 @@ export const apiForumPaths: Pick<
                             title: createPostSearchEntityTitle(
                                 post.channelName,
                                 content,
-                                getContentReferencesForServerPrintSingleLineTextSnippet(
-                                    references,
-                                ),
+                                getContentReferencesForServerPrintSingleLineTextSnippet(references),
                             ),
                         },
                     },
@@ -165,6 +246,12 @@ export const apiForumPaths: Pick<
                             spaceId,
                             FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
                             post.content,
+                            {
+                                encoder: new ApiContentKeyEncoder({
+                                    entityId: `Post:${pathParameters.id}`,
+                                    version: post.contentVersion,
+                                }),
+                            },
                         ),
                     ]);
 
@@ -240,16 +327,16 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId: message.spaceId,
-                    message: await intoApiMessage(
-                        context,
-                        message.spaceId,
+                    message: await intoApiMessage(context, {
+                        spaceId: message.spaceId,
                         message,
-                        createIntoApiPostCommentContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiPostCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `PostComment:${pathParameters.id}-${pathParameters.index}`,
+                    }),
                 },
             };
         },
@@ -303,16 +390,17 @@ export const apiForumPaths: Pick<
                     nextCursor,
                     messages: await runAllPromises(
                         comments.map(message =>
-                            intoApiMessage(
-                                context,
+                            intoApiMessage(context, {
                                 spaceId,
                                 message,
-                                createIntoApiPostCommentContentPayloadParent(
-                                    context,
-                                    spaceId,
-                                    pathParameters.id,
-                                ),
-                            ),
+                                intoContentPayloadParent:
+                                    createIntoApiPostCommentContentPayloadParent(
+                                        context,
+                                        spaceId,
+                                        pathParameters.id,
+                                    ),
+                                entityId: `PostComment:${pathParameters.id}-${message.index}`,
+                            }),
                         ),
                     ),
                 },
@@ -326,13 +414,30 @@ export const apiForumPaths: Pick<
             );
 
             const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
+            const fileIds = (requestBody.files ?? []).map(parseFileIdFromApiFileElement);
+            const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
+
+            // Attach files before creating the message, matching the app client flow. The
+            // service function validates attachments exist.
+            await runAllPromises(
+                attachmentFileIds.map(fileId =>
+                    attachFileToTargetAsBot(
+                        context,
+                        fileId,
+                        FilePostAuthorizer.bind({
+                            type: "PostComments",
+                            postId: pathParameters.id,
+                        }),
+                    ),
+                ),
+            );
 
             const {spaceId, index, createdTime} = await createPostComment(context, {
                 postId: pathParameters.id,
                 parent,
                 content,
                 createdTimeZone,
-                fileIds: [],
+                fileIds,
                 isStream: requestBody.isStream,
                 consistency: "StrongWithinCache",
             });
@@ -342,7 +447,7 @@ export const apiForumPaths: Pick<
                 parent,
                 content,
                 contentUpdate: null,
-                fileIds: [],
+                fileIds,
                 reactionsByPos: emptyMap,
                 filesReactions: emptyReactionSet,
             };
@@ -386,10 +491,9 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(
-                        context,
+                    message: await intoApiMessage(context, {
                         spaceId,
-                        {
+                        message: {
                             index,
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
@@ -400,12 +504,13 @@ export const apiForumPaths: Pick<
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        createIntoApiPostCommentContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiPostCommentContentPayloadParent(
                             context,
                             spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `PostComment:${pathParameters.id}-${index}`,
+                    }),
                 },
             };
         },

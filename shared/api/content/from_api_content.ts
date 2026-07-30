@@ -14,6 +14,7 @@ import {
     ApiContentMentionInlineElement,
     ApiContentPreviewBlockElement,
     ApiContentTableBlockElementCellBlockElement,
+    ApiPreviewReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
@@ -39,17 +40,20 @@ export function fromApiContent(schema: ProsemirrorSchema, content: ApiContent): 
 }
 
 /**
- * Specialized version of `fromApiContent()` specifically optimized for the API
- * `PUT` document endpoint.
+ * Converts a title string and API content into the ordered child nodes of a
+ * document `doc`: a `title` node followed by the body block nodes. Unlike
+ * `fromApiContent()`, which returns a full `doc` node, this returns just the
+ * children so callers can wrap them in a `doc` with the appropriate attributes
+ * (e.g. the `accessPolicy` on document create).
  */
-export function fromApiContentForPutDocument(
+export function fromApiContentToDocumentChildNodes(
     schema: ProsemirrorSchema,
     title: string,
     content: ApiContent,
 ): ReadonlyArray<Node> {
     const blockNodes = Array.from(
         concatIterables(
-            [schema.nodes.title!.create(null, schema.text(title))],
+            [schema.nodes.title!.create(null, title.length > 0 ? schema.text(title) : null)],
             fromApiContentBlockElements(schema, content.elements),
         ),
     );
@@ -298,22 +302,19 @@ function fromApiContentFileOrPreviewElement(
     }
 }
 
-function previewReferenceToFileEntityId(target: {
-    readonly type: string;
-    readonly id: string;
-}): string {
+function previewReferenceToFileEntityId(target: ApiPreviewReference): string {
     // Construct a FileEntityId (`Type:id`) from the preview target.
     switch (target.type) {
         case "Channel":
         case "Chat":
         case "Document":
         case "Post":
+        case "Site":
         case "Task":
         case "TaskCollection":
             return `${target.type}:${target.id}`;
-        // TODO(#sites): Add support for Site previews.
         default:
-            throw new InternalError(`Unknown preview target type: ${target.type}`);
+            throw exhaustive(target);
     }
 }
 
@@ -388,6 +389,10 @@ function fromApiContentMentionInlineElement(
             }
             case "Post": {
                 entityId = `Post:${mentionReference.id}`;
+                break;
+            }
+            case "Site": {
+                entityId = `Site:${mentionReference.id}`;
                 break;
             }
             default:

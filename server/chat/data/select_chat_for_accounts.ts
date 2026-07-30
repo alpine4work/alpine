@@ -66,7 +66,7 @@ export function selectChatForAccounts(
                     initialSharedChatsPromise: sharedChatsPromise,
                 });
 
-                return actuallyGetChatAndInitialMessages(context, {
+                return await actuallyGetChatAndInitialMessages(context, {
                     result,
                     messagesLimit,
                 });
@@ -84,7 +84,7 @@ export function selectChatForAccounts(
                 // to build.)
                 const suggestedChatLimit = 5;
 
-                return parallelFilterMapLimitAsyncIterableToArray(
+                return await parallelFilterMapLimitAsyncIterableToArray(
                     asyncIterableFromIterable(sharedChats),
                     suggestedChatLimit,
                     async sharedChat => {

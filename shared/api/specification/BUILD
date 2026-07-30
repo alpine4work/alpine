@@ -24,7 +24,12 @@ ts_project(
     # package pretty small. We'd like to open source this code someday!
     # This package is a dependency of `//shared/api/markdown` which we know
     # we want to open source.
-    deps = ["//shared/id"],
+    deps = [
+        "//shared/error",
+        "//shared/helpers",
+        "//shared/id",
+        "//shared/schema",
+    ],
 )
 
 alias(
@@ -57,6 +62,7 @@ ts_project(
         "//shared/files",
         "//shared/helpers",
         "//shared/id",
+        "//shared/schema",
     ],
 )
 

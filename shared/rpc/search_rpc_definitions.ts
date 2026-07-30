@@ -1,5 +1,5 @@
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -68,6 +68,11 @@ export const markSearchAffinityEntityInteraction = defineRpc({
         spaceId: Schema.id<SpaceId>(),
         entityId: SearchAffinityEntityIdSchema,
         interaction: SearchAffinityEntityInteractionSchema,
+        // The id of the site the entity inherits its access policy from, or `null` if it
+        // isn't in a site (or the entity itself is the site). When non-null, an additional
+        // `searchAffinityEntitySiteCascadeRatio` (80% at time of writing) of the
+        // interaction's points cascades to the site.
+        siteId: Schema.id<SiteId>().nullable().default(null),
     },
     output: {},
 });

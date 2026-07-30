@@ -9,6 +9,10 @@ import {
     TaskCollectionModelData,
 } from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
+import {
+    TaskQueryDefaultsRegister,
+    emptyTaskQueryDefaults,
+} from "~/shared/tasks/task_query_defaults.js";
 
 function makeRawData({
     name = "Test Collection",
@@ -29,7 +33,10 @@ function makeRawData({
         id: generateId(),
         spaceId: generateId(),
         createdTime: [0, 0],
-        creatorId: generateId<AccountId>(),
+        creator: {
+            accountId: generateId<AccountId>(),
+            from: null,
+        },
         deletedTime,
         undeletedTime,
         name: new LabelStringRegister(name, nameVersion),
@@ -38,6 +45,7 @@ function makeRawData({
             {type: "Local", accountGrantById: new Map(), defaultGrant: null, urlGrant: null},
             [0, 0],
         ),
+        defaults: new TaskQueryDefaultsRegister(emptyTaskQueryDefaults, [0, 0]),
     };
 }
 
@@ -47,13 +55,9 @@ test("returns correct base for a normal collection", () => {
     const result = getTaskCollectionSearchEntityBase(collection);
     expect(result).toEqual({
         title: rawData.name.value,
-        titleVersion: {
-            type: "HybridLogicalTime",
-            time: rawData.name.version,
-        },
-        media: {
-            type: "TaskCollectionColor",
-            color: rawData.color.value,
+        titleVersion: rawData.name.version,
+        color: {
+            value: rawData.color.value,
             version: rawData.color.version,
         },
     });
@@ -68,13 +72,9 @@ test("returns null title for deleted collection", () => {
     const result = getTaskCollectionSearchEntityBase(collection);
     expect(result.title).toBeNull();
     // Other fields still correct
-    expect(result.titleVersion).toEqual({
-        type: "HybridLogicalTime",
-        time: deletedTime,
-    });
-    expect(result.media).toEqual({
-        type: "TaskCollectionColor",
-        color: rawData.color.value,
+    expect(result.titleVersion).toEqual(deletedTime);
+    expect(result.color).toEqual({
+        value: rawData.color.value,
         version: rawData.color.version,
     });
 });
@@ -85,8 +85,8 @@ test("returns correct color in media for custom color", () => {
     const rawData = makeRawData({color, colorVersion});
     const collection = new TaskCollectionModel(rawData);
     const result = getTaskCollectionSearchEntityBase(collection);
-    expect(result.media.color).toBe(color);
-    expect(result.media.version).toEqual(colorVersion);
+    expect(result.color.value).toBe(color);
+    expect(result.color.version).toEqual(colorVersion);
 });
 
 test("`titleVersion` uses max of `name.version`, `deletedTime`, `undeletedTime`", () => {
@@ -96,10 +96,7 @@ test("`titleVersion` uses max of `name.version`, `deletedTime`, `undeletedTime`"
     const rawData = makeRawData({nameVersion, deletedTime, undeletedTime});
     const collection = new TaskCollectionModel(rawData);
     const result = getTaskCollectionSearchEntityBase(collection);
-    expect(result.titleVersion).toEqual({
-        type: "HybridLogicalTime",
-        time: undeletedTime,
-    });
+    expect(result.titleVersion).toEqual(undeletedTime);
 });
 
 test("`isDeleted` is false if `undeletedTime` > `deletedTime`", () => {
@@ -110,10 +107,7 @@ test("`isDeleted` is false if `undeletedTime` > `deletedTime`", () => {
     expect(collection.isDeleted()).toBe(false);
     const result = getTaskCollectionSearchEntityBase(collection);
     expect(result.title).toBe(rawData.name.value);
-    expect(result.titleVersion).toEqual({
-        type: "HybridLogicalTime",
-        time: undeletedTime,
-    });
+    expect(result.titleVersion).toEqual(undeletedTime);
 });
 
 test("`isDeleted` is true if `deletedTime` > `undeletedTime`", () => {
@@ -124,10 +118,7 @@ test("`isDeleted` is true if `deletedTime` > `undeletedTime`", () => {
     expect(collection.isDeleted()).toBe(true);
     const result = getTaskCollectionSearchEntityBase(collection);
     expect(result.title).toBeNull();
-    expect(result.titleVersion).toEqual({
-        type: "HybridLogicalTime",
-        time: deletedTime,
-    });
+    expect(result.titleVersion).toEqual(deletedTime);
 });
 
 test("works with only `undeletedTime` set (not deleted)", () => {
@@ -137,10 +128,7 @@ test("works with only `undeletedTime` set (not deleted)", () => {
     expect(collection.isDeleted()).toBe(false);
     const result = getTaskCollectionSearchEntityBase(collection);
     expect(result.title).toBe(rawData.name.value);
-    expect(result.titleVersion).toEqual({
-        type: "HybridLogicalTime",
-        time: undeletedTime,
-    });
+    expect(result.titleVersion).toEqual(undeletedTime);
 });
 
 test("works with only `deletedTime` set (is deleted)", () => {
@@ -150,8 +138,5 @@ test("works with only `deletedTime` set (is deleted)", () => {
     expect(collection.isDeleted()).toBe(true);
     const result = getTaskCollectionSearchEntityBase(collection);
     expect(result.title).toBeNull();
-    expect(result.titleVersion).toEqual({
-        type: "HybridLogicalTime",
-        time: deletedTime,
-    });
+    expect(result.titleVersion).toEqual(deletedTime);
 });

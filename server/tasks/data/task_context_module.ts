@@ -8,7 +8,7 @@ import {
 } from "~/server/context/task_context_module_base.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
+import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/after_commit_task_action_transaction_event_emitter_for_test.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -209,7 +209,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         const url = new URL(`http://${host}/${spaceId}/loadQueries`);
         if (consistency !== "Eventual") url.searchParams.set("consistency", consistency);
 
-        return fetchWithTracer(
+        return await fetchWithTracer(
             this._context.tracer.getTracer(),
             url.toString(),
             {

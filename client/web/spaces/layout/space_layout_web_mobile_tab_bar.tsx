@@ -5,7 +5,7 @@ import {usePress} from "react-aria";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useLocation} from "react-router";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
-import {useDynamoGeneralRealtimeItem} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {useRynamoItem} from "~/client/web/dynamo/use_rynamo_item.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {ScriptBeforeAppInitialRender} from "~/client/web/helpers/lifecycle/script_before_initial_app_render.js";
 import {useSessionStorage} from "~/client/web/helpers/use_local_storage.js";
@@ -14,13 +14,13 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/web/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {
     WebMobileTab,
     WebMobileTabSchema,
     getWebMobileTabFromLocation,
 } from "~/client/web/spaces/layout/web_mobile_tab.js";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
 import {
     backgroundColorVar,
@@ -28,7 +28,7 @@ import {
     spaceLayoutStyles,
 } from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -41,11 +41,7 @@ import {
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
-export function SpaceLayoutWebMobileTabBar({
-    initialInbox,
-}: {
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
-}) {
+export function SpaceLayoutWebMobileTabBar({initialInbox}: {initialInbox: RynamoItem<InboxModel>}) {
     const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
 
     const currentTimeRoundedToNearestTenMinutes = useCurrentTimeRoundedToNearestTenMinutes();
@@ -64,10 +60,10 @@ export function SpaceLayoutWebMobileTabBar({
     // which would be inefficient.
     assert(platform === "mobile" && !isNativeMobile);
 
-    const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
+    const {item: inbox} = useRynamoItem(initialInbox, {
         isConnected,
         subscribeToEvents: useCallback(
-            subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+            subscriber => subscribeToEvents(event => subscriber(event.events)),
             [subscribeToEvents],
         ),
         reloadItemWithStrongReadConsistency: useCallback(async () => {
@@ -156,7 +152,7 @@ export function SpaceLayoutWebMobileTabBar({
                 label="Home"
                 icon={<House />}
                 onPress={() => {
-                    const pathname = `/s/${space.id}`;
+                    const pathname = `/home/${space.id}`;
 
                     if (location.pathname !== pathname) {
                         navigate(pathname);
@@ -168,7 +164,7 @@ export function SpaceLayoutWebMobileTabBar({
                 label="Search"
                 icon={<MagnifyingGlass />}
                 onPress={() => {
-                    const pathname = `/s/${space.id}/search`;
+                    const pathname = `/search/${space.id}`;
 
                     if (location.pathname !== pathname) {
                         navigate(pathname);
@@ -180,7 +176,7 @@ export function SpaceLayoutWebMobileTabBar({
                 label="Create"
                 icon={<Plus />}
                 onPress={() => {
-                    const pathname = `/s/${space.id}/create`;
+                    const pathname = `/create/${space.id}`;
 
                     if (location.pathname !== pathname) {
                         navigate(pathname);
@@ -229,10 +225,10 @@ export function SpaceLayoutWebMobileTabBar({
                     </>
                 }
                 onPress={() => {
-                    const pathname = `/s/${space.id}/inbox`;
+                    const pathname = `/inbox/${space.id}`;
 
                     if (location.pathname !== pathname) {
-                        navigate(`/s/${space.id}/inbox`);
+                        navigate(`/inbox/${space.id}`);
                     }
                 }}
             />
@@ -241,7 +237,7 @@ export function SpaceLayoutWebMobileTabBar({
                 label="More"
                 icon={<List />}
                 onPress={() => {
-                    const pathname = `/s/${space.id}/more`;
+                    const pathname = `/more/${space.id}`;
 
                     if (location.pathname !== pathname) {
                         navigate(pathname);

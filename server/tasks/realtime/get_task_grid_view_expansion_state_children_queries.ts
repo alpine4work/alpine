@@ -1,9 +1,9 @@
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
+import {authorizeTaskIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_index_doc_access_if_possible.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/data/task_realtime_context.js";
-import {authorizeTaskIndexDocAccessIfPossible} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {
@@ -43,6 +43,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
         gridViewExpansionState: TaskGridViewExpansionState;
         consistency?: DynamoCacheReadConsistency;
         loadQuery: (input: {
+            type: "Normalized";
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
             limit: number;
@@ -148,7 +149,8 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
                     // an optimization, ignore tasks we no longer have access to.
                     if (!authorizationResult.ok) return null;
 
-                    return loadQuery({
+                    return await loadQuery({
+                        type: "Normalized",
                         filters: childrenFilters,
                         sorts: childrenSorts,
                         limit,

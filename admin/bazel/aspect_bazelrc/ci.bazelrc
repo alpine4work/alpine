@@ -44,31 +44,6 @@ build:github-runner --sandbox_base=/dev/shm
 # GitHub runner should have started our AWS S3 proxy server on this port.
 build:github-runner --remote_cache=http://localhost:3501
 
-# NOTE(calebmer): Don't upload the results of small, frequent, actions to the
-# remote cache. `rules_js` copies all source files into `bazel-bin` and copies
-# npm packages into the right place in `node_modules/.aspect_rules_js` in
-# `bazel-bin`. These actions are fast to run locally and it's wasteful to put
-# the result in our remote cache.
-#
-# 1. It wastes storage space to put file copies in our cache
-# 2. It wastes I/O resources having to GET/PUT on S3 for each file
-#
-# Wasting I/O resources is especially bad since while our EC2 instance is busy
-# networking it throttles the CPU work we can do causing our tests to take much
-# longer (~5x longer in some cases!).
-#
-# We've disabled remote caching for all the fast, cheap, actions that run when
-# you build a `ts_library()`. To reproduce this list run:
-#
-# ```
-# bazel clean && \
-#     bazel build --subcommands //shared/helpers 2>&1 >/dev/null | \
-#     grep mnemonic | \
-#     sed -E "s/.*mnemonic: (.+)].*/\1/" | \
-#     sort | \
-#     uniq
-# ```
-build:github-runner --modify_execution_info='(CopyFile|CopyDirectory|CopyToDirectory|NpmPackageExtract|SWCCompile|TsValidateOptions|ScanJsDeps)=+no-remote-cache'
 
 # NOTE(calebmer): Disable the Aspect bazelrc default flaky test configuration.
 # We'll manually mark flaky tests as flaky. We prefer fast failure in the
@@ -144,3 +119,16 @@ build --remote_local_fallback
 # Fixes builds hanging on CI that get the TCP connection closed without sending RST packets.
 # Docs: https://bazel.build/reference/command-line-reference#flag--grpc_keepalive_time
 build --grpc_keepalive_time=30s
+
+##########################################
+# Performance optimization configuration #
+##########################################
+
+# Don't eagerly build runfile symlinks for targets. Will build them on demand if needed, though
+# ideally we should not need to build them at all.
+# Docs: https://bazel.build/reference/command-line-reference#flag--build_runfile_links
+build --nobuild_runfile_links
+
+# Use asynchronous remote cache operations to allow cache IO to happen in the background.
+# Docs: https://bazel.build/versions/7.7.0/reference/command-line-reference#flag--experimental_remote_cache_async
+build --experimental_remote_cache_async

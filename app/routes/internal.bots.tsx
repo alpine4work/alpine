@@ -81,7 +81,7 @@ export default function BotsManagementPage() {
     const navigate = useNavigate();
 
     const handleUploadAvatar = async (bot: Bot, file: File): Promise<AvatarModel> => {
-        return fetchWithTracer(
+        return await fetchWithTracer(
             context.tracer.getTracer(),
             new URL(`/api/avatar/bot/${bot.id}`, window.location.href),
             {

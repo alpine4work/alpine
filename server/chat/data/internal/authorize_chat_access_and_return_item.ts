@@ -348,6 +348,7 @@ export async function authorizeChatAccessForAccountAndReturnItemIfPossible(
                 accountId,
                 chatAttributesItem.definition.accessPolicy,
                 expectedAccessLevel,
+                options,
             );
 
             if (!ok) {

@@ -1,9 +1,13 @@
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {authorizeSiteAccessIfPossible} from "~/server/sites/data/authorize_site_access.js";
 import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {dangerouslyGetAccountStubIfExistsWithoutAuthorization} from "~/server/spaces/dangerously_get_account_stub_if_exists_without_authorization.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {authorizeTaskCollectionIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_collection_index_doc_access_if_possible.js";
+import {authorizeTaskIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_index_doc_access_if_possible.js";
+import {getTaskGridViewExpansionState} from "~/server/tasks/data/get_task_grid_view_expansion_state.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
@@ -12,11 +16,6 @@ import {
     TaskRealtimeActionContext,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
-import {
-    authorizeTaskCollectionIndexDocAccessIfPossible,
-    authorizeTaskIndexDocAccessIfPossible,
-    getTaskGridViewExpansionState,
-} from "~/server/tasks/data/task_table.js";
 import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -27,27 +26,31 @@ import {ErrorCode} from "~/shared/error/error_code.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {
-    AccountId,
-    BrowserId,
-    SiteId,
-    SpaceId,
-    TaskCollectionId,
-    TaskId,
-} from "~/shared/id/types/id_types.js";
+import {AccountId, SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
 import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
-import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
-import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {
+    TaskQueryNormalizedFilters,
+    normalizeTaskQueryFilters,
+} from "~/shared/tasks/task_query_normalized_filters.js";
+import {
+    TaskQueryNormalizedSort,
+    normalizeTaskQuerySorts,
+} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
     TaskRealtimeQueryLoadedState,
     TaskRealtimeUpdateEvent,
     TaskRealtimeUpdateEventBackfillTask,
 } from "~/shared/tasks/task_realtime_protocol.js";
+import {
+    TaskRealtimeLoadQueriesInputQuery,
+    TaskRealtimeLoadQueriesOutputQuery,
+} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 
 /**
  * Loads some initial data for multiple queries without establishing a realtime
@@ -91,21 +94,13 @@ export async function loadTaskRealtimeQueries(
             action: (context: TaskRealtimeSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
         spaceId: SpaceId;
-        queries: ReadonlyArray<{
-            filters: TaskQueryNormalizedFilters;
-            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-            limit: number;
-            shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
-        }>;
+        queries: ReadonlyArray<TaskRealtimeLoadQueriesInputQuery>;
         taskIds: ReadonlyArray<TaskId>;
         collectionIds: ReadonlyArray<TaskCollectionId>;
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
-    queries: Array<{
-        loadedState: TaskRealtimeQueryLoadedState;
-        gridViewExpansionState: TaskGridViewExpansionState | null;
-    }>;
+    queries: Array<TaskRealtimeLoadQueriesOutputQuery>;
     extraQueries: Array<{
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -211,21 +206,80 @@ export async function loadTaskRealtimeQueries(
 
     const loadQuery = async (
         context: TaskRealtimeSystemActionContext,
-        {
-            filters,
-            sorts,
-            limit,
-            shouldLoadGridViewExpandedChildTasksForBrowserId,
-        }: {
-            filters: TaskQueryNormalizedFilters;
-            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-            limit: number;
-            shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
-        },
-    ) => {
+        query: TaskRealtimeLoadQueriesInputQuery,
+    ): Promise<TaskRealtimeLoadQueriesOutputQuery> => {
+        let filtersResult:
+            | {type: "Possible"; normalizedFilters: TaskQueryNormalizedFilters}
+            | {type: "Impossible"};
+        let sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+
+        switch (query.type) {
+            case "Normalized": {
+                filtersResult = {type: "Possible", normalizedFilters: query.filters};
+                sorts = query.sorts;
+                break;
+            }
+            case "Collection": {
+                const {defaults} = await server.authorizeCollectionAccess(
+                    originalContext,
+                    spaceId,
+                    query.collectionId,
+                    "View",
+                    {consistency},
+                );
+
+                filtersResult = normalizeTaskQueryFilters(
+                    [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesOneOf",
+                                collectionIds: new Set([query.collectionId]),
+                            },
+                        },
+                        ...defaults.filters,
+                    ],
+                    query.evaluationContext,
+                );
+
+                // If no filters or sorts have been explicitly set then sort by the manual
+                // collection position. Otherwise a filtered view automatically applies a sort so
+                // newly created tasks land somewhere predictable.
+                sorts =
+                    defaults.filters.length === 0 && defaults.sorts.length === 0
+                        ? [
+                              {
+                                  type: "CollectionPosition",
+                                  direction: "Ascending",
+                                  missing: "Last",
+                                  collectionId: query.collectionId,
+                              },
+                              {
+                                  type: "CreatedTime",
+                                  direction: "Ascending",
+                                  missing: "Last",
+                              },
+                          ]
+                        : normalizeTaskQuerySorts(defaults.sorts);
+
+                break;
+            }
+            default:
+                throw exhaustive(query);
+        }
+
+        if (filtersResult.type === "Impossible") {
+            return {
+                loadedState: {type: "Full"},
+                gridViewExpansionState: null,
+                filtersResult,
+                sorts,
+            };
+        }
+
         await server.authorizeQueryAccess(originalContext, {
             spaceId,
-            filters,
+            filters: filtersResult.normalizedFilters,
             sorts,
             consistency,
         });
@@ -233,16 +287,17 @@ export async function loadTaskRealtimeQueries(
         const [{loadedState, tasks}, gridViewExpansionState] = await runAllPromises([
             server.loadQuery(context, {
                 spaceId,
-                filters,
+                filters: filtersResult.normalizedFilters,
                 sorts,
-                limit,
+                limit: query.limit,
             }),
-            shouldLoadGridViewExpandedChildTasksForBrowserId &&
+            query.type === "Normalized" &&
+            query.shouldLoadGridViewExpandedChildTasksForBrowserId &&
             originalContext.actor.type === "Session"
                 ? getTaskGridViewExpansionState(originalContext.actor.authorizeSession(), {
                       spaceId,
-                      browserId: shouldLoadGridViewExpandedChildTasksForBrowserId,
-                      filters,
+                      browserId: query.shouldLoadGridViewExpandedChildTasksForBrowserId,
+                      filters: filtersResult.normalizedFilters,
                       sorts,
                       consistency,
                   })
@@ -269,7 +324,7 @@ export async function loadTaskRealtimeQueries(
             server,
             spaceId,
             actor,
-            limit,
+            limit: query.limit,
             tasks,
             gridViewExpansionState,
             loadQuery: async input => {
@@ -292,7 +347,7 @@ export async function loadTaskRealtimeQueries(
             }
         }
 
-        return {loadedState, gridViewExpansionState};
+        return {loadedState, gridViewExpansionState, filtersResult, sorts};
     };
 
     // Escalation is safe since we authorize that our session has access to the query
@@ -383,6 +438,13 @@ export async function loadTaskRealtimeQueries(
             .ok,
         isCollectionAccessAuthorized: async (collectionId: TaskCollectionId) =>
             backfillAuthorizedCollectionIds.has(collectionId),
+        isSiteAccessAuthorized: async (siteId: SiteId) => {
+            const result = await authorizeSiteAccessIfPossible(context, siteId, "View", {
+                consistency,
+            });
+
+            return result?.ok ?? false;
+        },
     };
 
     const backfillAuthorizedTasks = await runAllPromises(
@@ -445,8 +507,16 @@ export async function loadTaskRealtimeQueries(
             ),
         ),
         runAllPromises(
-            mapIterable(referencedSiteIds, siteId =>
-                getSitePreviewIfPossible(referenceContext, siteId, {consistency}),
+            mapIterable(
+                referencedSiteIds,
+                async (
+                    siteId,
+                ): Promise<{isPrivate: false; site: SitePreviewModel} | {isPrivate: true}> => {
+                    const result = await getSitePreviewIfPossible(referenceContext, siteId, {
+                        consistency,
+                    });
+                    return result?.ok ? {isPrivate: false, site: result.value} : {isPrivate: true};
+                },
             ),
         ),
     ]);

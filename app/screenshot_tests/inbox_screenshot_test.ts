@@ -5,76 +5,185 @@ import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screensho
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {PostId, TaskId} from "~/shared/id/types/id_types.js";
+import {ChatId, PostId, TaskId} from "~/shared/id/types/id_types.js";
 
 const inboxScreenshotTime = new Date("2025-10-17T17:00:00.000Z");
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     const {space, accounts} = await runner.createDemoSpace(context);
+    // Need a standardized access policy so that we can convert entities to and from
+    // sites.
+    const initialAccessPolicy = getStandardizedAccessPolicy(accounts);
 
-    const entries = await createInboxEntries(accounts, runner);
-
-    await screenshotInboxEntry(
-        runner,
-        accounts.cassCade,
-        space.id,
-        entries.chatPath,
-        "a0",
-        "chat",
-        "rose loved the debrief",
-    );
-    await screenshotInboxEntry(
-        runner,
-        accounts.cassCade,
-        space.id,
-        entries.documentNewCommentThreadsPath,
-        "a1",
-        "document-comments",
-        "Want to flag that I don",
-    );
-    await screenshotInboxEntry(
-        runner,
-        accounts.cassCade,
-        space.id,
-        entries.taskPath,
-        "a2",
-        "task",
-        "We need to make a decision on table column resizing",
-    );
-    await screenshotInboxEntry(
-        runner,
-        accounts.cassCade,
-        space.id,
-        entries.channelPostsPath,
-        "a3",
-        "post",
-        "Should we use",
-    );
-}
-
-async function createInboxEntries(accounts: DemoSpaceAccounts, runner: ScreenshotTestRunner) {
-    const chatPath = await createChatInboxEntry(accounts, runner);
-    const channelPostsPath = await createForumInboxEntry(accounts, runner);
-    const documentNewCommentThreadsPath = await createDocumentNewCommentThreadsInboxEntry(
+    const {chat, chatRoom, channel, document, task} = await createInboxEntries(
         accounts,
         runner,
+        initialAccessPolicy,
     );
-    const taskPath = await createTaskInboxEntry(accounts, runner);
+    {
+        await screenshotInboxEntry(
+            runner,
+            accounts.cassCade,
+            space.id,
+            chat.path,
+            "a0",
+            "chat",
+            "rose loved the debrief",
+        );
+        await screenshotInboxEntry(
+            runner,
+            accounts.cassCade,
+            space.id,
+            document.path,
+            "a1",
+            "document-comments",
+            "Want to flag that I don",
+        );
+        await screenshotInboxEntry(
+            runner,
+            accounts.cassCade,
+            space.id,
+            task.path,
+            "a2",
+            "task",
+            "We need to make a decision on table column resizing",
+        );
+        await screenshotInboxEntry(
+            runner,
+            accounts.cassCade,
+            space.id,
+            channel.path,
+            "a3",
+            "post",
+            "Should we use",
+        );
+        await screenshotInboxEntry(
+            runner,
+            accounts.cassCade,
+            space.id,
+            chatRoom.path,
+            "a4",
+            "chat-room",
+            "Tables pairing",
+        );
+    }
+
+    // Same flow as before, but add all entities to a site
+    {
+        const site = await TestSite.create(accounts.cassCade, {
+            name: "Inbox Showcase",
+            access: initialAccessPolicy,
+        });
+
+        await runAllPromises([
+            site.addEntity(accounts.cassCade, {
+                entityId: `Chat:${chatRoom.chatRoom.id}`,
+                parentId: site.initialRootContainerId,
+                orderKey: assertOrderKey("a1"),
+            }),
+            site.addEntity(accounts.cassCade, {
+                entityId: `Channel:${channel.channel.id}`,
+                parentId: site.initialRootContainerId,
+                orderKey: assertOrderKey("a2"),
+            }),
+            site.addEntity(accounts.cassCade, {
+                entityId: `Document:${document.document.id}`,
+                parentId: site.initialRootContainerId,
+                orderKey: assertOrderKey("a3"),
+            }),
+        ]);
+
+        // Special handling that allows us to add the task to the site.
+        await site.access.set(accounts.cassCade, {
+            type: "Local",
+            accountGrantById: new Map([
+                [accounts.cassCade.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+        await site.addEntity(accounts.cassCade, {
+            entityId: `Task:${task.task.id}`,
+            parentId: site.initialRootContainerId,
+            orderKey: assertOrderKey("a4"),
+        });
+
+        await waitForNotifications(runner);
+
+        await screenshotInboxEntry(
+            runner,
+            accounts.cassCade,
+            space.id,
+            document.path,
+            "a5",
+            "document-in-site-comments",
+            "Want to flag that I don",
+        );
+        await screenshotInboxEntry(
+            runner,
+            accounts.cassCade,
+            space.id,
+            task.path,
+            "a6",
+            "task-in-site",
+            "We need to make a decision on table column resizing",
+        );
+        await screenshotInboxEntry(
+            runner,
+            accounts.cassCade,
+            space.id,
+            channel.path,
+            "a7",
+            "post-in-site",
+            "Should we use",
+        );
+        await screenshotInboxEntry(
+            runner,
+            accounts.cassCade,
+            space.id,
+            chatRoom.path,
+            "a8",
+            "chat-room-in-site",
+            "Tables pairing",
+        );
+    }
+}
+
+async function createInboxEntries(
+    accounts: DemoSpaceAccounts,
+    runner: ScreenshotTestRunner,
+    initialAccessPolicy: LocalAccessPolicy,
+) {
+    const chat = await createChatInboxEntry(accounts, runner);
+    const chatRoom = await createChatRoomInboxEntry(accounts, runner, initialAccessPolicy);
+    const channel = await createForumInboxEntry(accounts, runner, initialAccessPolicy);
+    const document = await createDocumentNewCommentThreadsInboxEntry(
+        accounts,
+        runner,
+        initialAccessPolicy,
+    );
+    const task = await createTaskInboxEntry(accounts, runner, initialAccessPolicy);
 
     await waitForNotifications(runner);
 
     return {
-        chatPath,
-        channelPostsPath,
-        documentNewCommentThreadsPath,
-        taskPath,
+        chat,
+        chatRoom,
+        channel,
+        document,
+        task,
     };
 }
 
@@ -178,7 +287,7 @@ nice
 
     await waitForNotifications(runner);
 
-    return `chat/${chat.id}`;
+    return {chat, path: `/chat/${chat.id}`};
 }
 
 async function createForumInboxEntry(
@@ -191,6 +300,7 @@ async function createForumInboxEntry(
         mattRHorn,
     }: DemoSpaceAccounts,
     runner: ScreenshotTestRunner,
+    initialAccessPolicy: LocalAccessPolicy,
 ) {
     const channel = await TestChannel.create(mattRHorn, {
         name: "Craft",
@@ -199,7 +309,7 @@ Where we sweat the small stuff. Spacing, motion, hover states, copy that reads a
 animations that feel cheap, empty states that say the wrong thing. If something in the product is
 bugging you and it\u2019s smaller than a feature, post it here.
         `,
-        access: "Public",
+        access: initialAccessPolicy,
     });
 
     await channel.subscribe(cassCade);
@@ -288,18 +398,19 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
 
     await waitForNotifications(runner);
 
-    return `notifications/channel-posts/${channel.id}-0`;
+    return {channel, path: `/notifications/channel-posts/${channel.id}-0`};
 }
 
 async function createDocumentNewCommentThreadsInboxEntry(
     accounts: DemoSpaceAccounts,
     runner: ScreenshotTestRunner,
+    initialAccessPolicy: LocalAccessPolicy,
 ) {
     const {cassCade, elleKappaTan, mattRHorn} = accounts;
 
     const document = await TestDocument.create(cassCade, {
         title: "Q3 Planning",
-        access: "Public",
+        access: initialAccessPolicy,
         body: createPlanningDocumentBody(),
     });
 
@@ -335,16 +446,17 @@ feel right. Not blocking, just registering the concern in the doc rather than on
 
     await waitForNotifications(runner);
 
-    return `notifications/document-comment-threads/${document.id}-0`;
+    return {document, path: `/notifications/document-threads/${document.id}-0`};
 }
 
 async function createTaskInboxEntry(
     {cassCade, masonClay, mattRHorn}: DemoSpaceAccounts,
     runner: ScreenshotTestRunner,
+    initialAccessPolicy: LocalAccessPolicy,
 ) {
     const collection = await TestTaskCollection.create(cassCade, {
         name: "Tables",
-        access: "Public",
+        access: initialAccessPolicy,
         color: "blue",
     });
 
@@ -401,7 +513,78 @@ normal docs tidy without blocking precise layout work when someone really needs 
 
     await waitForNotifications(runner);
 
-    return `tasks/${task.id}`;
+    return {task, path: `/task/${task.id}`, collection};
+}
+
+async function createChatRoomInboxEntry(
+    {cassCade, mattRHorn}: DemoSpaceAccounts,
+    runner: ScreenshotTestRunner,
+    initialAccessPolicy: LocalAccessPolicy,
+) {
+    const chatRoom = await TestChat.createRoom(cassCade, {
+        // Pin the chat ID so the account-pile preview (seeded by `Chat:${chatId}`) is
+        // identical across runs. Without this the facepile members/order shuffle each run,
+        // making the screenshot flaky.
+        id: unsafelyGenerateStableId<ChatId>(runner.stableRandom, "tablesPairingChat"),
+        name: "Tables pairing",
+        access: initialAccessPolicy,
+    });
+
+    const sendMessage = async (...args: Parameters<TestChat["sendMessage"]>) => {
+        const message = await chatRoom.sendMessage(...args);
+        await runner.services.waitForSqsProcessJobs();
+        return message;
+    };
+
+    const graphMessage = await sendMessage(
+        cassCade,
+        markdown`
+omg also saw your post. the graph is really good
+        `,
+        {overrideCreatedTime: new Date("2025-10-16T10:09:00-04:00")},
+    );
+    await sendMessage(
+        mattRHorn,
+        markdown`
+matt helped me clean it up
+        `,
+        {overrideCreatedTime: new Date("2025-10-16T10:11:00-04:00")},
+    );
+    await sendMessage(
+        mattRHorn,
+        markdown`
+the first version had like 9 colors
+        `,
+        {overrideCreatedTime: new Date("2025-10-16T10:11:01-04:00")},
+    );
+    await sendMessage(
+        cassCade,
+        markdown`
+lol of course it did
+        `,
+        {overrideCreatedTime: new Date("2025-10-16T10:12:00-04:00")},
+    );
+    const roseDebriefMessage = await sendMessage(
+        cassCade,
+        markdown`
+rose loved the debrief btw. she\u2019s leaning yes. final call after the 2pm with them today
+        `,
+        {overrideCreatedTime: new Date("2025-10-17T08:34:00-04:00")},
+    );
+    await sendMessage(
+        mattRHorn,
+        markdown`
+nice
+        `,
+        {overrideCreatedTime: new Date("2025-10-17T11:21:00-04:00")},
+    );
+
+    await graphMessage.setReaction(mattRHorn, "Happy");
+    await roseDebriefMessage.setReaction(mattRHorn, "ThankYou");
+
+    await waitForNotifications(runner);
+
+    return {chatRoom, path: `/chat/${chatRoom.id}`};
 }
 
 async function screenshotInboxEntry(
@@ -415,7 +598,7 @@ async function screenshotInboxEntry(
 ) {
     await runner.goto(
         session,
-        `/s/${spaceId}/inbox?selected=${encodeSelectedSpacePath(selectedSpacePath)}`,
+        `/inbox/${spaceId}?selected=${encodeSelectedSpacePath(selectedSpacePath)}`,
         {fixedTime: inboxScreenshotTime},
     );
     await runner.page.getByText(expectedText).first().waitFor();
@@ -668,4 +851,19 @@ Living reference doc
             hollyMention: "Holly Evergreen",
         },
     );
+}
+
+// Needed so that we can convert all of the entities to site entities.
+function getStandardizedAccessPolicy(accounts: DemoSpaceAccounts): LocalAccessPolicy {
+    return {
+        type: "Local",
+        accountGrantById: new Map(
+            mapIterable(Object.values(accounts), session => [
+                session.account.id,
+                {level: "Manage", generation: 0},
+            ]),
+        ),
+        defaultGrant: {level: "Manage", generation: 1},
+        urlGrant: null,
+    };
 }

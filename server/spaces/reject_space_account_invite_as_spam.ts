@@ -14,7 +14,7 @@ export async function rejectSpaceAccountInviteAsSpam(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
 ): Promise<AccountModel> {
-    return updateSpaceAccountWithInviteDecision(context, {
+    return await updateSpaceAccountWithInviteDecision(context, {
         spaceId,
         newAccountStateType: "Removed",
     });

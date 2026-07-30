@@ -268,14 +268,14 @@ describe("toReference() resolution", () => {
         );
     });
 
-    test("file reference resolves to image embed (flat)", () => {
+    test("file reference resolves to link embed (flat)", () => {
         const image = new ExportedNotionFile("photo.png", "image");
         const page = new ExportedNotionDocument("Gallery", `Here: ${image.toReference()}`);
         page.addFiles([image]);
         const files = extractFiles(createTestNotionImportZip([page]));
 
         expect(strFromU8(files[`Gallery ${page.notionId}.md`]!)).toBe(
-            ["# Gallery", "", "Here: ![photo.png](photo.png)", ""].join("\n"),
+            ["# Gallery", "", "Here: [photo.png](photo.png)", ""].join("\n"),
         );
     });
 
@@ -288,7 +288,7 @@ describe("toReference() resolution", () => {
         );
 
         expect(strFromU8(files[`Gallery ${page.notionId}.md`]!)).toBe(
-            ["# Gallery", "", "Here: ![photo.png](Gallery/photo.png)", ""].join("\n"),
+            ["# Gallery", "", "Here: [photo.png](Gallery/photo.png)", ""].join("\n"),
         );
     });
 
@@ -299,7 +299,7 @@ describe("toReference() resolution", () => {
         const files = extractFiles(createTestNotionImportZip([page]));
 
         expect(strFromU8(files[`Page ${page.notionId}.md`]!)).toBe(
-            ["# Page", "", "![my photo.png](my%20photo.png)", ""].join("\n"),
+            ["# Page", "", "[my photo.png](my%20photo.png)", ""].join("\n"),
         );
     });
 
@@ -317,7 +317,7 @@ describe("toReference() resolution", () => {
             [
                 "# Leaf Node",
                 "",
-                "![deep.png](Root%20Page/Mid%20Level/Leaf%20Node/deep.png)",
+                "[deep.png](Root%20Page/Mid%20Level/Leaf%20Node/deep.png)",
                 "",
             ].join("\n"),
         );
@@ -343,7 +343,7 @@ describe("toReference() resolution", () => {
                 "",
                 "---",
                 "",
-                `![a.png](a.png) and ![b.png](b.png) with [Sub](Sub%20${child.notionId}.md)`,
+                `[a.png](a.png) and [b.png](b.png) with [Sub](Sub%20${child.notionId}.md)`,
                 "",
             ].join("\n"),
         );

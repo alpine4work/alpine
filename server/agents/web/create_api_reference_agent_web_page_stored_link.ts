@@ -15,7 +15,8 @@ export function createApiReferenceAgentWebPageStoredLink(
         case "Document":
         case "Post":
         case "Task":
-        case "TaskCollection": {
+        case "TaskCollection":
+        case "Site": {
             return reference;
         }
         case "ChatMessage": {

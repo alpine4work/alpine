@@ -9,7 +9,7 @@ import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
-import {DynamoGeneralRealtimeQuery} from "~/client/web/dynamo/dynamo_general_realtime_query.js";
+import {RynamoQuery} from "~/client/web/dynamo/rynamo_query.js";
 import {ChannelViewContentFilePreview} from "~/client/web/forum/internal/channel_view_content_file_preview.js";
 import {ChannelViewContributorsSection} from "~/client/web/forum/internal/channel_view_contributors_section.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -18,7 +18,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     channelViewAsideFileGap,
     channelViewAsideFileHeightRem,
@@ -67,7 +67,7 @@ export function ChannelViewAside({
     onAddAccountGrantsToAccessPolicy,
 }: {
     channel: ChannelModel;
-    channelAndMetadataQuery: DynamoGeneralRealtimeQuery<ChannelOrMetadataModel>;
+    channelAndMetadataQuery: RynamoQuery<ChannelOrMetadataModel>;
     isEditingDescription: boolean;
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;
@@ -262,11 +262,16 @@ function ChannelViewAsideDescriptionEditor({
     const reporter = useReporter();
     const clientInfo = useClientInfo();
     const currentDate = useCurrentDate();
+    const {space} = useSpaceContext();
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create(channel.description, {selection: "end"}),
+        ContentEditorState.create({
+            spaceId: space.id,
+            content: channel.description,
+            selection: "end",
+        }),
     );
 
     const [isSaving, setIsSaving] = useState(false);
@@ -385,11 +390,10 @@ function ChannelViewAsideDescriptionEditor({
 
 function ChannelViewAsideSeeAllFilesButton({channel}: {channel: ChannelModel}) {
     const navigate = useNavigate();
-    const {space} = useSpaceContext();
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            navigate(`/s/${space.id}/channels/${channel.id}/files?from=channel`, {
+            navigate(`/channel/${channel.id}/files?from=channel`, {
                 // Don't open in a peek when in desktop layout. Instead perform a full page
                 // navigation.
                 stopPropagation: true,

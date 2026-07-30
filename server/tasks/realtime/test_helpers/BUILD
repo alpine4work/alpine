@@ -6,11 +6,12 @@ ts_project(
     visibility = ["//server:__subpackages__"],
     deps = [
         "//:node_modules/@internationalized/date",
+        "//server/bots/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/data",
         "//server/tasks/realtime:realtime_lib",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//shared/context",
         "//shared/helpers",
         "//shared/id",

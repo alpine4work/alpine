@@ -344,7 +344,7 @@ EOF
                 exec ./admin/bin/bazel build //admin/marketing/2026_04_scalable_demos:public
                 ;;
             content-prompt)
-                exec ./admin/bin/bazel run //admin/marketing/2026_04_scalable_demos:content_prompt
+                exec ./admin/bin/bazel run //admin/marketing/2026_04_scalable_demos:content_prompt -- "${@:3}"
                 ;;
             new)
                 ./admin/bin/bazel run --ui_event_filters=-info //admin/marketing/2026_04_scalable_demos:new_demo -- "${@:3}"

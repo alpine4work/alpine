@@ -13,7 +13,7 @@ import {
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
-import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {
     ServerAccountActionContext,
     ServerActionContext,
@@ -35,7 +35,6 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
@@ -70,6 +69,7 @@ import {runCommentsQuery} from "~/server/messaging/helpers/run_comments_query.js
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {
     markSearchAffinityCreateDocumentEntityInteraction,
     markSearchAffinityEntityInteraction,
@@ -79,6 +79,7 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessLevel, AccessPolicy, EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -129,7 +130,7 @@ import {
 } from "~/shared/documents/document_model.js";
 import {getExpectedAccessLevelForUpdateDocumentContentSteps} from "~/shared/documents/get_expected_access_level_for_update_document_content_steps.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {
     DataLossError,
     ErrorBase,
@@ -174,6 +175,7 @@ import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {Id, assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
@@ -408,9 +410,9 @@ export async function createDocument(
     createdTime: Date;
     version: number;
     creator: {id: AccountId; from: DocumentCreatorFrom | null};
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventsForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     // If we have an `ImpersonatedAccount` actor we know the "parent" actor is a system
     // actor. Only allow system actors to set the `from` field.
@@ -498,7 +500,7 @@ export async function createDocument(
                 : null),
     };
 
-    await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+    await RynamoTableSchema.executeTransaction(context, [
         DocumentsTable.transactionCreateItem({
             partitionType: "Document",
             sortRangeType: "Attributes",
@@ -594,6 +596,7 @@ export async function createDocument(
                     spaceId,
                     documentId,
                     creatorId,
+                    siteId: getSiteIdFromAccessPolicyIfExists(accessPolicy),
                 },
             ),
         );
@@ -604,8 +607,8 @@ export async function createDocument(
         createdTime,
         version,
         creator,
-        getDynamoGeneralRealtimeEventTransactionForSite: async (context: ServerActionContext) =>
-            runAllPromises(transactionEntries?.map(entry => entry.getEvent(context)) ?? []),
+        getRynamoEventsForSite: async (context: ServerActionContext) =>
+            await runAllPromises(transactionEntries?.map(entry => entry.getEvent(context)) ?? []),
     };
 }
 
@@ -723,7 +726,7 @@ export async function duplicateDocument(
     }
 
     // Create the new document with the pre-generated ID
-    return createDocument(context, {
+    return await createDocument(context, {
         id: newDocumentId,
         spaceId,
         content: newContent,
@@ -845,6 +848,7 @@ export async function authorizeDocumentAccessIfPossible(
         context,
         documentItem,
         expectedAccessLevel,
+        options,
     );
     if (!result.ok) return result;
 
@@ -935,7 +939,7 @@ async function getDocumentItemForAuthorizationIfExists(
     documentId: DocumentId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<DocumentAttributesItem | null> {
-    return DocumentItemAuthorizationCache.get(context, consistency, documentId, consistency =>
+    return await DocumentItemAuthorizationCache.get(context, consistency, documentId, consistency =>
         DocumentsTable.getItemIfExists(
             context,
             {
@@ -1229,9 +1233,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreads(
         documentId: DocumentId;
         // Allow `commentThreadIds` to be a promise so we can execute document loading in
         // parallel with code that loads which `commentThreadIds`.
-        commentThreadIds?:
-            | Iterable<DocumentCommentThreadId>
-            | Promise<Iterable<DocumentCommentThreadId>>;
+        commentThreadIds?: MaybePromise<Iterable<DocumentCommentThreadId>>;
         // If you pass this in, we will call once we've loaded the `SpaceId` for the
         // document which may be before the function as a whole returns. This function will
         // not be called in error cases.
@@ -1257,9 +1259,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         documentId: DocumentId;
         // Allow `commentThreadIds` to be a promise so we can execute document loading in
         // parallel with code that loads which `commentThreadIds`.
-        commentThreadIds?:
-            | Iterable<DocumentCommentThreadId>
-            | Promise<Iterable<DocumentCommentThreadId>>;
+        commentThreadIds?: MaybePromise<Iterable<DocumentCommentThreadId>>;
         // If you pass this in, we will call once we've loaded the `SpaceId` for the
         // document which may be before the function as a whole returns. This function will
         // not be called in error cases.
@@ -1755,7 +1755,13 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
 export async function getDocumentContentPreviewIfPossible(
     context: ServerActionContext,
     documentId: DocumentId,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    {
+        consistency = "Eventual",
+        onSiteId,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    } = emptyObject,
 ): Promise<Result<
     {
         version: number;
@@ -1805,6 +1811,10 @@ export async function getDocumentContentPreviewIfPossible(
 
     const {attributesItem, contentPreviewItem} = await itemsPromise;
     if (!attributesItem) return null;
+
+    if (attributesItem.accessPolicy.type === "Site") {
+        onSiteId?.(attributesItem.accessPolicy.siteId);
+    }
 
     // Must have the view access level to read a document.
     const result = await authorizeDocumentItemAccessIfPossible(context, attributesItem, "View");
@@ -2013,7 +2023,7 @@ export async function getDocumentCommentThread(
         getDocumentCommentThreadItem(context, {documentId, commentThreadId, consistency}),
     ]);
 
-    return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+    return await createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
 }
 
 export async function getDocumentCommentThreadContent(
@@ -2037,11 +2047,14 @@ export async function getDocumentCommentThreadContent(
     );
 
     const fallbackContentSnippet = commentThreadItem.fallbackContentSnippet
-        ? assertDocumentWithOptionalTitleContent(
-              stripDocumentContentCommentMarks(commentThreadItem.fallbackContentSnippet.node, {
-                  exceptCommentThreadIds: new Set([commentThreadItem.commentThreadId]),
-              }),
-          )
+        ? {
+              version: commentThreadItem.fallbackContentSnippet.version,
+              node: assertDocumentWithOptionalTitleContent(
+                  stripDocumentContentCommentMarks(commentThreadItem.fallbackContentSnippet.node, {
+                      exceptCommentThreadIds: new Set([commentThreadItem.commentThreadId]),
+                  }),
+              ),
+          }
         : null;
 
     return {
@@ -2307,7 +2320,7 @@ export class DocumentContentCacheForUpdate {
             clientId: ContentEditorClientId;
         }): Promise<void>;
     } | null> {
-        return context.tracer.withSpan("Get and cache document", async (context, span) => {
+        return await context.tracer.withSpan("Get and cache document", async (context, span) => {
             let wasEntryCached = true;
 
             const nullableEntry = await this._entries.getOrSetEntry(id, async () => {
@@ -2896,9 +2909,9 @@ export async function updateDocumentContent(
      * through the document collaboration WebSocket protocol, so only site events are
      * surfaced here.
      */
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventsForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const result = await context.dynamo.retryTransaction(async context => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
@@ -3113,10 +3126,10 @@ export async function updateDocumentContent(
 
         let newEffectiveAccessPolicy: EffectiveAccessPolicy | null = null;
         const intentionallyUpdatedAccessPolicyTransactionEntries: Array<{
-            transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+            transactionEntry: RynamoTransactionEntry;
             getEvent: (
                 context: ServerActionContext,
-            ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+            ) => Promise<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
         }> = [];
         // Make sure the access policy update is valid and the actor isn't removing access
         // from accounts with a lower manage generation.
@@ -3136,12 +3149,11 @@ export async function updateDocumentContent(
             newEffectiveAccessPolicy = resolvedAccessPolicy;
 
             // Each entry in `add` / `remove` is `{transactionEntry, getEvent}`. The entries
-            // are `DynamoGeneralRealtimeTransactionEntry` instances; we cast via `unknown` to
+            // are `RynamoTransactionEntry` instances; we cast via `unknown` to
             // `DynamoTransactionEntry` so we can push them onto the shared transaction array.
-            // The commit below switches to
-            // `DynamoGeneralRealtimeTableSchema.executeTransaction` when any site entries are
-            // present — that variant accepts both entry types and broadcasts realtime events
-            // for the site entries.
+            // The commit below switches to `RynamoTableSchema.executeTransaction` when any
+            // site entries are present — that variant accepts both entry types and broadcasts
+            // realtime events for the site entries.
             for (const entry of transactionEntries) {
                 intentionallyUpdatedAccessPolicyTransactionEntries.push(entry);
             }
@@ -3248,7 +3260,7 @@ export async function updateDocumentContent(
                                     // should also drop the `accessPolicy` attr on `doc`.
                                     node: assertDocumentWithOptionalTitleContent(
                                         DocumentWithOptionalTitleContentProsemirrorSchema.nodeFromJSON(
-                                            contentSnippet.toJSON(),
+                                            contentSnippet.node.toJSON(),
                                         ),
                                     ),
                                 },
@@ -3298,8 +3310,7 @@ export async function updateDocumentContent(
             clientId,
         });
 
-        const transaction: Array<DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry> =
-            [];
+        const transaction: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
 
         let newLastIndexSearchEntityJob = internalDocument.lastIndexSearchEntityJob;
         let newStepCountByAccountId = internalDocument.stepCountByAccountId;
@@ -3517,6 +3528,12 @@ export async function updateDocumentContent(
                     invertedSteps,
                     clientId,
                     createdTime: currentTime,
+                    // TODO(#bot-attribution): When the actor is a bot, resolve the human account that
+                    // triggered the bot action. Currently bot-applied steps will attribute both fields
+                    // to the bot's account.
+                    accountId: context.actor.getPossiblyBotAccountId(),
+                    fromBotAccountId:
+                        context.actor.type === "Bot" ? context.actor.getBotAccountId() : null,
                 }),
             );
         }
@@ -3769,7 +3786,7 @@ export async function updateDocumentContent(
 
         const execute = async () => {
             if (transaction.length > 0) {
-                await DynamoGeneralRealtimeTableSchema.executeTransaction(context, transaction, {
+                await RynamoTableSchema.executeTransaction(context, transaction, {
                     clientRequestToken,
                 });
             }
@@ -3862,9 +3879,9 @@ export async function updateDocumentContent(
          * committed — used by the `addEntityToSite` RPC to surface site sidebar events
          * back to the client.
          */
-        getDynamoGeneralRealtimeEventTransactionForSite: (
+        getRynamoEventsForSite: (
             eventContext: ServerActionContext,
-        ): Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>> =>
+        ): Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>> =>
             runAllPromises(siteEventCallbacks.map(getEvent => getEvent(eventContext))),
     };
 }
@@ -3879,18 +3896,15 @@ export async function updateDocumentContentIdempotently(
 ): Promise<{
     newVersion: number;
     updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
-    eventTransactionForSite: ReadonlyArray<
-        DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>
-    >;
+    eventsForSite: ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
 }> {
     try {
-        const {newVersion, updatedCommentThreads, getDynamoGeneralRealtimeEventTransactionForSite} =
+        const {newVersion, updatedCommentThreads, getRynamoEventsForSite} =
             await updateDocumentContent(context, options);
 
-        const eventTransactionForSite =
-            await getDynamoGeneralRealtimeEventTransactionForSite(context);
+        const eventsForSite = await getRynamoEventsForSite(context);
 
-        return {newVersion, updatedCommentThreads, eventTransactionForSite};
+        return {newVersion, updatedCommentThreads, eventsForSite};
     } catch (error) {
         if (!isDynamoIdempotentParameterMismatchError(error)) throw error;
 
@@ -3939,7 +3953,7 @@ export async function updateDocumentContentIdempotently(
         return {
             newVersion: documentItem.version,
             updatedCommentThreads,
-            eventTransactionForSite: emptyArray,
+            eventsForSite: emptyArray,
         };
     }
 }
@@ -4269,7 +4283,7 @@ export async function getDocumentContentSteps(
 
     getDocumentContentStepsTestCounter.incrementForTest({id, startVersion, endVersion});
 
-    return getDocumentContentStepsBetweenValidatedVersionRange(context, {
+    return await getDocumentContentStepsBetweenValidatedVersionRange(context, {
         id,
         startVersion,
         endVersion,
@@ -4300,7 +4314,7 @@ async function getDocumentContentStepsBetweenValidatedVersionRange(
         endVersion: number;
     },
 ): Promise<Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>> {
-    return context.tracer.withSpan("Get document content steps", async (context, span) => {
+    return await context.tracer.withSpan("Get document content steps", async (context, span) => {
         span.addData({
             content: {
                 collaborative: {
@@ -4949,100 +4963,102 @@ export async function createDocumentComment(
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
-    return context.dynamo.retryTransaction(async context => {
-        const [spaceId, commentThreadItem, parentForEvent] = await runAllPromises([
-            (async () => {
-                const {spaceId} = await authorizeDocumentAccess(context, documentId, "Comment", {
+    return await context.dynamo.retryTransaction(async context => {
+        const [{spaceId, documentAccessPolicy}, commentThreadItem, parentForEvent] =
+            await runAllPromises([
+                (async () => {
+                    const {spaceId, accessPolicy: documentAccessPolicy} =
+                        await authorizeDocumentAccess(context, documentId, "Comment", {
+                            consistency,
+                        });
+
+                    // Make sure all the provided files exist.
+                    await runAllPromises(
+                        fileIds.map(fileId =>
+                            isId<FileId>(fileId)
+                                ? getFileFromAttachment(
+                                      context,
+                                      fileId,
+                                      FileDocumentAuthorizer.bind({
+                                          type: "DocumentComments",
+                                          documentId,
+                                      }),
+                                      {consistency},
+                                  )
+                                : null,
+                        ),
+                    );
+
+                    return {spaceId, documentAccessPolicy};
+                })(),
+                getDocumentCommentThreadItemIfExists(context, {
+                    documentId,
+                    commentThreadId,
                     consistency,
-                });
+                }),
+                (async (): Promise<ApiBotWebhookCreatedMessageEventParent | null> => {
+                    if (!parent) return null;
 
-                // Make sure all the provided files exist.
-                await runAllPromises(
-                    fileIds.map(fileId =>
-                        isId<FileId>(fileId)
-                            ? getFileFromAttachment(
-                                  context,
-                                  fileId,
-                                  FileDocumentAuthorizer.bind({
-                                      type: "DocumentComments",
-                                      documentId,
-                                  }),
-                                  {consistency},
-                              )
-                            : null,
-                    ),
-                );
+                    switch (parent.type) {
+                        case "Message": {
+                            const commentItem = await DocumentsTable.getItem(
+                                context,
+                                {
+                                    partitionType: "DocumentCommentThread",
+                                    sortRangeType: "Comments",
+                                    documentId,
+                                    commentThreadId,
+                                    commentIndex: parent.index,
+                                },
+                                {consistency},
+                            );
+                            return {
+                                type: "Message",
+                                index: parent.index,
+                                author: {id: commentItem.authorId},
+                            };
+                        }
+                        case "MessagesRange": {
+                            const commentItems = await arrayFromAsyncIterable(
+                                runCommentsQuery(context, {
+                                    cache: DocumentCommentItemContextCache,
+                                    cacheKeyPrefix: `${documentId}-${commentThreadId}`,
+                                    consistency,
+                                    startIndex: parent.startIndex,
+                                    endIndex: parent.endIndex,
+                                    query: ({consistency, limit, startSortKey, endSortKey}) =>
+                                        DocumentsTable.query(context, {
+                                            consistency,
+                                            limit,
+                                            partitionKey: {
+                                                partitionType: "DocumentCommentThread",
+                                                documentId,
+                                                commentThreadId,
+                                            },
+                                            startSortKey,
+                                            endSortKey,
+                                        }),
+                                }),
+                            );
 
-                return spaceId;
-            })(),
-            getDocumentCommentThreadItemIfExists(context, {
-                documentId,
-                commentThreadId,
-                consistency,
-            }),
-            (async (): Promise<ApiBotWebhookCreatedMessageEventParent | null> => {
-                if (!parent) return null;
+                            validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
 
-                switch (parent.type) {
-                    case "Message": {
-                        const commentItem = await DocumentsTable.getItem(
-                            context,
-                            {
-                                partitionType: "DocumentCommentThread",
-                                sortRangeType: "Comments",
-                                documentId,
-                                commentThreadId,
-                                commentIndex: parent.index,
-                            },
-                            {consistency},
-                        );
-                        return {
-                            type: "Message",
-                            index: parent.index,
-                            author: {id: commentItem.authorId},
-                        };
+                            return {
+                                type: "Message",
+                                index: parent.startIndex,
+                                author: {id: commentItems[0]!.authorId},
+                            };
+                        }
+                        case "PostRange": {
+                            throw new InvalidArgumentError(
+                                "Post range parent can only be used with post comments",
+                            );
+                        }
+                        default:
+                            throw exhaustive(parent);
                     }
-                    case "MessagesRange": {
-                        const commentItems = await arrayFromAsyncIterable(
-                            runCommentsQuery(context, {
-                                cache: DocumentCommentItemContextCache,
-                                cacheKeyPrefix: `${documentId}-${commentThreadId}`,
-                                consistency,
-                                startIndex: parent.startIndex,
-                                endIndex: parent.endIndex,
-                                query: ({consistency, limit, startSortKey, endSortKey}) =>
-                                    DocumentsTable.query(context, {
-                                        consistency,
-                                        limit,
-                                        partitionKey: {
-                                            partitionType: "DocumentCommentThread",
-                                            documentId,
-                                            commentThreadId,
-                                        },
-                                        startSortKey,
-                                        endSortKey,
-                                    }),
-                            }),
-                        );
-
-                        validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
-
-                        return {
-                            type: "Message",
-                            index: parent.startIndex,
-                            author: {id: commentItems[0]!.authorId},
-                        };
-                    }
-                    case "PostRange": {
-                        throw new InvalidArgumentError(
-                            "Post range parent can only be used with post comments",
-                        );
-                    }
-                    default:
-                        throw exhaustive(parent);
-                }
-            })(),
-        ]);
+                })(),
+            ]);
 
         if (!commentThreadItem)
             throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
@@ -5192,6 +5208,7 @@ export async function createDocumentComment(
                     spaceId,
                     entityId: `Document:${documentId}`,
                     interaction: {type: "MediumIntentUpdate"},
+                    siteId: getSiteIdFromAccessPolicyIfExists(documentAccessPolicy),
                 }),
             );
 
@@ -5208,6 +5225,8 @@ export async function createDocumentComment(
                             spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
+                            // Accounts cannot live in a site.
+                            siteId: null,
                         });
                     }
                 });
@@ -5850,7 +5869,7 @@ export async function getDocumentComment(
         commentIndex,
     });
 
-    return createDocumentCommentModelFromItem(
+    return await createDocumentCommentModelFromItem(
         context,
         spaceId,
         documentId,
@@ -5911,7 +5930,13 @@ export async function getDocumentCommentAtVersion(
         })(),
     ]);
 
-    return createDocumentCommentModelFromItem(context, spaceId, documentId, commentThreadId, item);
+    return await createDocumentCommentModelFromItem(
+        context,
+        spaceId,
+        documentId,
+        commentThreadId,
+        item,
+    );
 }
 
 /**
@@ -6502,7 +6527,11 @@ export async function getDocumentCommentThreadAndInitialCommentsIfExists(
             if (!commentThreadItem) return null;
 
             const {spaceId} = await documentAuthorizationPromise;
-            return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+            return await createDocumentCommentThreadModelFromItem(
+                context,
+                spaceId,
+                commentThreadItem,
+            );
         })(),
         getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
             documentId,
@@ -6580,6 +6609,7 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
         commentThreadIds,
         commentLimit,
         commentThreadCountAgainstLimit,
+        onSpaceId,
     }: {
         documentId: DocumentId;
         commentThreadIds:
@@ -6598,6 +6628,10 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
         //
         // This number can be fractional like 5.8.
         commentThreadCountAgainstLimit: number;
+        // If you pass this in, we will call once we've loaded the `SpaceId` for the
+        // document which may be before the function as a whole returns. This function will
+        // not be called in error cases.
+        onSpaceId?: (spaceId: SpaceId) => void;
     },
 ): Promise<{
     document: DocumentModel;
@@ -6618,7 +6652,10 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
         // don't have comment access to the document. Instead of returning the document
         // without comment marks.
         commentThreadIds,
-        onSpaceId: spaceIdPromiseResolver.resolve,
+        onSpaceId: spaceId => {
+            spaceIdPromiseResolver.resolve(spaceId);
+            onSpaceId?.(spaceId);
+        },
     }).then(
         result => {
             spaceIdPromiseResolver.resolve(result.document.spaceId);
@@ -7378,7 +7415,7 @@ export async function backfillDocumentComments(
                 ),
             createMessageModelFromItem: async (context, item) => {
                 const {spaceId} = await documentAuthorizationPromise;
-                return createDocumentCommentModelFromItem(
+                return await createDocumentCommentModelFromItem(
                     context,
                     spaceId,
                     documentId,

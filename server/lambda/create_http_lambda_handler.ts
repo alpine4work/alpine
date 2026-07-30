@@ -111,7 +111,7 @@ export function createHttpLambdaHandler({
             tokenAgentAndOptionsPromise ??= span.withSpan(
                 "Allocate token agent and context options",
                 async childSpan =>
-                    getLambdaActionContextOptions(serviceSecretsSchema, childSpan).then(
+                    await getLambdaActionContextOptions(serviceSecretsSchema, childSpan).then(
                         async options => {
                             const tokenAgent = await childSpan.withSpan(
                                 "Creating token agent",

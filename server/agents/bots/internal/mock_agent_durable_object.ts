@@ -54,7 +54,7 @@ abstract class MockAgentDurableObjectBase extends AgentDurableObjectBase<MockAge
     ): Promise<Response> {
         switch (route) {
             case "Recording": {
-                return this._fetchRecording(context, request);
+                return await this._fetchRecording(context, request);
             }
             case "NotFound": {
                 return new Response("404 Not Found", {

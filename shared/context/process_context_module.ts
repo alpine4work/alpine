@@ -92,6 +92,22 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
     private static _waitForTestTasksPromise?: Promise<void>;
 
     /**
+     * Whether there are any pending `waitUntil()` test tasks that `waitForTestTasks()`
+     * would wait on.
+     *
+     * Useful for draining background work to a fixed point. Processing a job can
+     * register new `waitUntil()` tasks (e.g. enqueueing a follow-up job) and those
+     * tasks can in turn enqueue more jobs, so a single drain pass may finish before
+     * everything settles. Callers can alternate `waitForTestTasks()` and job-queue
+     * draining until this returns `false`.
+     */
+    public static hasPendingTestTasks(): boolean {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+        assert(afterEachPromisesForTest);
+        return afterEachPromisesForTest.size > 0;
+    }
+
+    /**
      * Wait for all the promises passed into the `waitUntil()` function of
      * `ProcessContextModule.test()`s to resolve.
      */

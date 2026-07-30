@@ -20,8 +20,6 @@ export async function createFictionalAmbrookDemoDocument(
 ) {
     debug("Creating document");
 
-    const {space} = cassCade;
-
     const [
         otherDocument,
         receiptMobileScannerDocument,
@@ -109,22 +107,21 @@ Goals:
 
         body: Mustache.render(
             markdown`
-In our [Q1 Product Roadmap]({{spaceUrl}}/documents/{{otherDocumentId}}?mention) we focused on small
+In our [Q1 Product Roadmap](https://alpine.inc/doc/{{otherDocumentId}}?mention) we focused on small
 and medium sized businesses (SMBs). That _directly contributed_ to our 16% revenue growth last
 quarter. We\u2019re going to add a couple features for larger businesses this quarter.
 
-| Project                  | DRI                                                                       | Priority                                     | PRD                                         |
-| ------------------------ | ------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------- |
-| Receipt Mobile Scanner   | [Mason Clay]({{spaceUrl}}/accounts/{{masonClayAccountId}}?mention)        | <mark class="highlight-red">High</mark>      |                                             |
-| Profit by Acre Dashboard | [Elle Kappa-Tan]({{spaceUrl}}/accounts/{{elleKappaTanAccountId}}?mention) | <mark class="highlight-red">High</mark>      |                                             |
-| Grants Navigator         | [Cass Cade]({{spaceUrl}}/accounts/{{cassCadeAccountId}}?mention)          | <mark class="highlight-orange">Medium</mark> | <span hidden data-column-widths="4,3,2,3"/> |
+| Project                  | DRI                                                                    | Priority                                     | PRD                                         |
+| ------------------------ | ---------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------- |
+| Receipt Mobile Scanner   | [Mason Clay](https://alpine.inc/mention/{{masonClayAccountId}})        | <mark class="highlight-red">High</mark>      |                                             |
+| Profit by Acre Dashboard | [Elle Kappa-Tan](https://alpine.inc/mention/{{elleKappaTanAccountId}}) | <mark class="highlight-red">High</mark>      |                                             |
+| Grants Navigator         | [Cass Cade](https://alpine.inc/mention/{{cassCadeAccountId}})          | <mark class="highlight-orange">Medium</mark> | <span hidden data-column-widths="4,3,2,3"/> |
 
 # Inspiration
 
 Some photos of the farms we helped last quarter to get us hyped for Q2!
             `,
             {
-                spaceUrl: `https://alpine.inc/s/${space.id}`,
                 otherDocumentId: otherDocument.id,
                 elleKappaTanAccountId: elleKappaTan.account.id,
                 cassCadeAccountId: cassCade.account.id,

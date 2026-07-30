@@ -8,11 +8,11 @@ export type DigestNotificationContent = {
 
 export type DigestEntry = {
     url: URL;
-    summary: Array<string | {type: "Account"; name: string}>;
+    title: Array<string | {type: "Account"; name: string}>;
     preview: string | null;
     brandIconType: string;
     time: Date;
     loudNotificationCount: number;
-    firstAccount: AccountModelDataWithSignedAvatarUrl;
-    secondAccount?: AccountModelDataWithSignedAvatarUrl;
+    featuredAccount: AccountModelDataWithSignedAvatarUrl;
+    otherAccount?: AccountModelDataWithSignedAvatarUrl;
 };

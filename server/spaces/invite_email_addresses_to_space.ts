@@ -85,113 +85,127 @@ export async function inviteEmailAddressesToSpace(
 }> {
     await authorizeSpaceAccess(context, spaceId, "Member");
 
-    return context.tracer.withSpan("Invite email addresses to space", async (context, span) => {
-        const accounts: Array<AccountModel> = [];
-        const affinityPoints: Array<number> = [];
-        const unexpectedFailureEmailAddresses = new Map<string, unknown>();
-        const invalidEmailAddresses = new Set<string>();
-        const rejectedAsSpamEmailAddresses = new Set<string>();
-        const alreadyMemberEmailAddresses = new Map<string, AccountId>();
-        const requiresAdminAccessEmailAddresses = new Set<string>();
+    return await context.tracer.withSpan(
+        "Invite email addresses to space",
+        async (context, span) => {
+            const accounts: Array<AccountModel> = [];
+            const affinityPoints: Array<number> = [];
+            const unexpectedFailureEmailAddresses = new Map<string, unknown>();
+            const invalidEmailAddresses = new Set<string>();
+            const rejectedAsSpamEmailAddresses = new Set<string>();
+            const alreadyMemberEmailAddresses = new Map<string, AccountId>();
+            const requiresAdminAccessEmailAddresses = new Set<string>();
 
-        const {autoAddAccountsFromEmailDomains} =
-            await validateEmailAddressInvitesAreNotRateLimited(context, spaceId, emailAddresses);
-
-        // NOTE(imjoshin): We don't do any transaction or validation here because it would
-        // be too difficult to rollback at this point in time. If we do want to invest into
-        // that, we would likely call into SES to validate email statuses and report any
-        // that may have failed here. Given that's all async, it's likely not worth the
-        // time to implement that.
-        await runAllPromises(
-            emailAddresses.map(async emailAddress => {
-                const result = await validateInviteEmailAddressToSpace(context, {
+            const {autoAddAccountsFromEmailDomains} =
+                await validateEmailAddressInvitesAreNotRateLimited(
+                    context,
                     spaceId,
-                    emailAddress,
-                    autoAddAccountsFromEmailDomains,
-                });
+                    emailAddresses,
+                );
 
-                if (!result.ok) {
-                    switch (result.reason) {
-                        case "Invalid": {
-                            invalidEmailAddresses.add(emailAddress);
-                            return;
-                        }
-                        case "InviteRejectedAsSpam": {
-                            rejectedAsSpamEmailAddresses.add(emailAddress);
-                            return;
-                        }
-                        case "AlreadyMember": {
-                            alreadyMemberEmailAddresses.set(emailAddress, result.accountId);
+            // NOTE(imjoshin): We don't do any transaction or validation here because it would
+            // be too difficult to rollback at this point in time. If we do want to invest into
+            // that, we would likely call into SES to validate email statuses and report any
+            // that may have failed here. Given that's all async, it's likely not worth the
+            // time to implement that.
+            await runAllPromises(
+                emailAddresses.map(async emailAddress => {
+                    const result = await validateInviteEmailAddressToSpace(context, {
+                        spaceId,
+                        emailAddress,
+                        autoAddAccountsFromEmailDomains,
+                    });
 
-                            // Even though we didn't send an invite, we still want to boost affinity points for
-                            // this account that's already a member of the space.
-                            if (!withoutAffinityPoints) {
-                                await context.searchInjection.markSearchAffinityEntityInteraction({
-                                    spaceId,
-                                    entityId: `Account:${result.accountId}`,
-                                    interaction: {type: "HighIntentUpdate"},
-                                });
+                    if (!result.ok) {
+                        switch (result.reason) {
+                            case "Invalid": {
+                                invalidEmailAddresses.add(emailAddress);
+                                return;
                             }
-                            return;
+                            case "InviteRejectedAsSpam": {
+                                rejectedAsSpamEmailAddresses.add(emailAddress);
+                                return;
+                            }
+                            case "AlreadyMember": {
+                                alreadyMemberEmailAddresses.set(emailAddress, result.accountId);
+
+                                // Even though we didn't send an invite, we still want to boost affinity points for
+                                // this account that's already a member of the space.
+                                if (!withoutAffinityPoints) {
+                                    await context.searchInjection.markSearchAffinityEntityInteraction(
+                                        {
+                                            spaceId,
+                                            entityId: `Account:${result.accountId}`,
+                                            interaction: {type: "HighIntentUpdate"},
+                                            // Accounts cannot live in a site.
+                                            siteId: null,
+                                        },
+                                    );
+                                }
+                                return;
+                            }
+                            case "RequiresAdminAccess": {
+                                requiresAdminAccessEmailAddresses.add(emailAddress);
+                                return;
+                            }
+                            default:
+                                throw exhaustive(result);
                         }
-                        case "RequiresAdminAccess": {
-                            requiresAdminAccessEmailAddresses.add(emailAddress);
-                            return;
-                        }
-                        default:
-                            throw exhaustive(result);
                     }
-                }
 
-                try {
-                    const account = await result.inviteEmailAddressToSpace(context);
+                    try {
+                        const account = await result.inviteEmailAddressToSpace(context);
 
-                    // Add affinity points for each account the actor has invited so they show up high
-                    // in the account's suggested accounts list.
-                    const points = withoutAffinityPoints
-                        ? 0
-                        : await context.searchInjection.markSearchAffinityEntityInteraction({
-                              spaceId,
-                              entityId: `Account:${account.id}`,
-                              interaction: {type: "HighIntentUpdate"},
-                          });
+                        // Add affinity points for each account the actor has invited so they show up high
+                        // in the account's suggested accounts list.
+                        const points = withoutAffinityPoints
+                            ? 0
+                            : await context.searchInjection.markSearchAffinityEntityInteraction({
+                                  spaceId,
+                                  entityId: `Account:${account.id}`,
+                                  interaction: {type: "HighIntentUpdate"},
+                                  // Accounts cannot live in a site.
+                                  siteId: null,
+                              });
 
-                    accounts.push(account);
-                    affinityPoints.push(points);
-                } catch (error) {
-                    // Error is reported in internalInviteAccountToSpace, no need to report again here.
-                    unexpectedFailureEmailAddresses.set(emailAddress, error);
-                    return;
-                }
-            }),
-        );
+                        accounts.push(account);
+                        affinityPoints.push(points);
+                    } catch (error) {
+                        // Error is reported in internalInviteAccountToSpace, no need to report again here.
+                        unexpectedFailureEmailAddresses.set(emailAddress, error);
+                        return;
+                    }
+                }),
+            );
 
-        span.addData({
-            space: {
-                members: {
-                    invite: {
-                        invalidEmailAddressCount: invalidEmailAddresses.size,
-                        rejectedAsSpamEmailAddressCount: rejectedAsSpamEmailAddresses.size,
-                        alreadyMemberEmailAddressCount: alreadyMemberEmailAddresses.size,
-                        requiresAdminAccessEmailAddressCount:
-                            requiresAdminAccessEmailAddresses.size,
-                        invitedEmailAddressCount: accounts.length,
-                        unexpectedFailureEmailAddressCount: unexpectedFailureEmailAddresses.size,
+            span.addData({
+                space: {
+                    members: {
+                        invite: {
+                            invalidEmailAddressCount: invalidEmailAddresses.size,
+                            rejectedAsSpamEmailAddressCount: rejectedAsSpamEmailAddresses.size,
+                            alreadyMemberEmailAddressCount: alreadyMemberEmailAddresses.size,
+                            requiresAdminAccessEmailAddressCount:
+                                requiresAdminAccessEmailAddresses.size,
+                            invitedEmailAddressCount: accounts.length,
+                            unexpectedFailureEmailAddressCount:
+                                unexpectedFailureEmailAddresses.size,
+                        },
                     },
                 },
-            },
-        });
+            });
 
-        return {
-            accounts,
-            affinityPoints,
-            invalidEmailAddresses,
-            rejectedAsSpamEmailAddresses,
-            alreadyMemberEmailAddresses,
-            requiresAdminAccessEmailAddresses,
-            unexpectedFailureEmailAddresses,
-        };
-    });
+            return {
+                accounts,
+                affinityPoints,
+                invalidEmailAddresses,
+                rejectedAsSpamEmailAddresses,
+                alreadyMemberEmailAddresses,
+                requiresAdminAccessEmailAddresses,
+                unexpectedFailureEmailAddresses,
+            };
+        },
+    );
 }
 
 /**
@@ -213,7 +227,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
         existingAccountId: AccountId | undefined;
     },
 ): Promise<AccountModel> {
-    return context.tracer.withSpan("Invite email address to space", async (context, span) => {
+    return await context.tracer.withSpan("Invite email address to space", async (context, span) => {
         const accountId = existingAccountId ?? generateId<AccountId>();
         span.addData({
             space: {
@@ -237,6 +251,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
                         ? {type: "Existing", id: accountId, invitedEmailAddress: emailAddress}
                         : {type: "New", id: accountId, emailAddress},
                     role: "Member",
+                    inviterAccountId: context.actor.getAccountId(),
                 }),
             ]);
 
@@ -259,7 +274,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
         const acceptInviteUrl = `${
             context.constants.edgeServiceUrl
         }/auth/sign-in?email=${encodeURIComponent(emailAddress)}&invite=${spaceId}`;
-        const rejectInviteAndMarkAsSpamUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}/invite/reject-and-mark-as-spam`;
+        const rejectInviteAndMarkAsSpamUrl = `${context.constants.edgeServiceUrl}/invite/${spaceId}/reject-and-mark-as-spam`;
 
         if (process.env.NODE_ENV !== "production") {
             // Use strong consistency for the `/invite/accept` route to make sure we correctly
@@ -394,7 +409,7 @@ async function validateInviteEmailAddressToSpace(
         inviteEmailAddressToSpace: async context => {
             let hasAlreadyAttempted = false;
 
-            return context.dynamo.retryTransaction(async context => {
+            return await context.dynamo.retryTransaction(async context => {
                 const isInitialAttempt = !hasAlreadyAttempted;
                 hasAlreadyAttempted = true;
 

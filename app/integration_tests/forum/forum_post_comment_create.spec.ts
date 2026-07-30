@@ -1,4 +1,5 @@
 import {Page, expect, test} from "@playwright/test";
+import {activateMobileButton} from "~/app/integration_tests/helpers/activate_mobile_button.js";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
@@ -84,7 +85,7 @@ test("can open and close post comments in channel", async ({
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
     await expect(page.getByText("Test post comment content 1")).toBeHidden();
@@ -101,7 +102,7 @@ test("can open and close post comments in channel", async ({
     if (!isMobile) {
         await page.getByRole("button", {name: "3 comments"}).click();
     } else {
-        await page.getByRole("button", {name: "Go back"}).click();
+        await activateMobileButton(page, "Go back");
     }
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
@@ -147,7 +148,7 @@ test("comments are always open at a direct post url", async ({page, context: bro
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
@@ -178,7 +179,7 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
     });
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await expect(page.getByRole("textbox", {name: "New comment"})).toBeHidden();
     await page.getByRole("button", {name: "0 comments"}).click();
@@ -248,7 +249,7 @@ test("can see comments appear in realtime", async ({
     });
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/posts/${post.id}`);
+    await page1.goto(`/post/${post.id}`);
 
     await expect(page1.getByLabel("0 comments")).toBeVisible();
     await expect(page1.getByLabel("1 comment")).toBeHidden();
@@ -263,7 +264,7 @@ test("can see comments appear in realtime", async ({
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/posts/${post.id}`);
+    await page2.goto(`/post/${post.id}`);
 
     await page2.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 1");
     await expect(page2.getByRole("textbox", {name: "New comment"})).toHaveText(
@@ -289,7 +290,7 @@ test("can see comments appear in realtime", async ({
     const browserContext3 = await browser.newContext();
     await services.signIn(browserContext3, session3);
     const page3 = await browserContext3.newPage();
-    await page3.goto(`/s/${space.id}/posts/${post.id}`);
+    await page3.goto(`/post/${post.id}`);
 
     await page3.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 2");
     await expect(page3.getByRole("textbox", {name: "New comment"})).toHaveText(
@@ -383,7 +384,7 @@ test("can see new comments when opening post comments", async ({
     });
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await page1.getByRole("button", {name: "0 comments"}).click();
 
@@ -400,7 +401,7 @@ test("can see new comments when opening post comments", async ({
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/posts/${post.id}`);
+    await page2.goto(`/post/${post.id}`);
 
     await page2.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 1");
     await expect(page2.getByRole("textbox", {name: "New comment"})).toHaveText(
@@ -426,7 +427,7 @@ test("can see new comments when opening post comments", async ({
     if (!isMobile) {
         await page1.getByRole("button", {name: "1 comment"}).click();
     } else {
-        await page1.getByRole("button", {name: "Go back"}).click();
+        await activateMobileButton(page1, "Go back");
     }
 
     await expect(page1.getByLabel("1 comment")).toBeVisible();
@@ -443,7 +444,7 @@ test("can see new comments when opening post comments", async ({
     const browserContext3 = await browser.newContext();
     await services.signIn(browserContext3, session3);
     const page3 = await browserContext3.newPage();
-    await page3.goto(`/s/${space.id}/posts/${post.id}`);
+    await page3.goto(`/post/${post.id}`);
 
     await page3.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 2");
     await expect(page3.getByRole("textbox", {name: "New comment"})).toHaveText(

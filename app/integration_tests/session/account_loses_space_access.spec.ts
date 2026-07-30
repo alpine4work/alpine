@@ -21,7 +21,7 @@ test("account can lose access to space", async ({page, context: browserContext})
     await document.access.grantDefault(session1);
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space1.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await expect(page.getByText("foobar")).toBeVisible();
     await expect(page.getByText("You don\u2019t have access to this space")).toBeHidden();

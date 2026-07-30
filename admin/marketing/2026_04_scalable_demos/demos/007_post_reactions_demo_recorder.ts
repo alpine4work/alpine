@@ -12,7 +12,7 @@ import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     const channel = await TestChannel.create(accounts.hollyEvergreen, {name: "Welcome"});
 
@@ -64,7 +64,7 @@ feels like they\u2019re actually in a room together!
 4. Move your mouse back, you\u2019re done! Quick demo.
         `,
         session: accounts.roseCompas,
-        path: `/s/${space.id}/posts/${post.id}`,
+        path: `/post/${post.id}`,
         viewport: {
             width:
                 postReactionsDemoRecordingWidth +

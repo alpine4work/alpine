@@ -10,7 +10,6 @@ import {
 } from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {
     attachFileFromAttachment,
@@ -28,12 +27,12 @@ import {getPostContentFileIds} from "~/server/forum/data/internal/get_post_conte
 import {PostItemAuthorizationCache} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
 import {getNotificationPostContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimePutItemEvent,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
@@ -80,90 +79,116 @@ export async function createPost(
     createdTime: Date;
     createdTimeZone: TimeZone;
     channelName: string;
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<PostModel>>>;
 }> {
     // You can only manually set a created time when building scenarios or in tests.
     if (overrideCreatedTimeForTest) {
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
-    const {spaceId, channelName} = await authorizeChannelAccess(context, channelId, "Edit", {
-        consistency,
-    });
+    return await context.dynamo.retryTransaction(async context => {
+        const [{spaceId, channelName, accessPolicy: channelAccessPolicy}, channelPostsItem] =
+            await runAllPromises([
+                authorizeChannelAccess(context, channelId, "Edit", {consistency}),
+                ForumTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "Channel",
+                        sortRangeType: "Posts",
+                        channelId,
+                    },
+                    {consistency},
+                ),
+            ]);
 
-    const mentionCountByAccountId = getMentionCountByAccountIdInContent(content);
+        const mentionCountByAccountId = getMentionCountByAccountIdInContent(content);
 
-    const postItem: PostAttributesItem = {
-        partitionType: "Post",
-        sortRangeType: "Attributes",
-        postId,
-        spaceId,
-        channelId,
-        createdTime:
-            overrideCreatedTimeForTest ??
-            // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use this
-            // slightly awkward form to let tests mock different times for post creation.
-            new Date(Date.now()),
-        createdTimeZone,
-        authorId: context.actor.getPossiblyBotAccountId(),
-        content,
-        contentUpdate: null,
-        commentsSummary: {
-            nextCommentIndex: 0,
-            commentCountByAuthorId: new Map(),
-            mentionCountByAccountId,
-        },
-        reactions: new ReactionSet(emptyMap),
-    };
+        const postItem: PostAttributesItem = {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+            spaceId,
+            channelId,
+            createdTime: new Date(
+                Math.max(
+                    // Make sure posts have monotonically increasing `createdTime` by guaranteeing a
+                    // post in a channel always has a `createTime` at least 1ms higher than the
+                    // previous post.
+                    (channelPostsItem?.lastPostCreatedTime.getTime() ?? 0) + 1,
 
-    // Add our new post to the authorization cache BEFORE we create the post. That way
-    // when we attach files with `attachFileFromAttachment()` they'll read the post
-    // from this cache and won't throw a not found error.
-    PostItemAuthorizationCache.set(context, "Strong", postId, postItem);
+                    overrideCreatedTimeForTest?.getTime() ??
+                        // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use this
+                        // slightly awkward form to let tests mock different times for post creation.
+                        Date.now(),
+                ),
+            ),
+            createdTimeZone,
+            authorId: context.actor.getPossiblyBotAccountId(),
+            content,
+            contentUpdate: null,
+            commentsSummary: {
+                nextCommentIndex: 0,
+                commentCountByAuthorId: new Map(),
+                mentionCountByAccountId,
+            },
+            reactions: new ReactionSet(emptyMap),
+        };
 
-    const fileIds = getPostContentFileIds(postItem.content);
+        // Add our new post to the authorization cache BEFORE we create the post. That way
+        // when we attach files with `attachFileFromAttachment()` they'll read the post
+        // from this cache and won't throw a not found error.
+        PostItemAuthorizationCache.set(context, "Strong", postId, postItem);
 
-    // Make sure to attach all files to the post. So when someone else sees the post
-    // they can load the files.
-    await runAllPromises(
-        mapIterable(fileIds, async fileId => {
-            if (draftId === null) {
-                throw new FailedPreconditionError("Must create post from draft to attach files");
-            }
+        const fileIds = getPostContentFileIds(postItem.content);
 
-            await attachFileFromAttachment(context, fileId, {
-                from: FilePostAuthorizer.bind({
-                    type: "PostDraft",
-                    spaceId: postItem.spaceId,
-                    accountId: postItem.authorId,
-                    draftId,
-                }),
-                to: FilePostAuthorizer.bind({
-                    type: "Post",
-                    postId,
-                }),
-            });
-        }),
-    );
+        // Make sure to attach all files to the post. So when someone else sees the post
+        // they can load the files.
+        await runAllPromises(
+            mapIterable(fileIds, async fileId => {
+                if (draftId !== null) {
+                    // Move file attachment from the draft to the published post.
+                    await attachFileFromAttachment(context, fileId, {
+                        from: FilePostAuthorizer.bind({
+                            type: "PostDraft",
+                            spaceId: postItem.spaceId,
+                            accountId: postItem.authorId,
+                            draftId,
+                        }),
+                        to: FilePostAuthorizer.bind({
+                            type: "Post",
+                            postId,
+                        }),
+                    });
+                } else if (context.actor.type === "Bot") {
+                    // Bots are responsible for attaching files before calling `createPost`. The API
+                    // layer handles this.
+                    //
+                    // TODO: we should validate that all files are attached before creating the post.
+                    // To do this right we'd need attachFileFromAttachment() to cache the attachment in
+                    // ContextCache so the check here is 0-cost for the API.
+                } else {
+                    throw new FailedPreconditionError(
+                        "Must create post from draft to attach files",
+                    );
+                }
+            }),
+        );
 
-    let result: {
-        getEvent: (
-            context: ServerActionContext,
-        ) => Promise<DynamoGeneralRealtimePutItemEvent<PostModel>>;
-    };
-
-    if (fileIds.size === 0) {
-        result = await ForumRealtimeTable.createItem(context, postItem);
-    } else {
         const {transactionEntry, getEvent} =
             ForumRealtimeTable.transactionCreateItemWithEvent(postItem);
 
-        result = {getEvent};
-
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+        await RynamoTableSchema.executeTransaction(context, [
             transactionEntry,
+
+            ForumTable.transactionDirectlyUpdateItem({
+                partitionType: "Channel",
+                sortRangeType: "Posts",
+                channelId,
+                ...channelPostsItem,
+                lastPostCreatedTime: postItem.createdTime,
+            }),
 
             // We create the `PostFiles` item in a transaction instead of asynchronously with
             // `context.process.waitUntil()` because we want the `PostFiles` realtime event to
@@ -171,35 +196,42 @@ export async function createPost(
             // Otherwise `context.process.waitUntil()` would be fine. It's not critical to
             // write this item so it's a bit of a bummer we double our DynamoDB WCU cost for
             // posts with files.
-            ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheck({
-                partitionType: "Channel",
-                sortRangeType: "PostFiles",
-                channelId,
-                postCreatedTime: postItem.createdTime,
-                postId,
-                spaceId: postItem.spaceId,
-                fileIds,
-            }),
+            ...(fileIds.size > 0
+                ? [
+                      ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheck(
+                          {
+                              partitionType: "Channel",
+                              sortRangeType: "PostFiles",
+                              channelId,
+                              postCreatedTime: postItem.createdTime,
+                              postId,
+                              spaceId: postItem.spaceId,
+                              fileIds,
+                          },
+                      ),
+                  ]
+                : []),
         ]);
-    }
 
-    afterCreatePost(context, {
-        spaceId,
-        channelId,
-        postId,
-        postItem,
-        content,
-        draftId,
+        afterCreatePost(context, {
+            spaceId,
+            channelId,
+            channelAccessPolicy,
+            postId,
+            postItem,
+            content,
+            draftId,
+        });
+
+        return {
+            id: postId,
+            spaceId,
+            createdTime: postItem.createdTime,
+            createdTimeZone: postItem.createdTimeZone,
+            channelName,
+            getRynamoEvents: async context => [await getEvent(context)],
+        };
     });
-
-    return {
-        id: postId,
-        spaceId,
-        createdTime: postItem.createdTime,
-        createdTimeZone: postItem.createdTimeZone,
-        channelName,
-        getDynamoGeneralRealtimeEventTransaction: async context => [await result.getEvent(context)],
-    };
 }
 
 function afterCreatePost(
@@ -207,6 +239,7 @@ function afterCreatePost(
     {
         spaceId,
         channelId,
+        channelAccessPolicy,
         postId,
         postItem,
         content,
@@ -214,6 +247,7 @@ function afterCreatePost(
     }: {
         spaceId: SpaceId;
         channelId: ChannelId;
+        channelAccessPolicy: AccessPolicy;
         postId: PostId;
         postItem: PostAttributesItem;
         content: PostContent;
@@ -414,6 +448,7 @@ function afterCreatePost(
                     spaceId,
                     entityId: `Channel:${channelId}`,
                     interaction: {type: "MediumIntentUpdate"},
+                    siteId: getSiteIdFromAccessPolicyIfExists(channelAccessPolicy),
                 },
             ),
         );
@@ -435,6 +470,8 @@ function afterCreatePost(
                             spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
+                            // Accounts cannot live in a site.
+                            siteId: null,
                         },
                     );
                 }

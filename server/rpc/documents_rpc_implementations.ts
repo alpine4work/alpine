@@ -55,18 +55,19 @@ export default implementRpcs(definitions, {
     createDocument: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {id, createdTime, getDynamoGeneralRealtimeEventTransactionForSite} =
-                await createDocument(context.actor.authorizeSession(), {
+            const {id, createdTime, getRynamoEventsForSite} = await createDocument(
+                context.actor.authorizeSession(),
+                {
                     id: input.documentId,
                     spaceId: input.spaceId,
                     content: input.content,
                     sitePosition: input.sitePosition,
-                });
+                },
+            );
             return {
                 documentId: id,
                 createdTime,
-                eventTransactionForSite:
-                    await getDynamoGeneralRealtimeEventTransactionForSite(context),
+                eventsForSite: await getRynamoEventsForSite(context),
             };
         },
     },
@@ -130,7 +131,7 @@ export default implementRpcs(definitions, {
             // RPC directly, instead they should always use DocumentCollaborationService.
             const accountContext = context.actor.authorizeAccount();
 
-            const {newVersion, updatedCommentThreads, eventTransactionForSite} =
+            const {newVersion, updatedCommentThreads, eventsForSite} =
                 await updateDocumentContentIdempotently(accountContext, {
                     id: input.documentId,
                     version: input.version,
@@ -143,7 +144,7 @@ export default implementRpcs(definitions, {
                     unresolveCommentThreadIds: input.unresolveCommentThreadIds,
                 });
 
-            return {newVersion, updatedCommentThreads, eventTransactionForSite};
+            return {newVersion, updatedCommentThreads, eventsForSite};
         },
     },
 

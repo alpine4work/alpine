@@ -8,6 +8,7 @@ import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {getApiMentionTitleWithStrongConsistency} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {parseFileIdFromApiFileElement} from "~/server/api/internal/shared/parse_file_id_or_file_entity_id.js";
 import {
     completeChatMessageStream,
     getChatMessagePayload,
@@ -17,7 +18,9 @@ import {
     putChatMessageStreamPart,
     sendChatMessage,
 } from "~/server/chat/data/chat_messaging.js";
+import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
+import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {getSearchDirectChatEntityTitleAndMedia} from "~/server/search/data/index/search_entity_index.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
@@ -35,6 +38,8 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {isId} from "~/shared/id/id.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -204,16 +209,16 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
 
             let content: ApiOperation200JsonResponseType<"/chats/{id}/messages/{index}", "get"> = {
                 spaceId: message.spaceId,
-                message: await intoApiMessage(
-                    context,
-                    message.spaceId,
+                message: await intoApiMessage(context, {
+                    spaceId: message.spaceId,
                     message,
-                    createIntoApiChatMessageContentPayloadParent(
+                    intoContentPayloadParent: createIntoApiChatMessageContentPayloadParent(
                         context,
                         message.spaceId,
                         pathParameters.id,
                     ),
-                ),
+                    entityId: `ChatMessage:${pathParameters.id}-${pathParameters.index}`,
+                }),
             };
 
             // We want to test that response schemas are validated in a Jest unit test. So
@@ -333,16 +338,17 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                     nextCursor,
                     messages: await runAllPromises(
                         messages.map(message =>
-                            intoApiMessage(
-                                context,
+                            intoApiMessage(context, {
                                 spaceId,
                                 message,
-                                createIntoApiChatMessageContentPayloadParent(
-                                    context,
-                                    spaceId,
-                                    pathParameters.id,
-                                ),
-                            ),
+                                intoContentPayloadParent:
+                                    createIntoApiChatMessageContentPayloadParent(
+                                        context,
+                                        spaceId,
+                                        pathParameters.id,
+                                    ),
+                                entityId: `ChatMessage:${pathParameters.id}-${message.index}`,
+                            }),
                         ),
                     ),
                 },
@@ -356,23 +362,43 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
             );
 
             const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
+            const fileIds = (requestBody.files ?? []).map(parseFileIdFromApiFileElement);
+            const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
 
-            const {spaceId, index, createdTime} = await sendChatMessage(context, {
-                chatId: pathParameters.id,
-                parent,
-                content,
-                fileIds: [],
-                createdTimeZone,
-                consistency: "StrongWithinCache",
-                isStream: requestBody.isStream,
-            });
+            // Attach files before creating the message, matching the app client flow. The
+            // service function validates attachments exist.
+            await runAllPromises(
+                attachmentFileIds.map(fileId =>
+                    attachFileToTargetAsBot(
+                        context,
+                        fileId,
+                        FileChatAuthorizer.bind({
+                            type: "ChatMessages",
+                            chatId: pathParameters.id,
+                        }),
+                    ),
+                ),
+            );
+
+            const {spaceId, index, createdTime} = await sendChatMessage(
+                context.dynamo.unexpectStrongReadConsistency(),
+                {
+                    chatId: pathParameters.id,
+                    parent,
+                    content,
+                    fileIds,
+                    createdTimeZone,
+                    consistency: "StrongWithinCache",
+                    isStream: requestBody.isStream,
+                },
+            );
 
             const payload: MessageContentPayload = {
                 type: "Content",
                 parent,
                 content,
                 contentUpdate: null,
-                fileIds: [],
+                fileIds,
                 reactionsByPos: emptyMap,
                 filesReactions: emptyReactionSet,
             };
@@ -416,10 +442,9 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(
-                        context,
+                    message: await intoApiMessage(context, {
                         spaceId,
-                        {
+                        message: {
                             index,
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
@@ -430,12 +455,13 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        createIntoApiChatMessageContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiChatMessageContentPayloadParent(
                             context,
                             spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `ChatMessage:${pathParameters.id}-${index}`,
+                    }),
                 },
             };
         },

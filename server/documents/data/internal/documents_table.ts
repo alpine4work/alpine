@@ -1,4 +1,4 @@
-import {authorizeDocumentAccess} from "~/server/documents/data/documents_actions.js";
+import {authorizeDocumentAccessIfPossible} from "~/server/documents/data/documents_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
@@ -14,6 +14,7 @@ import {
     dangerousLegacyDefaultDocumentAccessPolicy,
 } from "~/shared/documents/document_content_schema.js";
 import {DocumentCreatorFromSchema} from "~/shared/documents/document_creator_from.js";
+import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {
@@ -385,6 +386,20 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * at once or even two editors on-screen at the same time.
                          */
                         clientId: Schema.id<ContentEditorClientId>(),
+
+                        /**
+                         * The account that applied this step transaction.
+                         *
+                         * Nullable because step transactions created before this field was added won't
+                         * have an `accountId`.
+                         */
+                        accountId: Schema.id<AccountId>().nullable().default(null),
+
+                        /**
+                         * If this step transaction was applied by a bot, the bot's account ID. The
+                         * `accountId` field will be the account the bot acted on behalf of.
+                         */
+                        fromBotAccountId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
 
@@ -490,6 +505,20 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * at once or even two editors on-screen at the same time.
                          */
                         clientId: Schema.id<ContentEditorClientId>(),
+
+                        /**
+                         * The account that applied this step transaction.
+                         *
+                         * Nullable because step transactions created before this field was added won't
+                         * have an `accountId`.
+                         */
+                        accountId: Schema.id<AccountId>().nullable().default(null),
+
+                        /**
+                         * If this step transaction was applied by a bot, the bot's account ID. The
+                         * `accountId` field will be the account the bot acted on behalf of.
+                         */
+                        fromBotAccountId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
             ],
@@ -553,7 +582,7 @@ export const DocumentsTable = DynamoTableSchema.new({
                  * During backfill we load the new version of the item.
                  *
                  * This sort range has a similar design to the `Events` sort range in
-                 * `DynamoGeneralRealtimeTableSchema`.
+                 * `RynamoTableSchema`.
                  *
                  * IMPORTANT: This does not include realtime events for streaming messages!
                  * Streaming messages are updated with a different realtime system that's more
@@ -602,8 +631,16 @@ export const DocumentsTable = DynamoTableSchema.new({
 const FileDocumentAuthorizer = FileAuthorizer.new(
     DocumentsTable,
     "Document",
-    (context, target, expectedAccessLevel) =>
-        authorizeDocumentAccess(context, target.documentId, expectedAccessLevel),
+    async (context, target, expectedAccessLevel, options) =>
+        mapResult(
+            await authorizeDocumentAccessIfPossible(
+                context,
+                target.documentId,
+                expectedAccessLevel,
+                options,
+            ),
+            () => {},
+        ),
 );
 
 export {FileDocumentAuthorizer as InternalFileDocumentAuthorizer};

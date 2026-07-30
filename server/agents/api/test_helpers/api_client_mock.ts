@@ -2,6 +2,8 @@ import jsonStableStringify from "json-stable-stringify";
 import {PathsWithMethod} from "openapi-typescript-helpers";
 import {ApiClient} from "~/server/agents/api/api_client.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiContentResponse,
     ApiDocumentThreadResponse,
@@ -9,7 +11,7 @@ import {
     ApiPostResponse,
     ApiTaskCollection,
     ApiTaskResponse,
-    ApiTaskWithoutContent,
+    ApiTaskWithoutNotes,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -211,23 +213,23 @@ export class ApiClientMock implements ApiClient {
 
     // Implement ApiClient interface
     get: ApiClient["get"] = async (tracer, url, options) => {
-        return this.handleRequest("GET", tracer, url, options);
+        return await this.handleRequest("GET", tracer, url, options);
     };
 
     put: ApiClient["put"] = async (tracer, url, options) => {
-        return this.handleRequest("PUT", tracer, url, options);
+        return await this.handleRequest("PUT", tracer, url, options);
     };
 
     post: ApiClient["post"] = async (tracer, url, options) => {
-        return this.handleRequest("POST", tracer, url, options);
+        return await this.handleRequest("POST", tracer, url, options);
     };
 
     delete: ApiClient["delete"] = async (tracer, url, options) => {
-        return this.handleRequest("DELETE", tracer, url, options);
+        return await this.handleRequest("DELETE", tracer, url, options);
     };
 
     patch: ApiClient["patch"] = async (tracer, url, options) => {
-        return this.handleRequest("PATCH", tracer, url, options);
+        return await this.handleRequest("PATCH", tracer, url, options);
     };
 
     private async handleRequest(
@@ -449,11 +451,10 @@ export class ApiClientMock implements ApiClient {
     ): void {
         documentId ??= generateId<DocumentId>();
         spaceId ??= generateId<SpaceId>();
-        const defaultContent: ApiContentResponse = {
-            elements: [
-                {type: "Paragraph", elements: [{type: "Text", text: "Test Document Content"}]},
-            ],
-        };
+        const defaultContent = createApiContentResponseWithSingleParagraph(
+            "mock-document",
+            "Test Document Content",
+        );
 
         this.mockGet(
             "/documents/{id}",
@@ -554,9 +555,10 @@ export class ApiClientMock implements ApiClient {
     ): void {
         postId ??= generateId<PostId>();
         spaceId ??= generateId<SpaceId>();
-        const defaultContent: ApiContentResponse = {
-            elements: [{type: "Paragraph", elements: [{type: "Text", text: "Test Post Content"}]}],
-        };
+        const defaultContent = createApiContentResponseWithSingleParagraph(
+            "mock-post",
+            "Test Post Content",
+        );
 
         this.mockGet(
             "/posts/{id}",
@@ -641,13 +643,12 @@ export class ApiClientMock implements ApiClient {
                         id: taskId,
                         status: responseData.status ?? {type: "Open", isActive: true},
                         title: responseData.title ?? "Test Task",
-                        content: responseData.content ?? {
-                            elements: [
-                                {
-                                    type: "Paragraph",
-                                    elements: [{type: "Text", text: "Test Task Content"}],
-                                },
-                            ],
+                        notes: responseData.notes ?? {
+                            version: 0,
+                            content: createApiContentResponseWithSingleParagraph(
+                                "mock-task",
+                                "Test Task Content",
+                            ),
                         },
                         ...responseData,
                     },
@@ -713,7 +714,7 @@ export class ApiClientMock implements ApiClient {
             {
                 data: {
                     spaceId,
-                    taskCollection: {
+                    collection: {
                         id: collectionId,
                         name: responseData.name ?? "Test Task Collection",
                     },
@@ -731,7 +732,7 @@ export class ApiClientMock implements ApiClient {
         responseData: {
             totalTaskCount?: number;
             nextCursor?: string | null;
-            tasks?: Array<ApiTaskWithoutContent>;
+            tasks?: Array<ApiTaskWithoutNotes>;
         },
         queryParams?: {
             limit?: number;
@@ -758,4 +759,27 @@ export class ApiClientMock implements ApiClient {
             matcherData,
         );
     }
+}
+
+/**
+ * Creates mock API content with a single keyed paragraph for response fixtures
+ * that need to satisfy the public response shape.
+ */
+function createApiContentResponseWithSingleParagraph(
+    keyPrefix: string,
+    text: string,
+): ApiContentResponse {
+    return {
+        elements: [
+            {
+                type: "Paragraph",
+                key: createMockApiContentKey(keyPrefix),
+                elements: [{type: "Text", text}],
+            },
+        ],
+    };
+}
+
+function createMockApiContentKey(entityId: string): ApiContentKey {
+    return new ApiContentKeyEncoder({entityId, version: 0}).encode({pos: 0, nodeSize: 0});
 }

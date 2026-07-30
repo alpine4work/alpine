@@ -37,67 +37,70 @@ export class ImporterServiceContextModule extends ImporterServiceContextModuleBa
     async downloadAndUnzipImportToDisk(options: {
         importKey: string;
     }): Promise<{diskPathToUnzippedFiles: string}> {
-        return this._context.tracer.withSpan("Download and unzip import to disk", async () => {
-            const {importKey} = options;
+        return await this._context.tracer.withSpan(
+            "Download and unzip import to disk",
+            async () => {
+                const {importKey} = options;
 
-            // Write to the mounted EBS volume, not /tmp (which is limited ephemeral storage).
-            const unzipDir = `${importerVolumeContainerPath}/${importKey.replace(/\//g, "_")}`;
-            const zipFilePath = `${unzipDir}.zip`;
+                // Write to the mounted EBS volume, not /tmp (which is limited ephemeral storage).
+                const unzipDir = `${importerVolumeContainerPath}/${importKey.replace(/\//g, "_")}`;
+                const zipFilePath = `${unzipDir}.zip`;
 
-            // Download the zip file from S3
-            const getObjectResult = await this._s3Client
-                .send(new GetObjectCommand({Bucket: this._bucketName, Key: importKey}))
-                .catch(error => {
-                    throw new DataLossError(`Failed to get import file`, {cause: error});
-                });
+                // Download the zip file from S3
+                const getObjectResult = await this._s3Client
+                    .send(new GetObjectCommand({Bucket: this._bucketName, Key: importKey}))
+                    .catch(error => {
+                        throw new DataLossError(`Failed to get import file`, {cause: error});
+                    });
 
-            if (!getObjectResult?.Body) {
-                throw new DataLossError(`Import file not found`);
-            }
+                if (!getObjectResult?.Body) {
+                    throw new DataLossError(`Import file not found`);
+                }
 
-            // Stream directly to disk to avoid holding the entire file in memory
-            await mkdir(dirname(zipFilePath), {recursive: true});
-            await pipeline(getObjectResult.Body, createWriteStream(zipFilePath));
+                // Stream directly to disk to avoid holding the entire file in memory
+                await mkdir(dirname(zipFilePath), {recursive: true});
+                await pipeline(getObjectResult.Body, createWriteStream(zipFilePath));
 
-            // TODO: delete this log
-            const zipStat = await stat(zipFilePath);
-            // TODO: delete this log
-            // eslint-disable-next-line no-console
-            console.log(
-                `[downloadAndUnzip] Downloaded zip to ${zipFilePath} (${zipStat.size} bytes)`,
-            );
-
-            // Unzip to disk
-            await mkdir(unzipDir, {recursive: true});
-            await unzipToDisk(zipFilePath, unzipDir);
-
-            // TODO: delete this log
-            const extractedEntries = await readdir(unzipDir, {withFileTypes: true});
-            // TODO: delete this log
-            // eslint-disable-next-line no-console
-            console.log(
-                `[downloadAndUnzip] Extracted to ${unzipDir}. Top-level entries: ${extractedEntries.length}`,
-            );
-            for (const entry of extractedEntries) {
-                const entryPath = `${unzipDir}/${entry.name}`;
-                const entrySize = await stat(entryPath)
-                    .then(s => s.size)
-                    .catch(() => -1);
+                // TODO: delete this log
+                const zipStat = await stat(zipFilePath);
                 // TODO: delete this log
                 // eslint-disable-next-line no-console
                 console.log(
-                    `[downloadAndUnzip]   ${entry.isDirectory() ? "DIR" : "FILE"}: ${entry.name} (${entrySize} bytes)`,
+                    `[downloadAndUnzip] Downloaded zip to ${zipFilePath} (${zipStat.size} bytes)`,
                 );
-            }
 
-            // Clean up the zip file
-            await unlink(zipFilePath);
-            // TODO: delete this log
-            // eslint-disable-next-line no-console
-            console.log(`[downloadAndUnzip] Deleted original zip. Unzip dir: ${unzipDir}`);
+                // Unzip to disk
+                await mkdir(unzipDir, {recursive: true});
+                await unzipToDisk(zipFilePath, unzipDir);
 
-            return {diskPathToUnzippedFiles: unzipDir};
-        });
+                // TODO: delete this log
+                const extractedEntries = await readdir(unzipDir, {withFileTypes: true});
+                // TODO: delete this log
+                // eslint-disable-next-line no-console
+                console.log(
+                    `[downloadAndUnzip] Extracted to ${unzipDir}. Top-level entries: ${extractedEntries.length}`,
+                );
+                for (const entry of extractedEntries) {
+                    const entryPath = `${unzipDir}/${entry.name}`;
+                    const entrySize = await stat(entryPath)
+                        .then(s => s.size)
+                        .catch(() => -1);
+                    // TODO: delete this log
+                    // eslint-disable-next-line no-console
+                    console.log(
+                        `[downloadAndUnzip]   ${entry.isDirectory() ? "DIR" : "FILE"}: ${entry.name} (${entrySize} bytes)`,
+                    );
+                }
+
+                // Clean up the zip file
+                await unlink(zipFilePath);
+                // TODO: delete this log
+                // eslint-disable-next-line no-console
+                console.log(`[downloadAndUnzip] Deleted original zip. Unzip dir: ${unzipDir}`);
+
+                return {diskPathToUnzippedFiles: unzipDir};
+            },
+        );
     }
 
     fork(): ImporterServiceContextModule {

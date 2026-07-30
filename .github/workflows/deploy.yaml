@@ -21,7 +21,7 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
             - name: Checkout repo
-              uses: actions/checkout@v3
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
               with:
                   ref: ${{ inputs.commitSha }}
 
@@ -46,7 +46,7 @@ jobs:
             # [2]: https://bazel.build/remote/caching
             - id: cache
               name: Restore Bazel repositories cache
-              uses: actions/cache/restore@v3
+              uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
               with:
                   path: |
                       ~/.cache/bazelisk
@@ -54,7 +54,7 @@ jobs:
                   # IMPORTANT: Should have the same `hashFiles()` as `test.yaml`. We want to
                   # share our cache between the two workflows.
                   key: |
-                      bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+                      bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
                   restore-keys: |
                       bazel-${{ runner.os }}-${{ runner.arch }}-
 
@@ -94,12 +94,15 @@ jobs:
 
             # We build `//server/deploy/script` in a separate step so our tracing code can
             # log a separate span for the time it takes to build containers.
+            # We manually re-enable building runfile links here because we directly invoke
+            # the output binary which requires runfiles symlinks.
             - name: Build artifacts
               shell: bash
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/script --config=github-runner --config=production --nofetch
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/script --config=github-runner --config=production --nofetch --build_runfile_links
 
             - name: Collect sourcemaps
+              continue-on-error: true
               shell: bash
               run: |
                   mkdir -p /tmp/sourcemaps
@@ -107,7 +110,8 @@ jobs:
                   echo "Sourcemaps: $(find /tmp/sourcemaps -name '*.map' | wc -l)"
 
             - name: Upload sourcemaps
-              uses: actions/upload-artifact@v4
+              continue-on-error: true
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # 7.0.1
               with:
                   name: sourcemaps-${{ inputs.commitSha }}
                   path: /tmp/sourcemaps

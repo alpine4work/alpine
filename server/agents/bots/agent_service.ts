@@ -127,7 +127,7 @@ async function handleFetch(
             : undefined,
     });
 
-    return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
+    return await traceServerResponse(tracer, request, url, routeString, async (span, request) => {
         try {
             switch (route.type) {
                 case "NotFound": {
@@ -137,6 +137,9 @@ async function handleFetch(
                     });
                 }
                 case "ChatGptWebhook": {
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
                     return handleDurableObjectPostRequest(
                         span,
                         env.ChatGptAgentDurableObjectNamespace,
@@ -156,6 +159,9 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = "/conversation-state";
 
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
                     return fetchFromDurableObject(
                         span,
                         env.ChatGptAgentDurableObjectNamespace,
@@ -167,6 +173,9 @@ async function handleFetch(
                     );
                 }
                 case "CursorWebhook": {
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
                     return handleDurableObjectPostRequest(
                         span,
                         env.CursorAgentDurableObjectNamespace,
@@ -178,6 +187,9 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = `/cloud-agents-webhook/${route.agentId}`;
 
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
                     return fetchFromDurableObjectWithId(
                         span,
                         env.CursorAgentDurableObjectNamespace,
@@ -202,6 +214,9 @@ async function handleFetch(
                             throw exhaustive(route.bot);
                     }
 
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
                     return handleDurableObjectPostRequest(
                         span,
                         durableObjectNamespace,
@@ -233,6 +248,9 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = "/recording";
 
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
                     return fetchFromDurableObject(
                         span,
                         durableObjectNamespace,
@@ -296,7 +314,7 @@ async function handleDurableObjectPostRequest(
     const newUrl = new URL(request.url);
     newUrl.pathname = newUrlPath;
 
-    return fetchFromDurableObject(
+    return await fetchFromDurableObject(
         span,
         durableObjectNamespace,
         getDurableObjectIdFromApiBotWebhookEvent(requestBody),
@@ -308,7 +326,7 @@ async function handleDurableObjectPostRequest(
     );
 }
 
-function fetchFromDurableObject(
+async function fetchFromDurableObject(
     span: TracerSpan,
     durableObjectNamespace: DurableObjectNamespace,
     name: string,
@@ -316,10 +334,10 @@ function fetchFromDurableObject(
 ) {
     const id = durableObjectNamespace.idFromName(name);
 
-    return fetchFromDurableObjectWithId(span, durableObjectNamespace, id, request);
+    return await fetchFromDurableObjectWithId(span, durableObjectNamespace, id, request);
 }
 
-function fetchFromDurableObjectWithId(
+async function fetchFromDurableObjectWithId(
     span: TracerSpan,
     durableObjectNamespace: DurableObjectNamespace,
     id: DurableObjectId,
@@ -338,7 +356,7 @@ function fetchFromDurableObjectWithId(
 
     addTracerPropagationContextHeader(request.headers, span);
 
-    return durableObjectStub.fetch(request);
+    return await durableObjectStub.fetch(request);
 }
 
 function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestBody) {

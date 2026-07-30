@@ -111,7 +111,7 @@ export function PostCommentView({
             disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
             getMessageUrl={messageIndex => {
                 return new URL(
-                    `/s/${item.post.spaceId}/posts/${item.post.id}?comment=${messageIndex}`,
+                    `/post/${item.post.id}?comment=${messageIndex}`,
                     window.location.href,
                 );
             }}

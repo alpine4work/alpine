@@ -52,9 +52,15 @@ export function RoomChatViewNameEditor({
         });
     }, [shouldShowConfirmSaveDialog]);
 
+    // We use this Y margin "slop" to make sure that the title component doesn't "jump"
+    // when rendering the editor. This makes room for the editor focus box in the
+    // current div.
+    const marginY = "-1";
+    const paddingY = "1";
+
     return (
         <>
-            <Box minWidth="flex-fit" marginLeft="-1">
+            <Box minWidth="flex-fit" marginLeft="-1" marginY={marginY}>
                 <Box display="flex" alignItems="center" gap="2" maxWidth="full" height="9">
                     <FocusRing offset="border" isVisibleFromAnyFocus={true}>
                         <InputWithAutoGrowingWidth
@@ -89,7 +95,7 @@ export function RoomChatViewNameEditor({
                                 setName(event.currentTarget.value);
                             }}
                             className={sprinkles({
-                                paddingY: "1",
+                                paddingY,
                                 borderRadius: "1",
                             })}
                             style={{

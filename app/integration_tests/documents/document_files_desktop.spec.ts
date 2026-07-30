@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import {join as joinPath} from "path";
 import sharp from "sharp";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -32,7 +33,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await page.setViewportSize({width: 1280, height: 1000});
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     const file1Contents = await sharp(
         joinPath(
@@ -848,7 +849,7 @@ test("can drop file into floating comment input", async ({
     await document.type(session, "!");
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await page
         .getByRole("textbox", {name: "Document"})
@@ -962,13 +963,13 @@ test("can copy/paste a file within the same space", async ({
 
     await browserContext1.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${document1.id}`);
+    await page1.goto(`/doc/${document1.id}`);
 
     const browserContext2 = await browser.newContext();
     await browserContext2.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${document2.id}`);
+    await page2.goto(`/doc/${document2.id}`);
 
     const file1Contents = await sharp(
         joinPath(
@@ -1037,7 +1038,9 @@ test("can copy/paste a file within the same space", async ({
     }, clipboardHtml);
 
     await page2.getByRole("textbox", {name: "Document"}).focus();
-    await page2.getByRole("textbox", {name: "Document"}).press("ControlOrMeta+v");
+    await page2
+        .getByRole("textbox", {name: "Document"})
+        .press(await pageKeyboardShortcut(page2, "mod", "v"));
 
     await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 
@@ -1061,13 +1064,13 @@ test("can copy/paste a file across spaces", async ({
 
     await browserContext1.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space1.id}/documents/${document1.id}`);
+    await page1.goto(`/doc/${document1.id}`);
 
     const browserContext2 = await browser.newContext();
     await browserContext2.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space2.id}/documents/${document2.id}`);
+    await page2.goto(`/doc/${document2.id}`);
 
     const file1Contents = await sharp(
         joinPath(
@@ -1136,7 +1139,9 @@ test("can copy/paste a file across spaces", async ({
     }, clipboardHtml);
 
     await page2.getByRole("textbox", {name: "Document"}).focus();
-    await page2.getByRole("textbox", {name: "Document"}).press("ControlOrMeta+v");
+    await page2
+        .getByRole("textbox", {name: "Document"})
+        .press(await pageKeyboardShortcut(page2, "mod", "v"));
 
     await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 

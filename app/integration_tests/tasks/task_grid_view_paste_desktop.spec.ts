@@ -1,10 +1,11 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -25,7 +26,7 @@ test("can paste a formatted list and it will create tasks in empty collection", 
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expectTaskGridView(page, []);
 
@@ -72,7 +73,7 @@ test("can paste a formatted list and it will create tasks in empty collection", 
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(page, [
         [
@@ -120,16 +121,16 @@ test("can paste a formatted list and it will create tasks in empty collection", 
     await expect(page.getByText("Task X")).toBeVisible();
     await expect(page.getByText("Task 4")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByText("Task 4")).toBeVisible();
     await expect(page.getByText("Task X")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, []);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(page, [
         [
@@ -173,7 +174,7 @@ test("can paste a formatted list and it will create tasks at the end of the coll
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expectTaskGridView(page, [
         [true, "Task A"],
@@ -225,7 +226,7 @@ test("can paste a formatted list and it will create tasks at the end of the coll
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(page, [
         [true, "Task A"],
@@ -250,7 +251,7 @@ test("can paste a formatted list and it will create tasks at the end of the coll
         [true, "Task 4"],
     ]);
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, [
         [true, "Task A"],
@@ -258,7 +259,7 @@ test("can paste a formatted list and it will create tasks at the end of the coll
         [true, "Task C"],
     ]);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(page, [
         [true, "Task A"],
@@ -305,7 +306,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -353,7 +354,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -405,12 +406,12 @@ test("can paste a formatted list and it will create tasks in the middle of a col
     await expect(page.getByText("Task X")).toBeVisible();
     await expect(page.getByText("Task 4")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByText("Task 4")).toBeVisible();
     await expect(page.getByText("Task X")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -418,7 +419,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -464,7 +465,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -515,7 +516,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -567,12 +568,12 @@ test("can paste a formatted list and it will create tasks in the middle of a col
     await expect(page.getByText("Task X")).toBeVisible();
     await expect(page.getByText("Task 4")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByText("Task 4")).toBeVisible();
     await expect(page.getByText("Task X")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -580,7 +581,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -626,7 +627,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -686,7 +687,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -715,7 +716,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -723,7 +724,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -789,7 +790,7 @@ test("can paste a formatted list and it will create tasks when last pasted task 
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -841,7 +842,7 @@ test("can paste a formatted list and it will create tasks when last pasted task 
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -891,12 +892,12 @@ test("can paste a formatted list and it will create tasks when last pasted task 
     await expect(page.getByText("Task 3.1.X")).toBeVisible();
     await expect(page.getByText("Task 3.1.1")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByText("Task 3.1.1")).toBeVisible();
     await expect(page.getByText("Task 3.1.X")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -904,7 +905,7 @@ test("can paste a formatted list and it will create tasks when last pasted task 
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -949,7 +950,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -1013,7 +1014,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -1073,12 +1074,12 @@ test("can paste a formatted list and it will create tasks in an already nested t
     await expect(page.getByText("Task 3.1.X")).toBeVisible();
     await expect(page.getByText("Task 3.1.1")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByText("Task 3.1.1")).toBeVisible();
     await expect(page.getByText("Task 3.1.X")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -1086,7 +1087,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -1136,7 +1137,7 @@ test("pasting child tasks in an expanded parent gives each pasted child a unique
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -1179,7 +1180,7 @@ test("pasting child tasks in an expanded parent gives each pasted child a unique
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -1236,7 +1237,7 @@ test("can paste a formatted list and it will create tasks in a detail view\u2019
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expectTaskGridView(page, []);
 
@@ -1283,7 +1284,7 @@ test("can paste a formatted list and it will create tasks in a detail view\u2019
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(
         page,
@@ -1339,16 +1340,16 @@ test("can paste a formatted list and it will create tasks in a detail view\u2019
     await expect(page.getByText("Task X")).toBeVisible();
     await expect(page.getByText("Task 4")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByText("Task 4")).toBeVisible();
     await expect(page.getByText("Task X")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, []);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(
         page,
@@ -1387,7 +1388,7 @@ test("can paste a formatted list and it will create tasks in a detail view\u2019
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expectTaskGridView(page, []);
 
@@ -1433,7 +1434,7 @@ test("can paste a formatted list and it will create tasks in a detail view\u2019
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(
         page,
@@ -1487,16 +1488,16 @@ test("can paste a formatted list and it will create tasks in a detail view\u2019
     await expect(page.getByText("Task 3.X")).toBeVisible();
     await expect(page.getByText("Task 3.1")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByText("Task 3.1")).toBeVisible();
     await expect(page.getByText("Task 3.X")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, []);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(
         page,
@@ -1533,7 +1534,7 @@ test("can paste a formatted list and it will create tasks in personal task view"
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expectTaskGridView(page, []);
 
@@ -1580,7 +1581,7 @@ test("can paste a formatted list and it will create tasks in personal task view"
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(
         page,
@@ -1636,16 +1637,16 @@ test("can paste a formatted list and it will create tasks in personal task view"
     await expect(page.getByText("Task X")).toBeVisible();
     await expect(page.getByText("Task 4")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByText("Task 4")).toBeVisible();
     await expect(page.getByText("Task X")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, []);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(
         page,
@@ -1683,7 +1684,7 @@ test("can paste a formatted list and it will create tasks in personal task view 
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expectTaskGridView(page, []);
 
@@ -1729,7 +1730,7 @@ test("can paste a formatted list and it will create tasks in personal task view 
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(
         page,
@@ -1783,16 +1784,16 @@ test("can paste a formatted list and it will create tasks in personal task view 
     await expect(page.getByText("Task 3.X")).toBeVisible();
     await expect(page.getByText("Task 3.1")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByText("Task 3.1")).toBeVisible();
     await expect(page.getByText("Task 3.X")).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, []);
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(
         page,
@@ -1829,7 +1830,7 @@ test("can paste a formatted list in the middle of existing task text in personal
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await page
         .getByTestId(/^TaskRowView:/)
@@ -1898,7 +1899,7 @@ test("can paste a formatted list in the middle of existing task text in personal
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(
         page,
@@ -1931,7 +1932,7 @@ test("can paste an ordered list from Alpine without including list item numbers"
 
     await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expectTaskGridView(page, []);
 
@@ -1965,7 +1966,7 @@ test("can paste an ordered list from Alpine without including list item numbers"
         ]);
     });
 
-    await page.keyboard.press("ControlOrMeta+v");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "v"));
 
     await expectTaskGridView(page, [
         [

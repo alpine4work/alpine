@@ -40,6 +40,7 @@ ts_project(
         "//shared/rpc",
         "//shared/schema",
         "//shared/search",
+        "//shared/search/path",
         "//shared/spaces",
         "//shared/store",
     ],

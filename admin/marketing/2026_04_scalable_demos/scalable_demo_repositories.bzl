@@ -115,6 +115,22 @@ SCALABLE_DEMOS_REPOSITORIES = {
         "url": "https://drive.google.com/file/d/1oYgVHeGmtNMwkqWp69zjFHjyhkQgefsP/view?usp=drive_link",
         "integrity": "sha256-B/wVC7YkPI1eGuNyPVg/Mn1k//g/mk2/02n2Xh/vXJU=",
     },
+    "027_search_tasks_closed_by_mason_last_week_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/14YFuSX190-1pKHJfjipmxGfXn-bDehwn/view?usp=sharing",
+        "integrity": "sha256-PPugRQ8Y3bPOZKZpTo0fmVmndjQchREqTnc7ozo6DWY=",
+    },
+    "028_projects_completion_state_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/1cxRbNh23h6u9QQTksZsidGXfymN3dDPc/view?usp=drive_link",
+        "integrity": "sha256-8FzfahaqMuzHsQJp84tfRfduDXpE9KmQC75CU9hvO3Y=",
+    },
+    "029_share_task_collection_to_chat_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/1NNtEZYyaqPxKOIdb_58Ta8vnbsQd6Fw_/view?usp=drive_link",
+        "integrity": "sha256-RAWOedo1lXuKFUtQUmGxDJvFajZj4Cjt5GNhLYyZbKI=",
+    },
+    "030_video_galleries_side_by_side_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/1zYR6DNXJ1o5eP17quy3dh4EEgNo1CK7d/view?usp=drive_link",
+        "integrity": "sha256-jTk0vd8rze3ZLQZs0u8BRH24Y7FMFIUjvFq4NygBzqc=",
+    },
     "rachel_date_background_01.jpeg": {
         "url": "https://drive.google.com/file/d/1AJpgkEwTEBXq9sc_Bvil31I7rfqKCG6s/view?usp=drive_link",
         "integrity": "sha256-kFfKiGfkNtqisvfIs06n+yi5JW32dC8N50xyceMArn0=",

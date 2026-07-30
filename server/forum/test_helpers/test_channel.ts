@@ -83,7 +83,7 @@ export class TestChannel {
             name,
             description:
                 typeof description === "string"
-                    ? parseTestMessageContent(session.space.id, description)
+                    ? parseTestMessageContent(description)
                     : description,
             accessPolicy,
         });

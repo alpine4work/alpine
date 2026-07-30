@@ -50,6 +50,18 @@ function validate(specification: JsonValue) {
         return refValue;
     }
 
+    function isNullSchema(value: JsonValue): boolean {
+        return isObject(value) && (value.type === "null" || value.const === null);
+    }
+
+    function isNullableOneOfSchema(value: JsonValue): boolean {
+        return (
+            isReadonlyArray(value) &&
+            value.length === 2 &&
+            value.filter(subSchema => isNullSchema(subSchema)).length === 1
+        );
+    }
+
     function visit(value: JsonValue) {
         if (isReadonlyArray(value)) {
             for (let i = 0; i < value.length; i++) {
@@ -58,6 +70,16 @@ function validate(specification: JsonValue) {
                 path.pop();
             }
         } else if (isObject(value)) {
+            if (
+                Array.isArray(value.oneOf) &&
+                !isObject(value.discriminator) &&
+                !isNullableOneOfSchema(value.oneOf)
+            ) {
+                addError(
+                    quote`\`oneOf\` schemas must either have a \`discriminator\` or represent \`Value | null\``,
+                );
+            }
+
             if (value.type === "object") {
                 // Rule: Require `additionalProperties: false` (or a schema is fine too) to be set
                 // on all object schemas.
@@ -467,6 +489,9 @@ test("can validate invalid specification", () => {
                         },
                     },
                 },
+                InvalidPrimitiveUnion: {
+                    oneOf: [{type: "string"}, {type: "number"}],
+                },
                 ParagraphBlockElement: {
                     type: "object",
                     required: ["type"],
@@ -522,6 +547,7 @@ test("can validate invalid specification", () => {
         "`discriminator`\u2019s `mapping`s aren\u2019t unique (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/OtherParagraph`)",
         "`discriminator`\u2019s `mapping` `#/components/schemas/CodeBlockElement` doesn\u2019t have a required `type` property (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/Code`)",
         "`discriminator`\u2019s `oneOf` `$ref`s must match `discriminator`\u2019s `mapping`s (path: `#/components/schemas/InvalidBlockElement3`)",
+        "`oneOf` schemas must either have a `discriminator` or represent `Value | null` (path: `#/components/schemas/InvalidPrimitiveUnion`)",
         "`required` fields must match `properties` order (path: `#/components/schemas/InvalidRequiredOrder`)",
     ]);
 });

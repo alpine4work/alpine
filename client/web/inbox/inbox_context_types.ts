@@ -1,14 +1,13 @@
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 
 export type InboxContextNavigation = {
-    readonly filter: "New" | "Archive";
-    readonly nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    readonly previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    readonly selectEntry: (
-        entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null,
-    ) => Promise<void>;
+    readonly filter: InboxEntryStatus;
+    readonly nextEntry: RynamoItem<InboxEntryModel> | null;
+    readonly previousEntry: RynamoItem<InboxEntryModel> | null;
+    readonly selectEntry: (entry: RynamoItem<InboxEntryModel> | null) => Promise<void>;
 };
 
 export type InboxContextCreateMessageOptimisticallyRoom =
@@ -16,7 +15,7 @@ export type InboxContextCreateMessageOptimisticallyRoom =
     | {readonly type: "DocumentCommentThread"; readonly commentThreadId: DocumentCommentThreadId};
 
 export type InboxContext = {
-    readonly entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    readonly entry: RynamoItem<InboxEntryModel> | null;
     readonly navigation: InboxContextNavigation | null;
     readonly onCreateMessageOptimistically: (
         promise: Promise<unknown>,

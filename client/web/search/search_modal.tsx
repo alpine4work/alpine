@@ -20,6 +20,8 @@ import {
 import {usePress} from "react-aria";
 import {flushSync} from "react-dom";
 import {To, createPath} from "react-router";
+import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
+import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -47,13 +49,14 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
-import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {updateSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {SearchInstructionalPlaceholder} from "~/client/web/search/internal/search_instructional_placeholder.js";
 import {SearchEntityView} from "~/client/web/search/search_entity_view.js";
 import {SearchStateExecutionOutput, useSearchState} from "~/client/web/search/use_search_state.js";
 import {SearchEntityShimmer} from "~/client/web/shimmer/search_entity_shimmer.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {
     searchEntityHeaderFontSize,
@@ -88,8 +91,18 @@ import {
     markSearchAffinityEntityInteraction,
     unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
+import {
+    getSearchEntityPath,
+    getSearchStaticEntityPath,
+} from "~/shared/search/path/get_search_entity_path.js";
 import {SearchEntityId, isSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
+import {
+    SearchEntityModel,
+    SearchEntityModelDataWithAccount,
+    printSearchEntityWithAccountModelId,
+} from "~/shared/search/search_entity_model.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const searchModalPeekControlsHeight = "6";
 
@@ -106,6 +119,8 @@ export function SearchModal({
     const reporter = useReporter();
     const {space} = useSpaceContext();
     const navigate = useNavigate();
+    const searchEntityRegistry = useSearchEntityRegistry();
+    const accountRegistry = useAccountRegistry();
 
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -152,29 +167,41 @@ export function SearchModal({
                 // way if an update to favorites causes the "see all" button to disappear we won't
                 // abruptly navigate the user away.
             } else if (!hasSearchEntityId(output, selectedPeek.extra.entityId)) {
-                const nextEntityId = getNextSearchEntityId(
-                    previousOutput,
-                    selectedPeek.extra.entityId,
-                );
-                if (!nextEntityId || !hasSearchEntityId(output, nextEntityId)) {
+                const nextEntity = getNextSearchEntity(previousOutput, selectedPeek.extra.entityId);
+                if (!nextEntity) {
                     void switchPeek(null);
                 } else {
-                    const path = getSearchEntityPath({
-                        spaceId: space.id,
-                        entityId: nextEntityId,
-                        randomSeed: output.key,
-                        currentTime: output.queryTime,
-                        routeLayout: "narrow",
-                    });
+                    // It's safe to use the snapshot while we are in a state transition. In this
+                    // specific case, we are transition the peek view in the search modal to the next
+                    // available entity.
+                    const nextEntityDataSnapshot = getSearchEntityDataSnapshot(
+                        nextEntity,
+                        searchEntityRegistry,
+                        accountRegistry,
+                    );
+                    const nextEntityId =
+                        printSearchEntityWithAccountModelId(nextEntityDataSnapshot);
 
-                    void switchPeek({
-                        spacePath: path,
-                        extra: {entityId: nextEntityId},
-                    });
+                    if (!hasSearchEntityId(output, nextEntityId)) {
+                        void switchPeek(null);
+                    } else {
+                        const path = getSearchEntityPath({
+                            spaceId: space.id,
+                            entityData: nextEntityDataSnapshot,
+                            randomSeed: output.key,
+                            currentTime: output.queryTime,
+                            routeLayout: "narrow",
+                        });
+
+                        void switchPeek({
+                            spacePath: path,
+                            extra: {entityId: nextEntityId},
+                        });
+                    }
                 }
             }
         }
-    }, [output, selectedPeek, space.id, switchPeek]);
+    }, [output, selectedPeek, searchEntityRegistry, space.id, switchPeek, accountRegistry]);
 
     const shouldShowInputLoadingIndicator =
         useDelayLoadingIndicator(output.isPending) &&
@@ -196,6 +223,11 @@ export function SearchModal({
                 spaceId: space.id,
                 entityId,
                 interaction: {type: "HighIntentUpdate"},
+                // Skip the site cascade here. The search modal doesn't carry the result's access
+                // policy, and once the user lands on the entity its own view-time affinity hook
+                // will fire (with a known siteId) — so engagement with the entity still flows to
+                // the site.
+                siteId: null,
             }).catch(error => {
                 // Silently fail. This doesn't affect anything the user sees so we don't need to
                 // report the error to the user.
@@ -212,7 +244,7 @@ export function SearchModal({
         // Data hasn't loaded yet, we can't select anything.
         if (!output.results) return;
 
-        let entityId: SearchEntityId | null = null;
+        let entity: SearchEntityModel | AccountModel | null = null;
 
         if (!selectedPeek) {
             // NOTE(calebmer): Notably, pressing down when `output.hasMoreFavoriteResults` is
@@ -226,23 +258,32 @@ export function SearchModal({
                 output.favoriteResults &&
                 output.favoriteResults.length > 0
             ) {
-                entityId = output.favoriteResults[0]!.id;
+                entity = output.favoriteResults[0]!.model;
             } else if (output.results.length > 0) {
-                entityId = output.results[0]!.id;
+                entity = output.results[0]!.model;
             }
         } else if (key === "ArrowUp") {
-            entityId = getPreviousSearchEntityId(output, selectedPeek.extra.entityId);
+            entity = getPreviousSearchEntity(output, selectedPeek.extra.entityId);
         } else {
-            entityId = getNextSearchEntityId(output, selectedPeek.extra.entityId);
+            entity = getNextSearchEntity(output, selectedPeek.extra.entityId);
         }
 
         // There is no next item. Do nothing. Don't loop around since we may have many
         // items so looping would be disorienting.
-        if (entityId === null) return;
+        if (entity === null) return;
+
+        // It's safe to use the snapshot during a state transition. In this specific case,
+        // we are transitioning the peek view in the search modal to the previous or next
+        // entity.
+        const entityDataSnapshot = getSearchEntityDataSnapshot(
+            entity,
+            searchEntityRegistry,
+            accountRegistry,
+        );
 
         const path = getSearchEntityPath({
             spaceId: space.id,
-            entityId,
+            entityData: entityDataSnapshot,
             randomSeed: output.key,
             currentTime: output.queryTime,
             routeLayout: "narrow",
@@ -250,21 +291,21 @@ export function SearchModal({
 
         void switchPeek({
             spacePath: path,
-            extra: {entityId},
+            extra: {entityId: printSearchEntityWithAccountModelId(entityDataSnapshot)},
         });
     };
 
     const handleOpenEntityInPeekStack = useCallback(
-        async (entityId: SearchEntityId, options?: {focus?: boolean}) => {
+        async (entityData: SearchEntityModelDataWithAccount, options?: {focus?: boolean}) => {
             const path = getSearchEntityPath({
                 spaceId: space.id,
-                entityId,
+                entityData,
                 randomSeed: output.key,
                 currentTime: output.queryTime,
                 routeLayout: "narrow",
             });
             await pushPeekStack(path, options).finally(onClose);
-            markResultSelectAffinityInteraction(entityId);
+            markResultSelectAffinityInteraction(printSearchEntityWithAccountModelId(entityData));
         },
         [
             markResultSelectAffinityInteraction,
@@ -710,7 +751,7 @@ function SearchModalResultList({
     holdPeekTransition: Memo<(promise: Promise<void>) => void>;
     markResultSelectAffinityInteraction: (entityId: SearchEntityId) => void;
     handleOpenEntityInPeekStack: (
-        entityId: SearchEntityId,
+        entity: SearchEntityModelDataWithAccount,
         options?: {focus?: boolean},
     ) => Promise<void>;
 }) {
@@ -736,11 +777,12 @@ function SearchModalResultList({
         }
     }, [selectedPeek?.extra.entityId]);
 
-    const handleDoubleClick = useEvent((result: {readonly id: SearchEntityId}) => {
-        if (result.id !== selectedPeek?.extra.entityId) {
+    const handleDoubleClick = useEvent((entityData: SearchEntityModelDataWithAccount) => {
+        const entityId = printSearchEntityWithAccountModelId(entityData);
+        if (entityId !== selectedPeek?.extra.entityId) {
             const path = getSearchEntityPath({
                 spaceId: space.id,
-                entityId: result.id,
+                entityData,
                 randomSeed: output.key,
                 currentTime: output.queryTime,
                 routeLayout: "wide",
@@ -752,7 +794,7 @@ function SearchModalResultList({
             // right before the full page navigation.
             holdPeekTransition(
                 navigate(path).then(() => {
-                    markResultSelectAffinityInteraction(result.id);
+                    markResultSelectAffinityInteraction(entityId);
                 }),
             );
         } else {
@@ -767,7 +809,7 @@ function SearchModalResultList({
             // right before the full page navigation.
             holdPeekTransition(
                 navigate(spacePath).then(() => {
-                    markResultSelectAffinityInteraction(result.id);
+                    markResultSelectAffinityInteraction(entityId);
                 }),
             );
         }
@@ -825,12 +867,11 @@ function SearchModalResultList({
                                                         return;
                                                     }
 
-                                                    const path = getSearchEntityPath({
+                                                    const path = getSearchStaticEntityPath({
                                                         spaceId: space.id,
                                                         entityId: "SearchFavorites",
                                                         randomSeed: output.key,
                                                         currentTime: output.queryTime,
-                                                        routeLayout: "narrow",
                                                     });
 
                                                     void switchPeek({
@@ -863,11 +904,11 @@ function SearchModalResultList({
                                 // use the selected style to indicate interaction to the user instead of an
                                 // `isPressed` style. The benefit of using selection is the previous item loses its
                                 // style.
-                                onPressStart={() => {
+                                onPressStart={entityData => {
                                     if (result.id !== selectedPeek?.extra.entityId) {
                                         const path = getSearchEntityPath({
                                             spaceId: space.id,
-                                            entityId: result.id,
+                                            entityData,
                                             randomSeed: output.key,
                                             currentTime: output.queryTime,
                                             routeLayout: "narrow",
@@ -879,19 +920,21 @@ function SearchModalResultList({
                                         });
                                     }
                                 }}
-                                onDoubleClick={() => {
-                                    handleDoubleClick(result);
+                                onDoubleClick={entityData => {
+                                    handleDoubleClick(entityData);
                                 }}
-                                getCopyPath={() => {
+                                getCopyPath={entityData => {
                                     return getSearchEntityPath({
                                         spaceId: space.id,
-                                        entityId: result.id,
+                                        entityData,
                                         randomSeed: output.key,
                                         currentTime: output.queryTime,
                                         routeLayout: "wide",
                                     });
                                 }}
-                                onOpenInPeekStack={() => handleOpenEntityInPeekStack(result.id)}
+                                onOpenInPeekStack={entityData =>
+                                    handleOpenEntityInPeekStack(entityData)
+                                }
                                 onRemoveFromFavorites={async () => {
                                     await unfavoriteSearchEntity(context, {
                                         spaceId: space.id,
@@ -972,11 +1015,11 @@ function SearchModalResultList({
                         // use the selected style to indicate interaction to the user instead of an
                         // `isPressed` style. The benefit of using selection is the previous item loses its
                         // style.
-                        onPressStart={() => {
+                        onPressStart={entityData => {
                             if (result.id !== selectedPeek?.extra.entityId) {
                                 const path = getSearchEntityPath({
                                     spaceId: space.id,
-                                    entityId: result.id,
+                                    entityData,
                                     randomSeed: output.key,
                                     currentTime: output.queryTime,
                                     routeLayout: "narrow",
@@ -988,19 +1031,19 @@ function SearchModalResultList({
                                 });
                             }
                         }}
-                        onDoubleClick={() => {
-                            handleDoubleClick(result);
+                        onDoubleClick={entityData => {
+                            handleDoubleClick(entityData);
                         }}
-                        getCopyPath={() => {
+                        getCopyPath={entityData => {
                             return getSearchEntityPath({
                                 spaceId: space.id,
-                                entityId: result.id,
+                                entityData,
                                 randomSeed: output.key,
                                 currentTime: output.queryTime,
                                 routeLayout: "wide",
                             });
                         }}
-                        onOpenInPeekStack={() => handleOpenEntityInPeekStack(result.id)}
+                        onOpenInPeekStack={entityData => handleOpenEntityInPeekStack(entityData)}
                         onRemoveFromSuggested={
                             output.type === "EmptyQuery"
                                 ? async () => {
@@ -1143,6 +1186,7 @@ function SearchModalPeekContent({
 
     return (
         <Box
+            data-testid="SearchModalPeek"
             position="relative"
             zIndex="0"
             width="full"
@@ -1335,22 +1379,26 @@ function hasSearchEntityId(
     return false;
 }
 
-function getPreviousSearchEntityId(
+function getPreviousSearchEntity(
     output: SearchStateExecutionOutput,
     selectedEntityId: SearchEntityId,
-): SearchEntityId | null {
+): SearchEntityModel | AccountModel | null {
     // Data hasn't loaded yet, we can't select anything.
     if (!output.results) return null;
 
-    let previousEntityId: SearchEntityId | null = null;
+    let previousEntity: SearchEntityModel | AccountModel | null = null;
 
     // Handle the case when you've selected "See all" in the favorites header then hit
     // `ArrowUp`.
     if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
         if (selectedEntityId === "SearchFavorites") {
-            return previousEntityId;
+            return null;
         } else {
-            previousEntityId = "SearchFavorites";
+            previousEntity = new SearchEntityModel({
+                type: "Static",
+                id: "SearchFavorites",
+                title: null,
+            });
         }
     }
 
@@ -1358,47 +1406,47 @@ function getPreviousSearchEntityId(
         for (let i = 0; i < output.favoriteResults.length; i++) {
             const result = output.favoriteResults[i]!;
             if (result.id === selectedEntityId) {
-                return previousEntityId;
+                return previousEntity;
             }
-            previousEntityId = result.id;
+            previousEntity = result.model;
         }
     }
 
     for (let i = 0; i < output.results.length; i++) {
         const result = output.results[i]!;
         if (result.id === selectedEntityId) {
-            return previousEntityId;
+            return previousEntity;
         }
-        previousEntityId = result.id;
+        previousEntity = result.model;
     }
 
     return null;
 }
 
-function getNextSearchEntityId(
+function getNextSearchEntity(
     output: SearchStateExecutionOutput,
     selectedEntityId: SearchEntityId,
-): SearchEntityId | null {
+): SearchEntityModel | AccountModel | null {
     // Data hasn't loaded yet, we can't select anything.
     if (!output.results) return null;
 
-    let nextEntityId: SearchEntityId | null = null;
+    let nextEntity: SearchEntityModel | AccountModel | null = null;
 
     for (let i = output.results.length - 1; i >= 0; i--) {
         const previousResult = output.results[i]!;
         if (previousResult.id === selectedEntityId) {
-            return nextEntityId;
+            return nextEntity;
         }
-        nextEntityId = previousResult.id;
+        nextEntity = previousResult.model;
     }
 
     if (output.type === "EmptyQuery" && output.favoriteResults) {
         for (let i = output.favoriteResults.length - 1; i >= 0; i--) {
             const previousResult = output.favoriteResults[i]!;
             if (previousResult.id === selectedEntityId) {
-                return nextEntityId;
+                return nextEntity;
             }
-            nextEntityId = previousResult.id;
+            nextEntity = previousResult.model;
         }
     }
 
@@ -1406,11 +1454,26 @@ function getNextSearchEntityId(
     // `ArrowDown`.
     if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
         if (selectedEntityId === "SearchFavorites") {
-            return nextEntityId;
-        } else {
-            nextEntityId = "SearchFavorites";
+            return nextEntity;
         }
     }
 
     return null;
+}
+
+function getSearchEntityDataSnapshot(
+    entity: SearchEntityModel | AccountModel,
+    searchEntityRegistry: SearchEntityRegistry,
+    accountRegistry: AccountRegistry,
+): SearchEntityModelDataWithAccount {
+    if (entity instanceof SearchEntityModel) {
+        return searchEntityRegistry.getEntityStore(entity).getSnapshot();
+    } else {
+        const accountData = accountRegistry.getAccountStore(entity).getSnapshot();
+        return {
+            type: "Account",
+            account: entity,
+            title: accountData.name,
+        };
+    }
 }

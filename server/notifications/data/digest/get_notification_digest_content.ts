@@ -55,13 +55,13 @@ export async function getNotificationDigestContent(
             });
             const selectedSearchParam = getEncodedInboxEntryPath(entry.model, "wide");
 
-            const summary = entryDisplay.summary.map(item => {
+            const title = entryDisplay.title.map(item => {
                 if (typeof item === "string") {
                     return item;
                 } else {
                     assert(
                         item instanceof AccountModel,
-                        "Received non-account item in InboxEntryDisplayContentSummary",
+                        "Received non-account item in InboxEntryDisplayContentTitle",
                     );
                     return {
                         type: "Account",
@@ -75,10 +75,10 @@ export async function getNotificationDigestContent(
                 entryDisplay.latestMessage.contentTextSnippet.length > 0;
             return {
                 url: new URL(
-                    `/s/${entry.model.spaceId}/inbox?selected=${selectedSearchParam}`,
+                    `/inbox/${entry.model.spaceId}?selected=${selectedSearchParam}`,
                     context.constants.edgeServiceUrl,
                 ),
-                summary,
+                title,
                 preview: showLatestMessage
                     ? `${getAccountShortNameWithoutFullNameTooltip(
                           entryDisplay.latestMessage.author.initialData,
@@ -87,14 +87,14 @@ export async function getNotificationDigestContent(
                 brandIconType: entryDisplay.brandIconType,
                 time: entryDisplay.time,
                 loudNotificationCount: entry.model.loudNotificationCount,
-                firstAccount: await getAccountDataWithSignedAvatarUrl(
+                featuredAccount: await getAccountDataWithSignedAvatarUrl(
                     context,
-                    entryDisplay.firstAccount.initialData,
+                    entryDisplay.featuredAccount.initialData,
                 ),
-                secondAccount: entryDisplay.secondAccount?.initialData
+                otherAccount: entryDisplay.otherAccount?.initialData
                     ? await getAccountDataWithSignedAvatarUrl(
                           context,
-                          entryDisplay.secondAccount.initialData,
+                          entryDisplay.otherAccount.initialData,
                       )
                     : undefined,
             };
@@ -103,7 +103,7 @@ export async function getNotificationDigestContent(
 
     const remainingEntryCount = Math.max(entries.items.length - digestEntryDisplayLimit, 0);
     const digestContent = {
-        inboxUrl: new URL(`/s/${spaceId}/inbox`, context.constants.edgeServiceUrl),
+        inboxUrl: new URL(`/inbox/${spaceId}`, context.constants.edgeServiceUrl),
         digestEntries: parsedEntries,
         remainingEntryCount,
     };

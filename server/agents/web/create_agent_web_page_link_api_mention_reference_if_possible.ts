@@ -14,7 +14,8 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
         case "Document":
         case "Post":
         case "Task":
-        case "TaskCollection": {
+        case "TaskCollection":
+        case "Site": {
             return {type: "MentionReference", reference: link};
         }
         case "ChatMessage": {

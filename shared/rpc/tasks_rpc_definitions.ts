@@ -7,10 +7,10 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/content/message_content_schema.js";
-import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     BrowserId,
+    ContentEditorClientId,
     SpaceId,
     TaskActionTransactionLeaseId,
     TaskId,
@@ -29,7 +29,7 @@ import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_ti
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
-import {DynamoGeneralRealtimeSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
+import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema, TaskUpdateTaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
@@ -65,15 +65,13 @@ export const commitTaskActionTransaction = defineRpc({
         extraActions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
         referencedSites: Schema.array(
-            Schema.result(
-                Schema.object({
-                    ok: Schema.value(true),
-                    value: SitePreviewModel.schema,
-                }),
-                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({isPrivate: Schema.value(true)}),
+                Schema.object({isPrivate: Schema.value(false), site: SitePreviewModel.schema}),
             ),
         ),
-        eventTransactionForSite: Schema.array(DynamoGeneralRealtimeSiteEventSchema).optional(),
+        eventsForSite: Schema.array(RynamoSiteEventSchema).optional(),
     },
 });
 
@@ -90,12 +88,10 @@ export const deleteTaskAndAllChildren = defineRpc({
         actions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
         referencedSites: Schema.array(
-            Schema.result(
-                Schema.object({
-                    ok: Schema.value(true),
-                    value: SitePreviewModel.schema,
-                }),
-                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({isPrivate: Schema.value(true)}),
+                Schema.object({isPrivate: Schema.value(false), site: SitePreviewModel.schema}),
             ),
         ),
     },
@@ -115,12 +111,10 @@ export const duplicateTaskAndAllChildren = defineRpc({
         actions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
         referencedSites: Schema.array(
-            Schema.result(
-                Schema.object({
-                    ok: Schema.value(true),
-                    value: SitePreviewModel.schema,
-                }),
-                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({isPrivate: Schema.value(true)}),
+                Schema.object({isPrivate: Schema.value(false), site: SitePreviewModel.schema}),
             ),
         ),
         taskId: Schema.id<TaskId>(),
@@ -155,17 +149,39 @@ export const getTaskNotesContent = defineRpc({
 
 export const updateTaskNotesContent = defineRpc({
     name: "updateTaskNotesContent",
-    // Applies the steps twice if called with the same `version` and `steps`.
-    //
-    // TODO(calebmer): Make this idempotent like `updateDocumentContent()`!
-    isIdempotent: false,
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         taskId: Schema.id<TaskId>(),
         version: Schema.integer,
         steps: Schema.array(TaskNotesContentStepSchema),
+        clientId: Schema.id<ContentEditorClientId>(),
     },
-    output: {},
+    output: {
+        // The version after the steps were applied. If the provided `version` was behind
+        // the current version the steps are rebased, so this may be greater than
+        // `version + steps.length`.
+        newVersion: Schema.integer,
+    },
+});
+
+export const getTaskNotesContentSteps = defineRpc({
+    name: "getTaskNotesContentSteps",
+    isIdempotent: true,
+    input: {
+        taskId: Schema.id<TaskId>(),
+        startVersion: Schema.integer,
+        endVersion: Schema.integer,
+    },
+    output: {
+        steps: Schema.array(
+            Schema.object({
+                step: TaskNotesContentStepSchema,
+                invertedStep: TaskNotesContentStepSchema,
+                clientId: Schema.id<ContentEditorClientId>(),
+            }),
+        ),
+    },
 });
 
 export const getTaskNotesContentReferences = defineRpc({

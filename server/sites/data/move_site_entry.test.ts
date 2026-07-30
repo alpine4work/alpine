@@ -7,8 +7,8 @@ import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {OrderKey, assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, SiteId, SiteSideBarSectionId} from "~/shared/id/types/id_types.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId, printSiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 
 const context = createTestContext();
 
@@ -71,7 +71,7 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        expect(result.getDynamoGeneralRealtimeEventTransaction).toBeDefined();
+        expect(result.getRynamoEvents).toBeDefined();
     });
 
     test("moves a SideBarSection to a different parent", async () => {
@@ -101,7 +101,7 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        expect(result.getDynamoGeneralRealtimeEventTransaction).toBeDefined();
+        expect(result.getRynamoEvents).toBeDefined();
     });
 
     test("moves an Entity to a different container", async () => {
@@ -134,7 +134,7 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        expect(result.getDynamoGeneralRealtimeEventTransaction).toBeDefined();
+        expect(result.getRynamoEvents).toBeDefined();
 
         // Verify the entity was actually re-parented under the section.
         const movedItem = await SitesTable.getItem(session.action(), {
@@ -201,7 +201,7 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        const events = await result.getDynamoGeneralRealtimeEventTransaction(session.action());
+        const events = await result.getRynamoEvents(session.action());
         expect(events).toEqual([]);
     });
 
@@ -381,7 +381,7 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        expect(result.getDynamoGeneralRealtimeEventTransaction).toBeDefined();
+        expect(result.getRynamoEvents).toBeDefined();
     });
 
     test("moving entity to same parent but different orderKey succeeds", async () => {
@@ -447,6 +447,6 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        expect(result.getDynamoGeneralRealtimeEventTransaction).toBeDefined();
+        expect(result.getRynamoEvents).toBeDefined();
     });
 });

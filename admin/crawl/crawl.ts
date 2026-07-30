@@ -35,23 +35,18 @@ const crawlPromise = new Lazy(async () => {
             getConstructedDynamoTableSchemaCount,
             recordConstructedDynamoTableSchemas,
         },
-        {DynamoGeneralRealtimeTableSchema},
+        {RynamoTableSchema},
         {OpensearchIndex, getConstructedOpensearchIndexCount, recordConstructedOpensearchIndexes},
     ]: [
         typeof import("~/server/dynamo/core/dynamo_table_schema.js"),
-        typeof import("~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js"),
+        typeof import("~/server/rynamo/rynamo_table_schema.js"),
         typeof import("~/server/opensearch/opensearch_index.js"),
     ] = await runAllPromises([
         // Even though we have a dependencies on `//server/dynamo/core` and
         // `//server/opensearch`, import these files from `runfilesPath` so all references
         // are the same as when we import all the modules below.
         import(joinPath(runfilesRepoPath, "server/dynamo/core/dynamo_table_schema.js")),
-        import(
-            joinPath(
-                runfilesRepoPath,
-                "server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js",
-            )
-        ),
+        import(joinPath(runfilesRepoPath, "server/rynamo/rynamo_table_schema.js")),
         import(joinPath(runfilesRepoPath, "server/opensearch/opensearch_index.js")),
     ]);
 
@@ -92,12 +87,12 @@ const crawlPromise = new Lazy(async () => {
                             );
                         }
 
-                        if (moduleExportValue instanceof DynamoGeneralRealtimeTableSchema) {
+                        if (moduleExportValue instanceof RynamoTableSchema) {
                             throw new InternalError(
                                 quote`Module ${relative(
                                     runfilesRepoPath,
                                     path,
-                                )} exports a \`DynamoGeneralRealtimeTableSchema\` as ${moduleExportName}, DynamoDB table schemas should be private to the package where it was defined`,
+                                )} exports a \`RynamoTableSchema\` as ${moduleExportName}, DynamoDB table schemas should be private to the package where it was defined`,
                             );
                         }
 

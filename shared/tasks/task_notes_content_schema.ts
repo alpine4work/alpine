@@ -60,6 +60,8 @@ const taskNotesContentSchemas = createSchemaForProsemirrorSchema(TaskNotesConten
 export const TaskNotesContentSchema =
     taskNotesContentSchemas.TopNodeType as Schema<any> as Schema<TaskNotesContent>;
 
+export const TaskNotesContentNodeSchema = taskNotesContentSchemas.Node;
+
 export const TaskNotesContentStepSchema = taskNotesContentSchemas.createStepSchema();
 
 export const emptyTaskNotesContent = TaskNotesContentProsemirrorSchema.node("doc", {}, [

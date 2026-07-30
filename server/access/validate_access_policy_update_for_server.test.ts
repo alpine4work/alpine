@@ -4,6 +4,7 @@ import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {SitesInjection} from "~/server/context/injection_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {AccessPolicy, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {
@@ -14,8 +15,8 @@ import {
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SiteId, SiteSideBarId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 // Mutable map that tests can configure for site access policies
@@ -222,6 +223,9 @@ describe("add to site", () => {
 
         const space = await TestSpace.create(context);
         const bobSession = await space.createSession({id: bob});
+        // Add Alice to the space — otherwise she'd be treated as removed from the space
+        // and her manage grant would be exempt from generation validation.
+        await space.createSession({id: alice});
 
         const oldAccessPolicy: AccessPolicy = {
             type: "Local",
@@ -268,6 +272,9 @@ describe("add to site", () => {
 
         const space = await TestSpace.create(context);
         const aliceSession = await space.createSession({id: alice});
+        // Add Carol to the space — otherwise she'd be treated as removed from the space
+        // and her manage grant would be exempt from generation validation.
+        await space.createSession({id: carol});
 
         const oldAccessPolicy: AccessPolicy = {
             type: "Local",
@@ -557,6 +564,9 @@ describe("change site", () => {
 
         const space = await TestSpace.create(context);
         const bobSession = await space.createSession({id: bob});
+        // Add Alice to the space — otherwise she'd be treated as removed from the space
+        // and her manage grant would be exempt from generation validation.
+        await space.createSession({id: alice});
 
         const oldAccessPolicy = {
             type: "Site",
@@ -601,6 +611,9 @@ describe("change site", () => {
 
         const space = await TestSpace.create(context);
         const aliceSession = await space.createSession({id: alice});
+        // Add Carol to the space — otherwise she'd be treated as removed from the space
+        // and her manage grant would be exempt from generation validation.
+        await space.createSession({id: carol});
 
         const oldAccessPolicy = {
             type: "Site",
@@ -644,6 +657,9 @@ describe("validateAccessPolicyUpdate errors with site changes", () => {
 
         const space = await TestSpace.create(context);
         const aliceSession = await space.createSession({id: alice});
+        // Add Bob to the space — otherwise he'd be treated as removed from the space and
+        // his manage grant would be exempt from generation validation.
+        await space.createSession({id: bob});
 
         // Entity has Alice at gen 0, Bob at gen 1 (different from site)
         const oldAccessPolicy: AccessPolicy = {
@@ -1022,6 +1038,377 @@ describe("generation validation edge cases", () => {
                 },
             ),
         ).resolves.not.toThrow();
+    });
+});
+
+// =============================================================================
+// Space membership checks for site moves
+//
+// When an entity moves into a site, manage accounts that were removed from the
+// space shouldn't block the move — their stale generations would otherwise make
+// legal moves look like escalations.
+// =============================================================================
+
+describe("space membership checks for site moves", () => {
+    test("removed space account doesn\u2019t block adding an entity to a site", async () => {
+        const siteId = generateId<SiteId>();
+        const alice = generateId<AccountId>();
+        const bob = generateId<AccountId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([[alice, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const space = await TestSpace.create(context);
+        const aliceSession = await space.createSession({id: alice});
+        const bobSession = await space.createSession({id: bob});
+        await space.removeAccount(bobSession.account);
+
+        // Bob created the entity (gen 0) and alice (gen 1) is junior to him. Moving the
+        // entity into the site (where alice is gen 0 and bob isn't present) would normally
+        // be an illegal escalation past bob, but bob was removed from the space.
+        const oldAccessPolicy: AccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([
+                [bob, {level: "Manage", generation: 0}],
+                [alice, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        await expect(
+            validateAccessPolicyUpdateForServer(
+                aliceSession.action(),
+                space.id,
+                `Channel:${generateId<ChannelId>()}`,
+                oldAccessPolicy,
+                {
+                    type: "Site",
+                    siteId,
+                    position: testSitePosition,
+                },
+            ),
+        ).resolves.toBeDefined();
+    });
+
+    test("active space account still blocks adding an entity to a site", async () => {
+        const siteId = generateId<SiteId>();
+        const alice = generateId<AccountId>();
+        const bob = generateId<AccountId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([[alice, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const space = await TestSpace.create(context);
+        const aliceSession = await space.createSession({id: alice});
+        // Bob stays an active member of the space.
+        await space.createSession({id: bob});
+
+        const oldAccessPolicy: AccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([
+                [bob, {level: "Manage", generation: 0}],
+                [alice, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        await expect(
+            validateAccessPolicyUpdateForServer(
+                aliceSession.action(),
+                space.id,
+                `Channel:${generateId<ChannelId>()}`,
+                oldAccessPolicy,
+                {
+                    type: "Site",
+                    siteId,
+                    position: testSitePosition,
+                },
+            ),
+        ).rejects.toThrow(
+            "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        );
+    });
+
+    test("invite-pending account blocks adding an entity to a site like an active member", async () => {
+        const siteId = generateId<SiteId>();
+        const alice = generateId<AccountId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([[alice, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const space = await TestSpace.create(context);
+        // Only space administrators can invite users.
+        const aliceSession = await space.createSession({id: alice, role: "Admin"});
+        const bobAccount = await space.inviteEmailAddress(
+            aliceSession,
+            generateEmailAddressForTest(),
+        );
+
+        // Bob hasn't accepted his invite yet but content can already be shared with him,
+        // so his senior manage grant still protects him from removal.
+        const oldAccessPolicy: AccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([
+                [bobAccount.id, {level: "Manage", generation: 0}],
+                [alice, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        await expect(
+            validateAccessPolicyUpdateForServer(
+                aliceSession.action(),
+                space.id,
+                `Channel:${generateId<ChannelId>()}`,
+                oldAccessPolicy,
+                {
+                    type: "Site",
+                    siteId,
+                    position: testSitePosition,
+                },
+            ),
+        ).rejects.toThrow(
+            "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        );
+    });
+
+    test("account that never joined the space is treated as removed when adding to a site", async () => {
+        const siteId = generateId<SiteId>();
+        const alice = generateId<AccountId>();
+        // Bob has a manage grant on the entity but no space account at all.
+        const bob = generateId<AccountId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([[alice, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const space = await TestSpace.create(context);
+        const aliceSession = await space.createSession({id: alice});
+
+        const oldAccessPolicy: AccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([
+                [bob, {level: "Manage", generation: 0}],
+                [alice, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        await expect(
+            validateAccessPolicyUpdateForServer(
+                aliceSession.action(),
+                space.id,
+                `Channel:${generateId<ChannelId>()}`,
+                oldAccessPolicy,
+                {
+                    type: "Site",
+                    siteId,
+                    position: testSitePosition,
+                },
+            ),
+        ).resolves.toBeDefined();
+    });
+
+    test("removed space account in the site\u2019s policy doesn\u2019t block adding an entity to the site", async () => {
+        const siteId = generateId<SiteId>();
+        const alice = generateId<AccountId>();
+        const bob = generateId<AccountId>();
+
+        // Bob is the senior manager on the site but was removed from the space, so alice
+        // (gen 1 on the site, gen 0 on the entity) can still add the entity to the site
+        // even though that "promotes" bob past her.
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [bob, {level: "Manage", generation: 0}],
+                [alice, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const space = await TestSpace.create(context);
+        const aliceSession = await space.createSession({id: alice});
+        const bobSession = await space.createSession({id: bob});
+        await space.removeAccount(bobSession.account);
+
+        const oldAccessPolicy: AccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([[alice, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        await expect(
+            validateAccessPolicyUpdateForServer(
+                aliceSession.action(),
+                space.id,
+                `Channel:${generateId<ChannelId>()}`,
+                oldAccessPolicy,
+                {
+                    type: "Site",
+                    siteId,
+                    position: testSitePosition,
+                },
+            ),
+        ).resolves.toBeDefined();
+    });
+
+    test("removed space account doesn\u2019t block moving an entity between sites", async () => {
+        const siteA = generateId<SiteId>();
+        const siteB = generateId<SiteId>();
+        const alice = generateId<AccountId>();
+        const bob = generateId<AccountId>();
+
+        // Site A has bob (gen 0, removed from the space) and alice (gen 1). Site B only
+        // has alice (gen 0).
+        siteAccessPolicies.set(siteA, {
+            type: "Local",
+            accountGrantById: new Map([
+                [bob, {level: "Manage", generation: 0}],
+                [alice, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+        siteAccessPolicies.set(siteB, {
+            type: "Local",
+            accountGrantById: new Map([[alice, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const space = await TestSpace.create(context);
+        const aliceSession = await space.createSession({id: alice});
+        const bobSession = await space.createSession({id: bob});
+        await space.removeAccount(bobSession.account);
+
+        await expect(
+            validateAccessPolicyUpdateForServer(
+                aliceSession.action(),
+                space.id,
+                `Channel:${generateId<ChannelId>()}`,
+                {type: "Site", siteId: siteA},
+                {
+                    type: "Site",
+                    siteId: siteB,
+                    position: testSitePosition,
+                },
+            ),
+        ).resolves.toBeDefined();
+    });
+
+    test("space membership is not consulted when removing an entity from a site", async () => {
+        const siteId = generateId<SiteId>();
+        const alice = generateId<AccountId>();
+        const bob = generateId<AccountId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [bob, {level: "Manage", generation: 0}],
+                [alice, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const space = await TestSpace.create(context);
+        const aliceSession = await space.createSession({id: alice});
+        const bobSession = await space.createSession({id: bob});
+        await space.removeAccount(bobSession.account);
+
+        // On site removal the new local policy is a copy of the site's policy, so removed
+        // accounts keep their grants and nothing is revoked. The membership exemption
+        // deliberately doesn't apply on this path — dropping a removed senior manager
+        // while leaving the site is still rejected.
+        const newAccessPolicy: AccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([[alice, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        await expect(
+            validateAccessPolicyUpdateForServer(
+                aliceSession.action(),
+                space.id,
+                `Channel:${generateId<ChannelId>()}`,
+                {type: "Site", siteId},
+                newAccessPolicy,
+            ),
+        ).rejects.toThrow(
+            "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        );
+    });
+
+    test("site policies with non-manage grants don\u2019t require space membership lookups", async () => {
+        const siteId = generateId<SiteId>();
+        const alice = generateId<AccountId>();
+        const viewer = generateId<AccountId>();
+        // The editor has a grant on the entity but no space account at all. Since their
+        // grant isn't a manage grant, their membership is never checked.
+        const editor = generateId<AccountId>();
+
+        // The site has a non-manage grant. Only manage accounts have their space
+        // membership loaded, so this must not break validation when moving an entity into
+        // the site.
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [alice, {level: "Manage", generation: 0}],
+                [viewer, {level: "View"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const space = await TestSpace.create(context);
+        const aliceSession = await space.createSession({id: alice});
+        await space.createSession({id: viewer});
+
+        const oldAccessPolicy: AccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([
+                [alice, {level: "Manage", generation: 0}],
+                [editor, {level: "Edit"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        await expect(
+            validateAccessPolicyUpdateForServer(
+                aliceSession.action(),
+                space.id,
+                `Channel:${generateId<ChannelId>()}`,
+                oldAccessPolicy,
+                {
+                    type: "Site",
+                    siteId,
+                    position: testSitePosition,
+                },
+            ),
+        ).resolves.toBeDefined();
     });
 });
 

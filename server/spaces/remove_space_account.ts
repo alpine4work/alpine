@@ -41,7 +41,7 @@ export async function removeSpaceAccount(
             throw exhaustive(context.actor);
     }
 
-    return removeSpaceAccountWithoutAuthorization(context, {spaceId, accountId});
+    return await removeSpaceAccountWithoutAuthorization(context, {spaceId, accountId});
 }
 
 export const removeSpaceAccountBeforeExecuteTestCheckpoint =

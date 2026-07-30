@@ -71,13 +71,10 @@ def ts_playwright_tests(
         deps = deps,
     )
 
-    src_buckets = _bucket_playwright_srcs(srcs)
-
     for src in srcs:
         _playwright_test(
             name = src[:len(src) - 9] if src.endswith(".spec.tsx") else src[:len(src) - 8],
             src = src,
-            bucket = src_buckets[src],
             deps = deps,
             data = data,
             node_options = node_options,
@@ -86,7 +83,6 @@ def ts_playwright_tests(
 def _playwright_test(
         name,
         src,
-        bucket,
         deps = [],
         data = [],
         node_options = []):
@@ -98,7 +94,6 @@ def _playwright_test(
     Args:
         name: The base name of the test.
         src: The test source file.
-        bucket: The Playwright CI bucket for this test.
         deps: Dependencies the test needs to run.
         data: Data to be made available at runtime in runfiles.
         node_options: Extra options to pass to Node.js.
@@ -145,7 +140,6 @@ def _playwright_test(
 
     _playwright_project_test(
         name = name,
-        bucket = bucket,
         project = "chromium",
     )
 
@@ -154,7 +148,6 @@ def _playwright_test(
     if not name.endswith("_desktop"):
         _playwright_project_test(
             name = name,
-            bucket = bucket,
             project = "webkit_mobile",
         )
 
@@ -176,7 +169,6 @@ def _playwright_test(
 
 def _playwright_project_test(
         name,
-        bucket,
         project,
         tags = []):
     test_name = "{}_{}_test".format(name, project)
@@ -210,7 +202,6 @@ def _playwright_project_test(
         tags = tags + [
             "playwright",
             "integration_test",
-            "integration_test_bucket_{}".format(bucket),
             # Playwright tests are chunky, increase CPU requirements to reduce parallelism
             # while one is running. We need CPU to run all our databases, services, and the
             # browser.
@@ -240,46 +231,3 @@ def _playwright_project_test(
         },
         testonly = True,
     )
-
-_PLAYWRIGHT_BUCKET_COUNT = 3
-
-def _bucket_playwright_srcs(srcs):
-    shuffled_srcs = _shuffle(srcs)
-    src_buckets = {}
-
-    for index in range(len(shuffled_srcs)):
-        src = shuffled_srcs[index]
-        src_buckets[src] = ((index * _PLAYWRIGHT_BUCKET_COUNT) // len(shuffled_srcs)) + 1
-
-    return src_buckets
-
-# `_next_random()` is a Lehmer random number generator.
-#
-# See:
-# https://en.wikipedia.org/wiki/Lehmer_random_number_generator
-_RANDOM_MULTIPLIER = 48271
-_RANDOM_MODULUS = 2147483647 # 0x7fffffff in decimal
-_RANDOM_SEED = 846733
-
-def _next_random(random_value):
-    return (random_value * _RANDOM_MULTIPLIER) % _RANDOM_MODULUS
-
-# Fisher-Yates shuffle with our own deterministic random source.
-#
-# See:
-# https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
-def _shuffle(values):
-    shuffled_values = []
-    for value in values:
-        shuffled_values.append(value)
-
-    random_value = _RANDOM_SEED
-    for index in range(len(shuffled_values) - 1, 0, -1):
-        random_value = _next_random(random_value)
-        swap_index = random_value % (index + 1)
-
-        value = shuffled_values[index]
-        shuffled_values[index] = shuffled_values[swap_index]
-        shuffled_values[swap_index] = value
-
-    return shuffled_values

@@ -1,6 +1,7 @@
+import {AuthSignInOrSignUpOpen} from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 
 export type AuthenticationState =
@@ -49,7 +50,7 @@ export type AuthenticationSignUpOneTimePasswordState = {
 export type AuthenticationAfterSignUpMobileInterstitialState = {
     readonly type: "AfterSignUpMobileInterstitial";
     readonly emailAddress: EmailAddress;
-    readonly openSpaceId: SpaceId | null;
+    readonly open: AuthSignInOrSignUpOpen | null;
 };
 
 export type AuthenticationVariant = (typeof allAuthenticationVariants)[number];

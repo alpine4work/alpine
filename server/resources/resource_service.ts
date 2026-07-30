@@ -174,7 +174,7 @@ async function handleFetch(
     // Fast path for static asset requests. We don't want to trace these requests or
     // perform any other request/response manipulation.
     if (appStaticManifestPaths.has(url.pathname) || url.pathname.startsWith("/assets/")) {
-        return fetchAppStaticFile(request, env, executionContext, url);
+        return await fetchAppStaticFile(request, env, executionContext, url);
     }
 
     // TODO(ifitzsimmons, #local-kinesis): This will eventually be required. For now,
@@ -231,7 +231,7 @@ async function handleFetch(
         route = {type: "NotFound"};
     }
 
-    return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
+    return await traceServerResponse(tracer, request, url, routeString, async (span, request) => {
         let response;
 
         // Add CORS headers to the response for trusted domains. Only origins that are in

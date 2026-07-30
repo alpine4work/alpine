@@ -7,8 +7,8 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {getInbox} from "~/server/notifications/data/get_inbox.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -165,8 +165,8 @@ Blah blah blah.
             cliffWeathers,
             Mustache.render(
                 markdown`
-[Cass](https://alpine.inc/s/{{spaceId}}/accounts/{{cassCadeAccountId}}?mention=short) are you sure
-we have publicity rights for this customer?
+[Cass](https://alpine.inc/mention/{{cassCadeAccountId}}short) are you sure we have publicity rights
+for this customer?
                 `,
                 {
                     spaceId: space.id,
@@ -241,7 +241,7 @@ structured records, ready to review, tag, and export.
 - Make it trivial to pull complete, exportable support for expenses at month‑end and year‑end
             `,
             {
-                spaceUrl: `https://alpine.inc/s/${space.id}`,
+                spaceUrl: `https://alpine.inc/home/${space.id}`,
                 masonClayAccountId: masonClay.account.id,
                 elleKappaTanAccountId: elleKappaTan.account.id,
                 cassCadeAccountId: cassCade.account.id,

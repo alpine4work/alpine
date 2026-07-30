@@ -4,16 +4,11 @@ import {
     ApiSearchResult,
     ApiSearchResultBodyMatchItem,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {missingSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
-import {
-    SearchDynamicEntityType,
-    isSearchDynamicEntityIdWithoutAccount,
-    parseSearchDynamicEntityIdWithoutAccount,
-} from "~/shared/search/search_entity_id.js";
+import {SearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -55,21 +50,20 @@ export function intoApiSearchResult({
 
     assert(model instanceof SearchEntityModel);
 
-    const searchEntityId = model.getSearchEntityId();
+    const entity = model.initialData;
 
     // Check if this is a valid dynamic entity ID we can handle. This check helps
     // TypeScript narrow down the entity type, but in practice, we don't expect static
     // search entities (e.g. `My Tasks`) in the API search endpoint
-    if (!isSearchDynamicEntityIdWithoutAccount(searchEntityId)) {
+    if (entity.type === "Static") {
         return null;
     }
 
-    const entity = parseSearchDynamicEntityIdWithoutAccount(searchEntityId);
     switch (entity.type) {
         case "Channel": {
             return {
                 type: "Channel",
-                id: entity.channelId,
+                id: entity.channel.id,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch: null,
                 parsedFilter,
@@ -78,135 +72,112 @@ export function intoApiSearchResult({
         case "Chat": {
             return {
                 type: "Chat",
-                id: entity.chatId,
+                id: entity.chat.id,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch: null,
                 parsedFilter,
             };
         }
         case "ChatMessage": {
-            assert(
-                model.initialData.media?.type === "Account",
-                "ChatMessage SearchEntityModel should have an account media object",
-            );
             // look at `get_search_entity` to see which data is supposed to be there
-            const author = intoApiAccount(model.initialData.media.account.initialData);
             assert(bodyMatch !== null);
 
             return {
                 type: "ChatMessage",
-                id: entity.chatId,
-                index: entity.messageIndex,
+                id: entity.message.chatId,
+                index: entity.message.index,
                 title: null,
                 bodyMatch,
                 parsedFilter,
-                author,
+                author: intoApiAccount(entity.message.author.initialData),
             };
         }
         case "Document": {
             return {
                 type: "Document",
-                id: entity.documentId,
+                id: entity.document.id,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch,
                 parsedFilter,
             };
         }
         case "DocumentComment": {
-            assert(
-                model.initialData.media?.type === "Account",
-                "DocumentComment SearchEntityModel should have an account media object",
-            );
-            const author = intoApiAccount(model.initialData.media.account.initialData);
             assert(bodyMatch !== null);
 
             return {
                 type: "DocumentMessage",
-                id: entity.documentId,
-                threadId: entity.commentThreadId,
-                index: entity.commentIndex,
+                id: entity.comment.documentId,
+                threadId: entity.comment.commentThreadId,
+                index: entity.comment.index,
                 title: null,
                 bodyMatch,
                 parsedFilter,
-                author,
+                author: intoApiAccount(entity.comment.author.initialData),
             };
         }
         case "Post": {
-            assert(
-                model.initialData.media?.type === "Account",
-                "Post SearchEntityModel should have an account media object",
-            );
-            const author = intoApiAccount(model.initialData.media.account.initialData);
-
             return {
                 type: "Post",
-                id: entity.postId,
+                id: entity.post.id,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch,
                 parsedFilter,
-                author,
+                author: intoApiAccount(entity.post.author.initialData),
             };
         }
         case "PostComment": {
-            assert(
-                model.initialData.media?.type === "Account",
-                "PostComment SearchEntityModel should have an account media object",
-            );
-            const author = intoApiAccount(model.initialData.media.account.initialData);
             assert(bodyMatch !== null);
 
             return {
                 type: "PostMessage",
-                id: entity.postId,
-                index: entity.commentIndex,
+                id: entity.comment.postId,
+                index: entity.comment.index,
                 title: null,
                 bodyMatch,
                 parsedFilter,
-                author,
+                author: intoApiAccount(entity.comment.author.initialData),
             };
         }
         case "Task": {
-            assert(model.initialData.media?.type === "TaskDisplayStatus");
-
             return {
                 type: "Task",
-                id: entity.taskId,
+                id: entity.task.id,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch,
                 parsedFilter,
-                status: intoApiTaskStatus(model.initialData.media.displayStatus),
+                status: intoApiTaskStatus(entity.task.displayStatus.value),
             };
         }
         case "TaskCollection": {
             return {
                 type: "TaskCollection",
-                id: entity.collectionId,
+                id: entity.collection.id,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch: null,
                 parsedFilter,
             };
         }
         case "TaskComment": {
-            assert(
-                model.initialData.media?.type === "Account",
-                "TaskComment SearchEntityModel should have an account media object",
-            );
-            const author = intoApiAccount(model.initialData.media.account.initialData);
             assert(bodyMatch !== null);
 
             return {
                 type: "TaskMessage",
-                id: entity.taskId,
-                index: entity.commentIndex,
+                id: entity.comment.taskId,
+                index: entity.comment.index,
                 title: null,
                 bodyMatch,
                 parsedFilter,
-                author,
+                author: intoApiAccount(entity.comment.author.initialData),
             };
         }
         case "Site": {
-            // TODO(#sites): Implement site search entity support
-            throw new UnimplementedError("Site search entity support is not implemented");
+            return {
+                title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
+                bodyMatch: null,
+                parsedFilter,
+                type: "Site",
+                id: entity.site.id,
+            };
         }
         default:
             throw exhaustive(entity);

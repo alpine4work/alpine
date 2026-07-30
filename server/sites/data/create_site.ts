@@ -3,7 +3,8 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {
     SiteAttributesItem,
     SiteSideBarItem,
@@ -12,7 +13,7 @@ import {
 } from "~/server/sites/data/internal/sites_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -43,7 +44,7 @@ export async function createSite(
             accountGrantById: new Map([
                 [context.actor.getAccountId(), {level: "Manage", generation: 0}],
             ]),
-            defaultGrant: {level: "View"},
+            defaultGrant: null,
             urlGrant: null,
         },
         root,
@@ -57,11 +58,9 @@ export async function createSite(
     },
     {clientRequestToken}: {clientRequestToken?: string} = {},
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
-    ) => Promise<
-        [DynamoGeneralRealtimeEvent<SitePreviewModel>, DynamoGeneralRealtimeEvent<SiteEntryModel>]
-    >;
+    ) => Promise<[RynamoEvent<SitePreviewModel>, RynamoEvent<SiteEntryModel>]>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -99,17 +98,37 @@ export async function createSite(
     const createSiteAttributesEntry = SitesTable.transactionCreateItemWithEvent(siteAttributesItem);
     const createRootContainerEntry = SitesTable.transactionCreateItemWithEvent(rootContainerItem);
 
-    await DynamoGeneralRealtimeTableSchema.executeTransaction(
+    await RynamoTableSchema.executeTransaction(
         context,
         [createSiteAttributesEntry.transactionEntry, createRootContainerEntry.transactionEntry],
         {clientRequestToken},
     );
 
-    // TODO(#sites): Index site for search.
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Site",
+            siteId,
+            // Nothing depends on this entity when it's created. Don't bother trying to reindex
+            // dependencies.
+            updatedTraits: {type: "None"},
+        },
+    });
+
+    context.process.waitUntil(
+        markSearchAffinityEntityInteraction(context, {
+            spaceId,
+            entityId: `Site:${siteId}`,
+            interaction: {type: "HighIntentUpdate"},
+            // The entity _is_ the site; no cascade.
+            siteId: null,
+        }),
+    );
 
     return {
-        getDynamoGeneralRealtimeEventTransaction: async eventContext =>
-            runAllPromises([
+        getRynamoEvents: async eventContext =>
+            await runAllPromises([
                 createSiteAttributesEntry.getEvent(eventContext),
                 createRootContainerEntry.getEvent(eventContext),
             ]),

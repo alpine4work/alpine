@@ -30,7 +30,7 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {sendRpcNavigatorBeacon} from "~/client/web/rpc/send_rpc_navigator_beacon.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     postContentViewInnerMarginY,
     postViewContentPaddingTop,
@@ -78,7 +78,12 @@ export function PostCreator({
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
-    const [state, setState] = useState(() => ContentEditorState.create(initialContent));
+    const [state, setState] = useState(() =>
+        ContentEditorState.create({
+            spaceId: space.id,
+            content: initialContent,
+        }),
+    );
 
     const [channel, setChannel] = useState(initialChannel);
 
@@ -176,7 +181,7 @@ export function PostCreator({
             onPress={async () => {
                 if (!channel) return;
 
-                const {post, eventTransaction} = await createPost(context, {
+                const {post, events} = await createPost(context, {
                     channelId: channel.id,
                     draftId,
                     content: trimContent(state.getDoc()),
@@ -188,13 +193,13 @@ export function PostCreator({
                 // `<ChannelView>` can use that too in case the WebSocket is slow.
                 optimisticCreatePostEventEmitter.emit({
                     channelId: channel.id,
-                    eventTransaction,
+                    events,
                 });
 
                 if (shouldReturnBack) {
                     await navigate(-1);
                 } else {
-                    await navigate(`/s/${space.id}/posts/${post.id}`, {
+                    await navigate(`/post/${post.id}`, {
                         replace: true,
                         // In our native mobile app, we want to call
                         // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
@@ -221,7 +226,12 @@ export function PostCreator({
                 {createButtonNode}
             </Box>
         ),
+        defaultPreviousRoute: channelId ? `/channel/${channelId}` : `/create/${space.id}`,
     });
+
+    const onSelectGif = useCallback((url: URL) => {
+        editorRef.current?.insertFileFromUrl(url);
+    }, []);
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
         // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on initial
@@ -413,6 +423,7 @@ export function PostCreator({
                             // paragraph and move selection there if the last item is not already a paragraph
                             // (e.g. a divider or table or something).
                             withMouseDownAtEndCreatesParagraph={true}
+                            onSelectGif={onSelectGif}
                         />
                     </Box>
                 </OverlayScopeContextProvider>

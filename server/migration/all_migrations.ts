@@ -9,6 +9,7 @@ import {
 } from "~/server/context/injection_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {runMigrateFilesToGlobalPartitionMigration} from "~/server/files/data/migrate_files_to_global_id.js";
+import {runIndexChannelPosts2Migration} from "~/server/forum/data/run_index_channel_posts2_migration.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     runIndexChatAndChatMessageSearchEntitiesMigration,
@@ -20,11 +21,9 @@ import {
 import {runUpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries} from "~/server/notifications/data/run_update_all_inbox_channel_posts_and_document_new_comment_threads_entries.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {runFavoriteTaskPersonalSearchEntityMigration} from "~/server/search/data/table/search_entity_actions.js";
-import {
-    runIndexEveryTaskActionStep1Of2,
-    runIndexEveryTaskActionStep2Of2,
-    runIndexTaskInitialAssigneePositionMigration,
-} from "~/server/tasks/data/task_table.js";
+import {runIndexEveryTaskActionStep1Of2} from "~/server/tasks/data/migrations/run_index_every_task_action_step1_of_2.js";
+import {runIndexEveryTaskActionStep2Of2} from "~/server/tasks/data/migrations/run_index_every_task_action_step2_of_2.js";
+import {runIndexTaskInitialAssigneePositionMigration} from "~/server/tasks/data/migrations/run_index_task_initial_assignee_position_migration.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -63,4 +62,5 @@ export const allMigrations: {
         runUpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries,
     UpdateKnownBotSettings: runUpdateKnownBotSettingsMigration,
     MigrateFilesToGlobalPartition: runMigrateFilesToGlobalPartitionMigration,
+    IndexChannelPosts2: runIndexChannelPosts2Migration,
 };

@@ -92,7 +92,7 @@ export class CursorClient {
         assert(path.startsWith("/"));
 
         // Cursor recommends retrying with exponential backoff on 429s.
-        return retryWithExponentialBackoff(retry => {
+        return await retryWithExponentialBackoff(retry => {
             const requestHeaders = new Headers(requestInit?.headers);
             requestHeaders.set("authorization", `basic ${btoa(`${this._cloudAgentApiKey}:`)}`);
 
@@ -114,7 +114,7 @@ export class CursorClient {
                         }
                         case 401: {
                             throw new UnauthenticatedError("Cursor authentication failed", {
-                                displayMessage: errorDisplayMessage`Cursor didn\u2019t accept your API key. Make sure you have a valid Cloud Agents API key in ${errorDisplayMessage.link("settings", `${this._edgeServiceUrl}/s/${this._spaceId}/settings/bots/${this._botId}`)}.`,
+                                displayMessage: errorDisplayMessage`Cursor didn\u2019t accept your API key. Make sure you have a valid Cloud Agents API key in ${errorDisplayMessage.link("settings", `${this._edgeServiceUrl}/settings/${this._spaceId}/bots/${this._botId}`)}.`,
                             });
                         }
                         case 403: {
@@ -193,7 +193,7 @@ export class CursorClient {
                         }
                     }
 
-                    return response.json();
+                    return await response.json();
                 },
             );
         });

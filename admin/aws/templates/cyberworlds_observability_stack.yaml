@@ -426,6 +426,8 @@ Resources:
                           Type: string
                         - Name: http__request__header__cyberworlds_active_site_id
                           Type: string
+                        - Name: http__request__header__cyberworlds_space_id
+                          Type: string
                         - Name: http__request__header__x_ratelimit_limit
                           Type: string
                         - Name: http__request__header__x_ratelimit_remaining
@@ -602,6 +604,8 @@ Resources:
                           Type: string
                         - Name: http__response__header__cyberworlds_active_site_id
                           Type: string
+                        - Name: http__response__header__cyberworlds_space_id
+                          Type: string
                         - Name: http__response__header__x_ratelimit_limit
                           Type: string
                         - Name: http__response__header__x_ratelimit_remaining
@@ -659,6 +663,8 @@ Resources:
                         - Name: http__search__utm_term
                           Type: string
                         - Name: http__search__utm_content
+                          Type: string
+                        - Name: http__search__gclid
                           Type: string
                         - Name: http__client_ip
                           Type: string
@@ -1165,6 +1171,8 @@ Resources:
                         - Name: dynamodb__table__forum_realtime__partition__realtime__sort_range_type
                           Type: string
                         - Name: dynamodb__table__forum_realtime__partition__graveyard__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__forum_realtime__partition__channel_posts2__sort_range_type
                           Type: string
                         - Name: dynamodb__table__inbox__partition_type
                           Type: string

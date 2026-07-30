@@ -1657,7 +1657,7 @@ export function addContentFilePreviewBehavior(
                     // NOTE(calebmer, 2024-10-15): I just realized, instead of adding this private API
                     // with a patch it might be better to add the `shouldRevalidate` function to every
                     // route, look for specific changes, and ignore everything else. Like the
-                    // `s.$spaceId.tsx` revalidation function which only returns true if the `SpaceId`
+                    // `_space.tsx` revalidation function which only returns true if the `SpaceId`
                     // changes.
                     unstable_shouldRevalidate: false,
                 },

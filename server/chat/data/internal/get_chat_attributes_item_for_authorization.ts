@@ -51,7 +51,7 @@ export async function getChatAttributesItemIfExistsForAuthorization(
         consistency,
         chatId,
         async consistency =>
-            ChatTable.getItemIfExists(
+            await ChatTable.getItemIfExists(
                 context,
                 {
                     partitionType: "Chat",

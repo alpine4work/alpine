@@ -49,7 +49,7 @@ test("can archive a single post in a channel posts entry with one post", async (
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -127,7 +127,7 @@ test("can archive two posts in a channel posts entry with three posts", async ()
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -179,7 +179,7 @@ test("can archive three posts in a channel posts entry with three posts", async 
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -294,7 +294,7 @@ test("archiving single post is idempotent when all but one posts are archived", 
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -354,7 +354,7 @@ test("noops when archiving individual post in entry that doesn\u2019t exist", as
 
     expect(await testGetInboxEntries(session)).toEqual([]);
 
-    expect(await testGetInboxEntries(session, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session, {filter: "Done"})).toEqual([]);
 });
 
 test("can\u2019t archive individual post which doesn\u2019t exist in inbox entry", async () => {
@@ -401,7 +401,7 @@ test("can\u2019t archive individual post which doesn\u2019t exist in inbox entry
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 });
 
 // TODO(12/11/2025 #flaky-tests): https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/sg5fz408r6xb5gycbshdxbybt4
@@ -476,7 +476,7 @@ test.skip("race condition: archiving post commits after post comment creates inb
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
     unpause1();
     await archivePromise;
@@ -502,7 +502,7 @@ test.skip("race condition: archiving post commits after post comment creates inb
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 });
 
 // TODO(12/11/2025 #flaky-tests): https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/sg5fz408r6xb5gycbshdxbybt4
@@ -585,7 +585,7 @@ test.skip("race condition: archiving post commits after post comment creates inb
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
     unpause1();
     await archivePromise;
@@ -611,5 +611,5 @@ test.skip("race condition: archiving post commits after post comment creates inb
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 });

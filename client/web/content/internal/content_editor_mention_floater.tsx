@@ -1,6 +1,6 @@
 import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
-import {IconContext, MagnifyingGlass, SpinnerGap} from "phosphor-react";
+import {CalendarBlank, IconContext, MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {EditorState, NodeSelection, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
@@ -48,14 +48,14 @@ import {renderTextWithEmojiFontFamily} from "~/client/web/helpers/render_text_wi
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {
     useSearchEntityModel,
     useSearchEntityRegistry,
 } from "~/client/web/search/core/search_entity_registry_context.js";
-import {getSearchEntityTypeDisplay} from "~/client/web/search/core/search_entity_type_display.js";
 import {SearchEntityViewTitlePrefix} from "~/client/web/search/core/search_entity_view_title.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {searchEntityViewTitleLineHeightPx} from "~/client/web/styles/search_shared_styles.js";
 import {
     colorSchemeVars,
@@ -64,8 +64,11 @@ import {
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {formatContentDateString} from "~/shared/content/content_date_helpers.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {formatContentDateAbsolute} from "~/shared/content/format_content_date.js";
+import {getContentDateSuggestions} from "~/shared/content/get_content_date_suggestions.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
@@ -83,6 +86,7 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {getFileEntityIfPossible} from "~/shared/rpc/files_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {deletedSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {
@@ -91,8 +95,14 @@ import {
     isSearchMentionEntityId,
     parseSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
-import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";
+import {
+    SearchEntityModel,
+    SearchEntityModelData,
+    SearchEntityModelDataWithAccount,
+    printSearchEntityModelId,
+} from "~/shared/search/search_entity_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
+import {hasDatePickerFeature} from "~/shared/spaces/has_date_picker_feature.js";
 import {Store} from "~/shared/store/store.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -134,6 +144,7 @@ export function ContentEditorMentionFloater({
     onCloseWithoutAnimation: onCloseWithoutAnimationFromProps,
     onCloseWithAnimation: onCloseWithAnimationFromProps,
     onPasteOrDropFiles,
+    onOpenGifPicker,
 }: {
     state: EditorState;
     viewRef: RefObject<
@@ -157,11 +168,15 @@ export function ContentEditorMentionFloater({
     onPasteOrDropFiles?: (
         fileInfos: ReadonlyArray<FileInfoWithEntity>,
     ) => SafeFloatingPromise<void>;
+    onOpenGifPicker?: () => void;
 }) {
     const platform = usePlatform();
     const context = useAppContext();
     const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
+    const isDatePickerDisabled =
+        typeof window !== "undefined" && localStorage.getItem("disableDatePicker") === "true";
+    const hasDatePickerUiFeature = !isDatePickerDisabled && hasDatePickerFeature(space.id);
     const searchEntityRegistry = useSearchEntityRegistry();
 
     const overlayRef = useRef<OverlayRef>(null);
@@ -312,9 +327,14 @@ export function ContentEditorMentionFloater({
             const isShortNameAmbiguous = allAccountsFuse
                 ? allAccountsFuse
                       .search(accountShortName)
-                      .filter(result => typeof result.score !== "number" || result.score < 0.25)
-                      .length > 1
+                      .filter(
+                          result =>
+                              !result.item.botId &&
+                              (typeof result.score !== "number" || result.score < 0.25),
+                      ).length > 1
                 : true;
+
+            const isBot = !!accountData.botId;
 
             const mention: ContentMention = {
                 type: "Account",
@@ -323,6 +343,7 @@ export function ContentEditorMentionFloater({
                 // quick undo capability doesn't really exist. Instead the user may tap delete to
                 // get a short name.
                 isShort:
+                    !isBot &&
                     platform !== "mobile" &&
                     !isShortNameAmbiguous &&
                     // Make sure the name can be shortened. If it can't be shortened then marking the
@@ -379,7 +400,8 @@ export function ContentEditorMentionFloater({
             // Prevent double-clicks while loading
             if (pendingEntityId !== null) return;
 
-            assert(isSearchMentionEntityId(entityData.id));
+            const searchEntityId = printSearchEntityModelId(entityData);
+            assert(isSearchMentionEntityId(searchEntityId));
 
             const view = assertExists(viewRef.current);
 
@@ -391,7 +413,7 @@ export function ContentEditorMentionFloater({
             // 3. Range is in an empty paragraph (paragraph only contains `@` + search text)
             // 4. Paragraph is directly in doc or tableCell (not nested in other blocks)
             const insertFileEntityId: (FileEntityId & SearchMentionEntityId) | null = (() => {
-                if (!isFileEntityId(entityData.id)) return null;
+                if (!isFileEntityId(searchEntityId)) return null;
 
                 const $from = view.state.doc.resolve(range.from);
                 const parentNode = $from.parent;
@@ -418,7 +440,7 @@ export function ContentEditorMentionFloater({
                     return null;
                 }
 
-                return entityData.id;
+                return searchEntityId;
             })();
 
             if (
@@ -432,7 +454,7 @@ export function ContentEditorMentionFloater({
             }
 
             // Default: insert inline mention
-            const mention: ContentMention = {type: "SearchEntity", entityId: entityData.id};
+            const mention: ContentMention = {type: "SearchEntity", entityId: searchEntityId};
 
             const transaction = updateContentEditorReferences(
                 view.state.tr.replaceRangeWith(
@@ -442,7 +464,7 @@ export function ContentEditorMentionFloater({
                 ),
                 {
                     type: "SetSearchEntity",
-                    entityId: entityData.id,
+                    entityId: searchEntityId,
                     entity: {
                         isPrivate: false,
                         entity: new SearchEntityModel(entityData),
@@ -522,7 +544,7 @@ export function ContentEditorMentionFloater({
             );
         }
 
-        return TextSelection.between($to, $from);
+        return TextSelection.between($from, $to);
     });
 
     const insertMenuActions = useMemo(
@@ -532,13 +554,52 @@ export function ContentEditorMentionFloater({
                 viewRef,
                 getSelection: getInsertMenuSelection,
                 alwaysDeleteSelection: true,
+                onOpenGifPicker,
             }).flat(),
-        [getInsertMenuSelection, state.schema, viewRef],
+        [getInsertMenuSelection, onOpenGifPicker, state.schema, viewRef],
     );
 
     const insertMenuActionsFuse = useMemo(() => {
-        return new Fuse(insertMenuActions, {keys: ["label"], includeScore: true});
+        return new Fuse(insertMenuActions, {
+            keys: ["label", "searchKeywords"],
+            includeScore: true,
+        });
     }, [insertMenuActions]);
+
+    // Date suggestions use exact prefix matching (no fuzzy) and are computed
+    // separately from the Fuse.js insert action search.
+    const currentDate = useCurrentDate();
+    const todayString = useMemo(
+        () => formatContentDateString(currentDate.year, currentDate.month, currentDate.day),
+        [currentDate.day, currentDate.month, currentDate.year],
+    );
+
+    const dateSuggestionActions: ReadonlyArray<ContentEditorInsertMenuAction> = useMemo(() => {
+        if (!hasDatePickerUiFeature || searchMentionOutput.queryText.length === 0) {
+            return emptyArray;
+        }
+
+        const suggestions = getContentDateSuggestions(searchMentionOutput.queryText, todayString);
+        return suggestions.map(suggestion => ({
+            label: suggestion.label,
+            icon: <CalendarBlank />,
+            isSuggestedInMentionFloater: false,
+            onPress: () => {
+                const view = assertExists(viewRef.current);
+                const absoluteDateText = formatContentDateAbsolute(suggestion.dateString);
+
+                const $to = view.state.doc.resolve(range.to);
+                const $from = view.state.doc.resolve(range.from);
+                const selection = TextSelection.between($from, $to);
+
+                let tr = view.state.tr;
+                tr = tr.setSelection(selection);
+                tr = tr.replaceSelectionWith(view.state.schema.text(absoluteDateText), false);
+
+                view.dispatch(tr.scrollIntoView());
+            },
+        }));
+    }, [hasDatePickerUiFeature, range, searchMentionOutput.queryText, todayString, viewRef]);
 
     // We use `searchMentionOutput.queryText` for searching menu actions not the prop
     // `searchQuery`. That's because we want our menu action search result to update at
@@ -548,14 +609,25 @@ export function ContentEditorMentionFloater({
             return insertMenuActions.filter(action => action.isSuggestedInMentionFloater);
         }
 
-        return filterMapArray(
+        const fuseResults = filterMapArray(
             insertMenuActionsFuse.search(searchMentionOutput.queryText),
             ({item, score}) => {
                 if (score! >= fuseScoreMatchCutoff) return;
                 return item;
             },
         );
-    }, [insertMenuActions, insertMenuActionsFuse, searchMentionOutput.queryText]);
+
+        // Prepend exact-match date suggestions before fuzzy results.
+        if (dateSuggestionActions.length > 0) {
+            return [...dateSuggestionActions, ...fuseResults];
+        }
+        return fuseResults;
+    }, [
+        dateSuggestionActions,
+        insertMenuActions,
+        insertMenuActionsFuse,
+        searchMentionOutput.queryText,
+    ]);
 
     const accountRegistry = useAccountRegistry();
     const allAccounts = useLazyLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id}).output
@@ -597,7 +669,7 @@ export function ContentEditorMentionFloater({
                             // Don't include your account in the suggested mention list and don't include
                             // removed accounts.
                             accountData.id !== currentAccount?.id &&
-                            accountData.space.state.type === "Active",
+                            accountData.space.state.type !== "Removed",
                     ),
                     0,
                     maxAccountCount,
@@ -615,15 +687,15 @@ export function ContentEditorMentionFloater({
             .sort((accountData1, accountData2) => {
                 // Sort removed accounts below all others when searching.
                 if (
-                    accountData1.space.state.type === "Active" &&
-                    accountData2.space.state.type !== "Active"
+                    accountData1.space.state.type !== "Removed" &&
+                    accountData2.space.state.type === "Removed"
                 ) {
                     return -1;
                 }
 
                 if (
-                    accountData1.space.state.type !== "Active" &&
-                    accountData2.space.state.type === "Active"
+                    accountData1.space.state.type === "Removed" &&
+                    accountData2.space.state.type !== "Removed"
                 ) {
                     return 1;
                 }
@@ -1348,8 +1420,6 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
 
     const entityData = useSearchEntityModel(entity);
 
-    const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(entity.id), [entity.id]);
-
     const fontSize = "75";
 
     const lineHeightPx = fontSizesBySpacingScale[fontSize][spacingScale].fontSize * 1.5;
@@ -1372,9 +1442,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
         >
             <Box display="flex" alignItems="flex-start" width="full">
                 <SearchEntityViewTitlePrefix
-                    icon={typeDisplay.icon}
-                    type={typeDisplay.type}
-                    media={entityData.media}
+                    entityData={entityData}
                     isDeleted={entityData.title === null}
                 />
                 <Box
@@ -1399,21 +1467,13 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
                         fontFeatureSettings: '"calt" on',
                     }}
                 >
-                    {entityData.media?.type === "Account" && typeDisplay.isAccountMediaAuthor && (
-                        <>
-                            <AccountShortName
-                                account={entityData.media.account}
-                                isTooltipDisabled={true}
-                            />
-                            {typeDisplay.type === "Post" ? " " : ": "}
-                        </>
-                    )}
+                    {renderAuthorShortNameIfNecessary(entityData)}
                     {entityData.title !== null
                         ? renderTextWithEmojiFontFamily(entityData.title)
-                        : isSearchDynamicEntityType(typeDisplay.type)
+                        : isSearchDynamicEntityType(entityData.type)
                           ? // If `title` is null then we assume the entity was deleted. Otherwise, all
                             // mentionable entities should have a non-null title.
-                            `${deletedSearchEntityTitle} ${getSearchEntityNoun(typeDisplay.type)}`
+                            `${deletedSearchEntityTitle} ${getSearchEntityNoun(entityData.type)}`
                           : null}
                 </Box>
                 {shouldShowPendingSpinner && (
@@ -1486,5 +1546,19 @@ function ContentEditorMentionFloaterInsertItem({
                 </>
             )}
         </ContentEditorMentionFloaterItemBase>
+    );
+}
+
+function renderAuthorShortNameIfNecessary(entityData: SearchEntityModelDataWithAccount) {
+    if (entityData.type === "Account") return null;
+
+    const author = getAuthorFromSearchEntityIfExists(entityData);
+    if (!author) return null;
+
+    return (
+        <>
+            <AccountShortName account={author} isTooltipDisabled={true} />
+            {entityData.type === "Post" ? " " : ": "}
+        </>
     );
 }

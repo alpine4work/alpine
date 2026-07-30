@@ -4,170 +4,188 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
 
+type AppRouteWithMetadataId =
+    | AppSpaceRouteId
+    | "routes/invite.$spaceId._index"
+    | "routes/invite.$spaceId.accept"
+    | "routes/invite.$spaceId.reject-and-mark-as-spam"
+    | "routes/switch-space"
+    | "routes/account.$accountId.$spaceId"
+    | "routes/mention.$accountId";
+
 const metadataByRouteId: Record<
-    AppSpaceRouteId | "routes/switch-space",
+    AppRouteWithMetadataId,
     {
         readonly errorTitle: string;
     }
 > = {
-    "routes/s.$spaceId._index": {
+    "routes/_space.home.$spaceId._index": {
         errorTitle: "Couldn\u2019t open space",
     },
-    "routes/s.$spaceId.accounts.$accountId": {
-        errorTitle: "Couldn\u2019t open account",
-    },
-    "routes/s.$spaceId.channels.$channelId._index": {
+    "routes/_space.channel.$channelId._index": {
         errorTitle: "Couldn\u2019t open channel",
     },
-    "routes/s.$spaceId.channels.$channelId.files": {
+    "routes/_space.channel.$channelId.files": {
         errorTitle: "Couldn\u2019t open files",
     },
-    "routes/s.$spaceId.channels.new": {
+    "routes/_space.channel.new.$spaceId": {
         errorTitle: "Couldn\u2019t create channel",
     },
-    "routes/s.$spaceId.chat.$chatId._index": {
+    "routes/_space.chat.$chatId._index": {
         errorTitle: "Couldn\u2019t open chat",
     },
-    "routes/s.$spaceId.chat.$chatId.messages.$index.reactions": {
+    "routes/_space.chat.$chatId.message.$index.reactions": {
         errorTitle: "Couldn\u2019t open message reactions",
     },
-    "routes/s.$spaceId.chat.new": {
+    "routes/_space.chat.new.$spaceId": {
         errorTitle: "Couldn\u2019t create chat",
     },
-    "routes/s.$spaceId.chat.room.new": {
+    "routes/_space.chat.room.new.$spaceId": {
         errorTitle: "Couldn\u2019t create chat",
     },
-    "routes/s.$spaceId.chat.with.$accountId": {
+    "routes/_space.chat.with.$accountId.$spaceId": {
         errorTitle: "Couldn\u2019t open chat",
     },
-    "routes/s.$spaceId.create._index": {
+    "routes/_space.create.$spaceId._index": {
         errorTitle: "Couldn\u2019t open menu",
     },
-    "routes/s.$spaceId.create.more": {
+    "routes/_space.create.$spaceId.more": {
         errorTitle: "Couldn\u2019t open menu",
     },
-    "routes/s.$spaceId.dev.empty": {
+    "routes/_space.dev.empty.$spaceId": {
         errorTitle: "Couldn\u2019t open space",
     },
-    "routes/s.$spaceId.dev.feed": {
+    "routes/_space.dev.feed.$spaceId": {
         errorTitle: "Couldn\u2019t open space",
     },
-    "routes/s.$spaceId.documents.$documentId._index": {
+    "routes/_space.doc.$documentId._index": {
         errorTitle: "Couldn\u2019t open document",
     },
-    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId._index": {
+    "routes/_space.doc.$documentId.thread.$commentThreadId._index": {
         errorTitle: "Couldn\u2019t open comment thread",
     },
-    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId.$index.reactions": {
+    "routes/_space.doc.$documentId.thread.$commentThreadId.comment.$index.reactions": {
         errorTitle: "Couldn\u2019t open comment reactions",
     },
-    "routes/s.$spaceId.documents.$documentId.duplicate": {
+    "routes/_space.doc.$documentId.duplicate": {
         errorTitle: "Couldn\u2019t duplicate document",
     },
-    "routes/s.$spaceId.favorites": {
+    "routes/_space.favorites.$spaceId": {
         errorTitle: "Couldn\u2019t open favorites",
     },
-    "routes/s.$spaceId.inbox": {
+    "routes/_space.inbox.$spaceId": {
         errorTitle: "Couldn\u2019t open inbox",
     },
-    "routes/s.$spaceId.invite._index": {
+    "routes/invite.$spaceId._index": {
         errorTitle: "Couldn\u2019t open invite",
     },
-    "routes/s.$spaceId.invite.accept": {
+    "routes/invite.$spaceId.accept": {
         errorTitle: "Couldn\u2019t accept invite",
     },
-    "routes/s.$spaceId.invite.reject-and-mark-as-spam": {
+    "routes/invite.$spaceId.reject-and-mark-as-spam": {
         errorTitle: "Couldn\u2019t reject invite",
     },
-    "routes/s.$spaceId.more._index": {
+    "routes/_space.more.$spaceId": {
         errorTitle: "Couldn\u2019t open menu",
     },
-    "routes/s.$spaceId.more.settings": {
+    "routes/_space.more.settings.$spaceId": {
         errorTitle: "Couldn\u2019t open settings",
     },
-    "routes/s.$spaceId.more.switch-space": {
+    "routes/_space.more.switch-space.$spaceId": {
         errorTitle: "Couldn\u2019t open menu",
     },
-    "routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration": {
+    "routes/_space.notifications.channel-posts.$channelIdAndBucketGeneration": {
         errorTitle: "Couldn\u2019t open notification",
     },
-    "routes/s.$spaceId.notifications.document-comment-threads.$documentIdAndBucketGeneration": {
+    "routes/_space.notifications.document-threads.$documentIdAndBucketGeneration": {
         errorTitle: "Couldn\u2019t open notification",
     },
-    "routes/s.$spaceId.notifications.unsubscribe": {
+    "routes/_space.notifications.unsubscribe.$spaceId": {
         errorTitle: "Couldn\u2019t unsubscribe from email notification",
     },
-    "routes/s.$spaceId.posts.$postId._index": {
+    "routes/_space.post.$postId._index": {
         errorTitle: "Couldn\u2019t open post",
     },
-    "routes/s.$spaceId.posts.$postId.reactions": {
+    "routes/_space.post.$postId.reactions": {
         errorTitle: "Couldn\u2019t open post reactions",
     },
-    "routes/s.$spaceId.posts.$postId.comments.$index.reactions": {
+    "routes/_space.post.$postId.comment.$index.reactions": {
         errorTitle: "Couldn\u2019t open comment reactions",
     },
-    "routes/s.$spaceId.posts.new.$draftId": {
+    "routes/_space.post.new.$draftId.$spaceId": {
         errorTitle: "Couldn\u2019t create post",
     },
-    "routes/s.$spaceId.search": {
+    "routes/_space.search.$spaceId": {
         errorTitle: "Couldn\u2019t open search",
     },
-    "routes/s.$spaceId.settings": {
+    "routes/_space.settings.$spaceId": {
         errorTitle: "Couldn\u2019t open settings",
     },
-    "routes/s.$spaceId.settings._index": {
+    "routes/_space.settings.$spaceId._index": {
         errorTitle: "Couldn\u2019t open settings",
     },
-    "routes/s.$spaceId.settings.bots._index": {
+    "routes/_space.settings.$spaceId.bots._index": {
         errorTitle: "Couldn\u2019t open bot settings",
     },
-    "routes/s.$spaceId.settings.bots.$botId": {
+    "routes/_space.settings.$spaceId.bots.$botId": {
         errorTitle: "Couldn\u2019t open bot settings",
     },
-    "routes/s.$spaceId.settings.general": {
+    "routes/_space.settings.$spaceId.general": {
         errorTitle: "Couldn\u2019t open general settings",
     },
-    "routes/s.$spaceId.settings.integrations._index": {
+    "routes/_space.settings.$spaceId.integrations._index": {
         errorTitle: "Couldn\u2019t open integrations settings",
     },
-    "routes/s.$spaceId.settings.integrations.notion": {
+    "routes/_space.settings.$spaceId.integrations.notion": {
         errorTitle: "Couldn\u2019t open Notion import settings",
     },
-    "routes/s.$spaceId.settings.integrations.slack": {
+    "routes/_space.settings.$spaceId.integrations.slack": {
         errorTitle: "Couldn\u2019t open Slack integration settings",
     },
-    "routes/s.$spaceId.integrations.slack.oauth": {
+    "routes/_space.integrations.slack.oauth.$spaceId": {
         errorTitle: "Couldn\u2019t complete Slack authorization",
     },
-    "routes/s.$spaceId.settings.people": {
+    "routes/_space.settings.$spaceId.people": {
         errorTitle: "Couldn\u2019t open people settings",
     },
-    "routes/s.$spaceId.settings.profile": {
+    "routes/_space.settings.$spaceId.profile": {
         errorTitle: "Couldn\u2019t open profile settings",
     },
-    "routes/s.$spaceId.settings.notifications": {
+    "routes/_space.settings.$spaceId.notifications": {
         errorTitle: "Couldn\u2019t open notifications settings",
     },
-    "routes/s.$spaceId.tasks.$taskId._index": {
+    "routes/_space.site.$siteId._index": {
+        errorTitle: "Couldn\u2019t open site",
+    },
+    "routes/_space.site.$siteId.navigate": {
+        errorTitle: "Couldn\u2019t open site",
+    },
+    "routes/_space.task.$taskId._index": {
         errorTitle: "Couldn\u2019t open task",
     },
-    "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions": {
+    "routes/_space.task.$taskId.comment.$index.reactions": {
         errorTitle: "Couldn\u2019t open comment reactions",
     },
-    "routes/s.$spaceId.tasks.$taskId.duplicate": {
+    "routes/_space.task.$taskId.duplicate": {
         errorTitle: "Couldn\u2019t duplicate task",
     },
-    "routes/s.$spaceId.tasks._index": {
+    "routes/_space.my-tasks.$spaceId": {
         errorTitle: "Couldn\u2019t open tasks",
     },
-    "routes/s.$spaceId.tasks.collections.$collectionId": {
+    "routes/_space.task-collection.$collectionId": {
         errorTitle: "Couldn\u2019t open task collection",
     },
-    "routes/s.$spaceId.tasks.view": {
+    "routes/_space.task-view.new.$spaceId": {
         errorTitle: "Couldn\u2019t open tasks",
     },
     "routes/switch-space": {
         errorTitle: "Couldn\u2019t open menu",
+    },
+    "routes/account.$accountId.$spaceId": {
+        errorTitle: "Couldn\u2019t open account",
+    },
+    "routes/mention.$accountId": {
+        errorTitle: "Couldn\u2019t open account",
     },
 };
 
@@ -182,9 +200,9 @@ const metadataByRouteId: Record<
  */
 export function getRouteErrorTitle(routeId: string | null): string {
     const errorTitle = routeId
-        ? cast<{[key: string]: (typeof metadataByRouteId)[AppSpaceRouteId]}>(metadataByRouteId)[
-              routeId.replace(".peek.", ".")
-          ]?.errorTitle
+        ? cast<{[key: string]: (typeof metadataByRouteId)[AppRouteWithMetadataId]}>(
+              metadataByRouteId,
+          )[routeId.replace(".peek.", ".")]?.errorTitle
         : undefined;
     return errorTitle ?? "Couldn\u2019t open page";
 }

@@ -23,12 +23,15 @@ import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_serv
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {
     ContentReferencedIds,
-    getContentReferencedIdsForNode,
     getContentReferencedIdsForSteps,
     isEmptyContentReferencedIds,
 } from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {
+    FailedPreconditionError,
+    InternalError,
+    PermissionDeniedError,
+} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -54,12 +57,16 @@ import {
     deleteTaskCommentReaction,
     getTaskCommentAtVersion,
     getTaskCommentReferences,
+    getTaskNotesContent,
     getTaskNotesContentReferences,
     setTaskCommentReaction,
     updateTaskCommentContent,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
-import {taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
+import {
+    taskNotesBackfillFutureVersionErrorMessage,
+    taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+} from "~/shared/tasks/task_error_messages.js";
 import {
     TaskNotesCollaborationEvent,
     TaskNotesCollaborationProtocol,
@@ -83,6 +90,7 @@ export class TaskNotesCollaborationConnection {
     public readonly accessLevel: AccessLevel;
     private readonly _contentManager: TaskNotesCollaborationContentManager;
     public readonly closeWithError: (context: WorkerProcessContext, error: unknown) => void;
+    private readonly _killProcess: (context: WorkerProcessContext, error: unknown) => void;
     private readonly _mutex = new Mutex();
     private readonly _messagingConnection: MessagingRealtimeConnection<TaskId, TaskCommentModel>;
 
@@ -92,6 +100,7 @@ export class TaskNotesCollaborationConnection {
         accountId,
         contentManager,
         closeWithError,
+        killProcess,
         sendEvent,
         sendEventToOthers,
         iterateOtherConnections,
@@ -99,6 +108,7 @@ export class TaskNotesCollaborationConnection {
         accessLevel: AccessLevel;
         contentManager: TaskNotesCollaborationContentManager;
         closeWithError: (context: WorkerProcessContext, error: unknown) => void;
+        killProcess: (context: WorkerProcessContext, error: unknown) => void;
         connectionId: WebSocketConnectionId;
         accountId: AccountId;
         sendEvent: (
@@ -114,6 +124,7 @@ export class TaskNotesCollaborationConnection {
         this.accessLevel = accessLevel;
         this._contentManager = contentManager;
         this.closeWithError = closeWithError;
+        this._killProcess = killProcess;
 
         this._messagingConnection = new MessagingRealtimeConnection({
             connectionId,
@@ -168,69 +179,58 @@ export class TaskNotesCollaborationConnection {
                 const persistedVersion = this._contentManager.getPersistedVersion();
                 const clientVersion = input.version;
 
-                // If the client has a future version it's trying to backfill then reset the
-                // client's doc. Happens if the durable object previously crashed.
-                const stepsResult =
-                    clientVersion > version
-                        ? {type: "Unavailable" as const}
-                        : this._contentManager.getSteps(clientVersion, version);
+                // Sometimes the client tries to backfill from a version that appears to be in the
+                // future. This happens when a previous durable object confirmed steps to the
+                // client (via `UpdateNotesContentWithoutPersistence`) but crashed before
+                // persisting them, so the new durable object loaded an older version from the
+                // database.
+                if (clientVersion > version) {
+                    // Double check against the database. If the database is somehow ahead of our
+                    // in-memory version then our durable object is out of sync (e.g. it loaded a stale
+                    // version) and we must not tell the client to revert steps that are actually
+                    // persisted. Destroy the durable object so it reloads from the database at the
+                    // correct version.
+                    const {version: databaseVersion} = await getTaskNotesContent(context, {
+                        taskId: this._contentManager.taskId,
+                    });
+                    if (databaseVersion > version) {
+                        const error = new InternalError(
+                            "Task notes version in durable object is out of sync with the actual task notes version",
+                        );
 
-                if (stepsResult.type === "Unavailable") {
-                    const content = this._contentManager.getCurrentContent();
+                        this._killProcess(context, error);
+                        throw error;
+                    }
 
-                    const contentReferenceIds = getContentReferencedIdsForNode(content);
-
-                    // Optimization: If there's no referenced content then we don't need to make a
-                    // network request.
-                    const contentReferences = isEmptyContentReferencedIds(contentReferenceIds)
-                        ? emptyContentReferences
-                        : (
-                              await getTaskNotesContentReferences(context, {
-                                  spaceId: this._contentManager.spaceId,
-                                  taskId: this._contentManager.taskId,
-                                  referenceIds: contentReferenceIds,
-                              })
-                          ).references;
-
-                    return {
-                        result: {
-                            type: "Unavailable",
-                            newVersion: version,
-                            content: {
-                                doc: content,
-                                references: contentReferences,
-                            },
-                        },
-                    };
-                } else {
-                    const stepsContentReferenceIds = getContentReferencedIdsForSteps(
-                        stepsResult.steps.map(({step}) => step),
-                    );
-
-                    // Optimization: If there's no referenced content then we don't need to make a
-                    // network request.
-                    const stepsContentReferences = isEmptyContentReferencedIds(
-                        stepsContentReferenceIds,
-                    )
-                        ? emptyContentReferences
-                        : (
-                              await getTaskNotesContentReferences(context, {
-                                  spaceId: this._contentManager.spaceId,
-                                  taskId: this._contentManager.taskId,
-                                  referenceIds: stepsContentReferenceIds,
-                              })
-                          ).references;
-
-                    return {
-                        result: {
-                            type: "Available",
-                            newVersion: version,
-                            persistedVersion,
-                            steps: stepsResult.steps.map(({step, clientId}) => ({step, clientId})),
-                            stepsContentReferences,
-                        },
-                    };
+                    // If the client detects this specific error message it will revert any confirmed
+                    // but not persisted steps back to its persisted version and try backfilling again.
+                    throw new FailedPreconditionError(taskNotesBackfillFutureVersionErrorMessage);
                 }
+
+                const steps = await this._contentManager.getSteps(context, clientVersion, version);
+
+                const stepsContentReferenceIds = getContentReferencedIdsForSteps(
+                    steps.map(({step}) => step),
+                );
+
+                // Optimization: If there's no referenced content then we don't need to make a
+                // network request.
+                const stepsContentReferences = isEmptyContentReferencedIds(stepsContentReferenceIds)
+                    ? emptyContentReferences
+                    : (
+                          await getTaskNotesContentReferences(context, {
+                              spaceId: this._contentManager.spaceId,
+                              taskId: this._contentManager.taskId,
+                              referenceIds: stepsContentReferenceIds,
+                          })
+                      ).references;
+
+                return {
+                    newVersion: version,
+                    persistedVersion,
+                    steps: steps.map(({step, clientId}) => ({step, clientId})),
+                    stepsContentReferences,
+                };
             }),
 
         backfillComments: async (

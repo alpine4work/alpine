@@ -1,0 +1,57 @@
+import {useSearchParams} from "react-router-dom";
+import {deserializeChannelIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
+import {ChannelFilesView} from "~/client/web/forum/channel_files_view.js";
+import {getInitialChannelFilesViewFileLoadCount} from "~/client/web/forum/get_initial_channel_files_view_load_count.js";
+import {newChannelNamePlaceholder} from "~/client/web/forum/new_channel_name_placeholder.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {metaTitleSeparator} from "~/client/web/remix/use_update_meta_title.js";
+import {getChannelAndMetadata} from "~/server/forum/data/get_channel_and_metadata.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
+import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
+import {Schema} from "~/shared/schema/schema.js";
+
+const LoaderSchema = Schema.object({
+    channelResult: createRynamoQuerySchema(ChannelOrMetadataModelSchema),
+});
+
+export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
+    const context = await unauthenticatedContext.actor.authenticate();
+
+    const channelId = deserializeChannelIdForLoader(params.channelId ?? null);
+
+    const channelResult = await getChannelAndMetadata(context, {
+        channelId,
+        postFilesLimit: getInitialChannelFilesViewFileLoadCount(context.loader.getClientInfo()),
+    });
+
+    return jsonWithSchema(LoaderSchema, {channelResult});
+}
+
+export const meta = createMetaFunction(LoaderSchema, ({data: {channelResult}}) => {
+    return [
+        {
+            title: `Files ${metaTitleSeparator} ${
+                channelResult.items[0]?.model instanceof ChannelModel
+                    ? channelResult.items[0].model.name
+                    : newChannelNamePlaceholder
+            }`,
+        },
+    ];
+});
+
+export default function ChannelFilesRoute() {
+    const {channelResult} = useLoaderDataWithSchema(LoaderSchema);
+
+    const [searchParams] = useSearchParams();
+    const isFromChannelView = searchParams.get("from") === "channel";
+
+    return (
+        <ChannelFilesView
+            initialChannelResult={channelResult}
+            isFromChannelView={isFromChannelView}
+        />
+    );
+}

@@ -14,7 +14,7 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {
     ApiMentionReferencePath,
@@ -196,6 +196,12 @@ function getApiMentionContentMention(target: ApiMentionReference): ContentMentio
             return {
                 type: "SearchEntity",
                 entityId: `TaskCollection:${target.id}`,
+            };
+        }
+        case "Site": {
+            return {
+                type: "SearchEntity",
+                entityId: `Site:${target.id}`,
             };
         }
         default:

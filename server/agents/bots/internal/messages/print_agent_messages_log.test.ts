@@ -4,6 +4,8 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {AgentMessage} from "~/server/agents/bots/internal/messages/agent_message.js";
 import {printAgentMessagesLog} from "~/server/agents/bots/internal/messages/print_agent_messages_log.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiAccount,
     ApiContentResponse,
@@ -21,6 +23,10 @@ const botId = generateId<BotId>();
 const botAccountId = generateId<AccountId>();
 
 const storage = new DurableObjectStorage(new MemoryStorage());
+const apiResponseParagraphKey: ApiContentKey = new ApiContentKeyEncoder({
+    entityId: "Message:mock",
+    version: 0,
+}).encode({pos: 0, nodeSize: 0});
 
 afterEach(async () => {
     await storage.deleteAll();
@@ -60,6 +66,7 @@ function createTestAgentMessage({
                 elements: [
                     {
                         type: "Paragraph",
+                        key: apiResponseParagraphKey,
                         elements: [{type: "Text", text: content}],
                     },
                 ],
@@ -109,7 +116,7 @@ function createTestAgentMessage({
             },
             createdTime: serializeDateString(createdTime),
             createdTimeZone: createdTimeZone ?? defaultTimeZone,
-            payload: {type: "Content", content, parent: parentPayload ?? undefined},
+            payload: {type: "Content", content, files: [], parent: parentPayload ?? undefined},
         });
     });
 }
@@ -410,6 +417,7 @@ test("text property uses `printAgentContentToMarkdown()` result", async () => {
         elements: [
             {
                 type: "Paragraph",
+                key: apiResponseParagraphKey,
                 elements: [
                     {type: "Text", text: "Check out "},
                     {
@@ -789,6 +797,7 @@ test("message with trailing newline is trimmed", async () => {
         elements: [
             {
                 type: "Paragraph",
+                key: apiResponseParagraphKey,
                 elements: [{type: "Text", text: "Hello world"}],
             },
         ],

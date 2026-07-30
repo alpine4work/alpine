@@ -129,6 +129,80 @@ paths:
                                     account:
                                         $ref: "#/components/schemas/Account"
 
+    /spaces/{id}/accounts/{accountId}/inbox:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [inbox]
+                                additionalProperties: false
+                                properties:
+                                    inbox:
+                                        $ref: "#/components/schemas/Inbox"
+
+    /spaces/{id}/accounts/{accountId}/inbox/entries:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      type: string
+                - name: status
+                  in: query
+                  schema:
+                      type: string
+                      enum: [New, Done]
+                      default: New
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [inbox, entries, nextCursor]
+                                additionalProperties: false
+                                properties:
+                                    inbox:
+                                        $ref: "#/components/schemas/Inbox"
+                                    nextCursor:
+                                        oneOf:
+                                            - type: string
+                                            - type: "null"
+                                    entries:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/InboxEntry"
+
     /spaces/{id}/bots/{botId}/settings:
         parameters:
             - name: id
@@ -677,6 +751,46 @@ paths:
                                     channel:
                                         $ref: "#/components/schemas/Channel"
 
+    /channels/{id}/posts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChannelId"}
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      $ref: "#/components/schemas/DateTime"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, nextCursor, posts]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    nextCursor:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/DateTime"
+                                            - type: "null"
+                                    posts:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/PostPreview"
+
     /channels/{id}/reference:
         parameters:
             - name: id
@@ -958,12 +1072,13 @@ paths:
                                         items:
                                             $ref: "#/components/schemas/SearchResult"
 
-    /tasks/{id}:
+    # TODO(#site-api): Implement site API.
+    /sites/{id}/reference:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/TaskId"}
+              schema: {$ref: "#/components/schemas/SiteId"}
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
@@ -972,13 +1087,129 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, task]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    task:
-                                        $ref: "#/components/schemas/Task"
+                                    reference:
+                                        $ref: "#/components/schemas/SiteReference"
+
+    /tasks:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, task]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                task:
+                                    type: object
+                                    additionalProperties: false
+                                    properties:
+                                        title:
+                                            type: string
+                                            maxLength: {{taskTitleMaxLength}}
+                                        creator:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        status:
+                                            $ref: "#/components/schemas/TaskStatus"
+                                        assignee:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        due:
+                                            $ref: "#/components/schemas/TaskDueDate"
+                                        priority:
+                                            type: string
+                                            enum: [Low, Medium, High, Urgent]
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTask"}
+
+    /tasks/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [patches]
+                            additionalProperties: false
+                            properties:
+                                actor:
+                                    type: object
+                                    required: [id]
+                                    additionalProperties: false
+                                    properties:
+                                        id:
+                                            $ref: "#/components/schemas/AccountId"
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/TaskPatch"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTask"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTask"}
+
+    /tasks/{id}/notes:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [notes]
+                            additionalProperties: false
+                            properties:
+                                notes:
+                                    type: object
+                                    required: [version, content]
+                                    additionalProperties: false
+                                    properties:
+                                        version:
+                                            type: integer
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTaskNotes"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTaskNotes"}
 
     /tasks/{id}/reference:
         parameters:
@@ -1131,12 +1362,94 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamPart"}
 
+    /task-collections:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, collection]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                collection:
+                                    type: object
+                                    required: [name]
+                                    additionalProperties: false
+                                    properties:
+                                        creator:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        name:
+                                            $ref: "#/components/schemas/LabelString"
+                                        color:
+                                            oneOf:
+                                                - $ref: "#/components/schemas/TaskCollectionColor"
+                                                - type: "null"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, collection]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
+
     /task-collections/{id}:
         parameters:
             - name: id
               in: path
               required: true
               schema: {$ref: "#/components/schemas/TaskCollectionId"}
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [patches]
+                            additionalProperties: false
+                            properties:
+                                actor:
+                                    type: object
+                                    required: [id]
+                                    additionalProperties: false
+                                    properties:
+                                        id:
+                                            $ref: "#/components/schemas/AccountId"
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/TaskCollectionPatch"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, collection]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
@@ -1145,12 +1458,12 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, taskCollection]
+                                required: [spaceId, collection]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    taskCollection:
+                                    collection:
                                         $ref: "#/components/schemas/TaskCollection"
 
     /task-collections/{id}/reference:
@@ -1220,7 +1533,49 @@ paths:
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskWithoutContent"
+                                            $ref: "#/components/schemas/TaskWithoutNotes"
+
+    /files/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/FileId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [id, contentType, contentLength, signedUrl, isUploading]
+                                additionalProperties: false
+                                properties:
+                                    id:
+                                        $ref: "#/components/schemas/FileId"
+                                    contentType:
+                                        type: string
+                                    contentLength:
+                                        type: integer
+                                    signedUrl:
+                                        type: string
+                                    isUploading:
+                                        type: boolean
+
+    /files/{id}/content:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/FileId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "302":
+                    headers:
+                        location:
+                            schema: {type: string}
 
 webhooks:
     bot:
@@ -1320,6 +1675,32 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             document:
                                 $ref: "#/components/schemas/Document"
+
+        GetTask:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, task]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            task:
+                                $ref: "#/components/schemas/Task"
+
+        GetTaskNotes:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, notes]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            notes:
+                                $ref: "#/components/schemas/TaskNotes"
 
         GetMessage:
             content:
@@ -1440,14 +1821,18 @@ components:
                         required: [content]
                         additionalProperties: false
                         properties:
+                            isStream:
+                                type: boolean
                             createdTimeZone:
                                 $ref: "#/components/schemas/TimeZone"
                             parent:
                                 $ref: "#/components/schemas/MessageContentPayloadParent"
                             content:
                                 $ref: "#/components/schemas/Content"
-                            isStream:
-                                type: boolean
+                            files:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/MessageContentPayloadFile"
 
         # TODO(ifitzsimmons, #public-api-blocking): Response bodies should be
         # assignable to request bodies for objects of the same type. So
@@ -1525,6 +1910,10 @@ components:
             type: string
             pattern: ^{{idRegExp}}$
 
+        SiteId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
         SpaceId:
             type: string
             pattern: ^{{idRegExp}}$
@@ -1536,6 +1925,14 @@ components:
         TaskCollectionId:
             type: string
             pattern: ^{{idRegExp}}$
+
+        ContentKey:
+            type: string
+            minLength: 1
+
+        TaskCollectionColor:
+            type: string
+            enum: [Red, Orange, Yellow, Green, Cyan, Blue, Indigo, Purple, Pink]
 
         # =========================================================================== #
         #                                 References                                  #
@@ -1708,6 +2105,38 @@ components:
                 title:
                     type: string
 
+        # TODO(#sites-api): We may want to add a mention response type for sites
+        # that includes the first entity id in the site. I'm still not sure how
+        # we will communicate site data via the API, so I'm only adding what's
+        # necessary for now. The mention target is necessary because the site file
+        # entity mention will exist in Alpine content, and API requests to fetch that
+        # content should still succeed.
+        # We also may NOT want to add a mention target response with the first entity
+        # id. Rerouting to the first entity in the site makes sense in the app since
+        # we render the site chrome around the entity. For the API, that "reroute"
+        # may be pretty confusing/jarring for clients.
+        SiteReference:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
+
+        SiteReference_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
+                title:
+                    type: string
+
         MentionReference:
             oneOf:
                 - $ref: "#/components/schemas/AccountReference"
@@ -1717,6 +2146,7 @@ components:
                 - $ref: "#/components/schemas/PostReference"
                 - $ref: "#/components/schemas/TaskReference"
                 - $ref: "#/components/schemas/TaskCollectionReference"
+                - $ref: "#/components/schemas/SiteReference"
             discriminator:
                 propertyName: type
                 mapping:
@@ -1727,6 +2157,7 @@ components:
                     Post: "#/components/schemas/PostReference"
                     Task: "#/components/schemas/TaskReference"
                     TaskCollection: "#/components/schemas/TaskCollectionReference"
+                    Site: "#/components/schemas/SiteReference"
 
         PreviewReference:
             oneOf:
@@ -1736,6 +2167,7 @@ components:
                 - $ref: "#/components/schemas/PostReference"
                 - $ref: "#/components/schemas/TaskReference"
                 - $ref: "#/components/schemas/TaskCollectionReference"
+                - $ref: "#/components/schemas/SiteReference"
             discriminator:
                 propertyName: type
                 mapping:
@@ -1745,6 +2177,7 @@ components:
                     Post: "#/components/schemas/PostReference"
                     Task: "#/components/schemas/TaskReference"
                     TaskCollection: "#/components/schemas/TaskCollectionReference"
+                    Site: "#/components/schemas/SiteReference"
 
         # =========================================================================== #
         #                                   Content                                   #
@@ -1802,10 +2235,26 @@ components:
             properties:
                 type:
                     const: Paragraph
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+
+        ContentParagraphBlockElement_Response:
+            type: object
+            required: [type, key, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Paragraph
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
 
         ContentListBlockElement:
             oneOf:
@@ -1932,6 +2381,8 @@ components:
             properties:
                 type:
                     const: Heading
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 level:
                     type: integer
                     minimum: 1
@@ -1940,6 +2391,24 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+
+        ContentHeadingBlockElement_Response:
+            type: object
+            required: [type, key, level, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Heading
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                level:
+                    type: integer
+                    minimum: 1
+                    maximum: 3
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
 
         ContentDividerBlockElement:
             type: object
@@ -2042,6 +2511,8 @@ components:
             required: [elements]
             additionalProperties: false
             properties:
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
@@ -2418,21 +2889,301 @@ components:
                 # TODO(calebmer, #public-api-blocking): Switch this to `state` and add an
                 # `Active` variant.
                 inactive:
+                    $ref: "#/components/schemas/AccountSpaceInactive"
+
+        AccountSpaceInactive:
+            oneOf:
+                - $ref: "#/components/schemas/AccountSpaceRemovedInactive"
+                - $ref: "#/components/schemas/AccountSpaceInvitePendingInactive"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Removed: "#/components/schemas/AccountSpaceRemovedInactive"
+                    InvitePending: "#/components/schemas/AccountSpaceInvitePendingInactive"
+
+        AccountSpaceRemovedInactive:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Removed
+                removedTime:
+                    $ref: "#/components/schemas/DateTime"
+
+        AccountSpaceInvitePendingInactive:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: InvitePending
+
+        Inbox:
+            type: object
+            required: [newEntryCount, loudNotificationCount]
+            additionalProperties: false
+            properties:
+                newEntryCount:
+                    type: integer
+                    minimum: 0
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+
+        InboxEntryShared:
+            type: object
+            required: [title, time, loudNotificationCount, status, featured]
+            additionalProperties: false
+            # Anchor merged into each `Inbox*Entry` schema (YAML merge) so shared fields stay
+            # single-sourced while each variant remains one flat object for AJV.
+            properties: &inboxEntrySharedProperties
+                title:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/InboxEntryTitleItem"
+                preview:
+                    type: string
+                time:
+                    $ref: "#/components/schemas/DateTime"
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+                status:
+                    type: string
+                    enum: [New, Done]
+                featured:
+                    type: object
+                    required: [type]
+                    additionalProperties: false
                     oneOf:
-                        - type: object
-                          required: [type]
-                          additionalProperties: false
-                          properties:
-                              type:
-                                  const: Removed
-                              removedTime:
-                                  $ref: "#/components/schemas/DateTime"
-                        - type: object
-                          required: [type]
-                          additionalProperties: false
-                          properties:
-                              type:
-                                  const: InvitePending
+                        - $ref: "#/components/schemas/InboxEntryAccountFeatured"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Account: "#/components/schemas/InboxEntryAccountFeatured"
+                otherAccount:
+                    $ref: "#/components/schemas/Account"
+
+        InboxEntryTitleItem:
+            oneOf:
+                - $ref: "#/components/schemas/InboxEntryTitleTextItem"
+                - $ref: "#/components/schemas/InboxEntryTitleAccountItem"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/InboxEntryTitleTextItem"
+                    Account: "#/components/schemas/InboxEntryTitleAccountItem"
+
+        InboxEntryTitleTextItem:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+
+        InboxEntryTitleAccountItem:
+            type: object
+            required: [type, account]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    $ref: "#/components/schemas/Account"
+
+        InboxEntryAccountFeatured:
+            type: object
+            required: [type, account]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    $ref: "#/components/schemas/Account"
+
+        InboxEntry:
+            oneOf:
+                - $ref: "#/components/schemas/InboxChatEntry"
+                - $ref: "#/components/schemas/InboxCreatedChannelPostsEntry"
+                - $ref: "#/components/schemas/InboxPostEntry"
+                - $ref: "#/components/schemas/InboxCreatedDocumentThreadsEntry"
+                - $ref: "#/components/schemas/InboxDocumentThreadEntry"
+                - $ref: "#/components/schemas/InboxTaskMessagesEntry"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Chat: "#/components/schemas/InboxChatEntry"
+                    CreatedChannelPosts: "#/components/schemas/InboxCreatedChannelPostsEntry"
+                    Post: "#/components/schemas/InboxPostEntry"
+                    CreatedDocumentThreads: "#/components/schemas/InboxCreatedDocumentThreadsEntry"
+                    DocumentThread: "#/components/schemas/InboxDocumentThreadEntry"
+                    TaskMessages: "#/components/schemas/InboxTaskMessagesEntry"
+
+        InboxChatEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, chat, previewMessage]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: Chat
+                chat:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/ChatId"
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+
+        InboxCreatedChannelPostsEntry:
+            type: object
+            required: [title, time, loudNotificationCount, status, featured, type, channel, posts]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: CreatedChannelPosts
+                channel:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/ChannelId"
+                posts:
+                    type: array
+                    minItems: 1
+                    items:
+                        type: object
+                        required: [id]
+                        additionalProperties: false
+                        properties:
+                            id:
+                                $ref: "#/components/schemas/PostId"
+
+        InboxPostEntry:
+            type: object
+            required: [title, time, loudNotificationCount, status, featured, type, post]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: Post
+                post:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/PostId"
+                # TODO(#public-api): Document that `previewMessage` is optional because an
+                # `InboxPostEntry` can be created from a mention in the post itself, before
+                # any comments exist on the post. In that case there is no comment to preview.
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+
+        InboxCreatedDocumentThreadsEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, document, threads]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: CreatedDocumentThreads
+                document:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentId"
+                threads:
+                    type: array
+                    minItems: 1
+                    items:
+                        type: object
+                        required: [id]
+                        additionalProperties: false
+                        properties:
+                            id:
+                                $ref: "#/components/schemas/DocumentThreadId"
+
+        InboxDocumentThreadEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, thread, previewMessage]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: DocumentThread
+                thread:
+                    type: object
+                    required: [id, document]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentThreadId"
+                        document:
+                            type: object
+                            required: [id]
+                            additionalProperties: false
+                            properties:
+                                id:
+                                    $ref: "#/components/schemas/DocumentId"
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+
+        InboxTaskMessagesEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, task, previewMessage]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: TaskMessages
+                task:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskId"
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
 
         Chat:
             oneOf:
@@ -2686,52 +3437,56 @@ components:
 
         Task:
             type: object
-            required: [id, status, title, content]
+            required: [id, status, title, notes]
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 status:
                     $ref: "#/components/schemas/TaskStatus"
                 title:
                     type: string
+                    maxLength: {{taskTitleMaxLength}}
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:
-                    type: object
-                    required: [date]
-                    additionalProperties: false
-                    properties:
-                        date:
-                            type: string
-                            format: date
+                    $ref: "#/components/schemas/TaskDueDate"
                 priority:
                     type: string
                     enum: [Low, Medium, High, Urgent]
-                content:
-                    $ref: "#/components/schemas/Content"
+                notes:
+                    $ref: "#/components/schemas/TaskNotes"
 
-        TaskWithoutContent:
+        TaskWithoutNotes:
             type: object
             required: [id, status, title]
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 status:
                     $ref: "#/components/schemas/TaskStatus"
                 title:
                     type: string
+                    maxLength: {{taskTitleMaxLength}}
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:
-                    type: object
-                    required: [date]
-                    additionalProperties: false
-                    properties:
-                        date:
-                            type: string
-                            format: date
+                    $ref: "#/components/schemas/TaskDueDate"
                 priority:
                     type: string
                     enum: [Low, Medium, High, Urgent]
@@ -2748,22 +3503,182 @@ components:
                 title:
                     type: string
 
+        TaskDueDate:
+            type: object
+            required: [date]
+            additionalProperties: false
+            properties:
+                date:
+                    type: string
+                    format: date
+
+        TaskNotes:
+            type: object
+            required: [version, content]
+            additionalProperties: false
+            properties:
+                version:
+                    type: integer
+                    minimum: 0
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        TaskPatch:
+            oneOf:
+                - $ref: "#/components/schemas/TaskSetTitlePatch"
+                - $ref: "#/components/schemas/TaskSetAssigneePatch"
+                - $ref: "#/components/schemas/TaskSetStatusPatch"
+                - $ref: "#/components/schemas/TaskSetDueDatePatch"
+                - $ref: "#/components/schemas/TaskSetPriorityPatch"
+                - $ref: "#/components/schemas/TaskAddCollectionPatch"
+                - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetTitle: "#/components/schemas/TaskSetTitlePatch"
+                    SetAssignee: "#/components/schemas/TaskSetAssigneePatch"
+                    SetStatus: "#/components/schemas/TaskSetStatusPatch"
+                    SetDueDate: "#/components/schemas/TaskSetDueDatePatch"
+                    SetPriority: "#/components/schemas/TaskSetPriorityPatch"
+                    AddCollection: "#/components/schemas/TaskAddCollectionPatch"
+                    RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
+
+        TaskSetTitlePatch:
+            type: object
+            required: [type, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetTitle
+                title:
+                    type: string
+
+        TaskSetAssigneePatch:
+            type: object
+            required: [type, assignee]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetAssignee
+                assignee:
+                    oneOf:
+                        - $ref: "#/components/schemas/AccountId"
+                        - type: "null"
+
+        TaskSetStatusPatch:
+            type: object
+            required: [type, status]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetStatus
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+
+        TaskSetDueDatePatch:
+            type: object
+            required: [type, due]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetDueDate
+                due:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskDueDate"
+                        - type: "null"
+
+        TaskSetPriorityPatch:
+            type: object
+            required: [type, priority]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetPriority
+                priority:
+                    oneOf:
+                        - type: string
+                          enum: [Low, Medium, High, Urgent]
+                        - type: "null"
+
+        TaskAddCollectionPatch:
+            type: object
+            required: [type, collectionId]
+            additionalProperties: false
+            properties:
+                type:
+                    const: AddCollection
+                collectionId:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        TaskRemoveCollectionPatch:
+            type: object
+            required: [type, collectionId]
+            additionalProperties: false
+            properties:
+                type:
+                    const: RemoveCollection
+                collectionId:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        TaskCollectionPatch:
+            oneOf:
+                - $ref: "#/components/schemas/TaskCollectionSetNamePatch"
+                - $ref: "#/components/schemas/TaskCollectionSetColorPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetName: "#/components/schemas/TaskCollectionSetNamePatch"
+                    SetColor: "#/components/schemas/TaskCollectionSetColorPatch"
+
+        TaskCollectionSetNamePatch:
+            type: object
+            required: [type, name]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetName
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        TaskCollectionSetColorPatch:
+            type: object
+            required: [type, color]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetColor
+                color:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskCollectionColor"
+                        - type: "null"
+
         TaskStatus:
             oneOf:
-                - type: object
-                  required: [type, isActive]
-                  additionalProperties: false
-                  properties:
-                      type:
-                          const: Open
-                      isActive:
-                          type: boolean
-                - type: object
-                  required: [type]
-                  additionalProperties: false
-                  properties:
-                      type:
-                          const: Closed
+                - $ref: "#/components/schemas/TaskOpenStatus"
+                - $ref: "#/components/schemas/TaskClosedStatus"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Open: "#/components/schemas/TaskOpenStatus"
+                    Closed: "#/components/schemas/TaskClosedStatus"
+
+        TaskOpenStatus:
+            type: object
+            required: [type, isActive]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Open
+                isActive:
+                    type: boolean
+
+        TaskClosedStatus:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Closed
 
         TaskCollection:
             type: object
@@ -2772,8 +3687,19 @@ components:
             properties:
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 name:
                     $ref: "#/components/schemas/LabelString"
+                color:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskCollectionColor"
+                        - type: "null"
 
         # =========================================================================== #
         #                                  Messages                                   #
@@ -2819,6 +3745,70 @@ components:
                     $ref: "#/components/schemas/MessageContentPayloadParent"
                 content:
                     $ref: "#/components/schemas/Content"
+                files:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadFile"
+
+        MessageContentPayload_Response:
+            type: object
+            required: [type, content, files]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Content
+                parent:
+                    $ref: "#/components/schemas/MessageContentPayloadParent"
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+                files:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadFile_Response"
+
+        MessageContentPayloadFile:
+            type: object
+            required: [element]
+            additionalProperties: false
+            properties:
+                rowIndex:
+                    type: integer
+                    minimum: 0
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
+
+        MessageContentPayloadFile_Response:
+            type: object
+            required: [rowIndex, width, element]
+            additionalProperties: false
+            properties:
+                rowIndex:
+                    type: integer
+                    minimum: 0
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement_Response"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement_Response"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
 
         MessageContentPayloadParent:
             oneOf:
@@ -2829,8 +3819,6 @@ components:
                 mapping:
                     Message: "#/components/schemas/MessageContentPayloadMessageParent"
                     Post: "#/components/schemas/MessageContentPayloadPostParent"
-
-        # TODO(calebmer, #api): Files? How do we get AI to read any attached files?
 
         MessageContentPayloadMessageParent:
             type: object
@@ -3242,6 +4230,7 @@ components:
                 - $ref: "#/components/schemas/SearchDocumentMessageResult"
                 - $ref: "#/components/schemas/SearchPostResult"
                 - $ref: "#/components/schemas/SearchPostMessageResult"
+                - $ref: "#/components/schemas/SearchSiteResult"
                 - $ref: "#/components/schemas/SearchTaskResult"
                 - $ref: "#/components/schemas/SearchTaskMessageResult"
                 - $ref: "#/components/schemas/SearchTaskCollectionResult"
@@ -3256,6 +4245,7 @@ components:
                     DocumentMessage: "#/components/schemas/SearchDocumentMessageResult"
                     Post: "#/components/schemas/SearchPostResult"
                     PostMessage: "#/components/schemas/SearchPostMessageResult"
+                    Site: "#/components/schemas/SearchSiteResult"
                     Task: "#/components/schemas/SearchTaskResult"
                     TaskMessage: "#/components/schemas/SearchTaskMessageResult"
                     TaskCollection: "#/components/schemas/SearchTaskCollectionResult"
@@ -3422,6 +4412,22 @@ components:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
                     $ref: "#/components/schemas/Account"
+
+        SearchSiteResult:
+            type: object
+            required: [title, bodyMatch, type, id]
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchTaskResult:
             type: object

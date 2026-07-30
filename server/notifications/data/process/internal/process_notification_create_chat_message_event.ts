@@ -12,7 +12,6 @@ import {printNotificationEventAlertContentBody} from "~/server/notifications/dat
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -361,8 +360,10 @@ function intoApiMentionReference(
             };
         }
         case "Site": {
-            // TODO(#sites): Implement site search entity support
-            throw new UnimplementedError("Site search entity support is not implemented");
+            return {
+                type: "Site",
+                id: entityIdObject.siteId,
+            };
         }
         default: {
             throw exhaustive(entityIdObject);

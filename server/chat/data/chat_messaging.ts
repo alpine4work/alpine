@@ -57,6 +57,7 @@ import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_spac
 import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {createChatMessageNotFoundError} from "~/shared/chat/chat_error_messages.js";
@@ -512,6 +513,8 @@ function sendChatMessageForAccount(
                         spaceId: chatAttributesItem.spaceId,
                         entityId: `Account:${assertExists(otherChatAccountIds[0])}`,
                         interaction,
+                        // Accounts cannot live in a site.
+                        siteId: null,
                     });
                 } else if (definition.type === "Direct" && definition.accountCount <= 2) {
                     // Noop. We don't index chats with less than two accounts. Instead you should be
@@ -519,10 +522,15 @@ function sendChatMessageForAccount(
                     // it's the user's personal chat. We don't currently give affinity points for the
                     // account's personal chat when you send a message.
                 } else {
+                    const chatDefinition = chatAttributesItem.definition;
                     await markSearchAffinityEntityInteraction(sessionContext, {
                         spaceId: chatAttributesItem.spaceId,
                         entityId: `Chat:${chatAttributesItem.chatId}`,
                         interaction,
+                        siteId:
+                            chatDefinition.type === "Room"
+                                ? getSiteIdFromAccessPolicyIfExists(chatDefinition.accessPolicy)
+                                : null,
                     });
                 }
             });
@@ -546,6 +554,8 @@ function sendChatMessageForAccount(
                             spaceId: chatAttributesItem.spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
+                            // Accounts cannot live in a site.
+                            siteId: null,
                         });
                     }
                 });
@@ -1283,7 +1293,7 @@ export async function getChatMessage(
 
     if (!item) throw createChatMessageNotFoundError(chatId, messageIndex);
 
-    return createChatMessageModelFromItem(context, spaceId, chatId, item);
+    return await createChatMessageModelFromItem(context, spaceId, chatId, item);
 }
 
 /**
@@ -1319,7 +1329,7 @@ export async function getChatMessageAtVersion(
         })(),
     ]);
 
-    return createChatMessageModelFromItem(context, spaceId, chatId, item);
+    return await createChatMessageModelFromItem(context, spaceId, chatId, item);
 }
 
 /**
@@ -2255,7 +2265,7 @@ export async function backfillChatMessages(
                     getChatMessageItemIfExists(context, chatId, messageIndex, options),
                 createMessageModelFromItem: async (context, item) => {
                     const {spaceId} = await chatItemPromise;
-                    return createChatMessageModelFromItem(context, spaceId, chatId, item);
+                    return await createChatMessageModelFromItem(context, spaceId, chatId, item);
                 },
             }),
         ]);

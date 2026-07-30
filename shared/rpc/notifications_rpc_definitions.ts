@@ -1,9 +1,9 @@
-import {
-    createDynamoGeneralRealtimeBackfillResultSchema,
-    createDynamoGeneralRealtimeIndexQuerySchema,
-    createDynamoGeneralRealtimeItemSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    createRynamoBackfillResultSchema,
+    createRynamoIndexQuerySchema,
+    createRynamoItemSchema,
+} from "~/shared/dynamo/rynamo_types.js";
 import {
     AccountId,
     BrowserId,
@@ -13,6 +13,7 @@ import {
     PostId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {InboxEntryStatusSchema} from "~/shared/notifications/inbox_entry_status.js";
 import {
     InboxEntryKeySchema,
     InboxEntryModelSchema,
@@ -30,7 +31,7 @@ export const getInboxWithStrongReadConsistency = defineRpc({
         spaceId: Schema.id<SpaceId>(),
     },
     output: {
-        inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+        inbox: createRynamoItemSchema(InboxModel.schema()),
     },
 });
 
@@ -39,12 +40,12 @@ export const getInboxEntries = defineRpc({
     isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
-        filter: Schema.enum(["New", "Archive"]),
+        filter: InboxEntryStatusSchema,
         limit: Schema.integer,
         afterCursor: DynamoIndexCursorSchema.nullable(),
     },
     output: {
-        entriesResult: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
+        entriesResult: createRynamoIndexQuerySchema(InboxEntryModelSchema),
     },
 });
 
@@ -56,7 +57,7 @@ export const getInboxEntryWithStrongReadConsistency = defineRpc({
         key: InboxEntryKeySchema,
     },
     output: {
-        entry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema),
+        entry: createRynamoItemSchema(InboxEntryModelSchema),
     },
 });
 
@@ -68,8 +69,7 @@ export const backfillInboxEntries = defineRpc({
         checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
-        backfillEntriesResult:
-            createDynamoGeneralRealtimeBackfillResultSchema(InboxEntryModelSchema),
+        backfillEntriesResult: createRynamoBackfillResultSchema(InboxEntryModelSchema),
     },
 });
 

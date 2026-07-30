@@ -120,11 +120,12 @@ export class SpaceAccountsCache {
     public async getData(
         context: AuthorizeSpaceAccessContext,
         spaceId: SpaceId,
+        {allowInvitePending}: {allowInvitePending?: boolean} = {},
     ): Promise<SpaceAccountsCacheData> {
         // Make sure we're allowed to read data from the space.
-        await authorizeSpaceAccess(context, spaceId);
+        await authorizeSpaceAccess(context, spaceId, undefined, {allowInvitePending});
 
-        return this.dangerouslyGetDataWithoutAuthorizing(context, spaceId);
+        return await this.dangerouslyGetDataWithoutAuthorizing(context, spaceId);
     }
 
     /**
@@ -316,7 +317,7 @@ export class SpaceAccountsCache {
         const entry = this._entryBySpaceId.get(spaceId);
         if (!entry) return null;
 
-        return entry.dataPromise;
+        return await entry.dataPromise;
     }
 
     /**
@@ -338,7 +339,7 @@ export class SpaceAccountsCache {
         const entry = this._entryBySpaceId.get(spaceId);
         if (!entry) return null;
 
-        return entry.dataPromise;
+        return await entry.dataPromise;
     }
 }
 
@@ -364,7 +365,7 @@ export async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
         consistency?: DynamoReadConsistency;
     },
 ): Promise<ReadonlyArray<AccountModel>> {
-    return context.tracer.withSpan("Load all space accounts", async (context, span) => {
+    return await context.tracer.withSpan("Load all space accounts", async (context, span) => {
         span.addData({
             common: {isBlocking},
             dynamodb: {consistentRead: consistency === "Strong"},

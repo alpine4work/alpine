@@ -7,6 +7,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -215,6 +216,15 @@ export type AgentDocumentPageLink = {
     readonly localDocumentPage: AgentLocalDocumentPageLink | null;
 };
 
+export type AgentSiteLink = {
+    readonly type: "Site";
+    readonly siteId: SiteId;
+    readonly dedupeNumber?: number;
+
+    // e.g. "My Site"
+    readonly name: string;
+};
+
 export type AgentTaskLink = {
     readonly type: "Task";
     readonly taskId: TaskId;
@@ -258,5 +268,6 @@ export type AgentLink =
     | AgentChannelLink
     | AgentDocumentPageLink
     | AgentPostCommentsLink
+    | AgentSiteLink
     | AgentTaskLink
     | AgentTaskCollectionLink;

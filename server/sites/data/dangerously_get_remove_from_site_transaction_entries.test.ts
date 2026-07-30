@@ -1,5 +1,5 @@
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {dangerouslyGetAddToSiteTransactionEntries} from "~/server/sites/data/dangerously_get_add_to_site_transaction_entries.js";
 import {dangerouslyGetRemoveFromSiteTransactionEntries} from "~/server/sites/data/dangerously_get_remove_from_site_transaction_entries.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
@@ -9,8 +9,8 @@ import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {OrderKey, assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, SiteId} from "~/shared/id/types/id_types.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 
 const context = createTestContext();
 
@@ -61,7 +61,7 @@ describe("dangerouslyGetRemoveFromSiteTransactionEntries", () => {
             site.id,
             {entityId, parentId: site.initialRootContainerId, orderKey: assertOrderKey("a0")},
         );
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(
+        await RynamoTableSchema.executeTransaction(
             session.action(),
             addEntries.map(e => e.transactionEntry),
         );
@@ -93,7 +93,7 @@ describe("dangerouslyGetRemoveFromSiteTransactionEntries", () => {
                 orderKey: assertOrderKey("a0"),
             },
         );
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(
+        await RynamoTableSchema.executeTransaction(
             session.action(),
             addFirstEntries.map(e => e.transactionEntry),
         );
@@ -113,7 +113,7 @@ describe("dangerouslyGetRemoveFromSiteTransactionEntries", () => {
             firstEntityId,
         );
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(
+        await RynamoTableSchema.executeTransaction(
             session.action(),
             entries.map(e => e.transactionEntry),
         );
@@ -151,7 +151,7 @@ describe("dangerouslyGetRemoveFromSiteTransactionEntries", () => {
             site.id,
             {entityId, parentId: site.initialRootContainerId, orderKey: assertOrderKey("a0")},
         );
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(
+        await RynamoTableSchema.executeTransaction(
             session1.action(),
             addEntries.map(e => e.transactionEntry),
         );

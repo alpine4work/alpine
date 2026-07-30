@@ -73,12 +73,10 @@ export async function addMessageInputFiles(
                     if (!toTarget || isDeepEqual(fromTarget, toTarget)) {
                         if (fromTarget === "Uploader") {
                             promise = getFileAsUploader(context, {
-                                spaceId: fileInfo.spaceId,
                                 fileId: fileInfo.fileId,
                             });
                         } else {
                             promise = getFileFromAttachment(context, {
-                                spaceId: fileInfo.spaceId,
                                 fileId: fileInfo.fileId,
                                 target: fromTarget,
                             });
@@ -87,13 +85,11 @@ export async function addMessageInputFiles(
                     // Otherwise, let's attach the file to its new attachment target.
                     else if (fromTarget === "Uploader") {
                         promise = attachFileAsUploader(context, {
-                            spaceId: fileInfo.spaceId,
                             fileId: fileInfo.fileId,
                             target: toTarget,
                         });
                     } else {
                         promise = attachFileFromAttachment(context, {
-                            spaceId: fileInfo.spaceId,
                             fileId: fileInfo.fileId,
                             fromTarget,
                             toTarget,

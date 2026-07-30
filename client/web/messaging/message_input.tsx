@@ -34,7 +34,7 @@ import {JumpToMessageRangeOptions} from "~/client/web/messaging/use_jump_to_mess
 import {JumpToPostRangeOptions} from "~/client/web/messaging/use_jump_to_post_range.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     MessageContent,
@@ -150,7 +150,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     const context = useAppContext();
     const platform = usePlatform();
     const reporter = useReporter();
-    const {currentAccount, space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxContext();
     const fileRegistry = useFileRegistry();
 
@@ -214,7 +214,10 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             key: generateId(),
             state:
                 restoreStateRef?.current?.state ??
-                ContentEditorState.create(emptyMessageContentWithReferences),
+                ContentEditorState.create({
+                    spaceId: space.id,
+                    content: emptyMessageContentWithReferences,
+                }),
             files: restoreStateRef?.current?.files ?? emptyArray,
         }));
 
@@ -232,10 +235,13 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     const resetInputState = useCallback(() => {
         actuallySetInputState({
             key: generateId(),
-            state: ContentEditorState.create(emptyMessageContentWithReferences),
+            state: ContentEditorState.create({
+                spaceId: space.id,
+                content: emptyMessageContentWithReferences,
+            }),
             files: emptyArray,
         });
-    }, []);
+    }, [space.id]);
 
     const addInputFile = useCallback((file: MessageInputFile) => {
         actuallySetInputState(oldState => ({
@@ -377,7 +383,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
 
                                     if (inputFile.attachmentTarget === "Uploader") {
                                         await attachFileAsUploader(context, {
-                                            spaceId: space.id,
                                             fileId: inputFile.file.id,
                                             target: actualFileAttachmentTarget,
                                         });
@@ -388,7 +393,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                         )
                                     ) {
                                         await attachFileFromAttachment(context, {
-                                            spaceId: space.id,
                                             fileId: inputFile.file.id,
                                             fromTarget: inputFile.attachmentTarget,
                                             toTarget: actualFileAttachmentTarget,
@@ -580,6 +584,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                             ) {
                                 messageEditing.dispatch({
                                     type: "StartEditing",
+                                    spaceId: space.id,
                                     messageRoomKey: message.getRoomKey(),
                                     messageIndex: message.index,
                                     messagePayload: message.payload,

@@ -22,7 +22,7 @@ export async function updateAccountReactionCharacter(
 
     const accountId = context.actor.getAccountId();
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const oldAccountItem = await getAccountItem(context, accountId);
 
         const newAccountItem = await AccountsTable.directlyUpdateItem(context, {

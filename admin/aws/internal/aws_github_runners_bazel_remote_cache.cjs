@@ -27,6 +27,76 @@ const https = require("https");
 process.title = `node ${path.basename(__filename)}`;
 
 const keepAliveAgent = new https.Agent({keepAlive: true});
+const upstreamResponseBodySampleMaxBytes = 4096;
+let nextRequestId = 0;
+let summaryLogged = false;
+const stats = {
+    totalRequests: 0,
+    upstreamErrors: 0,
+    upstreamResponseAborts: 0,
+    upstreamResponseErrors: 0,
+    upstreamResponseIncompleteCloses: 0,
+    clientAborts: 0,
+    clientErrors: 0,
+    downstreamErrors: 0,
+    downstreamIncompleteCloses: 0,
+    unexpectedResponses: 0,
+    unexpectedResponseStatusCounts: {},
+};
+
+function formatDetails(details) {
+    if (!details) return "";
+
+    return Object.entries(details)
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+        .join(" ");
+}
+
+function log(level, message, details) {
+    const prefix = `[${new Date().toISOString()}] [${level.toUpperCase()}]`;
+    const suffix = formatDetails(details);
+    // eslint-disable-next-line no-console
+    console.log(suffix ? `${prefix} ${message} ${suffix}` : `${prefix} ${message}`);
+}
+
+function logError(message, error, details) {
+    log(
+        "error",
+        message,
+        Object.assign(
+            {
+                errorName: error && error.name ? error.name : undefined,
+                errorCode: error && error.code ? error.code : undefined,
+                errorMessage: error && error.message ? error.message : String(error),
+                stack: error && error.stack ? error.stack : undefined,
+            },
+            details || {},
+        ),
+    );
+}
+
+function newRequestId() {
+    nextRequestId += 1;
+    return String(nextRequestId);
+}
+
+function incrementUnexpectedResponseStatus(statusCode) {
+    const key = String(statusCode);
+    stats.unexpectedResponseStatusCounts[key] =
+        (stats.unexpectedResponseStatusCounts[key] || 0) + 1;
+}
+
+function logSummary(reason) {
+    if (summaryLogged) return;
+    summaryLogged = true;
+
+    log("info", "Bazel remote cache proxy server summary", {
+        reason,
+        pid: process.pid,
+        ...stats,
+    });
+}
 
 async function httpRequest(urlString, options) {
     return new Promise((resolve, reject) => {
@@ -110,7 +180,74 @@ async function main() {
 
     const host = `${bucket}.s3.${region}.amazonaws.com`;
 
+    log("info", "Bazel remote cache proxy server configuration loaded", {
+        pid: process.pid,
+        nodeVersion: process.version,
+        region,
+        bucket,
+        host,
+    });
+
     const server = http.createServer((req1, res1) => {
+        const requestId = newRequestId();
+        const startedAt = Date.now();
+        const requestDetails = {
+            requestId,
+            method: req1.method,
+            path: req1.url,
+        };
+        let upstreamResponseBytes = 0;
+        let upstreamResponseComplete = false;
+        let upstreamStatusCode;
+        let clientAborted = false;
+        let downstreamFinished = false;
+        stats.totalRequests += 1;
+
+        function requestLogDetails(details) {
+            return Object.assign(
+                {
+                    durationMs: Date.now() - startedAt,
+                    upstreamResponseBytes,
+                    upstreamStatusCode,
+                    clientAborted,
+                    downstreamFinished,
+                },
+                requestDetails,
+                details || {},
+            );
+        }
+
+        function writeInternalServerError() {
+            if (res1.headersSent || res1.writableEnded) return;
+
+            res1.writeHead(500, {"content-type": "text/plain"});
+            res1.end("500 Internal Server Error");
+        }
+
+        res1.on("finish", () => {
+            downstreamFinished = true;
+        });
+
+        res1.on("close", () => {
+            if (downstreamFinished) return;
+
+            stats.downstreamIncompleteCloses += 1;
+            log("warn", "Remote cache downstream response closed before finish", {
+                ...requestLogDetails(),
+                headersSent: res1.headersSent,
+            });
+        });
+
+        res1.on("error", error => {
+            stats.downstreamErrors += 1;
+            logError("Remote cache downstream response failed", error, requestLogDetails());
+        });
+
+        req1.on("error", error => {
+            stats.clientErrors += 1;
+            logError("Remote cache client request failed", error, requestLogDetails());
+        });
+
         try {
             if (!req1.url.startsWith("/")) throw new Error("Expected path to start with `/`");
 
@@ -170,28 +307,134 @@ async function main() {
             });
 
             req2.on("error", error => {
-                // eslint-disable-next-line no-console
-                console.error("Unexpected error:", error);
+                stats.upstreamErrors += 1;
+                logError("Remote cache upstream request failed", error, requestLogDetails());
 
-                res1.writeHead(500, {"content-type": "text/plain"});
-                res1.end("500 Internal Server Error");
+                writeInternalServerError();
             });
 
             req2.on("response", res2 => {
+                upstreamStatusCode = res2.statusCode;
+                let unexpectedUpstreamResponse = false;
+                const upstreamResponseBodySampleChunks = [];
+                let upstreamResponseBodySampleBytes = 0;
+
+                function appendUpstreamResponseBodySample(chunk) {
+                    if (!unexpectedUpstreamResponse) return;
+                    if (upstreamResponseBodySampleBytes >= upstreamResponseBodySampleMaxBytes) {
+                        return;
+                    }
+
+                    const chunkBuffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+                    const remainingBytes =
+                        upstreamResponseBodySampleMaxBytes - upstreamResponseBodySampleBytes;
+                    const sampleChunk =
+                        chunkBuffer.length > remainingBytes
+                            ? chunkBuffer.slice(0, remainingBytes)
+                            : chunkBuffer;
+
+                    upstreamResponseBodySampleChunks.push(sampleChunk);
+                    upstreamResponseBodySampleBytes += sampleChunk.length;
+                }
+
+                function upstreamResponseBodySample() {
+                    if (upstreamResponseBodySampleBytes === 0) return undefined;
+
+                    return Buffer.concat(
+                        upstreamResponseBodySampleChunks,
+                        upstreamResponseBodySampleBytes,
+                    ).toString("utf8");
+                }
+
+                function upstreamResponseLogDetails(details) {
+                    return Object.assign(
+                        {
+                            statusCode: res2.statusCode,
+                            s3RequestId: res2.headers["x-amz-request-id"],
+                            s3ExtendedRequestId: res2.headers["x-amz-id-2"],
+                            upstreamContentLength: res2.headers["content-length"],
+                            upstreamContentType: res2.headers["content-type"],
+                            upstreamResponseBodySample: upstreamResponseBodySample(),
+                            upstreamResponseBodySampleBytes,
+                        },
+                        requestLogDetails(),
+                        details || {},
+                    );
+                }
+
+                if (
+                    res2.statusCode >= 500 ||
+                    res2.statusCode === 401 ||
+                    res2.statusCode === 403 ||
+                    res2.statusCode === 429
+                ) {
+                    stats.unexpectedResponses += 1;
+                    incrementUnexpectedResponseStatus(res2.statusCode);
+                    unexpectedUpstreamResponse = true;
+                }
+
+                res2.on("data", chunk => {
+                    upstreamResponseBytes += chunk.length;
+                    appendUpstreamResponseBodySample(chunk);
+                });
+
+                res2.on("end", () => {
+                    upstreamResponseComplete = true;
+                    if (unexpectedUpstreamResponse) {
+                        log(
+                            "warn",
+                            "Remote cache upstream response returned unexpected status",
+                            upstreamResponseLogDetails({responseComplete: true}),
+                        );
+                    }
+                });
+
+                res2.on("aborted", () => {
+                    stats.upstreamResponseAborts += 1;
+                    log("warn", "Remote cache upstream response was aborted", {
+                        ...upstreamResponseLogDetails(),
+                    });
+                });
+
+                res2.on("error", error => {
+                    stats.upstreamResponseErrors += 1;
+                    logError("Remote cache upstream response stream failed", error, {
+                        ...upstreamResponseLogDetails(),
+                    });
+
+                    if (!res1.writableEnded) res1.destroy(error);
+                });
+
+                res2.on("close", () => {
+                    if (upstreamResponseComplete || res2.complete) return;
+
+                    stats.upstreamResponseIncompleteCloses += 1;
+                    log("warn", "Remote cache upstream response closed before completion", {
+                        ...upstreamResponseLogDetails(),
+                        responseComplete: res2.complete,
+                    });
+                });
+
                 res1.writeHead(res2.statusCode, res2.headers);
                 res2.pipe(res1, {end: true});
             });
 
+            req1.on("aborted", () => {
+                clientAborted = true;
+                stats.clientAborts += 1;
+                log("warn", "Remote cache client request was aborted", requestLogDetails());
+            });
+
             req1.pipe(req2, {end: true});
         } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error("Unexpected error:", error);
+            logError("Remote cache proxy request setup failed", error, requestDetails);
 
-            if (!res1.headersSent) {
-                res1.writeHead(500, {"content-type": "text/plain"});
-                res1.end("500 Internal Server Error");
-            }
+            writeInternalServerError();
         }
+    });
+
+    server.on("clientError", error => {
+        logError("Remote cache proxy server client error", error);
     });
 
     await new Promise((resolve, reject) => {
@@ -203,12 +446,37 @@ async function main() {
         });
     });
 
-    // eslint-disable-next-line no-console
-    console.log("Bazel remote cache proxy server listening on port 3501");
+    log("info", "Bazel remote cache proxy server listening", {port: 3501});
 }
 
+process.on("SIGTERM", () => {
+    logSummary("sigterm");
+    process.exit(0);
+});
+
+process.on("SIGINT", () => {
+    logSummary("sigint");
+    process.exit(0);
+});
+
+process.on("uncaughtException", error => {
+    logError("Remote cache proxy uncaught exception", error);
+    logSummary("uncaughtException");
+    process.exitCode = 1;
+});
+
+process.on("unhandledRejection", error => {
+    logError("Remote cache proxy unhandled rejection", error);
+    logSummary("unhandledRejection");
+    process.exitCode = 1;
+});
+
+process.on("exit", code => {
+    logSummary(`exit:${code}`);
+});
+
 main().catch(error => {
-    // eslint-disable-next-line no-console
-    console.error(error);
+    logError("Remote cache proxy failed to start", error);
+    logSummary("startupFailure");
     process.exitCode = 1;
 });

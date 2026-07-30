@@ -2,15 +2,16 @@ import {useId, useMemo, useState} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useRevalidateOnAccessPolicySiteChange} from "~/client/web/sites/helpers/use_revalidate_on_access_policy_site_change.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     AccessLevel,
     EffectiveAccessPolicy,
-    LocalAccessPolicy,
     ResolvedAccessPolicyWithGenerations,
     compareAccessLevel,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
+    isSiteRelatedAccessPolicyUpdate,
     maxAccessLevel,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
@@ -18,8 +19,7 @@ import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_pol
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -44,13 +44,14 @@ export function useShareState(
             // The `notification` argument comes first to make it harder for the implementation
             // of this function to ignore the `notification` argument.
             notification: ShareNotification | null,
-            accessPolicy: LocalAccessPolicy,
+            accessPolicy: ResolvedAccessPolicyWithGenerations,
         ) => MaybePromise<void>;
         isReadOnly?: boolean;
     } | null,
 ) {
     const {space, currentAccount} = useSpaceContext();
     const accountRegistry = useAccountRegistry();
+    useRevalidateOnAccessPolicySiteChange(props?.accessPolicy ?? null);
 
     const modalOwnerId = useId();
 
@@ -63,13 +64,6 @@ export function useShareState(
     // share dialog to be read-only.
     const isReadOnly = useMemo(() => {
         if (props?.isReadOnly) return true;
-
-        // TODO(#sites): In this case, we should give the user quick access to edit the
-        // site permissions if the user has Manage access on the site.
-
-        // We cannot directly update the access policy of a site through one of its
-        // entities
-        if (props?.accessPolicy.type === "Site") return true;
 
         const accessPolicy = props?.accessPolicy;
         const inheritedAccessPolicy = props?.inherited?.accessPolicy;
@@ -120,9 +114,6 @@ export function useShareState(
             accessPolicy: oldAccessPolicy,
             onAccessPolicyChangeWithoutValidations,
         } = props;
-
-        // isReadOnly should always be true for site entities
-        assert(oldAccessPolicy.type !== "Site");
 
         const newAccessPolicy = reduceAccessPolicy(currentAccount.id, oldAccessPolicy, action);
 
@@ -211,10 +202,53 @@ export function useShareState(
                 throw exhaustive(action);
         }
 
+        const shouldCheckForRemovedAccounts =
+            isSiteRelatedAccessPolicyUpdate(oldAccessPolicy, newAccessPolicy) &&
+            newAccessPolicy.type === "Site";
+
         const validationResult = validateAccessPolicyUpdate(
             currentAccount.id,
             oldAccessPolicy,
             newAccessPolicy,
+            {
+                // On the server, we have to perform database roundtrips in order to determine if
+                // an account is a member of a space, so we only check for removed accounts when
+                // adding an entity to a site. The reasoning is that if an early generation manager
+                // is removed from a space, it would make it really difficult for everyone else to
+                // add content to the site. For Local access policy updates, this does mean that
+                // accounts at lower generations can't remove the access of removed accounts, but
+                // that seems reasonable.
+                //
+                // So given the following scenario:
+                //
+                // ```
+                // old: [alice-1, bob-2 (removed), charlie-2] -> [{alice}, {bob, charlie}]
+                // new: [alice-1, charlie-3] -> [{alice}, {charlie}]
+                // ```
+                //
+                // Charlie can add the document (old access policy) to the site.
+                isAccountRemovedFromSpace: shouldCheckForRemovedAccounts
+                    ? accountId => {
+                          const account = accountRegistry
+                              .weakGetAccountStoreByIdIfExists(accountId)
+                              ?.getSnapshot();
+
+                          // NOTE(ifitzsimmons, 2026-06-05): We should have all of the space accounts in the
+                          // account registry. If we don't find one, we should bias toward being overly
+                          // permissive on the client and pretending the account is removed, which will omit
+                          // that account from validation.
+                          //
+                          // So if an account is missing in the registry and it's not actually removed:
+                          //
+                          // 1. We'll allow the access policy change to proceed optimistically.
+                          // 2. The server will handle the account properly. If it blocks the change, the
+                          //    access policy change will fail and be reverted.
+                          if (!account) return true;
+
+                          return account.space.state.type === "Removed";
+                      }
+                    : undefined,
+            },
         );
         if (!validationResult.ok) {
             let title: string;
@@ -252,10 +286,6 @@ export function useShareState(
                     break;
                 }
 
-                case "Can\u2019t change site without manage access": {
-                    // TODO(#sites): support sites
-                    throw new UnimplementedError("Sites are not supported yet");
-                }
                 default:
                     throw exhaustive(validationResult.reason);
             }
@@ -344,9 +374,6 @@ export function useShareState(
                     cancelButtonPressErrorTitle="Couldn&#x2019;t make this change"
                     onCancelButtonPress={() => {
                         if (!props) return;
-
-                        // We can't change a site's access policy through a Site's entity.
-                        if (props.accessPolicy.type === "Site") return;
 
                         return props.onAccessPolicyChangeWithoutValidations(
                             null,

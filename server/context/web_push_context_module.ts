@@ -48,7 +48,7 @@ export class WebPushContextModule extends WebPushContextModuleBase {
         notificationContent: WebPushNotificationContent,
         options?: SendWebPushNotificationOptions,
     ) {
-        return this._context.tracer.withSpan(
+        return await this._context.tracer.withSpan(
             "Send web push request to browser push service",
             async (_context, span) => {
                 const subscriptionEndpointOrigin = new URL(subscription.endpoint).origin;
@@ -114,7 +114,7 @@ export class TestWebPushContextModule extends WebPushContextModuleBase {
     }
 
     public override async sendNotificationToBrowser() {
-        return Promise.resolve({
+        return await Promise.resolve({
             statusCode: 200,
             body: "",
             headers: {},

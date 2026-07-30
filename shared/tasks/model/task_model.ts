@@ -35,6 +35,7 @@ import {
     TaskAssigneeStatusRegister,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskLayout, TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
@@ -50,6 +51,7 @@ import {
     TaskTitleModel,
     addFallbackToTaskTitle,
     emptyTaskTitleModel,
+    randomlyGenerateTaskTitleClientId,
 } from "~/shared/tasks/title/task_title.js";
 
 export type TaskModelData = SchemaType<typeof TaskModelDataSchema>;
@@ -84,7 +86,11 @@ const TaskModelDataSchema = Schema.object({
     id: Schema.id<TaskId>(),
     spaceId: Schema.id<SpaceId>(),
 
-    creator: TaskSortableAccountSchema,
+    creator: TaskSortableAccountSchema.merge(
+        Schema.object({
+            from: TaskCreatorFromSchema.nullable().default(null),
+        }),
+    ),
     createdTime: TaskFilterableTime.schema,
     deletedTime: HybridLogicalTimeSchema.nullable(),
     undeletedTime: HybridLogicalTimeSchema.nullable(),
@@ -168,7 +174,10 @@ export class TaskModel {
         return new TaskModel({
             spaceId,
             id: taskId,
-            creator: getActionReferencedSortableAccount(action.creatorId),
+            creator: {
+                ...getActionReferencedSortableAccount(action.creator.accountId),
+                from: action.creator.from,
+            },
             createdTime: new TaskFilterableTime({
                 absoluteTime: actionTime,
                 setterTimeZone: action.creatorTimeZone,
@@ -188,7 +197,9 @@ export class TaskModel {
             removedClosedChildTaskCount: 0,
             collections: TaskCollectionSet.empty,
             positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-            accessPolicy: null,
+            accessPolicy: action.accessPolicy
+                ? new AccessPolicyRegister(action.accessPolicy, actionTime)
+                : null,
             status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
             assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
             assigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
@@ -294,7 +305,7 @@ export class TaskModel {
             taskId: taskId,
             taskAction: {
                 type: "Create",
-                creatorId: creatorId,
+                creator: {accountId: creatorId, from: null},
                 creatorTimeZone: creatorTimeZone,
             },
         });
@@ -344,7 +355,14 @@ export class TaskModel {
             taskId: taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: TaskTitleModel.fromText(titleText).getRaw(),
+                titleUpdate: TaskTitleModel.fromText(
+                    // Since this could be called on the server, use a random `TaskTitleClientId` so we
+                    // don't run into any weird conflicts. If this is called on the client, it's not a
+                    // continuous update anyway so the Yjs adjacent item merging optimization doesn't
+                    // matter that much.
+                    randomlyGenerateTaskTitleClientId(),
+                    titleText,
+                ).getRaw(),
             },
         });
 

@@ -1784,7 +1784,7 @@ class WebSocketServerTestConnectionWrapper<
             async (context, span) => {
                 // Thrown errors should be handled by the test. We do not send acknowledgement
                 // messages in test connections.
-                return this.connection.procedures[name](context, input, span);
+                return await this.connection.procedures[name](context, input, span);
             },
         );
 

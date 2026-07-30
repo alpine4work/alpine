@@ -12,7 +12,7 @@ export async function processSendNotificationDigestJob(
     context: Context<ServerSystemActionContextModules & {email: EmailContextModuleBase}>,
     {accountId, spaceId, sendTime}: SendNotificationDigestJobDescription,
 ) {
-    return sendNotificationDigestForInbox(context, sendTime, {accountId, spaceId});
+    return await sendNotificationDigestForInbox(context, sendTime, {accountId, spaceId});
 }
 
 export async function processEnqueueScheduledNotificationDigestsJob(

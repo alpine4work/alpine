@@ -27,6 +27,8 @@ ts_project(
         "//client/web/icons",
         "//client/web/remix",
         "//client/web/shimmer",
+        "//client/web/sites/breadcrumb",
+        "//client/web/sites/helpers",
         "//client/web/spaces",
         "//client/web/styles",
         "//shared/access",

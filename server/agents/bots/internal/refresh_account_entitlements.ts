@@ -30,7 +30,7 @@ export async function refreshAccountEntitlements(
     accountId: AccountId,
     options?: {fetch?: typeof fetch},
 ) {
-    return tracer.withSpan("Refresh account entitlements", async span => {
+    return await tracer.withSpan("Refresh account entitlements", async span => {
         const fetchPlanUrl = new URL(
             `/api/internal/accounts/${accountId}/plan`,
             env.EDGE_SERVICE_URL,

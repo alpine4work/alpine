@@ -1,5 +1,6 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {
     ServerAccountActionContextModules,
     ServerActionContextModules,
@@ -12,15 +13,15 @@ import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/after_commit_task_action_transaction_event_emitter_for_test.js";
 import {waitForProcessTaskActionTransactionsForTest} from "~/server/tasks/data/task_context_module.js";
 import {refreshTaskIndexForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
+import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {getTaskCollectionForRealtime} from "~/server/tasks/realtime/get_task_collection_for_realtime.js";
 import {getTaskWithoutDependenciesForRealtime} from "~/server/tasks/realtime/get_task_without_dependencies_for_realtime.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
-import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -260,6 +261,20 @@ export class TestTaskRealtimeServer {
             tasks: new TestTaskContextModuleWithRealtimeServer({
                 server: this,
                 dangerouslyEscalateToSystemContext: session.context.escalateToSystemContext,
+            }),
+        });
+    }
+
+    /**
+     * Similar to `action(session)` but for a bot actor. The returned `context.tasks`
+     * module supports methods that must call into `TaskRealtimeService` like
+     * `context.tasks.getTaskWithoutDependencies()`.
+     */
+    public botAction(bot: TestBotAccount, scope?: Parameters<TestBotAccount["action"]>[0]) {
+        return bot.action(scope).clone({
+            tasks: new TestTaskContextModuleWithRealtimeServer({
+                server: this,
+                dangerouslyEscalateToSystemContext: this.context.escalateToSystemContext,
             }),
         });
     }

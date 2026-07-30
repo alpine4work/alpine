@@ -1,6 +1,10 @@
 import {Agent, STATUS_CODES, ServerResponse, createServer, request} from "http";
 import {Socket} from "net";
 import {parseArgs} from "util";
+import {
+    bridgeProxiedSockets,
+    handleProxiedSocketError,
+} from "~/server/helpers/node/bridge_proxied_sockets.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -35,6 +39,11 @@ const ports = new Set(portsArray);
 const keepAliveAgent = new Agent({keepAlive: true});
 const dontKeepAliveAgent = new Agent({keepAlive: false});
 
+function logUnexpectedProxiedSocketError(error: Error) {
+    // eslint-disable-next-line no-console
+    console.error("Proxied request failed:", error);
+}
+
 const server = createServer((req1, res1) => {
     const url = new URL(req1.url!, `http://${req1.headers.host!}`);
 
@@ -63,8 +72,7 @@ const server = createServer((req1, res1) => {
     });
 
     req2.on("error", error => {
-        // eslint-disable-next-line no-console
-        console.error(error);
+        logUnexpectedProxiedSocketError(error);
 
         res1.writeHead(500, {"content-type": "text/plain"});
         res1.end("500 Internal Server Error");
@@ -80,6 +88,19 @@ const server = createServer((req1, res1) => {
 
 server.on("upgrade", (req1, socket1, head1) => {
     assert(socket1 instanceof Socket);
+
+    // A raw socket that emits an `'error'` event with no listener is rethrown as an
+    // unhandled exception, which crashes the entire gateway process and drops every
+    // other connection it is proxying. A client dropping its WebSocket connection
+    // (`ECONNRESET`) is routine for a realtime service, so destroy the socket on error
+    // instead of crashing. We attach this immediately because `socket1` can error
+    // during the window before the upstream connection in `req2` is established.
+    socket1.on("error", error => {
+        handleProxiedSocketError({
+            error,
+            logUnexpectedError: logUnexpectedProxiedSocketError,
+        });
+    });
 
     const url = new URL(req1.url!, `http://${req1.headers.host!}`);
     const match = url.pathname?.match(/^\/(\d+)(\/.*|$)/);
@@ -102,9 +123,19 @@ server.on("upgrade", (req1, socket1, head1) => {
         headers: req1.headers,
     });
 
+    // While the upstream request is still in its handshake phase (no `error`,
+    // `response`, or `upgrade` yet) destroying `socket1` doesn't tear down `req2` on
+    // its own. If the client disconnects during this window we'd leak the upstream
+    // connection, so cancel `req2` ourselves. Each terminal `req2` event below
+    // detaches this listener once the request is no longer pending.
+    const destroyReq2 = () => req2.destroy();
+    socket1.on("close", destroyReq2);
+
     req2.on("error", error => {
-        // eslint-disable-next-line no-console
-        console.error(error);
+        socket1.off("close", destroyReq2);
+        if (socket1.destroyed) return;
+
+        logUnexpectedProxiedSocketError(error);
 
         const res1 = new ServerResponse(req1);
         res1.assignSocket(socket1);
@@ -113,6 +144,13 @@ server.on("upgrade", (req1, socket1, head1) => {
     });
 
     req2.on("response", res2 => {
+        socket1.off("close", destroyReq2);
+
+        if (socket1.destroyed) {
+            res2.destroy();
+            return;
+        }
+
         const res1 = new ServerResponse(req1);
         res1.assignSocket(socket1);
         res1.writeHead(res2.statusCode!, res2.statusMessage, res2.headers);
@@ -120,6 +158,21 @@ server.on("upgrade", (req1, socket1, head1) => {
     });
 
     req2.on("upgrade", (res2, socket2, head2) => {
+        socket1.off("close", destroyReq2);
+
+        if (socket1.destroyed) {
+            socket2.destroy();
+            return;
+        }
+
+        // See the comment on `socket1` above. Guard the upstream socket the same way.
+        socket2.on("error", error => {
+            handleProxiedSocketError({
+                error,
+                logUnexpectedError: logUnexpectedProxiedSocketError,
+            });
+        });
+
         const headers = [];
         for (let i = 0; i < res2.rawHeaders.length; i += 2) {
             headers.push(`${res2.rawHeaders[i]!}: ${res2.rawHeaders[i + 1]!}`);
@@ -141,8 +194,7 @@ server.on("upgrade", (req1, socket1, head1) => {
         // fixing for now.
         // @ts-expect-error
         socket2.write(head1);
-        socket1.pipe(socket2);
-        socket2.pipe(socket1);
+        bridgeProxiedSockets({socket1, socket2});
     });
 
     req1.pipe(req2, {end: true});

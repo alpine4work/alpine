@@ -12,6 +12,7 @@ ts_project(
         "//shared/id",
         "//shared/messaging",
         "//shared/schema",
+        "//shared/sites",
         "//shared/web_socket",
     ],
 )

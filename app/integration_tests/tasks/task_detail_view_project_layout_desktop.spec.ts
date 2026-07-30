@@ -2,7 +2,7 @@ import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -46,7 +46,7 @@ test("can edit the name of a project task", async ({page, context: browserContex
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await openMoreMenu(page);
     await page.getByRole("menuitem", {name: "Edit title"}).click();
@@ -84,7 +84,7 @@ test("can view notes, comments, and subtasks for a project task", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(page.getByText("Project", {exact: true})).toBeVisible();
     await expect(page.getByText("Notes", {exact: true})).toBeVisible();
@@ -109,7 +109,7 @@ test("can turn a regular task into a project task and back", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -149,12 +149,12 @@ test("floating create shows parent before typing and creates a subtask when typi
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext1, session);
-    await page1.goto(`/s/${space.id}/tasks/${parentTask.id}`);
+    await page1.goto(`/task/${parentTask.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/tasks/${parentTask.id}`);
+    await page2.goto(`/task/${parentTask.id}`);
 
     await expect(page2.getByText("Floating child task")).toBeHidden();
 
@@ -184,12 +184,12 @@ test("can create a project from create menu in fullscreen and focused", async ({
     const session = await space.createSession();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/dev/empty`);
+    await page.goto(`/dev/empty/${space.id}`);
 
     await page.getByLabel("Create").click();
     await page.getByRole("menuitem", {name: /^Project\b/}).click();
 
-    await expect(page).toHaveURL(/\/s\/[^/]+\/tasks\/[^?]+\?create=/);
+    await expect(page).toHaveURL(/\/task\/[^?]+\?create=/);
     await expect(page.getByTestId("PeekStackOverlay")).toBeHidden();
     await expect(page.getByRole("button", {name: "Create task"})).toBeVisible();
 
@@ -220,7 +220,7 @@ test("can turn a create-menu task peek into project and get fullscreen project u
     const session = await space.createSession();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/dev/empty`);
+    await page.goto(`/dev/empty/${space.id}`);
 
     await page.getByLabel("Create").click();
     await page
@@ -247,4 +247,96 @@ test("can turn a create-menu task peek into project and get fullscreen project u
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
     ).toBeHidden();
     await expect(page.getByText("Project", {exact: true})).toBeVisible();
+});
+
+test("can sort the children of a project task", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const project = await TestTask.create(session, {
+        title: "Sortable project",
+        layout: "Project",
+    });
+
+    // Create children out of priority order so a descending priority sort visibly
+    // reorders them. Created sequentially so the initial order is deterministic.
+    await TestTask.create(session, {title: "Apple", parent: project, priority: "Low"});
+    await TestTask.create(session, {title: "Banana", parent: project, priority: "Urgent"});
+    await TestTask.create(session, {title: "Cherry", parent: project, priority: "Medium"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/task/${project.id}`);
+
+    const rowTitles = page.getByTestId(/^TaskRowView:/).getByRole("textbox", {name: "Title"});
+
+    // Children initially render in creation order.
+    await expect(rowTitles.nth(0)).toHaveText("Apple");
+    await expect(rowTitles.nth(1)).toHaveText("Banana");
+    await expect(rowTitles.nth(2)).toHaveText("Cherry");
+
+    // Apply a descending priority sort.
+    await page.getByRole("button", {name: "Sort", exact: true}).click();
+    await page.getByRole("button", {name: "Add sort", exact: true}).click();
+    await page.getByRole("menuitem", {name: "Priority"}).click();
+    await page.keyboard.press("Escape");
+
+    // The sort sticks (it isn't immediately reset) and children reorder by descending
+    // priority: Urgent, Medium, Low.
+    await expect(page.getByRole("button", {name: "Sort: 1"})).toBeVisible();
+    await expect(rowTitles.nth(0)).toHaveText("Banana");
+    await expect(rowTitles.nth(1)).toHaveText("Cherry");
+    await expect(rowTitles.nth(2)).toHaveText("Apple");
+
+    // The sort persists across reloads via the URL search param.
+    await expect(page).toHaveURL(/[?&]sort=/);
+    await page.reload();
+    await expect(rowTitles.nth(0)).toHaveText("Banana");
+    await expect(rowTitles.nth(2)).toHaveText("Apple");
+});
+
+test("can filter the children of a project task", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const project = await TestTask.create(session, {
+        title: "Filterable project",
+        layout: "Project",
+    });
+
+    const [apple, banana, cherry] = await runAllPromises([
+        TestTask.create(session, {title: "Apple", parent: project}),
+        TestTask.create(session, {title: "Banana", parent: project}),
+        TestTask.create(session, {title: "Cherry", parent: project}),
+    ]);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/task/${project.id}`);
+
+    await expect(page.getByTestId(`TaskRowView:${apple.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${banana.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${cherry.id}`)).toBeVisible();
+
+    // Add a title filter that only matches one child.
+    await page.getByRole("button", {name: "Add filter"}).click();
+    await page.getByRole("menuitem", {name: "Title"}).click();
+
+    const titleInput = page.getByPlaceholder("anything");
+    await titleInput.click();
+    await titleInput.pressSequentially("Banana");
+    await page.keyboard.press("Enter");
+
+    // The filter sticks (it isn't immediately reset) and only the matching child
+    // remains visible.
+    await expect(page.getByText("Filter:", {exact: true})).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${banana.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${apple.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${cherry.id}`)).toBeHidden();
+
+    // The filter persists across reloads via the URL search param.
+    await expect(page).toHaveURL(/[?&]filter=/);
+    await page.reload();
+    await expect(page.getByTestId(`TaskRowView:${banana.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${apple.id}`)).toBeHidden();
 });

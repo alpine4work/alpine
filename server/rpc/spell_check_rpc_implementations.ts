@@ -27,7 +27,7 @@ export default implementRpcs(definitions, {
     createSpellCheckIgnoredLint: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransaction} = await createSpellCheckIgnoredLint(
+            const {getRynamoEvents} = await createSpellCheckIgnoredLint(
                 context.actor.authorizeSession(),
                 input.entityId,
                 input.key,
@@ -35,7 +35,7 @@ export default implementRpcs(definitions, {
             );
 
             return {
-                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+                events: await getRynamoEvents(context),
             };
         },
     },

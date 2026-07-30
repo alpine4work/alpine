@@ -17,8 +17,8 @@ import {scrollDemo} from "~/admin/marketing/2026_04_scalable_demos/helpers/scrol
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {getInbox} from "~/server/notifications/data/get_inbox.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -83,7 +83,7 @@ automation uses a task comment, a Celebrate reaction on Cliff\u2019s won-deal po
 comment to show each inbox entry clearing only after Cass takes action.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/inbox`,
+        path: `/inbox/${space.id}`,
         viewport: {
             width: inboxActionPersistenceDemoRecordingWidth,
             height: inboxActionPersistenceDemoRecordingHeight,

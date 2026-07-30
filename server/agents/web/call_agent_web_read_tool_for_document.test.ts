@@ -46,8 +46,7 @@ test("reads document", async () => {
 
     api.mockGetDocument(spaceId, documentId, {
         title: "Hello, world!",
-        content: parseApiContentFromMarkdown(
-            markdown`
+        content: parseApiContentFromMarkdown(markdown`
 This is a _really cool_ document!
 
 - Item 1
@@ -55,9 +54,7 @@ This is a _really cool_ document!
 - Item 2
 
 - Item 3
-            `,
-            {spaceId},
-        ) as ApiContentResponse,
+        `) as ApiContentResponse,
     });
 
     expect(

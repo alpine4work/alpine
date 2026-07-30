@@ -3,7 +3,7 @@ import {useCallback, useEffect, useMemo, useRef} from "react";
 import {usePress} from "react-aria";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
-import {useDynamoGeneralRealtimeQuery} from "~/client/web/dynamo/use_dynamo_general_realtime_query.js";
+import {useRynamoQuery} from "~/client/web/dynamo/use_rynamo_query.js";
 import {getInitialChannelFilesViewFileLoadCount} from "~/client/web/forum/get_initial_channel_files_view_load_count.js";
 import {ChannelViewContentFilePreview} from "~/client/web/forum/internal/channel_view_content_file_preview.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
@@ -14,7 +14,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     channelFilesViewFileMaxSize,
     channelFilesViewFileMinSize,
@@ -40,7 +40,7 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {
     ChannelModel,
     ChannelOrMetadataModel,
@@ -50,7 +50,7 @@ import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId} from "~/shared/id/types/id_types.js";
 import {
     backfillChannelAndMetadata,
     getChannelAndMetadata,
@@ -60,7 +60,7 @@ export function ChannelFilesView({
     initialChannelResult,
     isFromChannelView,
 }: {
-    initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
+    initialChannelResult: RynamoQueryResult<ChannelOrMetadataModel>;
     isFromChannelView: boolean;
 }) {
     const context = useAppContext();
@@ -68,7 +68,7 @@ export function ChannelFilesView({
     const clientInfo = useClientInfo();
     const spacingScale = useSpacingScale();
     const remPx = remPxBySpacingScale[spacingScale];
-    const {space, currentAccount} = useSpaceContext();
+    const {currentAccount} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -87,11 +87,11 @@ export function ChannelFilesView({
     const {
         query: channelAndMetadataQuery,
         handleLoadMore: handleLoadMoreIntoChannelAndMetadataQuery,
-    } = useDynamoGeneralRealtimeQuery(initialChannelResult, {
+    } = useRynamoQuery(initialChannelResult, {
         isConnected,
         subscribeToPongs,
         subscribeToEvents: useCallback(
-            subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+            subscriber => subscribeToEvents(event => subscriber(event.events)),
             [subscribeToEvents],
         ),
         backfillQuery: useCallback(
@@ -244,7 +244,6 @@ export function ChannelFilesView({
                 title={
                     <ChannelFilesViewNavigationBarTitle
                         title={channel.name}
-                        spaceId={space.id}
                         channelId={channelId}
                         isFromChannelView={isFromChannelView}
                     />
@@ -411,12 +410,10 @@ export function ChannelFilesView({
 
 function ChannelFilesViewNavigationBarTitle({
     title,
-    spaceId,
     channelId,
     isFromChannelView,
 }: {
     title: string;
-    spaceId: SpaceId;
     channelId: ChannelId;
     isFromChannelView: boolean;
 }) {
@@ -427,7 +424,7 @@ function ChannelFilesViewNavigationBarTitle({
             if (isFromChannelView) {
                 navigate(-1);
             } else {
-                navigate(`/s/${spaceId}/channels/${channelId}`, {
+                navigate(`/channel/${channelId}`, {
                     stopPropagation: true,
                 });
             }
@@ -441,7 +438,7 @@ function ChannelFilesViewNavigationBarTitle({
                 cursor: "pointer",
                 opacity: isPressed ? "60" : undefined,
             })}
-            href={`/s/${spaceId}/channels/${channelId}`}
+            href={`/channel/${channelId}`}
             onClick={event => {
                 event.preventDefault();
                 pressProps.onClick?.(event);

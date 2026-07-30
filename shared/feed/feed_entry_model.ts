@@ -1,6 +1,6 @@
 import {FileChatEntityModelSchema} from "~/shared/chat/file_chat_entity_model_schema.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {FeedEntryEventSchema, FeedTaskEntryEventSchema} from "~/shared/feed/feed_entry_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
@@ -48,7 +48,7 @@ export class FeedWelcomeEntryModel extends Model(
 
 export class FeedPostEntryModel extends Model(
     Schema.object({
-        post: createDynamoGeneralRealtimeItemSchema(PostModel.schema()),
+        post: createRynamoItemSchema(PostModel.schema()),
     }),
 ) {
     public readonly type = "Post";

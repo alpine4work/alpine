@@ -5,18 +5,14 @@ import {
     printAgentLinkPath,
     printAgentPlainTextLabel,
 } from "~/server/agents/bots/internal/link_references/print_agent_link_path.js";
-import {DurableObjectStorageInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/content/into_api_content.js";
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {
-    ApiContentMentionInlineElementResponse,
-    ApiContentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentMentionInlineElementResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 
 // NOCOMMIT: Delete and replace with `print_api_content_to_markdown.ts`
 
@@ -27,10 +23,9 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  */
 export async function printApiContentToAgentMarkdown(
     storage: DurableObjectStorageInterface,
-    content: ApiContentResponse,
-    {spaceId}: {spaceId: SpaceId},
+    content: ApiContentResponseWithoutKeys,
 ) {
-    const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {spaceId});
+    const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
     return printAgentContentMarkdownTree(markdownTree);
 }
 
@@ -41,13 +36,11 @@ export async function printApiContentToAgentMarkdown(
  */
 export async function printApiContentToAgentMarkdownTree(
     storage: DurableObjectStorageInterface,
-    content: ApiContentResponse,
-    {spaceId}: {spaceId: SpaceId},
+    content: ApiContentResponseWithoutKeys,
 ) {
     const promiseWaiter = new PromiseWaiter();
 
     const markdownTree = printApiContentToMarkdownTree(content, {
-        spaceId,
         // Our LLMs don't need to know the width of columns in a table. The potentially
         // long floats will consume a lot of tokens and may confuse the LLM.
         withoutTableWidth: true,
@@ -86,8 +79,8 @@ export async function printApiContentToAgentMarkdownTree(
                 promiseWaiter.waitUntil(async () => {
                     const link = await createAgentLinkForApiMentionPath(
                         storage,
-                        // Since this function only accepts `ApiContentResponse`, we know the mention
-                        // element should also be the response specialization.
+                        // Since this function only accepts response-shaped API content, we know the
+                        // mention element should also be the response specialization.
                         mentionElement as ApiContentMentionInlineElementResponse,
                     );
 
@@ -198,6 +191,15 @@ function createAgentLinkForApiMentionPath(
                 post: {
                     id: mentionElement.target.id,
                     contentPreview: mentionElement.title,
+                },
+            });
+        }
+        case "Site": {
+            return createAgentLink(storage, {
+                type: "Site",
+                site: {
+                    id: mentionElement.target.id,
+                    name: mentionElement.title,
                 },
             });
         }

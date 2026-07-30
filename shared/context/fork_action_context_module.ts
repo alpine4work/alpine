@@ -198,7 +198,7 @@ export class ForkActionContextModuleDetachedForker<
             action = optionalAction;
         }
 
-        return this._withForkFromCustomSpan(span, modules, action);
+        return await this._withForkFromCustomSpan(span, modules, action);
     }
 
     /**

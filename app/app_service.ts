@@ -30,6 +30,7 @@ import {
     ApnsContextModuleBase,
     TestApnsContextModule,
 } from "~/server/context/apns_context_module_base.js";
+import {DiscoveryContextModule} from "~/server/context/discovery_context_module.js";
 import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {
@@ -478,8 +479,11 @@ async function createAppService({
         // process.waitUntil. The getter captures `processContext` by reference so it works
         // even though processContext isn't assigned yet at this point.
         importerContextModule = new ImporterDevelopmentContextModule({
+            localUploadPath: options.importerLocalUploadPathForTest,
             getProcessContext: () => processContext,
-            escalateToImporterServiceContext: createDevelopmentEscalateToImporterServiceContext(),
+            escalateToImporterServiceContext: createDevelopmentEscalateToImporterServiceContext({
+                localUploadPath: options.importerLocalUploadPathForTest,
+            }),
         });
     }
 
@@ -622,8 +626,9 @@ async function createAppService({
                             cache: CacheContextModule.new(),
                             batch: BatchContextModule.new(),
                             actor: createActorContextModule(request, tokenAgent, sessionCookie),
+                            discovery: new DiscoveryContextModule(),
                         },
-                        context => {
+                        async context => {
                             // Only include `route`, `platform`, and other information about the client state
                             // if this is a Remix data request or document request. The definition of data
                             // requests and document requests can be found here:
@@ -685,7 +690,31 @@ async function createAppService({
                                 );
                             }
 
-                            return handleRequest(
+                            // For space layout routes then wait until we discover the `SpaceId` and when we do
+                            // call `addPropagatedData()` with the `SpaceId` as context on this request span
+                            // and immediate child spans (so "Remix loader" and "Remix action" child spans).
+                            if (matches && matches[1]?.route.id === "routes/_space") {
+                                const localChildSpans = span.trackLocalChildSpans();
+
+                                const handle = (spaceId: SpaceId) => {
+                                    context.discovery.removeDiscoverSpaceIdListener(handle);
+
+                                    if (span.isFinished()) return;
+
+                                    const propagatedData = {context: {spaceId}};
+                                    span.addPropagatedData(propagatedData);
+
+                                    for (const localChildSpan of localChildSpans) {
+                                        if (!localChildSpan.isFinished()) {
+                                            localChildSpan.addPropagatedData(propagatedData);
+                                        }
+                                    }
+                                };
+
+                                context.discovery.addDiscoverSpaceIdListener(handle);
+                            }
+
+                            return await handleRequest(
                                 request,
                                 context,
                                 // We already parsed route matches. Pass them to Remix...
@@ -726,7 +755,7 @@ function createActorContextModule(
     }>(async context => {
         const authorizationHeader = request.headers.get("authorization");
 
-        return authenticateActorContextModule(context, {
+        return await authenticateActorContextModule(context, {
             tokenAgent,
             sessionCookie,
             authorizationHeader,

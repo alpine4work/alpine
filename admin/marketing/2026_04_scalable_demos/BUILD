@@ -3,6 +3,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 load(":scalable_demo_recorders.bzl", "scalable_demo_recorders")
 load(":scalable_demo_repositories.bzl", "scalable_demo_repositories_public")
 
+filegroup(
+    name = "fixtures",
+    srcs = glob(["fixtures/**"], allow_empty = True),
+)
+
 ts_project(
     name = "2026_04_scalable_demos",
     srcs = glob(
@@ -31,7 +36,7 @@ ts_project(
         "//server/forum/test_helpers",
         "//server/helpers/node",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//server/tokens",
         "//shared/design",
         "//shared/error",

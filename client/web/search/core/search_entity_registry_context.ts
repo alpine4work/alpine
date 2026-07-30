@@ -7,12 +7,14 @@ import {
 } from "~/client/web/helpers/global_context.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";
+import {
+    SearchEntityModel,
+    SearchEntityModelData,
+    SearchEntityModelDataWithAccount,
+} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const SearchEntityRegistryContext = createGlobalContext(
@@ -74,13 +76,13 @@ export function useSearchEntityModel(
 ): SearchEntityModelData | null;
 export function useSearchEntityModel(
     entity: SearchEntityModel | SearchEntityModelData | AccountModel,
-): Replace<SearchEntityModelData, {readonly id: SearchEntityId}>;
+): SearchEntityModelDataWithAccount;
 export function useSearchEntityModel(
     entity: SearchEntityModel | SearchEntityModelData | AccountModel | null,
-): Replace<SearchEntityModelData, {readonly id: SearchEntityId}> | null;
+): SearchEntityModelDataWithAccount | null;
 export function useSearchEntityModel(
     entity: SearchEntityModel | SearchEntityModelData | AccountModel | null,
-): Replace<SearchEntityModelData, {readonly id: SearchEntityId}> | null {
+): SearchEntityModelDataWithAccount | null {
     const accountRegistry = useAccountRegistry();
     const entityRegistry = useSearchEntityRegistry();
 
@@ -95,11 +97,10 @@ export function useSearchEntityModel(
             // and map it into the expected `SearchEntityModelData` format.
             else {
                 return accountRegistry.getAccountStore(entity).map(
-                    (data): Replace<SearchEntityModelData, {readonly id: SearchEntityId}> => ({
-                        id: `Account:${data.id}`,
+                    (data): SearchEntityModelDataWithAccount => ({
+                        type: "Account",
+                        account: entity,
                         title: data.name,
-                        titleVersion: {type: "Integer", version: data.version},
-                        media: {type: "Account", account: entity},
                     }),
                 );
             }

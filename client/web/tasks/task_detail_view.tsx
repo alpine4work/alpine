@@ -79,7 +79,9 @@ import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {postContentViewCommentMargin} from "~/client/web/styles/forum_shared_styles.js";
 import {messageInputMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
@@ -156,7 +158,7 @@ import {useTaskDetailNotesContentEditorWebSocketClient} from "~/client/web/tasks
 import {TaskUndoStackEntry} from "~/client/web/tasks/internal/use_task_undo_stack_state.js";
 import {normalizeTaskDetailViewQuery} from "~/client/web/tasks/normalize_task_detail_view_query.js";
 import {TaskChildTasksProgressWheel} from "~/client/web/tasks/task_child_tasks_progress_wheel.js";
-import {TaskNotesContentEditorState} from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
+import {TaskNotesContentEditorState} from "~/client/web/tasks/task_detail_notes_content_editor_state.js";
 import {taskDetailViewLoadMoreChildTasksLimit} from "~/client/web/tasks/task_detail_view_load_more_child_tasks_limit.js";
 import {useTaskQueryState} from "~/client/web/tasks/use_task_query_state.js";
 import {
@@ -250,6 +252,23 @@ import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchr
 const taskWideProjectLayoutWidth = "1/4";
 const taskWideProjectLayoutMaxWidth = "96";
 
+function parseTaskCreateSearchParam(createSearchParam: string): {
+    filtersSearchParam: string;
+    parentTaskId: string;
+} {
+    const spaceIdSeparatorIndex = createSearchParam.indexOf(" ");
+    const rest =
+        spaceIdSeparatorIndex === -1 ? "" : createSearchParam.slice(spaceIdSeparatorIndex + 1);
+    const parentTaskIdSeparatorIndex = rest.indexOf(" ");
+
+    return {
+        filtersSearchParam:
+            parentTaskIdSeparatorIndex === -1 ? rest : rest.slice(0, parentTaskIdSeparatorIndex),
+        parentTaskId:
+            parentTaskIdSeparatorIndex === -1 ? "" : rest.slice(parentTaskIdSeparatorIndex + 1),
+    };
+}
+
 export function TaskDetailView({
     taskId: possiblyGhostTaskId,
     store,
@@ -328,6 +347,7 @@ export function TaskDetailView({
     const peekStackContext = usePeekStackContextIfExists();
     const currentDate = useCurrentDate();
     const isInitialAppRender = useIsInitialAppRender();
+    const siteContext = useSiteContextIfExists();
 
     const spaceId = space.id;
 
@@ -682,7 +702,7 @@ export function TaskDetailView({
     // param). We've decided this is acceptable for now since it's rare. If users
     // observe this state frequently we'll change it.
     useEffect(() => {
-        if (!isWideProjectLayout) return;
+        if (isWideProjectLayout) return;
 
         if (filters.length === 0 && sorts.length === 0) return;
 
@@ -1827,10 +1847,7 @@ export function TaskDetailView({
                         );
                     }
 
-                    const url = new URL(
-                        `/s/${spaceId}/tasks/${possiblyGhostTaskId}`,
-                        window.location.href,
-                    );
+                    const url = new URL(`/task/${possiblyGhostTaskId}`, window.location.href);
                     await writeTextToClipboard(url.toString());
                 },
             },
@@ -1924,7 +1941,7 @@ export function TaskDetailView({
                         searchParams.set("schema", encodedSchema);
 
                         await navigate(
-                            `/s/${spaceId}/tasks/${possiblyGhostTaskId}/duplicate?${searchParams.toString()}`,
+                            `/task/${possiblyGhostTaskId}/duplicate?${searchParams.toString()}`,
                         );
                         return;
                     }
@@ -1945,9 +1962,9 @@ export function TaskDetailView({
                     // Navigate to the new task. Always open in a peek on desktop. To make it clear
                     // when you're duplicating from a peek that the new task is a duplicate.
                     if (peekStackContext && platform !== "mobile") {
-                        await peekStackContext.push(`/s/${spaceId}/tasks/${newTaskId}`);
+                        await peekStackContext.push(`/task/${newTaskId}`);
                     } else {
-                        await navigate(`/s/${spaceId}/tasks/${newTaskId}`);
+                        await navigate(`/task/${newTaskId}`);
                     }
                 },
             });
@@ -1982,46 +1999,43 @@ export function TaskDetailView({
                             onPress: async () => {
                                 let isNavigatingToGhostTask = false;
 
-                                if (platform === "desktop" && routeLayout !== "wide") {
-                                    let createSearchParam = searchParams.get("create");
+                                let createSearchParam = searchParams.get("create");
 
-                                    // If this is a ghost task then we want to navigate to a ghost task that has
-                                    // `layout: "Project"` in its initial fields.
-                                    if (createSearchParam !== null) {
-                                        const [
-                                            oldCreateSearchParamFilters = "",
-                                            createSearchParamParentTaskId = "",
-                                        ] = createSearchParam.split(" ", 2);
+                                // If this is a ghost task then we want to navigate to a ghost task that has
+                                // `layout: "Project"` in its initial fields.
+                                if (createSearchParam !== null) {
+                                    const {
+                                        filtersSearchParam: oldCreateSearchParamFilters,
+                                        parentTaskId: createSearchParamParentTaskId,
+                                    } = parseTaskCreateSearchParam(createSearchParam);
 
-                                        const filters: Array<TaskQueryFilter> = [
-                                            ...(oldCreateSearchParamFilters.length > 0
-                                                ? deserializeTaskQueryFiltersSearchParam(
-                                                      oldCreateSearchParamFilters,
-                                                  )
-                                                : []),
-                                            {
-                                                type: "Layout",
-                                                operation: {
-                                                    type: "OneOf",
-                                                    layouts: ["Project"],
-                                                },
+                                    const filters: Array<TaskQueryFilter> = [
+                                        ...(oldCreateSearchParamFilters.length > 0
+                                            ? deserializeTaskQueryFiltersSearchParam(
+                                                  oldCreateSearchParamFilters,
+                                              )
+                                            : []),
+                                        {
+                                            type: "Layout",
+                                            operation: {
+                                                type: "OneOf",
+                                                layouts: ["Project"],
                                             },
-                                        ];
+                                        },
+                                    ];
 
-                                        const newCreateSearchParamFilters =
-                                            serializeTaskQueryFiltersSearchParam(filters);
+                                    const newCreateSearchParamFilters =
+                                        serializeTaskQueryFiltersSearchParam(filters);
 
-                                        createSearchParam =
-                                            createSearchParamParentTaskId.length > 0
-                                                ? // "+" when URL decoded becomes a space (" ")
-                                                  `${newCreateSearchParamFilters}+${createSearchParamParentTaskId}`
-                                                : newCreateSearchParamFilters;
+                                    createSearchParam =
+                                        createSearchParamParentTaskId.length > 0
+                                            ? // "+" when URL decoded becomes a space (" ")
+                                              `${newCreateSearchParamFilters}+${createSearchParamParentTaskId}`
+                                            : newCreateSearchParamFilters;
 
-                                        isNavigatingToGhostTask = true;
-                                    }
-
+                                    isNavigatingToGhostTask = true;
                                     await rootNavigate(
-                                        `/s/${space.id}/tasks/${possiblyGhostTaskId}${createSearchParam ? `?create=${createSearchParam}&focus` : ""}`,
+                                        `/task/${possiblyGhostTaskId}?create=${space.id}+${createSearchParam}&focus`,
                                     );
                                 }
 
@@ -2069,7 +2083,6 @@ export function TaskDetailView({
         favoriteMenuAction,
         hasEditAccessLevel,
         taskSubscription,
-        spaceId,
         possiblyGhostTaskId,
         commitActionTransactionAndCreateIfNeeded,
         undoManager,
@@ -2095,7 +2108,6 @@ export function TaskDetailView({
         platform,
         navigate,
         layout,
-        routeLayout,
         searchParams,
         rootNavigate,
         space.id,
@@ -2124,7 +2136,16 @@ export function TaskDetailView({
                       taskSubscription,
                   }),
               },
-              onAccessPolicyChange: (notification, accessPolicy) => {
+              onAccessPolicyChange: async (notification, accessPolicy) => {
+                  if (accessPolicy.type === "Site") {
+                      await applySiteAccessPolicyChange({
+                          context,
+                          accessPolicy,
+                          handleEventForSite: assertExists(siteContext).handleEventForSite,
+                      });
+                      return;
+                  }
+
                   commitActionTransactionAndCreateIfNeeded(
                       () => {
                           const action: TaskActionModel = {
@@ -2160,10 +2181,7 @@ export function TaskDetailView({
                       );
                   }
 
-                  const url = new URL(
-                      `/s/${spaceId}/tasks/${possiblyGhostTaskId}`,
-                      window.location.href,
-                  );
+                  const url = new URL(`/task/${possiblyGhostTaskId}`, window.location.href);
                   await writeTextToClipboard(url.toString());
               },
               activationHint: shareActivationHint,
@@ -2210,12 +2228,12 @@ export function TaskDetailView({
                 // path
                 if (collections[0]?.collectionId) {
                     const firstCollectionId = collections[0].collectionId;
-                    return `/s/${spaceId}/tasks/collections/${firstCollectionId}`;
+                    return `/task-collection/${firstCollectionId}`;
                 }
             }
 
             // Otherwise, use the "my tasks" view as the default back path
-            return `/s/${spaceId}/tasks`;
+            return `/my-tasks/${spaceId}`;
         },
         shareButton,
     });
@@ -2418,7 +2436,7 @@ export function TaskDetailView({
                     },
                     getMessageUrl: commentIndex => {
                         return new URL(
-                            `/s/${spaceId}/tasks/${possiblyGhostTaskId}?comment=${commentIndex}`,
+                            `/task/${possiblyGhostTaskId}?comment=${commentIndex}`,
                             window.location.href,
                         );
                     },
@@ -2594,7 +2612,6 @@ export function TaskDetailView({
             handleDeleteCommentReaction,
             handleUpdateCommentsOptimistically,
             procedures,
-            spaceId,
             setComments,
         ],
     );
@@ -2677,7 +2694,7 @@ export function TaskDetailView({
                     store={store}
                     taskSubscription={taskSubscription}
                     initialFields={initialFields}
-                    isReadOnly={!hasEditAccessLevel}
+                    accessLevel={accessLevel}
                     onTitleChange={onTitleChange}
                     statusButtonRef={statusButtonRef}
                     commitActionTransaction={commitActionTransaction}
@@ -2802,9 +2819,9 @@ export function TaskDetailView({
                         // Navigate to the new task. Always open in a peek on desktop. To make it clear
                         // when you're duplicating from a peek that the new task is a duplicate.
                         if (peekStackContext && platform !== "mobile") {
-                            await peekStackContext.push(`/s/${spaceId}/tasks/${newTaskId}`);
+                            await peekStackContext.push(`/task/${newTaskId}`);
                         } else {
-                            await navigate(`/s/${spaceId}/tasks/${newTaskId}`);
+                            await navigate(`/task/${newTaskId}`);
                         }
                     }}
                     onClose={() => setShowDuplicateInstructionalModal(false)}
@@ -2929,7 +2946,8 @@ function TaskDetailViewMain(
     const accountRegistry = useAccountRegistry();
     const {currentAccount} = useSpaceContext();
 
-    const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task ?? null;
+    const taskEntry = useStore(taskSubscription?.taskEntryStore ?? null);
+    const task = taskEntry?.task ?? null;
 
     const assigneeAccountStore = !taskSubscription
         ? initialFields.assignee !== null
@@ -3092,6 +3110,7 @@ function TaskDetailViewMain(
                                     ref={titleInputRef}
                                     isReadOnly={!hasEditAccessLevel}
                                     title={title}
+                                    taskEntryRevertCount={taskEntry?.revertCount ?? 0}
                                     onTitleChange={onTitleChange}
                                     placeholder={taskFallbackTitle}
                                 />

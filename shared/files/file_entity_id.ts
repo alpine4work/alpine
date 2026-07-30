@@ -1,7 +1,6 @@
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
@@ -13,7 +12,6 @@ import {
     FileId,
     PostId,
     SiteId,
-    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -77,6 +75,8 @@ export function parseFileEntityId(id: FileEntityId): FileEntityIdObject {
             return {type: "Chat", chatId: idPayloadParts[0] as ChatId};
         case "Post":
             return {type: "Post", postId: idPayloadParts[0] as PostId};
+        case "Site":
+            return {type: "Site", siteId: idPayloadParts[0] as SiteId};
         default:
             throw new InternalError(quote`Unrecognized \`FileEntityId\` type ${idType ?? ""}`);
     }
@@ -131,31 +131,4 @@ export function isFileEntityId(id: string): id is FileEntityId {
     }
 
     return idTest(idRest);
-}
-
-/**
- * Get the path corresponding to the provided `FileEntityId`.
- */
-export function printFileEntityIdIntoPath(spaceId: SpaceId, id: FileEntityId): string {
-    const idObject = parseFileEntityId(id);
-
-    switch (idObject.type) {
-        case "Document":
-            return `/s/${spaceId}/documents/${idObject.documentId}`;
-        case "Task":
-            return `/s/${spaceId}/tasks/${idObject.taskId}`;
-        case "TaskCollection":
-            return `/s/${spaceId}/tasks/collections/${idObject.collectionId}`;
-        case "Channel":
-            return `/s/${spaceId}/channels/${idObject.channelId}`;
-        case "Chat":
-            return `/s/${spaceId}/chat/${idObject.chatId}`;
-        case "Post":
-            return `/s/${spaceId}/posts/${idObject.postId}`;
-        case "Site":
-            // TODO(#sites): Implement site file entity id path.
-            throw new UnimplementedError("Site file entities aren\u2019t implemented");
-        default:
-            throw exhaustive(idObject);
-    }
 }

@@ -107,6 +107,12 @@ export class TracerSpan extends TracerBase {
      */
     private _willNotSendIfNotReferenced = false;
 
+    /**
+     * Allow the parent span to keep track of the child spans it starts within the
+     * local process. We can't track child spans across network boundaries.
+     */
+    private _localChildSpanTrackers: Array<Array<TracerSpan>> | null = null;
+
     private constructor(
         tracer: TracerRoot,
         clock: MonotonicClock,
@@ -240,7 +246,7 @@ export class TracerSpan extends TracerBase {
     public startSpan(name: string) {
         this._isReferenced = true;
 
-        return TracerSpan._start(
+        const childSpan = TracerSpan._start(
             this._tracer,
             // Inherit the parent span's clock (not the tracer clock) for consistent times.
             this.clock,
@@ -252,6 +258,14 @@ export class TracerSpan extends TracerBase {
                 propagatedEventFlatData: this._propagatedEventFlatData,
             },
         );
+
+        // If we're keeping track of child spans with `trackLocalChildSpans()` then add
+        // this new child span to the list.
+        if (this._localChildSpanTrackers !== null)
+            for (const localChildSpans of this._localChildSpanTrackers)
+                localChildSpans.push(childSpan.span);
+
+        return childSpan;
     }
 
     /**
@@ -452,6 +466,17 @@ export class TracerSpan extends TracerBase {
     public setWillNotSendIfNotReferenced(willNotSendIfNotReferenced: boolean) {
         assert(!this._isFinished);
         this._willNotSendIfNotReferenced = willNotSendIfNotReferenced;
+    }
+
+    /**
+     * Returns an array with all child spans have started locally within this process
+     * after you call this function. Won't know spans created before this call.
+     */
+    public trackLocalChildSpans(): Array<TracerSpan> {
+        if (this._localChildSpanTrackers === null) this._localChildSpanTrackers = [];
+        const localChildSpans: Array<TracerSpan> = [];
+        this._localChildSpanTrackers.push(localChildSpans);
+        return localChildSpans;
     }
 
     /**

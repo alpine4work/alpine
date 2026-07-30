@@ -2,7 +2,7 @@ import {useMemo, useState} from "react";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {TaskClientReadonlyStore} from "~/client/web/tasks/core/task_client_store.js";
 import {TaskCollectionComboBoxItem} from "~/client/web/tasks/internal/task_collection_combo_box_item.js";
 import {useSearchTaskCollectionsByAffinity} from "~/client/web/tasks/internal/use_search_task_collections_by_affinity.js";

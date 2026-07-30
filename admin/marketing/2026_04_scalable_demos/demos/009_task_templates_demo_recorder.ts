@@ -4,7 +4,7 @@ import {
 } from "~/admin/marketing/2026_04_scalable_demos/demos/009_task_templates_demo_shared.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
@@ -82,7 +82,7 @@ about bot templates or anything like that.
 6. Scroll the duplicated task a bit.
         `,
         session,
-        path: `/s/${space.id}/tasks/${task.id}`,
+        path: `/task/${task.id}`,
         viewport: {
             width: taskTemplatesDemoRecordingWidth,
             height: taskTemplatesDemoRecordingHeight,

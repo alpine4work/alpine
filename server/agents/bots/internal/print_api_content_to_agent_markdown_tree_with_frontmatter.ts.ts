@@ -1,6 +1,5 @@
 import {Root} from "mdast";
 import {stringify as stringifyYaml} from "yaml";
-import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {AgentLink} from "~/server/agents/bots/internal/link_references/agent_link.js";
 import {
     printAgentLinkPath,
@@ -8,27 +7,24 @@ import {
 } from "~/server/agents/bots/internal/link_references/print_agent_link_path.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/content/into_api_content.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export async function printApiContentToAgentMarkdownTreeWithFrontmatter({
     transaction,
-    request,
     frontmatter,
     content,
 }: {
     transaction: DurableObjectTransactionInterface;
-    request: Pick<AgentWebhookRequest, "spaceId">;
     frontmatter: Record<string, AgentLink | string | number | boolean | undefined>;
-    content?: ApiContentResponse;
+    content?: ApiContentResponseWithoutKeys;
 }): Promise<Root> {
     const markdownTree = await printApiContentToAgentMarkdownTree(
         transaction,
         content ?? {elements: []},
-        {spaceId: request.spaceId},
     );
 
     markdownTree.children.unshift({

@@ -28,7 +28,10 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSiteNavigationBarTitleBreadcrumb} from "~/client/web/sites/breadcrumb/use_site_navigation_bar_title_breadcrumb.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
@@ -36,6 +39,8 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/web/tasks/core/task_client_store.js";
+import {createTaskQueryDefaultsMenuActions} from "~/client/web/tasks/internal/create_task_query_defaults_menu_actions.js";
+import {DotsThreeVerticalWithAsterisk} from "~/client/web/tasks/internal/dots_three_vertical_with_asterisk.js";
 import {getNewTaskPositionsForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_positions_for_query_sorted_by_position.js";
 import {isTaskClientStoreCollectionEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_collection_entry_deleted.js";
 import {
@@ -92,6 +97,7 @@ import {
 } from "~/shared/tasks/task_error_messages.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
+import {emptyTaskQueryDefaults} from "~/shared/tasks/task_query_defaults.js";
 import {
     TaskQueryFilter,
     serializeTaskQueryFiltersSearchParam,
@@ -149,6 +155,7 @@ export function TaskCollectionView({
     const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
+    const siteContext = useSiteContextIfExists();
 
     const accessPolicy = useStore(
         useMemo((): Store<ResolvedAccessPolicyWithGenerations> => {
@@ -215,9 +222,21 @@ export function TaskCollectionView({
         [accessPolicy, currentAccount?.id],
     );
 
-    const [{filters, filterReferences}, actuallySetFiltersState] = useState({
+    const defaults = useStore(
+        useMemo(
+            () =>
+                collectionSubscription?.collectionEntryStore.map(
+                    collectionEntry =>
+                        collectionEntry.collection?.getDefaults() ?? emptyTaskQueryDefaults,
+                ) ?? new ConstStore(emptyTaskQueryDefaults),
+            [collectionSubscription?.collectionEntryStore],
+        ),
+    );
+
+    const [{filters, filterReferences, sorts}, actuallySetFiltersAndSortsState] = useState({
         filters: initialFilters,
         filterReferences: initialFilterReferences,
+        sorts: initialSorts,
     });
 
     const lastFiltersRef = useRef(filters);
@@ -228,37 +247,76 @@ export function TaskCollectionView({
         }
     }, [filters, onFiltersChange]);
 
-    const [sorts, actuallySetSorts] = useState(initialSorts);
+    const {undoEvent, redoEvent, updateFilters, setSorts, saveDefaults, resetToDefaults} =
+        useEvents({
+            undoEvent: () => undo(),
+            redoEvent: () => redo(),
+            updateFilters: (
+                filters: ReadonlyArray<TaskQueryFilter>,
+                {
+                    mergeFilterReferences,
+                }: {
+                    mergeFilterReferences?: TaskQueryFilterReferences;
+                } = {},
+            ) => {
+                actuallySetFiltersAndSortsState(({filterReferences, sorts}) => {
+                    const newFilterReferences = mergeFilterReferences
+                        ? mergeTaskQueryFilterReferences(filterReferences, mergeFilterReferences)
+                        : filterReferences;
 
-    const {undoEvent, redoEvent, updateFilters, setSorts} = useEvents({
-        undoEvent: () => undo(),
-        redoEvent: () => redo(),
-        updateFilters: (
-            filters: ReadonlyArray<TaskQueryFilter>,
-            {
-                mergeFilterReferences,
-            }: {
-                mergeFilterReferences?: TaskQueryFilterReferences;
-            } = {},
-        ) => {
-            actuallySetFiltersState(({filterReferences}) => {
-                const newFilterReferences = mergeFilterReferences
-                    ? mergeTaskQueryFilterReferences(filterReferences, mergeFilterReferences)
-                    : filterReferences;
+                    return {
+                        filters,
+                        filterReferences: newFilterReferences,
+                        sorts,
+                    };
+                });
 
-                return {
+                onFiltersChange(filters);
+            },
+            setSorts: (sorts: ReadonlyArray<TaskQuerySort>) => {
+                actuallySetFiltersAndSortsState(({filters, filterReferences}) => ({
                     filters,
-                    filterReferences: newFilterReferences,
-                };
-            });
+                    filterReferences,
+                    sorts,
+                }));
+                onSortsChange(sorts);
+            },
+            saveDefaults: () => {
+                store.commitTaskActionTransaction(
+                    context,
+                    [
+                        {
+                            type: "UpdateCollection",
+                            time: store.clock.now(),
+                            collectionId,
+                            collectionAction: {
+                                type: "UpdateDefaults",
+                                defaults: {filters, sorts},
+                            },
+                        },
+                    ],
+                    // Collection changes can't be undone.
+                    {undoManager: null, affinityManager},
+                );
+            },
+            resetToDefaults: () => {
+                const defaults =
+                    collectionSubscription?.collectionEntryStore
+                        .getSnapshot()
+                        .collection?.getDefaults() ?? emptyTaskQueryDefaults;
 
-            onFiltersChange(filters);
-        },
-        setSorts: (sorts: ReadonlyArray<TaskQuerySort>) => {
-            actuallySetSorts(sorts);
-            onSortsChange(sorts);
-        },
-    });
+                actuallySetFiltersAndSortsState(({filterReferences}) => ({
+                    filters: defaults.filters,
+                    // The references for the default filters were loaded by the route loader and are
+                    // already merged into `filterReferences`.
+                    filterReferences,
+                    sorts: defaults.sorts,
+                }));
+
+                onFiltersChange(filters);
+                onSortsChange(sorts);
+            },
+        });
 
     const allFilters = useMemo(
         (): ReadonlyArray<TaskQueryFilter> => [
@@ -330,10 +388,19 @@ export function TaskCollectionView({
 
     const desktopCustomizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
     const mobileCustomizationSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
+
+    // Also show the customization section when our empty filters/sorts differ from the
+    // collection's saved defaults so the "Save as default" affordance is visible.
+    const shouldShowCustomization =
+        filters.length > 0 ||
+        sorts.length > 0 ||
+        defaults.filters.length > 0 ||
+        defaults.sorts.length > 0;
+
     const [customizationState, setCustomizationState] = useState<{
         initiallyFocus: "AddFilter" | "AddSort" | null;
-    } | null>(filters.length > 0 || sorts.length > 0 ? {initiallyFocus: null} : null);
-    if (!customizationState && (filters.length > 0 || sorts.length > 0)) {
+    } | null>(shouldShowCustomization ? {initiallyFocus: null} : null);
+    if (!customizationState && shouldShowCustomization) {
         setCustomizationState({initiallyFocus: null});
     }
 
@@ -349,28 +416,48 @@ export function TaskCollectionView({
     } | null>(null);
 
     const copyLink = useCallback(async () => {
-        const url = new URL(
-            `/s/${space.id}/tasks/collections/${collectionId}`,
-            window.location.href,
-        );
+        const url = new URL(`/task-collection/${collectionId}`, window.location.href);
 
-        if (filters.length > 0) {
+        // When the collection has default filters/sorts we include explicitly empty
+        // filters/sorts in the link. Otherwise opening the link would apply the default
+        // filters/sorts instead of what the user currently sees.
+        if (filters.length > 0 || defaults.filters.length > 0) {
             url.searchParams.set("filter", serializeTaskQueryFiltersSearchParam(filters));
         }
 
-        if (sorts.length > 0) {
+        if (sorts.length > 0 || defaults.sorts.length > 0) {
             url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
         }
 
         await writeTextToClipboard(url.toString());
-    }, [collectionId, filters, sorts, space.id]);
+    }, [defaults.filters.length, defaults.sorts.length, collectionId, filters, sorts]);
 
     const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
         `TaskCollection:${collectionId}`,
         initialIsFavorite,
     );
 
+    const {
+        hasAllDefaults,
+        menuActions: defaultsMenuActions,
+        menuExtraBottomMessage: defaultsMenuExtraBottomMessage,
+    } = useMemo(
+        () =>
+            createTaskQueryDefaultsMenuActions({
+                noun: "collection",
+                accessLevel,
+                defaults,
+                filters,
+                sorts,
+                onResetToDefaults: resetToDefaults,
+                onSaveDefaults: saveDefaults,
+            }),
+        [accessLevel, defaults, filters, resetToDefaults, saveDefaults, sorts],
+    );
+
     const menuActions = useMemo(() => {
+        const hasManageAccessLevel = hasAccessLevel(accessLevel, "Manage");
+
         const menuActions: Array<ReadonlyArray<MenuAction>> = [];
 
         menuActions.push([
@@ -385,7 +472,7 @@ export function TaskCollectionView({
         ]);
 
         if (collectionSubscription) {
-            if (hasAccessLevel(accessLevel, "Manage")) {
+            if (hasManageAccessLevel) {
                 // Even though you can edit the collection name by double clicking and the
                 // color by clicking on the dot, we still include menu items since these
                 // interactions aren't necessarily obvious.
@@ -422,112 +509,104 @@ export function TaskCollectionView({
                 ]);
             }
 
+            if (routeLayout === "narrow") {
+                // eslint-disable-next-line react-compiler/react-compiler
+                menuActions.push([
+                    {
+                        label: "Add filter",
+                        onPress: () => {
+                            // Make sure the filter/sort section is visible.
+                            assertExists(viewRef.current).setScrollOffset(0);
+
+                            if (!customizationState) {
+                                setCustomizationState({initiallyFocus: "AddFilter"});
+                            } else {
+                                if (platform === "mobile") {
+                                    assertExists(
+                                        mobileCustomizationSectionRef.current,
+                                    ).openAddFilterMenu();
+                                } else {
+                                    assertExists(
+                                        desktopCustomizationBarRef.current,
+                                    ).openAddFilterMenu();
+                                }
+                            }
+                        },
+                    },
+                    {
+                        label: "Add sort",
+                        onPress: () => {
+                            // Make sure the filter/sort section is visible.
+                            assertExists(viewRef.current).setScrollOffset(0);
+
+                            if (!customizationState) {
+                                setCustomizationState({initiallyFocus: "AddSort"});
+                            } else {
+                                if (platform === "mobile") {
+                                    assertExists(
+                                        mobileCustomizationSectionRef.current,
+                                    ).openAddSortMenu();
+                                } else {
+                                    assertExists(
+                                        desktopCustomizationBarRef.current,
+                                    ).openAddSortMenu();
+                                }
+                            }
+                        },
+                    },
+                ]);
+            }
+
+            menuActions.push(defaultsMenuActions);
+
             if (hasEditAccessLevel) {
-                if (routeLayout === "narrow") {
-                    // eslint-disable-next-line react-compiler/react-compiler
-                    menuActions.push([
-                        {
-                            label: "Add filter",
-                            onPress: () => {
-                                // Make sure the filter/sort section is visible.
-                                assertExists(viewRef.current).setScrollOffset(0);
+                menuActions.push([
+                    {
+                        label: "Undo",
+                        keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "z"),
+                        onPress: undoEvent,
+                    },
+                    {
+                        label: "Redo",
+                        keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "y"),
+                        onPress: redoEvent,
+                    },
+                ]);
+            }
 
-                                if (!customizationState) {
-                                    setCustomizationState({initiallyFocus: "AddFilter"});
-                                } else {
-                                    if (platform === "mobile") {
-                                        assertExists(
-                                            mobileCustomizationSectionRef.current,
-                                        ).openAddFilterMenu();
-                                    } else {
-                                        assertExists(
-                                            desktopCustomizationBarRef.current,
-                                        ).openAddFilterMenu();
-                                    }
-                                }
-                            },
-                        },
-                        {
-                            label: "Add sort",
-                            onPress: () => {
-                                // Make sure the filter/sort section is visible.
-                                assertExists(viewRef.current).setScrollOffset(0);
+            if (hasManageAccessLevel) {
+                menuActions.push([
+                    {
+                        label: "Delete",
+                        onPress: () => {
+                            reporter.showDialog({
+                                title: "Delete task collection?",
+                                description: "The tasks in the collection will not be deleted.",
+                                primaryButtonLabel: "Delete",
+                                primaryButtonPressErrorTitle:
+                                    "Couldn\u2019t delete task collection",
+                                onPrimaryButtonPress: async () => {
+                                    // Wait until navigation has finished to actually delete the collection.
+                                    await navigate(-1);
 
-                                if (!customizationState) {
-                                    setCustomizationState({initiallyFocus: "AddSort"});
-                                } else {
-                                    if (platform === "mobile") {
-                                        assertExists(
-                                            mobileCustomizationSectionRef.current,
-                                        ).openAddSortMenu();
-                                    } else {
-                                        assertExists(
-                                            desktopCustomizationBarRef.current,
-                                        ).openAddSortMenu();
-                                    }
-                                }
-                            },
+                                    store.commitTaskActionTransaction(
+                                        context,
+                                        [
+                                            {
+                                                type: "UpdateCollection",
+                                                time: store.clock.now(),
+                                                collectionId,
+                                                collectionAction: {type: "Delete"},
+                                            },
+                                        ],
+                                        // Collection changes can't be undone.
+                                        {undoManager: null, affinityManager},
+                                    );
+                                },
+                            });
                         },
-                    ]);
-                }
-
-                if (hasEditAccessLevel) {
-                    menuActions.push([
-                        {
-                            label: "Undo",
-                            keyboardShortcutHint: renderKeyboardShortcutHint(
-                                clientInfo,
-                                "mod",
-                                "z",
-                            ),
-                            onPress: undoEvent,
-                        },
-                        {
-                            label: "Redo",
-                            keyboardShortcutHint: renderKeyboardShortcutHint(
-                                clientInfo,
-                                "mod",
-                                "y",
-                            ),
-                            onPress: redoEvent,
-                        },
-                    ]);
-                }
-
-                if (hasAccessLevel(accessLevel, "Manage")) {
-                    menuActions.push([
-                        {
-                            label: "Delete",
-                            onPress: () => {
-                                reporter.showDialog({
-                                    title: "Delete task collection?",
-                                    description: "The tasks in the collection will not be deleted.",
-                                    primaryButtonLabel: "Delete",
-                                    primaryButtonPressErrorTitle:
-                                        "Couldn\u2019t delete task collection",
-                                    onPrimaryButtonPress: async () => {
-                                        // Wait until navigation has finished to actually delete the collection.
-                                        await navigate(-1);
-
-                                        store.commitTaskActionTransaction(
-                                            context,
-                                            [
-                                                {
-                                                    type: "UpdateCollection",
-                                                    time: store.clock.now(),
-                                                    collectionId,
-                                                    collectionAction: {type: "Delete"},
-                                                },
-                                            ],
-                                            // Collection changes can't be undone.
-                                            {undoManager: null, affinityManager},
-                                        );
-                                    },
-                                });
-                            },
-                        },
-                    ]);
-                }
+                    },
+                ]);
             }
         }
 
@@ -541,6 +620,7 @@ export function TaskCollectionView({
         context,
         copyLink,
         customizationState,
+        defaultsMenuActions,
         favoriteMenuAction,
         hasEditAccessLevel,
         navigate,
@@ -551,6 +631,28 @@ export function TaskCollectionView({
         store,
         undoEvent,
     ]);
+
+    const menuExtraBottom = useMemo(() => {
+        if (defaultsMenuExtraBottomMessage === null) return null;
+
+        return (
+            <>
+                <Box padding="1">
+                    <Box width="full" borderBottom="grey-5" />
+                </Box>
+                <Box
+                    paddingX="2"
+                    paddingY={{desktop: "1", mobile: "1.5"}}
+                    fontSize="50"
+                    color="grey-50"
+                    maxWidth="64"
+                    userSelect="text"
+                >
+                    {defaultsMenuExtraBottomMessage}
+                </Box>
+            </>
+        );
+    }, [defaultsMenuExtraBottomMessage]);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -622,6 +724,7 @@ export function TaskCollectionView({
     );
 
     const isCreatedCollectionFromGhostTaskPrivate = !accessPolicy.defaultGrant;
+    const navigationBarTitleBreadcrumb = useSiteNavigationBarTitleBreadcrumb({accessPolicy});
 
     const {
         stateKey: gridViewStateKey,
@@ -783,12 +886,15 @@ export function TaskCollectionView({
                         accessLevel={accessLevel}
                         defaultOrderSentence={defaultOrderSentence}
                         menuActions={menuActions}
+                        menuExtraBottom={menuExtraBottom}
+                        hasAllDefaults={hasAllDefaults}
                         filters={filters}
                         filterReferences={filterReferences}
                         onFiltersChange={updateFilters}
                         sorts={sorts}
                         onSortsChange={setSorts}
                         onCopyLink={copyLink}
+                        isSiteBreadcrumbRendered={!!navigationBarTitleBreadcrumb}
                     />
                 ),
             };
@@ -802,7 +908,10 @@ export function TaskCollectionView({
             defaultOrderSentence,
             filterReferences,
             filters,
+            hasAllDefaults,
             menuActions,
+            menuExtraBottom,
+            navigationBarTitleBreadcrumb,
             queryReferencesForUrlGrant,
             routeLayout,
             setSorts,
@@ -813,68 +922,83 @@ export function TaskCollectionView({
         ]),
     });
 
-    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        isDisabled: routeLayout !== "narrow",
-        withoutDisappearingTitle: true,
-        title: (
-            <TaskCollectionViewMobileNavigationBarTitle
-                accessLevel={accessLevel}
-                store={store}
-                collectionId={collectionId}
-                collectionSubscription={collectionSubscription}
-                shouldInitiallyFocusEditableCollectionName={
-                    shouldInitiallyFocusEditableCollectionName
-                }
-                createCollection={createCollection}
-                affinityManager={affinityManager}
-                desktopNameRef={navigationBarDesktopNameRef}
-            />
-        ),
-        desktopTitleLeftSlop: platform !== "mobile" ? "2" : undefined,
-        shareButton: accessPolicy
-            ? {
-                  isReadOnly: !collectionSubscription,
-                  entityNoun: "task collection",
-                  entityId: `TaskCollection:${collectionId}`,
-                  accessPolicy,
-                  onAccessPolicyChange: (notification, accessPolicy) => {
-                      store.commitTaskActionTransaction(
-                          context,
-                          [
-                              {
-                                  type: "UpdateCollection",
-                                  time: store.clock.now(),
-                                  collectionId,
-                                  collectionAction: {
-                                      type: "UpdateAccessPolicy",
-                                      accessPolicy,
+    const {scrollViewRef, navigationBar, effectiveNavigationBarHeight, scrollbarInsetTop} =
+        useNavigationBar({
+            isDisabled: routeLayout !== "narrow",
+            withoutDisappearingTitle: true,
+            title: (
+                <TaskCollectionViewMobileNavigationBarTitle
+                    accessLevel={accessLevel}
+                    store={store}
+                    collectionId={collectionId}
+                    collectionSubscription={collectionSubscription}
+                    shouldInitiallyFocusEditableCollectionName={
+                        shouldInitiallyFocusEditableCollectionName
+                    }
+                    createCollection={createCollection}
+                    affinityManager={affinityManager}
+                    desktopNameRef={navigationBarDesktopNameRef}
+                    isSiteBreadcrumbRendered={!!navigationBarTitleBreadcrumb}
+                />
+            ),
+            titleBreadcrumb: navigationBarTitleBreadcrumb,
+            desktopTitleLeftSlop: platform !== "mobile" ? "2" : undefined,
+            shareButton: accessPolicy
+                ? {
+                      isReadOnly: !collectionSubscription,
+                      entityNoun: "task collection",
+                      entityId: `TaskCollection:${collectionId}`,
+                      accessPolicy,
+                      onAccessPolicyChange: async (notification, accessPolicy) => {
+                          if (accessPolicy.type === "Site") {
+                              await applySiteAccessPolicyChange({
+                                  context,
+                                  accessPolicy,
+                                  handleEventForSite: assertExists(siteContext).handleEventForSite,
+                              });
+                              return;
+                          }
+
+                          store.commitTaskActionTransaction(
+                              context,
+                              [
+                                  {
+                                      type: "UpdateCollection",
+                                      time: store.clock.now(),
+                                      collectionId,
+                                      collectionAction: {
+                                          type: "UpdateAccessPolicy",
+                                          accessPolicy,
+                                      },
                                   },
+                              ],
+                              {
+                                  // Collection access policy changes can't be undone.
+                                  undoManager: null,
+                                  affinityManager,
+                                  // Include a notification if the user decided to configure one.
+                                  updateAccessPolicyShareNotification: notification ?? undefined,
                               },
-                          ],
-                          {
-                              // Collection access policy changes can't be undone.
-                              undoManager: null,
-                              affinityManager,
-                              // Include a notification if the user decided to configure one.
-                              updateAccessPolicyShareNotification: notification ?? undefined,
-                          },
-                      );
-                  },
-                  onCopyLink: copyLink,
-              }
-            : undefined,
-        menuActions,
-    });
+                          );
+                      },
+                      onCopyLink: copyLink,
+                  }
+                : undefined,
+            menuActions,
+            menuExtraBottom,
+            menuButtonIcon: <DotsThreeVerticalWithAsterisk withAsterisk={!hasAllDefaults} />,
+            defaultPreviousRoute: `/home/${space.id}`,
+        });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             if (routeLayout === "narrow" && index === 0) {
                 return {
                     key: "CustomizationBar",
-                    minHeight: spacing[navigationBarHeight],
+                    minHeight: effectiveNavigationBarHeight,
                     node: (
                         <Box paddingTop="safe-area-inset">
-                            <Box height={navigationBarHeight} />
+                            <Box style={{height: effectiveNavigationBarHeight}} />
                             {customizationState &&
                                 (platform === "mobile" ? (
                                     <TaskQueryViewCustomizationMobileSection
@@ -890,7 +1014,7 @@ export function TaskCollectionView({
                                         onSortsChange={setSorts}
                                     />
                                 ) : (
-                                    <Box paddingX={screenPaddingX} paddingTop="1" paddingBottom="5">
+                                    <Box paddingX={screenPaddingX} paddingBottom="5">
                                         <TaskQueryViewCustomizationBar
                                             ref={desktopCustomizationBarRef}
                                             store={store}
@@ -903,6 +1027,7 @@ export function TaskCollectionView({
                                             sorts={sorts}
                                             onSortsChange={setSorts}
                                             initiallyFocus={customizationState.initiallyFocus}
+                                            hasAllDefaults={hasAllDefaults}
                                         />
                                     </Box>
                                 ))}
@@ -917,6 +1042,7 @@ export function TaskCollectionView({
             routeLayout,
             renderGridViewItem,
             itemCountBeforeGridView,
+            effectiveNavigationBarHeight,
             customizationState,
             platform,
             store,
@@ -927,6 +1053,7 @@ export function TaskCollectionView({
             updateFilters,
             sorts,
             setSorts,
+            hasAllDefaults,
         ],
     );
 
@@ -1058,6 +1185,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
     createCollection,
     affinityManager,
     desktopNameRef,
+    isSiteBreadcrumbRendered,
 }: {
     accessLevel: AccessLevel | null;
     store: TaskClientStore;
@@ -1067,6 +1195,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
     createCollection: (name: string) => Promise<void>;
     affinityManager: TaskClientStoreSearchAffinityManager;
     desktopNameRef: RefObject<TaskCollectionViewDesktopHeaderNameRef | null>;
+    isSiteBreadcrumbRendered: boolean;
 }) {
     const platform = usePlatform();
 
@@ -1074,8 +1203,14 @@ function TaskCollectionViewMobileNavigationBarTitle({
     const collection = collectionEntry?.collection ?? null;
 
     if (platform === "mobile") {
+        // Dot + name share one row. Wrapped in an explicit `flex` row instead of the old
+        // inline-flex fragment so the surrounding 2-line nav bar title column doesn't pull
+        // the dot onto its own line.
         return (
-            <>
+            // The mobile title component may eventually get wrapped in a column flex container
+            // if we are rendering a title breadcrumb above the title. Setting a flex direction
+            // here ensures the dot and name are on the same row.
+            <Box display="flex" flexDirection="row" alignItems="center">
                 <Box
                     display="inline-flex"
                     alignItems="center"
@@ -1090,7 +1225,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
                     />
                 </Box>
                 {collection?.getName() ?? ""}
-            </>
+            </Box>
         );
     }
 
@@ -1105,6 +1240,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
             collection={collection}
             createCollection={createCollection}
             affinityManager={affinityManager}
+            isSiteBreadcrumbRendered={isSiteBreadcrumbRendered}
         />
     );
 }

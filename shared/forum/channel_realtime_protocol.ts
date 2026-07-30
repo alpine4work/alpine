@@ -1,7 +1,4 @@
-import {
-    DynamoGeneralRealtimeEventStubSchema,
-    createDynamoGeneralRealtimeEventSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {
     ChannelContributorsModel,
     ChannelModel,
@@ -15,11 +12,9 @@ import {
     defineWebSocketProtocol,
 } from "~/shared/web_socket/web_socket_protocol.js";
 
-export type DynamoGeneralRealtimeChannelOrPostEvent = SchemaType<
-    typeof DynamoGeneralRealtimeChannelOrPostEventSchema
->;
+export type RynamoChannelOrPostEvent = SchemaType<typeof RynamoChannelOrPostEventSchema>;
 
-export const DynamoGeneralRealtimeChannelOrPostEventSchema = createDynamoGeneralRealtimeEventSchema(
+export const RynamoChannelOrPostEventSchema = createRynamoEventSchema(
     createModelUnionSchema({
         Channel: ChannelModel,
         ChannelContributors: ChannelContributorsModel,
@@ -33,13 +28,13 @@ export type ChannelRealtimeEvent = WebSocketProtocolEventType<typeof ChannelReal
 export const ChannelRealtimeProtocol = defineWebSocketProtocol({
     procedures: {},
     events: {
-        RealtimeEventTransaction: Schema.object({
-            type: Schema.value("RealtimeEventTransaction"),
-            eventTransaction: Schema.array(DynamoGeneralRealtimeChannelOrPostEventSchema),
+        RealtimeEvents: Schema.object({
+            type: Schema.value("RealtimeEvents"),
+            events: Schema.array(RynamoChannelOrPostEventSchema),
         }),
     },
 });
 
-export const ChannelBroadcastRealtimeEventTransactionSchema = Schema.object({
-    eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
+export const ChannelBroadcastRealtimeEventsSchema = Schema.object({
+    events: Schema.array(RynamoEventStubSchema),
 });

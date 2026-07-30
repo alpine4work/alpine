@@ -42,7 +42,7 @@ export class BillingContextModule extends BillingContextModuleBase {
         this: BillingContextModule & ContextModuleBase<ServerSessionActionContextModules>,
         currentPathname: string,
     ): Promise<{ok: true; url: string} | {ok: false; reason: "AlreadyPurchased"; message: string}> {
-        return this._context.tracer.withSpan(
+        return await this._context.tracer.withSpan(
             "Create lifetime access checkout session",
             async (context, span) => {
                 const [customerId, account] = await runAllPromises([
@@ -96,7 +96,7 @@ export class BillingContextModule extends BillingContextModuleBase {
         request: Request,
         span: TracerSpan,
     ): Promise<void> {
-        return processStripeWebhook({
+        return await processStripeWebhook({
             context: this._context,
             request,
             stripe: this._stripe,

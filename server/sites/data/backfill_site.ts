@@ -1,7 +1,7 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {authorizeSiteAccess} from "~/server/sites/data/authorize_site_access.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
-import {DynamoGeneralRealtimeBackfillResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoBackfillResult} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {SiteOrSiteEntryModel} from "~/shared/sites/site_model.js";
@@ -22,7 +22,7 @@ export async function backfillSite(
         siteId: SiteId;
         checkpoint: ServerSynchronizationCheckpoint;
     },
-): Promise<DynamoGeneralRealtimeBackfillResult<SiteOrSiteEntryModel>> {
+): Promise<RynamoBackfillResult<SiteOrSiteEntryModel>> {
     const [, result] = await runAllPromises([
         authorizeSiteAccess(context, siteId, "View"),
         SitesTable.backfillRealtimeQuery(context, {

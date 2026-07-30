@@ -386,7 +386,7 @@ export function createDurableObject<
 
                             const object = await this._object.promise;
 
-                            return object.fetch(actionContext, request, routeObject, span);
+                            return await object.fetch(actionContext, request, routeObject, span);
                         },
                     );
                     return response;
@@ -476,12 +476,13 @@ export function createDurableObject<
                         }),
                     );
 
-                    return traceServerResponse(
+                    return await traceServerResponse(
                         actionContext.tracer.getRoot(),
                         request,
                         url,
                         routeString,
-                        async (span, request) => object.fetch(actionContext, request, route, span),
+                        async (span, request) =>
+                            await object.fetch(actionContext, request, route, span),
                     );
                 },
                 connectForTest: async (actionContext, idName, options) => {

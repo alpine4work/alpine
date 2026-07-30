@@ -71,21 +71,15 @@ export class AgentMessage {
         },
     ) {
         const [markdownTree, parentWithMarkdownContent] = await runAllPromises([
-            printApiContentToAgentMarkdownTree(transaction, message.payload.content, {
-                spaceId: message.spaceId,
-            }),
+            printApiContentToAgentMarkdownTree(transaction, message.payload.content),
             (async () => {
                 if (!message.payload.parent) return null;
 
                 const {parent} = message.payload;
 
-                const {children} = await printApiContentToAgentMarkdownTree(
-                    transaction,
-                    {
-                        elements: [{type: "Paragraph", elements: parent.contentSnippet.elements}],
-                    },
-                    {spaceId: message.spaceId},
-                );
+                const {children} = await printApiContentToAgentMarkdownTree(transaction, {
+                    elements: [{type: "Paragraph", elements: parent.contentSnippet.elements}],
+                });
 
                 return {...parent, markdownContent: children};
             })(),

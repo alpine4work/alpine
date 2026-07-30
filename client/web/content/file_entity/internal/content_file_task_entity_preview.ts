@@ -2,6 +2,11 @@ import {CalendarDate} from "@internationalized/date";
 import {renderAccountAvatar} from "~/client/web/accounts/account_avatar_html.js";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {setupContentFileEntityPreviewContainer} from "~/client/web/content/file_entity/internal/content_file_entity_preview_container.js";
+import {renderContentFileEntitySiteBreadcrumb} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
+import {
+    navigationBarBreadcrumbToTitleSpacing,
+    navigationBarTitleBreadcrumbButtonHeight,
+} from "~/client/web/design/navigation_bar_helpers.js";
 import {renderTaskDisplayStatusCircle} from "~/client/web/design/task_display_status_circle_html.js";
 import {calendarBlankIconSvg} from "~/client/web/icons/calendar_blank_icon_svg.js";
 import {caretRightIconSvg} from "~/client/web/icons/caret_right_icon_svg.js";
@@ -34,9 +39,13 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {SiteId} from "~/shared/id/types/id_types.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {Store} from "~/shared/store/store.js";
-import {FileTaskEntityModelSchema} from "~/shared/tasks/file_task_entity_model.js";
+import {
+    FileTaskEntityModel,
+    FileTaskEntityModelSchema,
+} from "~/shared/tasks/file_task_entity_model.js";
 
 export function renderContentFileTaskEntityPreview(
     get: <Value>(store: Store<Value>) => Value,
@@ -66,8 +75,8 @@ export function renderContentFileTaskEntityPreview(
 
     const referencedSiteById = new Map(
         filterMapIterable(fileEntity.referencedSites, site => {
-            if (!site.ok) return;
-            return [site.value.id, site.value] as const;
+            if (site.isPrivate) return;
+            return [site.site.id, site.site] as const;
         }),
     );
 
@@ -121,15 +130,58 @@ export function renderContentFileTaskEntityPreview(
 
         const titleContainerHtml = headerContainerHtml.appendChild(new HtmlElementGenerator("div"));
 
-        if (fileEntity.parent) {
+        // Only show the site breadcrumb when the task either has no parent (it's a root
+        // task) OR its root parent is in the same site. When a subtask's root parent lives
+        // outside the site, the chain `[Site] > [Root parent] > ...` would misrepresent
+        // the root parent's actual access policy, so we hide the site breadcrumb instead
+        // and let the parent task breadcrumb stand on its own.
+        const showSiteBreadcrumb =
+            fileEntity.site !== null &&
+            (fileEntity.parent === null || isRootParentInSite(fileEntity, fileEntity.site.id));
+
+        const hasBreadcrumb = showSiteBreadcrumb || fileEntity.parent !== null;
+
+        if (hasBreadcrumb) {
+            // Offset the status circle down so it centers on the title row rather than a
+            // breadcrumb. Each breadcrumb line above the title contributes its own line height
+            // plus the gap it leaves below itself, so sum every line that's actually shown —
+            // when both the site and parent breadcrumbs render that's two lines, not one
+            // (otherwise the circle lands on the lower breadcrumb).
+            const siteBreadcrumbOffset = showSiteBreadcrumb
+                ? addRemLengths(
+                      navigationBarTitleBreadcrumbButtonHeight,
+                      navigationBarBreadcrumbToTitleSpacing[platform],
+                  )
+                : addRemLengths();
+            const parentBreadcrumbOffset = fileEntity.parent
+                ? // `"0.5"` matches the parent breadcrumb row's `padding-bottom` below.
+                  addRemLengths(fontSizesBySpacingScale["75"][spacingScale].lineHeight, "0.5")
+                : addRemLengths();
+            const breadcrumbOffset = addRemLengths(siteBreadcrumbOffset, parentBreadcrumbOffset);
+
             statusCircleContainerHtml.setAttribute(
                 "style",
                 [
-                    `padding-top: ${addRemLengths(fontSizesBySpacingScale["75"][spacingScale].lineHeight, "0.5")}`,
-                    `height: ${addRemLengths(fontSizesBySpacingScale["75"][spacingScale].lineHeight, "0.5", taskDetailViewTitleLineHeight)}`,
+                    `padding-top: ${breadcrumbOffset}`,
+                    `height: ${addRemLengths(breadcrumbOffset, taskDetailViewTitleLineHeight)}`,
                 ].join("; "),
             );
+        }
 
+        if (showSiteBreadcrumb && fileEntity.site) {
+            // TODO(#sites): render the site breadcrumb on the same line as the task parent
+            // breadcrumb. Should look very similar to implementation of
+            // `TaskDetailViewParentBreadcrumbs`.
+            renderContentFileEntitySiteBreadcrumb({
+                get,
+                siteRegistry,
+                parent: titleContainerHtml,
+                site: fileEntity.site,
+                platform,
+            });
+        }
+
+        if (fileEntity.parent) {
             const parentBreadcrumbsHtml = titleContainerHtml.appendChild(
                 new HtmlElementGenerator("div"),
             );
@@ -533,6 +585,25 @@ export function renderContentFileTaskEntityPreview(
             dueDateDenseFieldContainerHtml.appendChild(new HtmlTextGenerator(dateString));
         }
     }
+}
+
+/**
+ * Returns true when the task's root parent (a `TaskModel` whose own access policy
+ * is reachable via `getAccessPolicy()`) lives in the site with the given id.
+ *
+ * Used to decide whether to render the site breadcrumb on a subtask preview. When
+ * the root parent isn't in the same site, the chain `[Site] > [Root parent] > ...`
+ * would misrepresent the root parent's actual access policy, so the breadcrumb is
+ * hidden.
+ *
+ * If the root parent is `Unauthorized` we can't read its access policy, so we
+ * conservatively return `false` and hide the breadcrumb.
+ */
+function isRootParentInSite(fileEntity: FileTaskEntityModel, siteId: SiteId): boolean {
+    if (!fileEntity.parent) return false;
+    if (fileEntity.parent.rootTask.type !== "Authorized") return false;
+    const rootAccessPolicy = fileEntity.parent.rootTask.task.getAccessPolicy();
+    return rootAccessPolicy?.type === "Site" && rootAccessPolicy.siteId === siteId;
 }
 
 function renderContentFileTaskEntityPreviewDenseField(

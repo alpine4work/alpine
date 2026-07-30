@@ -55,8 +55,11 @@ function TestContentEditor({
 }) {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            doc: initialContent,
-            references: emptyContentReferences,
+            spaceId: null,
+            content: {
+                doc: initialContent,
+                references: emptyContentReferences,
+            },
         }),
     );
 

@@ -4,6 +4,7 @@ import {
     Check,
     Code,
     File,
+    Gif,
     IconContext,
     Image,
     Link as LinkIcon,
@@ -68,7 +69,7 @@ import {CodeBlockIcon} from "~/client/web/icons/code_block_icon.js";
 import {QuoteBlockIcon} from "~/client/web/icons/quote_block_icon.js";
 import {VideoIcon} from "~/client/web/icons/video_icon.js";
 import {WaveformIcon} from "~/client/web/icons/waveform_icon.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {buttonStyles, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {
@@ -103,6 +104,7 @@ export function ContentEditorMobileKeyboardSubstitute({
     isFocused,
     onClose,
     onLinkModalOpen,
+    onOpenGifPicker,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<
@@ -114,6 +116,7 @@ export function ContentEditorMobileKeyboardSubstitute({
     isFocused: boolean;
     onClose: () => void;
     onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
+    onOpenGifPicker?: () => void;
 }) {
     const {schema} = state;
 
@@ -337,6 +340,7 @@ export function ContentEditorMobileKeyboardSubstitute({
                         state={state}
                         viewRef={viewRef}
                         setSelectingFilesCount={setInsertVariantSelectingFilesCount}
+                        onOpenGifPicker={onOpenGifPicker}
                     />
                 ) : (
                     throwError(exhaustive(variant))
@@ -830,6 +834,7 @@ function ContentEditorMobileKeyboardSubstituteInsert({
     state,
     viewRef,
     setSelectingFilesCount,
+    onOpenGifPicker,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<
@@ -839,6 +844,7 @@ function ContentEditorMobileKeyboardSubstituteInsert({
         | null
     >;
     setSelectingFilesCount: Dispatch<SetStateAction<number>>;
+    onOpenGifPicker?: () => void;
 }) {
     const {schema} = state;
 
@@ -961,6 +967,13 @@ function ContentEditorMobileKeyboardSubstituteInsert({
                     });
                 }}
             />
+            {onOpenGifPicker && (
+                <ContentEditorMobileKeyboardSubstituteButton
+                    icon={<Gif />}
+                    label="GIF"
+                    onPress={onOpenGifPicker}
+                />
+            )}
             <Box />
             {!hasFewerRows && <Box />}
             <ContentEditorMobileKeyboardSubstituteButton

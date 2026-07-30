@@ -38,7 +38,7 @@ ts_project(
         "//server/notifications/data",
         "//server/search/data/index",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//shared/avatar/protocol",
         "//shared/context",
         "//shared/error",

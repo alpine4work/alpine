@@ -34,7 +34,7 @@ import {
     ReactionButtonBase,
 } from "~/client/web/reactions/reaction_button.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     messagingStyles,
     sprinkles,

@@ -130,7 +130,7 @@ export function createFileProcessorServiceServer(
                 });
             }
             case "InternalMiniflareGetObject": {
-                return handleInternalMiniflareGetObject(processContext, {
+                return await handleInternalMiniflareGetObject(processContext, {
                     url,
                     request,
                     bucketName: route.bucketName,
@@ -159,7 +159,7 @@ export function createFileProcessorServiceServer(
         // Add identification information for the actor to all child spans.
         span.addPropagatedData(actorContextModule.getPropagatedData());
 
-        return baseActionContext.with({actor: actorContextModule}, context => {
+        return await baseActionContext.with({actor: actorContextModule}, context => {
             switch (route.type) {
                 case "Resize": {
                     return resizeFile(context, span, {

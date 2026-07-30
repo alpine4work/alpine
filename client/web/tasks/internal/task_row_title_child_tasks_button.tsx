@@ -96,7 +96,7 @@ function TaskRowTitleChildTasksButton(
             if (!isMaxExpandedTaskDepth) {
                 onAreChildTasksExpandedToggle();
             } else {
-                if (task) navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
+                if (task) navigate(`/task/${task.id}`);
             }
         },
     });

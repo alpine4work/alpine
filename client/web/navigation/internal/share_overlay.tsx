@@ -22,6 +22,7 @@ import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {BuildingsIcon} from "~/client/web/icons/buildings_icon.js";
 import {
     noAccessLevelText,
     removeAccessLevelText,
@@ -36,8 +37,8 @@ import {
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {TextShimmer} from "~/client/web/shimmer/text_shimmer.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {SpaceAvatar} from "~/client/web/spaces/space_avatar.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     backgroundColorVar,
     pulseAnimationClassName,
@@ -233,7 +234,7 @@ function ShareOverlay(
                 backgroundColor="grey-0"
                 borderRadius="2.5"
                 boxShadow="elevation-20"
-                paddingTop={hasAccountGrantInput ? "5" : undefined}
+                paddingTop={hasAccountGrantInput || accessPolicy.type === "Site" ? "5" : undefined}
                 paddingBottom="5"
                 style={{
                     // Add just a little more width so it doesn't line up perfectly with other `96`
@@ -246,6 +247,14 @@ function ShareOverlay(
                 // Make sure any overlays inside the share overlay are animated with the share
                 // overlay.
                 >
+                    {accessPolicy.type === "Site" && (
+                        <>
+                            <Box paddingX="5">
+                                <ShareOverlaySiteWarningBanner entityNoun={entityNoun} />
+                            </Box>
+                            {hasAccountGrantInput && <Spacer space="4" />}
+                        </>
+                    )}
                     {hasAccountGrantInput && (
                         <Box position="relative" zIndex="10" paddingX="5">
                             <ShareOverlayAccountInput
@@ -416,7 +425,7 @@ function ShareOverlay(
                                                     generateChronologicalId<PostDraftId>();
 
                                                 await navigate(
-                                                    `/s/${space.id}/posts/new/${draftId}?focus=content&share=${entityId}`,
+                                                    `/post/new/${draftId}/${space.id}?focus=content&share=${entityId}`,
                                                 );
 
                                                 // Assume copy will work and close overlay without flicker.
@@ -736,7 +745,7 @@ function ShareOverlayAccountGrant({
                     <Box
                         fontSize="100"
                         fontStyle="truncate-semi-bold"
-                        color={accountData.space.state.type === "Active" ? "grey-100" : "grey-60"}
+                        color={accountData.space.state.type !== "Removed" ? "grey-100" : "grey-60"}
                     >
                         {accountData.name}
                     </Box>
@@ -1310,6 +1319,28 @@ export function ShareOverlayUrlGrant({
                     onClose={() => setShowCanNotDeleteInheritedUrlGrantDialog(false)}
                 />
             )}
+        </Box>
+    );
+}
+
+function ShareOverlaySiteWarningBanner({entityNoun}: {entityNoun: string}) {
+    return (
+        <Box
+            display="flex"
+            alignItems="center"
+            gap="2"
+            paddingX="3"
+            paddingY="2"
+            backgroundColor="grey-5"
+            borderRadius="1"
+        >
+            <Box flexShrink="0" color="grey-70">
+                <BuildingsIcon size={spacing["4"]} />
+            </Box>
+            <Box fontSize="50" color="grey-80">
+                Permissions for this {entityNoun} are managed at the site level. Changing
+                permissions here will affect the entire site.
+            </Box>
         </Box>
     );
 }

@@ -14,17 +14,18 @@ import {
     processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
 } from "~/server/search/data/index/search_entity_index.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {
     createSimplePostContent,
     PostContentProsemirrorSchema as schema,
@@ -35,7 +36,10 @@ import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_
 import {generateId} from "~/shared/id/id.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {SearchMentionEntityId, SearchMentionEntityType} from "~/shared/search/search_entity_id.js";
-import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {
+    TaskTitleModel,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
@@ -55,7 +59,7 @@ const context = createTestContext({
                 }),
             });
 
-            return getSearchMentionEntityIfPossible(newContext, spaceId, entityId);
+            return await getSearchMentionEntityIfPossible(newContext, spaceId, entityId);
         },
     },
     processJob: async (actionContext, job, jobStartTime, span) => {
@@ -190,7 +194,12 @@ const testCaseByEntityType: Record<
 
                     await task.updateTitle(
                         session,
-                        oldTitle.replace(0, oldTitle.getText().length, title).raw,
+                        oldTitle.replace(
+                            randomlyGenerateTaskTitleClientId(),
+                            0,
+                            oldTitle.getText().length,
+                            title,
+                        ).raw,
                     );
                 },
                 delete: async () => {
@@ -246,18 +255,29 @@ const testCaseByEntityType: Record<
             };
         },
     },
-    // TODO(#sites): Implement site mention test case
     Site: {
-        create: async () => {
-            throw new UnimplementedError("Site mention test case not implemented");
+        create: async ({session, title, access}) => {
+            if (access !== "Public" && access !== "Private" && access.type === "Site") {
+                throw new InvalidArgumentError("Site access policy must be a local access policy");
+            }
+
+            const site = await TestSite.create(session, {name: title, access});
+
+            return {
+                id: `Site:${site.id}`,
+                access: site.access,
+                updateTitle: async title => {
+                    await site.updateName(session, title);
+                },
+                // TODO: Implement this once sites can be deleted.
+                delete: "Unimplemented",
+                undelete: "Unimplemented",
+            };
         },
     },
 };
 
 for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEntityType)) {
-    // TODO(#sites): Implement site mention test case
-    if (entityType === "Site") continue;
-
     describe(`${entityType}`, () => {
         test("can mention non-existent entity in public entity", async () => {
             const space = await TestSpace.create(context);

@@ -3439,10 +3439,7 @@ test("streams link formatting correctly for link that looks like mention", async
         },
     ]);
 
-    message.pushText(
-        null,
-        ` over the](https://alpine.inc/s/${spaceId}/documents/${documentId}?mention)`,
-    );
+    message.pushText(null, ` over the](https://alpine.inc/doc/${documentId}?mention)`);
 
     expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
         {
@@ -3464,7 +3461,7 @@ test("streams link formatting correctly for link that looks like mention", async
                                     marks: [
                                         {
                                             type: "Link",
-                                            url: `https://alpine.inc/s/${spaceId}/documents/${documentId}`,
+                                            url: `https://alpine.inc/doc/${documentId}`,
                                         },
                                     ],
                                 },
@@ -3498,7 +3495,7 @@ test("streams link formatting correctly for link that looks like mention", async
                                     marks: [
                                         {
                                             type: "Link",
-                                            url: `https://alpine.inc/s/${spaceId}/documents/${documentId}`,
+                                            url: `https://alpine.inc/doc/${documentId}`,
                                         },
                                     ],
                                 },
@@ -3518,7 +3515,7 @@ test("streams link formatting correctly for link that looks like mention", async
 test("streams link formatting correctly for truncated link that looks like mention", async () => {
     const documentId = generateId<DocumentId>();
 
-    const truncatedUrl = `https://alpine.inc/s/${spaceId.slice(0, -7)}…${documentId.slice(-2)}?mention`;
+    const truncatedUrl = `https://alpine.inc/doc/${documentId.slice(0, 17)}…${documentId.slice(-2)}?mention`;
 
     expect(
         await printApiContentToAgentWebMarkdown(
@@ -3534,7 +3531,7 @@ test("streams link formatting correctly for truncated link that looks like menti
                                 marks: [
                                     {
                                         type: "Link",
-                                        url: `https://alpine.inc/s/${spaceId}/documents/${documentId}?mention`,
+                                        url: `https://alpine.inc/doc/${documentId}?mention`,
                                     },
                                 ],
                             },
@@ -3645,7 +3642,7 @@ test("streams link formatting correctly for truncated link that looks like menti
                                     marks: [
                                         {
                                             type: "Link",
-                                            url: `https://alpine.inc/s/${spaceId}/documents/${documentId}`,
+                                            url: `https://alpine.inc/doc/${documentId}`,
                                         },
                                     ],
                                 },
@@ -3679,7 +3676,7 @@ test("streams link formatting correctly for truncated link that looks like menti
                                     marks: [
                                         {
                                             type: "Link",
-                                            url: `https://alpine.inc/s/${spaceId}/documents/${documentId}`,
+                                            url: `https://alpine.inc/doc/${documentId}`,
                                         },
                                     ],
                                 },

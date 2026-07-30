@@ -40,9 +40,7 @@ const context: AgentWebContext = {
 };
 
 function createDocumentContentFromParagraphs(paragraphTextList: ReadonlyArray<string>) {
-    return parseApiContentFromMarkdown(paragraphTextList.join("\n\n"), {
-        spaceId,
-    }) as ApiContentResponse;
+    return parseApiContentFromMarkdown(paragraphTextList.join("\n\n")) as ApiContentResponse;
 }
 
 function createDocumentContentWithDocumentMention(
@@ -149,7 +147,6 @@ test("reads GFM table content without crashing prettier formatting", async () =>
 | API schema freeze | Platform | Done |
 | Query planner rollout | Search | In Progress |
 | Inbox polish | Comms | Planned |`,
-            {spaceId},
         ) as ApiContentResponse,
     });
 

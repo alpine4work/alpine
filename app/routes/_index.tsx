@@ -5,7 +5,7 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 export async function loader({context}: LoaderArgs) {
     // Can not access this page while signed in.
     if (await context.actor.isAuthenticatedSession()) {
-        return redirectToAuthenticatedHome(context);
+        return await redirectToAuthenticatedHome(context);
     }
 
     throw new PermissionDeniedError(

@@ -119,6 +119,9 @@ export function retryWithExponentialBackoff<Value>(
             // We can't use `wait()` or `setTimeout()` since Jest will override `setTimeout()`
             // when `jest.useFakeTimers()` is on. But we want to wait the timeout anyway.
             await new Promise(resolve => originalSetTimeout(resolve, delayMsWithJitter));
+            // TODO: Re-enable `@typescript-eslint/return-await` after deciding whether this
+            // `try`/`catch` should handle async retry failures.
+            // eslint-disable-next-line @typescript-eslint/return-await
             return attempt(attemptNumber + 1);
         }
     };

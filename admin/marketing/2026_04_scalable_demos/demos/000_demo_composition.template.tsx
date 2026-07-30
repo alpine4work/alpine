@@ -3,7 +3,6 @@ import {Video} from "@remotion/media";
 import {__demoName__DemoRecording01FirstFrame} from "~/admin/marketing/2026_04_scalable_demos/demos/__DEMO_NUMBER_____DEMO_NAME___demo_shared.js";
 import {remotionFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/remotion_file.js";
 import {scalableDemoDefaultViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
-import {scalableDemoMacOsTopBarAndChromeTopBarHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
 
 export function __DemoName__DemoComposition() {
     return (
@@ -21,7 +20,7 @@ export function __DemoName__DemoComposition() {
                 trimBefore={__demoName__DemoRecording01FirstFrame}
                 style={{
                     position: "absolute",
-                    top: -(scalableDemoMacOsTopBarAndChromeTopBarHeight * 2),
+                    top: 0,
                     left: 0,
                     pointerEvents: "none",
                 }}

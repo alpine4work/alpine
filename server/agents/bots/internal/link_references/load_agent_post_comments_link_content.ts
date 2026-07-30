@@ -129,7 +129,7 @@ async function loadPageMessages(options: {
             });
         }
         case "End": {
-            return getMarkdownContentForPageFromEnd({
+            return await getMarkdownContentForPageFromEnd({
                 ...options,
                 cursorOptions: link.pageInfo,
             });
@@ -466,7 +466,7 @@ async function getPostAgentMessage(
     request: LoadAgentPostCommentsLinkRequest,
     post: ApiPostResponse,
 ): Promise<AgentMessage> {
-    return AgentMessage.new(transaction, {
+    return await AgentMessage.new(transaction, {
         spaceId: request.spaceId,
         index: -1, // The post is not a message, so it has an index of -1.
         author: post.author,
@@ -475,6 +475,7 @@ async function getPostAgentMessage(
         payload: {
             type: "Content",
             content: post.content,
+            files: [],
         },
     });
 }

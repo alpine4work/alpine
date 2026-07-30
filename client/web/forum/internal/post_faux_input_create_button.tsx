@@ -4,7 +4,7 @@ import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     postFauxInputCreateButtonHeight,
     postFauxInputCreateButtonInnerButtonHeight,
@@ -35,11 +35,11 @@ export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
                 // channel with the back button.
                 if (routeLayout === "narrow") {
                     navigate(
-                        `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&focus=content`,
+                        `/post/new/${draftId}/${space.id}?channel=${channel.id}&focus=content`,
                     );
                 } else {
                     navigate(
-                        `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&focus=content&return=back`,
+                        `/post/new/${draftId}/${space.id}?channel=${channel.id}&focus=content&return=back`,
                     );
                 }
             },

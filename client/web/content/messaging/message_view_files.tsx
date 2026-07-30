@@ -1,10 +1,10 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {EditorView, __serializeForClipboard as serializeForClipboard} from "prosemirror-view";
-import {Memo, useContext, useMemo, useRef, useState} from "react";
+import {Memo, useMemo, useRef, useState} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {useContentBlockWidth} from "~/client/web/content/content_block_width.js";
-import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {useContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {FileModelRegistryData} from "~/client/web/content/file_registry.js";
 import {useFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {registerClipboardSerializer} from "~/client/web/content/handle_copy_event_if_not_text_input_element.js";
@@ -35,9 +35,9 @@ import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hou
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout, fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -82,7 +82,7 @@ export function MessageViewFiles({
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
     const siteRegistry = useSiteRegistry();
-    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const fileEntityRenderers = useContentFileEntityRenderers();
     const currentDate = useCurrentDate();
     const blockWidth = useContentBlockWidth();
 
@@ -104,7 +104,7 @@ export function MessageViewFiles({
             return computeStore(get => {
                 let suppressHydrationWarning = false;
 
-                const maxFileCount = 3;
+                const maxFileCount = fileRowMaxFileCount;
 
                 const html = new HtmlFragmentGenerator();
                 const fileRows: Array<{
@@ -428,8 +428,11 @@ export function MessageViewFiles({
             };
 
             const state = ContentEditorState.create({
-                doc: clipboardSchema.node("doc", {}, clipboardFileRows),
-                references: contentReferences,
+                spaceId: space.id,
+                content: {
+                    doc: clipboardSchema.node("doc", {}, clipboardFileRows),
+                    references: contentReferences,
+                },
             })._getInternalState();
             const {schema} = state.doc.type;
 

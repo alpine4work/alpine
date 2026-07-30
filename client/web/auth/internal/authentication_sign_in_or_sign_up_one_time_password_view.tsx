@@ -16,6 +16,7 @@ import {
     OneTimePasswordInput,
     OneTimePasswordInputRef,
 } from "~/client/web/auth/internal/one_time_password_input.js";
+import {trackGoogleAdsSignUpConversion} from "~/client/web/auth/internal/tracking/track_google_ads_sign_up_conversion.js";
 import {removeAuthenticationSignUpInviteEmailAddresses} from "~/client/web/auth/internal/use_authentication_sign_up_invite_email_addresses.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -28,12 +29,12 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     AuthSignInInputSchema,
+    AuthSignInOrSignUpOpen,
     AuthSignInOrSignUpOutputSchema,
     AuthSignUpInputSchema,
 } from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -100,7 +101,7 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
             ref={formRef}
             submitErrorTitle={submitErrorTitle}
             onSubmit={async () => {
-                let openSpaceId: SpaceId | null = null;
+                let open: AuthSignInOrSignUpOpen | null = null;
 
                 try {
                     let route: string;
@@ -128,7 +129,7 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                             throw exhaustive(state);
                     }
 
-                    ({openSpaceId} = await fetchWithTracer(
+                    ({open} = await fetchWithTracer(
                         context.tracer.getTracer(),
                         route,
                         {
@@ -154,6 +155,13 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                     // We technically only need this when `state.type === "SignUpOneTimePassword"` but
                     // it doesn't hurt to call after sign in too.
                     removeAuthenticationSignUpInviteEmailAddresses(state.emailAddress);
+
+                    // Record the Google Ads sign-up conversion only when the account was actually
+                    // created (i.e. not on sign in). No-op outside of production or when no conversion
+                    // label is configured.
+                    if (state.type === "SignUpOneTimePassword") {
+                        trackGoogleAdsSignUpConversion();
+                    }
                 } catch (error) {
                     // Clear the one time password input
                     setOneTimePassword("");
@@ -167,7 +175,7 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                         {
                             type: "AfterSignUpMobileInterstitial",
                             emailAddress: state.emailAddress,
-                            openSpaceId,
+                            open,
                         },
                         {spanData: {}},
                     );
@@ -177,7 +185,7 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                 await navigateAfterSignInOrSignUp({
                     navigate,
                     searchParams,
-                    openSpaceId,
+                    open,
                 });
             }}
             button={
@@ -216,7 +224,6 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                         >
                             Privacy&nbsp;Policy
                         </Link>
-                        .
                     </Box>
                 )
             }

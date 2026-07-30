@@ -168,6 +168,8 @@ The full code style ruleset can be found in `admin/docs/code_style.md`, if neede
 ### TypeScript
 
 - Helper functions in individual modules. Avoid `_utils.ts` files. One helper per file.
+- Avoid one-use helper functions. Only extract logic into a helper if it is very large and used at
+  least twice, or small and used at least three times.
 - For module scope functions prefer function declarations (`function f() {}`) to arrow functions
   (`const f = () => {}`).
 - Avoid classes. Prefer discriminated unions and composition over inheritance.

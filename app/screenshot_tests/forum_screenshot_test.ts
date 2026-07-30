@@ -4,8 +4,11 @@ import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_fi
 import {scrollLocatorToBottom} from "~/app/screenshot_tests/helpers/scroll_locator_to_bottom.js";
 import {uploadScreenshotTestFixtureFile} from "~/app/screenshot_tests/helpers/upload_screenshot_test_fixture_file.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
@@ -113,6 +116,20 @@ incorporate into our brand.
         },
     );
 
+    await channel.createPost(
+        accounts.roseCompas,
+        markdown`
+Small thing: our empty states are pretty boring right now. Instead we should use the space for
+education. e.g. prompt the user to create something.
+        `,
+        {
+            // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
+            // makes sure the reaction party on any messages is stable across renders.
+            id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "emptyStatesPost"),
+            overrideCreatedTime: new Date("2025-09-24T14:18:00.000Z"),
+        },
+    );
+
     const codeBlockPost = await channel.createPost(
         accounts.masonClay,
         markdown`
@@ -140,20 +157,6 @@ without making the UI overly busy in the dense table edge case.
             // makes sure the reaction party on any messages is stable across renders.
             id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "codeBlockPost"),
             overrideCreatedTime: new Date("2025-10-03T14:12:00.000Z"),
-        },
-    );
-
-    await channel.createPost(
-        accounts.roseCompas,
-        markdown`
-Small thing: our empty states are pretty boring right now. Instead we should use the space for
-education. e.g. prompt the user to create something.
-        `,
-        {
-            // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
-            // makes sure the reaction party on any messages is stable across renders.
-            id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "emptyStatesPost"),
-            overrideCreatedTime: new Date("2025-09-24T14:18:00.000Z"),
         },
     );
 
@@ -222,8 +225,8 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
         new Date("2025-10-14T17:20:00.000Z").getTime(),
     );
 
-    const channelPath = `/s/${space.id}/channels/${channel.id}`;
-    const postPath = `/s/${space.id}/posts/${codeBlockPost.id}`;
+    const channelPath = `/channel/${channel.id}`;
+    const postPath = `/post/${codeBlockPost.id}`;
 
     await runner.goto(accounts.cassCade, channelPath);
     await runner.screenshot("a0", "channel");
@@ -243,15 +246,31 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
     await runner.goto(null, channelPath);
     await runner.screenshot("a1", "channel-url-grant");
 
-    await screenshotFileEntity(runner, accounts.cassCade, "a1", "a2", `Channel:${channel.id}`);
+    const oldChannelAccessPolicy = await channel.access.get();
+    assert(oldChannelAccessPolicy.type === "Local");
+
+    // Screenshot the channel standalone and inside a site (showing the site
+    // breadcrumb). Reuses the existing "Craft" channel; `screenshotFileEntity` adds it
+    // to the site, screenshots, then removes it.
+    const designSite = await TestSite.create(accounts.mattRHorn, {
+        name: "Design",
+        access: "Public",
+    });
+    await screenshotFileEntity(runner, accounts.cassCade, "a1", "a2", `Channel:${channel.id}`, {
+        siteOptions: {
+            site: designSite,
+            revertAccessPolicy: () =>
+                channel.access.set(accounts.mattRHorn, oldChannelAccessPolicy),
+        },
+    });
 
     await runner.goto(accounts.cassCade, channelPath, {
-        peekPath: `/s/${space.id}/channels/${channel.id}/files`,
+        peekPath: `/channel/${channel.id}/files`,
     });
     await runner.screenshot("a2", "channel-files");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
-        peekPath: `/s/${space.id}/channels/new`,
+    await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+        peekPath: `/channel/new/${space.id}`,
     });
     await runner.screenshot("a3", "channel-new");
 
@@ -263,17 +282,20 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
     await runner.getByText("Hover-reveal is cleaner").waitFor();
     await runner.screenshot("a5", "post-url-grant");
 
-    await screenshotFileEntity(runner, accounts.cassCade, "a5", "a6", `Post:${codeBlockPost.id}`);
+    // Posts live in a channel, not directly in a site, so there's no in-site variant.
+    await screenshotFileEntity(runner, accounts.cassCade, "a5", "a6", `Post:${codeBlockPost.id}`, {
+        siteOptions: null,
+    });
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
-        peekPath: `/s/${space.id}/posts/new/${postDraftId}`,
+    await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+        peekPath: `/post/new/${postDraftId}/${space.id}`,
     });
     await runner.screenshot("a6", "post-new");
 
     {
         const loadingChannel = await loadingChannelPromise;
 
-        await runner.goto(accounts.masonClay, `/s/${space.id}/channels/${loadingChannel.id}`, {
+        await runner.goto(accounts.masonClay, `/channel/${loadingChannel.id}`, {
             allowPauseNetwork: true,
         });
         await runner.pauseNetwork();
@@ -281,6 +303,105 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
             withExpectedScrollHeightChange: true,
         });
         await runner.screenshot("a7", "channel-loading");
+    }
+
+    // Screenshot a desktop peek of a channel both standalone and as part of a site, so
+    // we can compare the site breadcrumb chip directly. Uses a dedicated channel
+    // (separate from the "Craft" channel above) so the site framing doesn't affect
+    // earlier screenshots.
+    {
+        const oldChannelAccessPolicy = await channel.access.get();
+        assert(oldChannelAccessPolicy.type === "Local");
+
+        // Open the peek against `/dev/empty` so the background is plain and the screenshot
+        // focuses on the channel peek under test.
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            peekPath: channelPath,
+        });
+        await runner.getByText("Craft").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8", "channel-peek");
+
+        // Double click the channel name to open the inline name editor. Wait for the
+        // editor input to take focus so the focus ring and text selection are visible.
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").dblclick();
+        await runner.getByPlaceholder("Craft").and(runner.page.locator(":focus")).waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8E1", "channel-peek-name-editor");
+
+        // Replace the name then click away. Losing focus asks for confirmation instead of
+        // saving silently.
+        await runner.getByPlaceholder("Craft").fill("Lorem ipsum");
+        await runner.getByTestId("PostListScrollView").first().click();
+        await runner.getByText("Save channel name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8E3", "channel-peek-name-editor-confirm-save");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").waitFor();
+
+        await runner
+            .getByTestId("PostListScrollView")
+            .first()
+            .evaluate(element => {
+                element.scrollTop = 400;
+            });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8S", "channel-peek-scrolled");
+
+        const goToMarketSite = await TestSite.create(accounts.mattRHorn, {
+            name: "Design",
+            access: "Public",
+        });
+        await goToMarketSite.addEntity(accounts.mattRHorn, {
+            entityId: `Channel:${channel.id}`,
+            parentId: goToMarketSite.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        await services.waitForSqsProcessJobs();
+
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            peekPath: channelPath,
+        });
+        await runner.getByText("Craft").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a9", "channel-peek-in-site");
+
+        // Double click the channel name to open the inline name editor. Wait for the
+        // editor input to take focus so the focus ring and text selection are visible.
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").dblclick();
+        await runner.getByPlaceholder("Craft").and(runner.page.locator(":focus")).waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a9E1", "channel-peek-in-site-name-editor");
+
+        // Replace the name then click away. Losing focus asks for confirmation instead of
+        // saving silently.
+        await runner.getByPlaceholder("Craft").fill("Lorem ipsum");
+        await runner.getByTestId("PostListScrollView").first().click();
+        await runner.getByText("Save channel name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a9E3", "channel-peek-in-site-name-editor-confirm-save");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").waitFor();
+
+        // Same peek, scrolled — verifies the grown nav bar (chip stacked above the channel
+        // name + bottom-aligned Subscribe / ⋮) holds while posts scroll past.
+        await runner
+            .getByTestId("PostListScrollView")
+            .first()
+            .evaluate(element => {
+                element.scrollTop = 400;
+            });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA", "channel-peek-in-site-scrolled");
+
+        await goToMarketSite.removeEntity(accounts.mattRHorn, `Channel:${channel.id}`);
+        await channel.access.set(accounts.mattRHorn, oldChannelAccessPolicy);
     }
 }
 

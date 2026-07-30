@@ -15,6 +15,7 @@ import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
+import {emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 describe("intoApiSearchResult", () => {
     const accountId = generateId<AccountId>();
@@ -95,10 +96,12 @@ describe("intoApiSearchResult", () => {
         test("returns null bodyMatch when bodyTextSnippet is empty", () => {
             const documentId = generateId<DocumentId>();
             const model = new SearchEntityModel({
-                id: `Document:${documentId}`,
+                type: "Document",
                 title: "Test Document",
-                titleVersion: null,
-                media: null,
+                document: {
+                    id: documentId,
+                    version: 0,
+                },
             });
 
             const result = intoApiSearchResult(
@@ -121,10 +124,12 @@ describe("intoApiSearchResult", () => {
         test("converts bodyTextSnippet with highlighted text", () => {
             const documentId = generateId<DocumentId>();
             const model = new SearchEntityModel({
-                id: `Document:${documentId}`,
+                type: "Document",
                 title: "Test Document",
-                titleVersion: null,
-                media: null,
+                document: {
+                    id: documentId,
+                    version: 0,
+                },
             });
 
             const result = intoApiSearchResult(
@@ -155,10 +160,12 @@ describe("intoApiSearchResult", () => {
         test("converts bodyTextSnippet without highlighted text", () => {
             const documentId = generateId<DocumentId>();
             const model = new SearchEntityModel({
-                id: `Document:${documentId}`,
+                type: "Document",
                 title: "Test Document",
-                titleVersion: null,
-                media: null,
+                document: {
+                    id: documentId,
+                    version: 0,
+                },
             });
 
             const result = intoApiSearchResult(
@@ -183,10 +190,12 @@ describe("intoApiSearchResult", () => {
         test("converts Channel entity to API result", () => {
             const channelId = generateId<ChannelId>();
             const model = new SearchEntityModel({
-                id: `Channel:${channelId}`,
+                type: "Channel",
                 title: "General Channel",
-                titleVersion: null,
-                media: null,
+                channel: {
+                    id: channelId,
+                    version: 0,
+                },
             });
 
             const result = intoApiSearchResult(
@@ -209,10 +218,12 @@ describe("intoApiSearchResult", () => {
         test("handles Channel with null title", () => {
             const channelId = generateId<ChannelId>();
             const model = new SearchEntityModel({
-                id: `Channel:${channelId}`,
+                type: "Channel",
                 title: null,
-                titleVersion: null,
-                media: null,
+                channel: {
+                    id: channelId,
+                    version: 0,
+                },
             });
 
             const result = intoApiSearchResult(
@@ -237,10 +248,17 @@ describe("intoApiSearchResult", () => {
         test("converts Chat entity to API result", () => {
             const chatId = generateId<ChatId>();
             const model = new SearchEntityModel({
-                id: `Chat:${chatId}`,
+                type: "Chat",
                 title: "Team Discussion",
-                titleVersion: null,
-                media: null,
+                chat: {
+                    id: chatId,
+                    version: 0,
+                    media: {
+                        type: "AccountPile",
+                        previewAccounts: [],
+                        accountCount: 0,
+                    },
+                },
             });
 
             const result = intoApiSearchResult(
@@ -263,10 +281,17 @@ describe("intoApiSearchResult", () => {
         test("handles Chat with null title", () => {
             const chatId = generateId<ChatId>();
             const model = new SearchEntityModel({
-                id: `Chat:${chatId}`,
+                type: "Chat",
                 title: null,
-                titleVersion: null,
-                media: null,
+                chat: {
+                    id: chatId,
+                    version: 0,
+                    media: {
+                        type: "AccountPile",
+                        previewAccounts: [],
+                        accountCount: 0,
+                    },
+                },
             });
 
             const result = intoApiSearchResult(
@@ -298,12 +323,12 @@ describe("intoApiSearchResult", () => {
             });
 
             const model = new SearchEntityModel({
-                id: `ChatMessage:${chatId}-${messageIndex}`,
+                type: "ChatMessage",
                 title: null,
-                titleVersion: null,
-                media: {
-                    type: "Account",
-                    account: authorModel,
+                message: {
+                    chatId,
+                    index: messageIndex,
+                    author: authorModel,
                 },
             });
 
@@ -334,10 +359,12 @@ describe("intoApiSearchResult", () => {
         test("converts Document entity to API result", () => {
             const documentId = generateId<DocumentId>();
             const model = new SearchEntityModel({
-                id: `Document:${documentId}`,
+                type: "Document",
                 title: "Project Proposal",
-                titleVersion: null,
-                media: null,
+                document: {
+                    id: documentId,
+                    version: 0,
+                },
             });
 
             const result = intoApiSearchResult(
@@ -360,10 +387,12 @@ describe("intoApiSearchResult", () => {
         test("handles Document with null title", () => {
             const documentId = generateId<DocumentId>();
             const model = new SearchEntityModel({
-                id: `Document:${documentId}`,
+                type: "Document",
                 title: null,
-                titleVersion: null,
-                media: null,
+                document: {
+                    id: documentId,
+                    version: 0,
+                },
             });
 
             const result = intoApiSearchResult(
@@ -396,12 +425,13 @@ describe("intoApiSearchResult", () => {
             });
 
             const model = new SearchEntityModel({
-                id: `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`,
+                type: "DocumentComment",
                 title: null,
-                titleVersion: null,
-                media: {
-                    type: "Account",
-                    account: authorModel,
+                comment: {
+                    documentId,
+                    commentThreadId,
+                    index: commentIndex,
+                    author: authorModel,
                 },
             });
 
@@ -439,12 +469,13 @@ describe("intoApiSearchResult", () => {
             });
 
             const model = new SearchEntityModel({
-                id: `Post:${postId}`,
+                type: "Post",
                 title: "Announcement",
-                titleVersion: null,
-                media: {
-                    type: "Account",
-                    account: authorModel,
+                post: {
+                    id: postId,
+                    version: 0,
+                    channelVersion: 0,
+                    author: authorModel,
                 },
             });
 
@@ -478,12 +509,13 @@ describe("intoApiSearchResult", () => {
             });
 
             const model = new SearchEntityModel({
-                id: `Post:${postId}`,
+                type: "Post",
                 title: null,
-                titleVersion: null,
-                media: {
-                    type: "Account",
-                    account: authorModel,
+                post: {
+                    id: postId,
+                    version: 0,
+                    channelVersion: 0,
+                    author: authorModel,
                 },
             });
 
@@ -520,12 +552,12 @@ describe("intoApiSearchResult", () => {
             });
 
             const model = new SearchEntityModel({
-                id: `PostComment:${postId}-${commentIndex}`,
+                type: "PostComment",
                 title: null,
-                titleVersion: null,
-                media: {
-                    type: "Account",
-                    account: authorModel,
+                comment: {
+                    postId,
+                    index: commentIndex,
+                    author: authorModel,
                 },
             });
 
@@ -556,13 +588,15 @@ describe("intoApiSearchResult", () => {
         test("converts Task entity with OpenInactive status to API result", () => {
             const taskId = generateId<TaskId>();
             const model = new SearchEntityModel({
-                id: `Task:${taskId}`,
+                type: "Task",
                 title: "Fix the bug",
-                titleVersion: null,
-                media: {
-                    type: "TaskDisplayStatus",
-                    displayStatus: "OpenInactive",
-                    version: expect.any(Array),
+                task: {
+                    id: taskId,
+                    titleSnapshot: emptyTaskTitleModel.get().getSnapshot(),
+                    displayStatus: {
+                        value: "OpenInactive",
+                        version: [0, 0],
+                    },
                 },
             });
 
@@ -587,13 +621,15 @@ describe("intoApiSearchResult", () => {
         test("converts Task entity with OpenActive status to API result", () => {
             const taskId = generateId<TaskId>();
             const model = new SearchEntityModel({
-                id: `Task:${taskId}`,
+                type: "Task",
                 title: "Implement feature",
-                titleVersion: null,
-                media: {
-                    type: "TaskDisplayStatus",
-                    displayStatus: "OpenActive",
-                    version: expect.any(Array),
+                task: {
+                    id: taskId,
+                    titleSnapshot: emptyTaskTitleModel.get().getSnapshot(),
+                    displayStatus: {
+                        value: "OpenActive",
+                        version: [0, 0],
+                    },
                 },
             });
 
@@ -618,13 +654,15 @@ describe("intoApiSearchResult", () => {
         test("converts Task entity with Closed status to API result", () => {
             const taskId = generateId<TaskId>();
             const model = new SearchEntityModel({
-                id: `Task:${taskId}`,
+                type: "Task",
                 title: "Completed task",
-                titleVersion: null,
-                media: {
-                    type: "TaskDisplayStatus",
-                    displayStatus: "Closed",
-                    version: expect.any(Array),
+                task: {
+                    id: taskId,
+                    titleSnapshot: emptyTaskTitleModel.get().getSnapshot(),
+                    displayStatus: {
+                        value: "Closed",
+                        version: [0, 0],
+                    },
                 },
             });
 
@@ -649,13 +687,15 @@ describe("intoApiSearchResult", () => {
         test("handles Task with null title", () => {
             const taskId = generateId<TaskId>();
             const model = new SearchEntityModel({
-                id: `Task:${taskId}`,
+                type: "Task",
                 title: null,
-                titleVersion: null,
-                media: {
-                    type: "TaskDisplayStatus",
-                    displayStatus: "OpenActive",
-                    version: expect.any(Array),
+                task: {
+                    id: taskId,
+                    titleSnapshot: emptyTaskTitleModel.get().getSnapshot(),
+                    displayStatus: {
+                        value: "OpenActive",
+                        version: [0, 0],
+                    },
                 },
             });
 
@@ -682,10 +722,16 @@ describe("intoApiSearchResult", () => {
         test("converts TaskCollection entity to API result", () => {
             const collectionId = generateId<TaskCollectionId>();
             const model = new SearchEntityModel({
-                id: `TaskCollection:${collectionId}`,
+                type: "TaskCollection",
                 title: "Sprint 1 Tasks",
-                titleVersion: null,
-                media: null,
+                collection: {
+                    id: collectionId,
+                    titleVersion: [0, 0],
+                    color: {
+                        value: null,
+                        version: [0, 0],
+                    },
+                },
             });
 
             const result = intoApiSearchResult(
@@ -708,10 +754,16 @@ describe("intoApiSearchResult", () => {
         test("handles TaskCollection with null title", () => {
             const collectionId = generateId<TaskCollectionId>();
             const model = new SearchEntityModel({
-                id: `TaskCollection:${collectionId}`,
+                type: "TaskCollection",
                 title: null,
-                titleVersion: null,
-                media: null,
+                collection: {
+                    id: collectionId,
+                    titleVersion: [0, 0],
+                    color: {
+                        value: null,
+                        version: [0, 0],
+                    },
+                },
             });
 
             const result = intoApiSearchResult(
@@ -743,12 +795,12 @@ describe("intoApiSearchResult", () => {
             });
 
             const model = new SearchEntityModel({
-                id: `TaskComment:${taskId}-${commentIndex}`,
+                type: "TaskComment",
                 title: null,
-                titleVersion: null,
-                media: {
-                    type: "Account",
-                    account: authorModel,
+                comment: {
+                    taskId,
+                    index: commentIndex,
+                    author: authorModel,
                 },
             });
 
@@ -778,10 +830,9 @@ describe("intoApiSearchResult", () => {
     describe("static search entities", () => {
         test("returns null for static search entity ID", () => {
             const model = new SearchEntityModel({
+                type: "Static",
                 id: "TaskPersonal",
                 title: "My Tasks",
-                titleVersion: null,
-                media: null,
             });
 
             const result = intoApiSearchResult(

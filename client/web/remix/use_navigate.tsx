@@ -22,6 +22,7 @@ import {
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/web/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useSpaceContextIfExists} from "~/client/web/spaces/context/space_context.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -80,13 +81,26 @@ function unsupportedNavigateForTest(): never {
 // https://github.com/remix-run/react-router/blob/aef5c4a617756e6fcc493de17b4be9997a5a19c8/packages/react-router/lib/hooks.tsx#L1064-L1095
 function createNavigateFunction(
     context: NavigationContext | null,
-    withoutPropagation: boolean = false,
+    {
+        withoutPropagation = false,
+        spaceId,
+    }: {
+        withoutPropagation?: boolean;
+        spaceId: string | null;
+    },
 ): NavigateFunction {
     return function navigate(
         to: To | number | NavigateFunctionUpdater,
         options?: NavigateOptions & {stopPropagation?: boolean},
     ): SafeFloatingPromise<void> {
         if (context === null) return unsupportedNavigateForTest();
+        const headersWithSpaceId = spaceId
+            ? {...options?.unstable_headers, "cyberworlds-space-id": spaceId}
+            : options?.unstable_headers;
+        const navigateOptions = {
+            ...options,
+            unstable_headers: headersWithSpaceId,
+        };
 
         const {
             router,
@@ -111,11 +125,11 @@ function createNavigateFunction(
         );
 
         if (!withoutPropagation && !options?.stopPropagation) {
-            const result = onNavigate?.(to, options);
+            const result = onNavigate?.(to, navigateOptions);
             if (result?.preventDefault) return result.promise as SafeFloatingPromise<void>;
         }
 
-        void router.navigate(to, {fromRouteId: routeId, ...options});
+        void router.navigate(to, {fromRouteId: routeId, ...navigateOptions});
         return waitForNextNavigation() as SafeFloatingPromise<void>;
     };
 }
@@ -132,6 +146,7 @@ function createNavigateFunction(
  */
 export function useNavigate(): Memo<NavigateFunction> {
     const context = useContext(NavigationContext);
+    const spaceContext = useSpaceContextIfExists();
 
     // Throw if we don't have our parent context unless we're in tests. In unit tests
     // we allow the component to render but throw when you try to call the navigate
@@ -142,7 +157,10 @@ export function useNavigate(): Memo<NavigateFunction> {
         );
     }
 
-    return useMemo(() => createNavigateFunction(context), [context]);
+    return useMemo(
+        () => createNavigateFunction(context, {spaceId: spaceContext?.space.id ?? null}),
+        [context, spaceContext?.space.id],
+    );
 }
 
 /**
@@ -151,6 +169,7 @@ export function useNavigate(): Memo<NavigateFunction> {
  */
 export function useRootNavigate(): Memo<NavigateFunction> {
     const context = useContext(NavigationContext);
+    const spaceContext = useSpaceContextIfExists();
 
     // Throw if we don't have our parent context unless we're in tests. In unit tests
     // we allow the component to render but throw when you try to call the navigate
@@ -171,9 +190,9 @@ export function useRootNavigate(): Memo<NavigateFunction> {
             rootContext,
             // Don't call `onNavigate`. The root navigation function skips any event handlers
             // added with `<NavigationEventContextProvider>`.
-            true,
+            {withoutPropagation: true, spaceId: spaceContext?.space.id ?? null},
         );
-    }, [context]);
+    }, [context, spaceContext?.space.id]);
 }
 
 type NavigationContext = {
@@ -190,7 +209,7 @@ const NavigationContext = createContext<NavigationContext | null>(null);
  * Sets up the navigation context. Primarily resolves the promises returned by
  * `navigate()` by observing the `location` at the position of this context
  * provider in the tree. So should be rendered at the root of a react router route
- * (we render in `root.tsx` and `s.$spaceId.peek.tsx` since peeks create their own
+ * (we render in `root.tsx` and `_space.peek.tsx` since peeks create their own
  * react routers).
  */
 export function NavigationContextProvider({children}: {children?: ReactNode}) {

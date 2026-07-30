@@ -27,7 +27,7 @@ import {
     executeSearch,
     pendingExecuteSearchOutput,
 } from "~/client/web/search/internal/execute_search.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -366,10 +366,9 @@ export function useSearchState({
                     newResults.push(
                         new SearchEntityResultModel({
                             model: new SearchEntityModel({
+                                type: "Static",
                                 id: match.item.entityId,
                                 title: match.item.entity.title,
-                                titleVersion: null,
-                                media: match.item.entity.media ?? null,
                             }),
                             score: Infinity,
                             bodyTextSnippet: [],

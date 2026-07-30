@@ -1,10 +1,24 @@
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {SearchEntityModelDataSchema} from "~/shared/search/search_entity_model.js";
+import {
+    SearchChannelEntityModelDataSchema,
+    SearchChatEntityModelDataSchema,
+    SearchDocumentEntityModelDataSchema,
+    SearchEntityModel,
+    SearchEntityModelData,
+    SearchEntityModelId,
+    SearchTaskCollectionEntityModelDataSchema,
+    SearchTaskEntityModelDataSchema,
+} from "~/shared/search/search_entity_model.js";
+import {
+    SiteItemSearchEntityId,
+    SiteItemSearchEntityIdSchema,
+} from "~/shared/search/site_item_search_entity_id.js";
 import {
     SiteRootContainerId,
     SiteSideBarContainerId,
@@ -12,12 +26,11 @@ import {
     SiteTopBarContainerId,
 } from "~/shared/sites/site_entry_id.js";
 import {
-    SiteEntityEntrySchema,
-    SiteSideBarEntrySchema,
-    SiteSideBarSectionEntrySchema,
-    SiteTopBarEntrySchema,
+    SiteEntryEntitySchema,
+    SiteEntrySideBarSchema,
+    SiteEntrySideBarSectionSchema,
+    SiteEntryTopBarSchema,
 } from "~/shared/sites/site_entry_schema.js";
-import {SiteItemSearchEntityIdSchema} from "~/shared/sites/site_item_search_entity_id.js";
 
 export const SitePreviewModelDataSchema = Schema.object({
     id: Schema.id<SiteId>(),
@@ -88,7 +101,7 @@ export class SitePreviewModel {
  * ========================================================================== */
 
 export class SiteTopBarModel extends Model(
-    SiteTopBarEntrySchema.merge(
+    SiteEntryTopBarSchema.merge(
         Schema.object({
             version: Schema.integer,
             id: Schema.string as Schema<SiteTopBarContainerId>,
@@ -97,7 +110,7 @@ export class SiteTopBarModel extends Model(
 ) {}
 
 export class SiteSideBarModel extends Model(
-    SiteSideBarEntrySchema.merge(
+    SiteEntrySideBarSchema.merge(
         Schema.object({
             version: Schema.integer,
             id: Schema.string as Schema<SiteSideBarContainerId>,
@@ -106,7 +119,7 @@ export class SiteSideBarModel extends Model(
 ) {}
 
 export class SiteSideBarSectionModel extends Model(
-    SiteSideBarSectionEntrySchema.merge(
+    SiteEntrySideBarSectionSchema.merge(
         Schema.object({
             version: Schema.integer,
             id: Schema.string as Schema<SiteSideBarSectionContainerId>,
@@ -114,17 +127,78 @@ export class SiteSideBarSectionModel extends Model(
     ),
 ) {}
 
+export type SiteEntrySearchEntityModelData = SchemaType<
+    typeof SiteEntrySearchEntityModelDataSchema
+>;
+const SiteEntrySearchEntityModelDataSchema = Schema.union({
+    Channel: SearchChannelEntityModelDataSchema,
+    Chat: SearchChatEntityModelDataSchema,
+    Document: SearchDocumentEntityModelDataSchema,
+    Task: SearchTaskEntityModelDataSchema,
+    TaskCollection: SearchTaskCollectionEntityModelDataSchema,
+});
+
+export interface SiteEntrySearchEntityModel extends SearchEntityModel {
+    readonly id: SearchEntityModelId & SiteItemSearchEntityId;
+
+    readonly initialData: SiteEntrySearchEntityModelData;
+
+    getSearchEntityId(): SearchEntityModelId & SiteItemSearchEntityId;
+}
+
+export const SiteEntrySearchEntityModel: {
+    schema: Schema<SiteEntrySearchEntityModel>;
+    // TypeScript treats `new` as a keyword and not a property when it doesn't have
+    // quotes when generating a `.d.ts` file.
+    "new"(initialData: SiteEntrySearchEntityModelData): SiteEntrySearchEntityModel;
+} = {
+    schema: SiteEntrySearchEntityModelDataSchema.transform<SiteEntrySearchEntityModel>({
+        // Serializing the model over the network is fine. Generally only the
+        // server serializes data over the network for the client.
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
+        serialize: entity => entity.initialData,
+        deserialize: entity => SiteEntrySearchEntityModel.new(entity),
+    }),
+
+    new(initialData: SiteEntrySearchEntityModelData): SiteEntrySearchEntityModel {
+        return new SearchEntityModel(initialData) as SiteEntrySearchEntityModel;
+    },
+};
+
 export class SiteEntityModel extends Model(
-    SiteEntityEntrySchema.merge(
+    SiteEntryEntitySchema.merge(
         Schema.object({
             version: Schema.integer,
             id: SiteItemSearchEntityIdSchema,
-            initialEntityData: SearchEntityModelDataSchema.merge(
-                Schema.object({id: SiteItemSearchEntityIdSchema}),
-            ),
+            entity: SiteEntrySearchEntityModel.schema,
         }),
     ),
 ) {}
+
+export function isSiteEntrySearchEntityModelData(
+    data: SearchEntityModelData,
+): data is SiteEntrySearchEntityModelData {
+    switch (data.type) {
+        case "Channel":
+        case "Chat":
+        case "Document":
+        case "Task":
+        case "TaskCollection":
+            return true;
+        case "Post":
+        case "Static":
+        case "Site":
+        case "ChatMessage":
+        case "DocumentComment":
+        case "PostComment":
+        case "TaskComment": {
+            return false;
+        }
+        default:
+            throw exhaustive(data);
+    }
+}
 
 /**
  * Union of all site entry model types.

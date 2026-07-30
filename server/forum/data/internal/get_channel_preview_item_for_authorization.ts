@@ -80,7 +80,7 @@ export async function getChannelPreviewItemForAuthorizationIfExists(
         consistency,
         channelId,
         async consistency =>
-            ForumRealtimeTable.getPartialItemIfExists(
+            await ForumRealtimeTable.getPartialItemIfExists(
                 context,
                 {
                     partitionType: "Channel",

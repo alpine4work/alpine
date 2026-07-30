@@ -9,7 +9,7 @@ import {Tooltip} from "~/client/web/design/tooltip.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inputPlaceholderStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {TaskCurrentAccountAvatar} from "~/client/web/tasks/internal/task_current_account_avatar.js";
 import {TaskQueryFilterEditorMultiSelectComboBox} from "~/client/web/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
@@ -485,7 +485,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                       allItems.filter(
                           item =>
                               item.type !== "Account" ||
-                              item.accountData.space.state.type === "Active",
+                              item.accountData.space.state.type !== "Removed",
                       )
                     : itemsSearchIndex.search(searchInputValue).map(({item}) => item),
         };

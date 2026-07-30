@@ -16,7 +16,7 @@ import {
     reverseLinkedList,
 } from "~/shared/helpers/immutable/linked_list.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export type PostEditingState =
     | {
@@ -46,6 +46,7 @@ export type PostEditingState =
 export type PostEditingAction =
     | {
           readonly type: "StartEditing";
+          readonly spaceId: SpaceId;
           readonly postId: PostId;
           readonly contentVersion: number;
           readonly content: PostContentWithReferences;
@@ -83,7 +84,9 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
                 isEditing: true,
                 postId: action.postId,
                 contentVersion: action.contentVersion,
-                contentEditorState: ContentEditorState.create(action.content, {
+                contentEditorState: ContentEditorState.create({
+                    spaceId: action.spaceId,
+                    content: action.content,
                     // Put the selection at the start of the post so the cursor is visible when we
                     // enter edit mode and we don't have to scroll.
                     selection: "start",

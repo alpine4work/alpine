@@ -46,7 +46,7 @@ test("ignores actions before start is called", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: generateId(),
+                        creator: {accountId: generateId(), from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -91,7 +91,7 @@ test("records actions after start is called", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: generateId(),
+                        creator: {accountId: generateId(), from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -115,7 +115,7 @@ test("records actions after start is called", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: generateId(),
+                        creator: {accountId: generateId(), from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -139,7 +139,7 @@ test("records actions after start is called", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: generateId(),
+                        creator: {accountId: generateId(), from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -163,7 +163,7 @@ test("records actions after start is called", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: generateId(),
+                        creator: {accountId: generateId(), from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -211,7 +211,7 @@ test("will expire some actions whenever the timer runs", () => {
                         taskId: generateId(),
                         taskAction: {
                             type: "Create",
-                            creatorId: generateId(),
+                            creator: {accountId: generateId(), from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -234,7 +234,7 @@ test("will expire some actions whenever the timer runs", () => {
                         taskId: generateId(),
                         taskAction: {
                             type: "Create",
-                            creatorId: generateId(),
+                            creator: {accountId: generateId(), from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -257,7 +257,7 @@ test("will expire some actions whenever the timer runs", () => {
                         taskId: generateId(),
                         taskAction: {
                             type: "Create",
-                            creatorId: generateId(),
+                            creator: {accountId: generateId(), from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -280,7 +280,7 @@ test("will expire some actions whenever the timer runs", () => {
                         taskId: generateId(),
                         taskAction: {
                             type: "Create",
-                            creatorId: generateId(),
+                            creator: {accountId: generateId(), from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -303,7 +303,7 @@ test("will expire some actions whenever the timer runs", () => {
                         taskId: generateId(),
                         taskAction: {
                             type: "Create",
-                            creatorId: generateId(),
+                            creator: {accountId: generateId(), from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -389,7 +389,7 @@ test("will clear entire history", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: generateId(),
+                        creator: {accountId: generateId(), from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -412,7 +412,7 @@ test("will clear entire history", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: generateId(),
+                        creator: {accountId: generateId(), from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -435,7 +435,7 @@ test("will clear entire history", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: generateId(),
+                        creator: {accountId: generateId(), from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -463,7 +463,7 @@ test("will clear entire history", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: generateId(),
+                        creator: {accountId: generateId(), from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },

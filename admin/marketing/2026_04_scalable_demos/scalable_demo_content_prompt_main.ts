@@ -1,9 +1,10 @@
 import * as inquirer from "@inquirer/prompts";
 import fs from "fs/promises";
-import {join as joinPath} from "path";
+import {dirname, join as joinPath} from "path";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {runProcessWithInheritedStdio} from "~/server/helpers/node/run_process_with_inherited_stdio.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
@@ -15,7 +16,31 @@ trends and what gets views on X (the everything app). You work for Alpine, the m
 suite. Alpine has a daily demo video series posted on X. These demo videos are short (8–12 seconds)
 and show exactly one feature. You need to come up with engaging X post text for these videos.
 
-A couple rules you must follow:
+## What makes a great post
+
+The post text is MORE important than the video. The video is eye candy. The text is what actually
+stops the scroll and makes someone care.
+
+Our best performing posts follow this structure:
+
+1. **Hook** \u2014 a punchy first line that feels like something is launching. It should catch the
+   viewer\u2019s attention on its own, even without the video. Think \u201Cwe built an app where
+   that\u2019s one scroll instead\u201D not \u201Ccheck out this new feature.\u201D The hook should
+   make the viewer feel like they\u2019re discovering something, not watching a product demo.
+
+2. **Real problem** \u2014 call out a specific, relatable pain the viewer actually experiences at
+   work. Not abstract productivity talk. Concrete. \u201CYou spent 20 minutes this
+   morning\u2026\u201D hits harder than \u201Csave time on your workflow.\u201D The viewer should
+   think \u201Cyeah, that IS annoying.\u201D
+
+3. **The payoff** \u2014 connect the problem to what Alpine does about it. Keep it tight.
+
+The post must be entirely self-contained. A viewer who never watches the video should still get a
+complete, compelling idea from the text alone. Our posts that flop feel like captions for a demo
+video. Our posts that pop feel like a complete thing is being presented, and the video just happens
+to be attached. Write the post as if there is no video.
+
+## Rules you must follow
 
 - Posts are written entirely in lowercase (after all, you are a degenerate genz social media
   marketer).
@@ -88,23 +113,133 @@ A couple rules you must follow:
 Think hard then provide three different options for the post text.
 `;
 
-async function main() {
-    const workspacePath = getWorkspacePath();
-    const demosPath = joinPath(workspacePath, "admin/marketing/2026_04_scalable_demos/demos");
+type Platform = "x" | "linkedin";
 
-    const demoNames = (await fs.readdir(demosPath)).filter(name =>
-        name.endsWith("_demo_recorder.ts"),
-    );
+type ContentPromptArgs = {
+    additionalNotes: string | null;
+    demoArg: string | null;
+    outputPath: string | null;
+    platform: Platform | null;
+    url: string | null;
+};
 
-    const platform = await inquirer.select({
+function parseContentPromptArgs(): ContentPromptArgs {
+    const argv = process.argv.slice(2);
+    let additionalNotes: string | null = null;
+    let demoArg: string | null = null;
+    let outputPath: string | null = null;
+    let platform: Platform | null = null;
+    let url: string | null = null;
+
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]!;
+
+        if (arg === "--demo") {
+            demoArg = argv[i + 1] ?? null;
+            i++;
+            continue;
+        }
+
+        if (arg.startsWith("--demo=")) {
+            demoArg = arg.slice("--demo=".length);
+            continue;
+        }
+
+        if (arg === "--notes") {
+            additionalNotes = argv[i + 1] ?? null;
+            i++;
+            continue;
+        }
+
+        if (arg.startsWith("--notes=")) {
+            additionalNotes = arg.slice("--notes=".length);
+            continue;
+        }
+
+        if (arg === "--output") {
+            outputPath = argv[i + 1] ?? null;
+            i++;
+            continue;
+        }
+
+        if (arg.startsWith("--output=")) {
+            outputPath = arg.slice("--output=".length);
+            continue;
+        }
+
+        if (arg === "--platform") {
+            platform = parsePlatform(argv[i + 1] ?? "");
+            i++;
+            continue;
+        }
+
+        if (arg.startsWith("--platform=")) {
+            platform = parsePlatform(arg.slice("--platform=".length));
+            continue;
+        }
+
+        if (arg === "--url") {
+            url = argv[i + 1] ?? null;
+            i++;
+            continue;
+        }
+
+        if (arg.startsWith("--url=")) {
+            url = arg.slice("--url=".length);
+            continue;
+        }
+
+        throw new InvalidArgumentError(`Unknown argument: ${arg}`);
+    }
+
+    return {additionalNotes, demoArg, outputPath, platform, url};
+}
+
+function parsePlatform(platform: string): Platform {
+    switch (platform) {
+        case "linkedin":
+        case "x":
+            return platform;
+        default:
+            throw new InvalidArgumentError(`Unsupported platform: ${platform}`);
+    }
+}
+
+function resolveDemoName(demoNames: ReadonlyArray<string>, demoArg: string): string {
+    const matches = demoNames.filter(demoName => {
+        const demoBaseName = demoName.slice(0, -"_recorder.ts".length);
+
+        if (/^\d+$/.test(demoArg)) {
+            return demoBaseName.startsWith(`${demoArg.padStart(3, "0")}_`);
+        }
+
+        return demoBaseName.startsWith(demoArg);
+    });
+
+    switch (matches.length) {
+        case 0:
+            throw new InvalidArgumentError(`No demo recorder found matching: ${demoArg}`);
+        case 1:
+            return matches[0]!;
+        default:
+            throw new InvalidArgumentError(
+                `Multiple demo recorders matched ${demoArg}: ${matches.join(", ")}`,
+            );
+    }
+}
+
+async function getInteractivePlatform(): Promise<Platform> {
+    return await inquirer.select({
         message: "Platform",
         choices: [
             {name: "X", value: "x"},
             {name: "LinkedIn", value: "linkedin"},
         ] as const,
     });
+}
 
-    const demoName = await inquirer.select({
+async function getInteractiveDemoName(demoNames: ReadonlyArray<string>): Promise<string> {
+    return await inquirer.select({
         message: "Demo",
         choices: demoNames
             .map(demoName => ({
@@ -113,19 +248,29 @@ async function main() {
             }))
             .reverse(),
     });
+}
 
-    const additionalNotes = await inquirer.input({
-        message: "Additional notes",
-    });
-
-    const demoCode = await fs.readFile(joinPath(demosPath, demoName), "utf8");
-
+function createPrompt({
+    additionalNotes,
+    demoCode,
+    demoName,
+    platform,
+    url,
+}: {
+    additionalNotes: string;
+    demoCode: string;
+    demoName: string;
+    platform: Platform;
+    url: string | null;
+}): string {
     const platformPrompt = {
-        x: xPlatformPrompt,
         linkedin: linkedInPlatformPrompt,
+        x: xPlatformPrompt,
     }[platform];
+    const recordingUrlSection =
+        url === null || url.trim() === "" ? "" : `\n\n## Recording URL\n\n${url.trim()}`;
 
-    const prompt =
+    return (
         platformPrompt.trim() +
         "\n\n" +
         markdown`
@@ -145,9 +290,73 @@ your training data (vs trying to have you watch a video). Feel free to browse th
 more about the Alpine feature in question but be careful that this doesn\u2019t pollute your context
 and cause you to sound like an out-of-touch software engineer.
         `.trim() +
+        recordingUrlSection +
         "\n\n## Additional notes\n\n" +
         additionalNotes.trim() +
-        "\n";
+        "\n"
+    );
+}
+
+async function runClaude({
+    claudeBaseArgs,
+    claudeEnv,
+    outputPath,
+    prompt,
+    workspacePath,
+}: {
+    claudeBaseArgs: Array<string | Array<string>>;
+    claudeEnv: {[key: string]: string};
+    outputPath: string | null;
+    prompt: string;
+    workspacePath: string;
+}): Promise<void> {
+    let generatedOutput = "";
+
+    await runProcessWithInheritedStdio("claude", claudeBaseArgs, {
+        cwd: workspacePath,
+        stdin: prompt,
+        env: claudeEnv,
+        onStdoutData: chunk => {
+            generatedOutput += Buffer.from(chunk).toString("utf8");
+        },
+    });
+
+    if (outputPath === null) return;
+
+    const resolvedOutputPath = joinPath(workspacePath, outputPath);
+    await fs.mkdir(dirname(resolvedOutputPath), {recursive: true});
+    await fs.writeFile(resolvedOutputPath, generatedOutput.trim() + "\n");
+}
+
+async function main() {
+    const workspacePath = getWorkspacePath();
+    const demosPath = joinPath(workspacePath, "admin/marketing/2026_04_scalable_demos/demos");
+    const args = parseContentPromptArgs();
+    const isInteractive = process.argv.slice(2).length === 0;
+
+    const demoNames = (await fs.readdir(demosPath)).filter(name =>
+        name.endsWith("_demo_recorder.ts"),
+    );
+    const platform = isInteractive
+        ? await getInteractivePlatform()
+        : assertExists(args.platform, "Missing required argument `--platform`.");
+    const demoName = isInteractive
+        ? await getInteractiveDemoName(demoNames)
+        : resolveDemoName(
+              demoNames,
+              assertExists(args.demoArg, "Missing required argument `--demo`."),
+          );
+    const additionalNotes = isInteractive
+        ? await inquirer.input({message: "Additional notes"})
+        : (args.additionalNotes ?? "");
+    const demoCode = await fs.readFile(joinPath(demosPath, demoName), "utf8");
+    const prompt = createPrompt({
+        additionalNotes,
+        demoCode,
+        demoName,
+        platform,
+        url: args.url,
+    });
 
     const claudeEnv = {
         CLAUDE_CODE_OAUTH_TOKEN: assertExists(
@@ -155,8 +364,7 @@ and cause you to sound like an out-of-touch software engineer.
             "Missing `CLAUDE_CODE_OAUTH_TOKEN` in `.env.development.local`. Run `claude setup-token` and add the generated token to `.env.development.local`.",
         ),
     };
-
-    const claudeBaseArgs = [
+    const claudeBaseArgs: Array<string | Array<string>> = [
         ["--settings", joinPath(workspacePath, ".claude/settings.json")],
         ["--permission-mode", "dontAsk"],
         "-p",
@@ -165,13 +373,16 @@ and cause you to sound like an out-of-touch software engineer.
     // eslint-disable-next-line no-console
     console.log("\nGenerating post copy with Claude...\n");
 
-    await runProcessWithInheritedStdio("claude", claudeBaseArgs, {
-        cwd: workspacePath,
-        stdin: prompt,
-        env: claudeEnv,
+    await runClaude({
+        claudeBaseArgs,
+        claudeEnv,
+        outputPath: args.outputPath,
+        prompt,
+        workspacePath,
     });
 
-    // Follow-up loop — press Enter with no input to exit.
+    if (!isInteractive) return;
+
     while (true) {
         // eslint-disable-next-line no-console
         console.log();

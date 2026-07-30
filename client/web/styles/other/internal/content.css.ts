@@ -34,7 +34,11 @@ import {
     extrapolateHighlightColor,
     extrapolateHighlightRawColorWithoutBounds,
 } from "~/client/web/styles/other/internal/helpers/extrapolate_highlight_color.js";
-import {navigationBarHeight} from "~/client/web/styles/other/internal/navigation_bar.css.js";
+import {
+    navigationBarBreadcrumbToTitleSpacing,
+    navigationBarHeight,
+    navigationBarTitleBreadcrumbButtonHeight,
+} from "~/client/web/styles/other/internal/navigation_bar.css.js";
 import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {
@@ -206,6 +210,30 @@ export const withUserSelectNoneDocClassName = style({
     },
 });
 
+/**
+ * Strip the title node's natural top breathing room (its `padding-top` and the
+ * matching slice of `min-height` that comes from `titlePaddingTop`). Used by file
+ * entity previews that render a doc whose title sits directly below some other
+ * element (e.g. a site breadcrumb) — without this override, the title's
+ * `min-height` leaves a `titlePaddingTop`-sized empty band between the title text
+ * and the first body block.
+ */
+export const withoutTitleTopSpacingDocClassName = style({});
+
+/**
+ * Grow the title node's top breathing room by the height of the site breadcrumb
+ * row (`SiteBreadcrumbChip`'s button plus its breadcrumb-to-title spacing). Used
+ * by `<DocumentContentEditor>` when it overlays an absolutely positioned site
+ * breadcrumb above the title: the editor stays in flow covering 100% of the space
+ * (so covers lay out normally and clicking the top area focuses the editor) and
+ * this clearance makes room for the chip between the navigation bar and the title
+ * text.
+ *
+ * Only narrow-layout variants exist since the site breadcrumb only renders in
+ * narrow layouts (mobile or a peek).
+ */
+export const withTitleSiteBreadcrumbDocClassName = style({});
+
 const blockStyles = {
     position: "relative",
     width: "100%",
@@ -216,6 +244,16 @@ const blockStyles = {
     // be rendered besides `fileFloat` you must explicitly omit this `clear` property.
     clear: "both",
 } as const;
+
+/**
+ * A class that pins a non-ProseMirror element to the same horizontal block
+ * geometry as the doc's blocks (`max-width: blockMaxWidthVar` + centered with
+ * `margin-{left,right}: auto`). Use it for chrome that sits inside a doc preview
+ * but isn't itself ProseMirror content (e.g. the site breadcrumb above a document
+ * title in a file entity preview) so it lines up with the title and paragraphs
+ * below it.
+ */
+export const docBlockClassName = style({...blockStyles});
 
 export const paragraphActualFontSize = "100";
 
@@ -346,6 +384,80 @@ globalStyle(
         paddingTop: `calc(${titlePaddingTop.mobileNarrow} + var(--safe-area-inset-top, 0px))`,
         minHeight: `calc(${fontSizes[titleFontSize.narrow].lineHeight} + ${
             titlePaddingTop.mobileNarrow
+        })`,
+    },
+);
+
+// Strip the title's top breathing room — both `padding-top` and the
+// `titlePaddingTop` slice of `min-height` — when the doc opts in via
+// `withoutTitleTopSpacingDocClassName`. Covers wide, desktop-narrow, and mobile
+// variants since each declares its own `padding-top` / `min-height`.
+globalStyle(`${docClassName}${withoutTitleTopSpacingDocClassName} ${titleClassName}`, {
+    paddingTop: 0,
+    minHeight: fontSizes[titleFontSize.wide].lineHeight,
+});
+globalStyle(
+    `${docClassName}${withoutTitleTopSpacingDocClassName}${narrowRouteLayoutDocClassName} ${titleClassName}, ${docClassName}${withoutTitleTopSpacingDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
+    {
+        minHeight: fontSizes[titleFontSize.narrow].lineHeight,
+    },
+);
+globalStyle(
+    [
+        `${mobilePlatformSelector} ${docClassName}${withoutTitleTopSpacingDocClassName} ${titleClassName}`,
+        `${mobilePlatformSelector} ${docClassName}${withoutTitleTopSpacingDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
+    ].join(", "),
+    {
+        // The mobile-platform title `padding-top` (declared with a
+        // `mobilePlatformSelector` ancestor) out-specifies the base strip above, so
+        // re-strip it here — otherwise the title keeps its full `titlePaddingTop` on
+        // mobile and leaves a gap below whatever sits above it (e.g. a site breadcrumb).
+        paddingTop: 0,
+        minHeight: fontSizes[titleFontSize.narrow].lineHeight,
+    },
+);
+
+// The title's top clearance grown by the site breadcrumb row, per narrow layout.
+// The chip itself carries the breadcrumb-to-title gap as `padding-bottom` so the
+// row height is the button height plus that gap.
+const titlePaddingTopWithSiteBreadcrumb = {
+    mobileNarrow: addRemLengths(
+        titlePaddingTop.mobileNarrow,
+        navigationBarTitleBreadcrumbButtonHeight,
+        navigationBarBreadcrumbToTitleSpacing.mobile,
+    ),
+    desktopNarrow: addRemLengths(
+        titlePaddingTop.desktopNarrow,
+        navigationBarTitleBreadcrumbButtonHeight,
+        navigationBarBreadcrumbToTitleSpacing.desktop,
+    ),
+};
+
+globalStyle(
+    [
+        `${docClassName}${withTitleSiteBreadcrumbDocClassName}${narrowRouteLayoutDocClassName} ${titleClassName}`,
+        `${docClassName}${withTitleSiteBreadcrumbDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
+    ].join(", "),
+    {
+        paddingTop: `calc(${
+            titlePaddingTopWithSiteBreadcrumb.desktopNarrow
+        } + var(--safe-area-inset-top, 0px))`,
+        minHeight: `calc(${fontSizes[titleFontSize.narrow].lineHeight} + ${
+            titlePaddingTopWithSiteBreadcrumb.desktopNarrow
+        })`,
+    },
+);
+globalStyle(
+    [
+        `${mobilePlatformSelector} ${docClassName}${withTitleSiteBreadcrumbDocClassName} ${titleClassName}`,
+        `${mobilePlatformSelector} ${docClassName}${withTitleSiteBreadcrumbDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
+    ].join(", "),
+    {
+        paddingTop: `calc(${
+            titlePaddingTopWithSiteBreadcrumb.mobileNarrow
+        } + var(--safe-area-inset-top, 0px))`,
+        minHeight: `calc(${fontSizes[titleFontSize.narrow].lineHeight} + ${
+            titlePaddingTopWithSiteBreadcrumb.mobileNarrow
         })`,
     },
 );
@@ -3071,4 +3183,55 @@ globalStyle(`${docClassName} > ${tableWrapperClassName} td > ${fileRowLikeClassN
 // Make sure we have even margins around files in a table cell.
 globalStyle(`${docClassName} > ${tableWrapperClassName} td > ${fileRowLikeClassName}:last-child`, {
     marginBottom: subtractRemLengths(tableCellPaddingX, tableCellPaddingY),
+});
+
+// Date decoration — detected dates in plain text that can open a date picker.
+// Shows a dotted underline on hover and when the cursor is inside the date range.
+export const dateDecorationClassName = style({
+    cursor: "pointer",
+    selectors: {
+        "&:hover": {
+            textDecoration: "underline",
+            textDecorationStyle: "dotted",
+            textDecorationColor: colorSchemeVars["grey-60"],
+        },
+    },
+});
+
+export const dateDecorationActiveClassName = style({
+    textDecoration: "underline",
+    textDecorationStyle: "dotted",
+    textDecorationColor: colorSchemeVars["grey-60"],
+});
+
+export const dateDecorationHintWrapperClassName = style({
+    display: "inline-block",
+    position: "relative",
+    width: 0,
+    height: 0,
+    verticalAlign: "baseline",
+    overflow: "visible",
+});
+
+export const dateDecorationHintClassName = style({
+    position: "absolute",
+    left: 0,
+    fontSize: "0.75rem",
+    lineHeight: 1,
+    height: "auto",
+    fontWeight: "normal",
+    letterSpacing: "0.0005em",
+    color: colorSchemeVars["grey-100"],
+    backgroundColor: colorSchemeVars["grey-0"],
+    borderRadius: borderRadius["0.5"],
+    boxShadow: elevationVars["elevation-20"],
+    paddingLeft: spacing["1.5"],
+    paddingRight: spacing["1.5"],
+    paddingTop: spacing["0.5"],
+    paddingBottom: spacing["0.5"],
+    pointerEvents: "none",
+    userSelect: "none",
+    whiteSpace: "nowrap",
+    width: "max-content",
+    zIndex: 1,
 });

@@ -7,6 +7,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -73,5 +74,10 @@ export type ApiReferenceResponse =
     | {
           readonly type: "TaskCollection";
           readonly id: TaskCollectionId;
+          readonly title: string;
+      }
+    | {
+          readonly type: "Site";
+          readonly id: SiteId;
           readonly title: string;
       };

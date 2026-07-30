@@ -1,6 +1,6 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {authorizeDocumentAccess} from "~/server/documents/data/documents_actions.js";
-import {authorizeTaskAccess} from "~/server/tasks/data/task_table.js";
+import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {
     SpellCheckEntityId,

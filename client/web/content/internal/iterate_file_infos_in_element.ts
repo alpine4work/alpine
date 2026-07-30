@@ -54,7 +54,7 @@ export function* iterateFileInfosInElement(
         if (fileElement instanceof HTMLIFrameElement) {
             const spaceId = getSpaceId();
 
-            const entityId = parseSearchEntityIdFromUrl(spaceId, fileElement.src);
+            const entityId = parseSearchEntityIdFromUrl(fileElement.src);
             if (entityId === null || !isFileEntityId(entityId)) continue;
 
             yield {element, info: {type: "AttachFileEntity", spaceId, fileEntityId: entityId}};

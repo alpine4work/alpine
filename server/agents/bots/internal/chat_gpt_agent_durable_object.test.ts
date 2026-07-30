@@ -23,7 +23,9 @@ import {
 } from "~/server/agents/bots/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {AgentUsageDatabaseInterface} from "~/server/agents/bots/internal/d1/agent_usage_database.js";
 import {OpenAiClientInterface} from "~/server/agents/bots/internal/open_ai_client.js";
-import {InternalError} from "~/shared/error/error.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
@@ -50,6 +52,22 @@ function createChatGptAgentDurableObject() {
         API_SERVICE_URL: "https://api.test.com",
         OPEN_AI_API_KEY: "test-openai-key",
     } as any);
+}
+
+const apiResponseParagraphKey: ApiContentKey = new ApiContentKeyEncoder({
+    entityId: "Message:mock",
+    version: 0,
+}).encode({pos: 0, nodeSize: 0});
+
+/**
+ * Creates a keyed API paragraph fixture for agent response content.
+ */
+function createApiResponseParagraph(text: string) {
+    return {
+        type: "Paragraph" as const,
+        key: apiResponseParagraphKey,
+        elements: [{type: "Text" as const, text}],
+    };
 }
 
 // Shared mock for usage database - reset in afterEach
@@ -276,7 +294,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -306,10 +324,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -465,7 +482,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -490,10 +507,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -643,7 +659,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -666,10 +682,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -842,7 +857,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -865,10 +880,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -1088,7 +1102,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -1112,14 +1126,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             type: "Content",
                             content: {
                                 elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [
-                                            {type: "Text", text: "Find and read the AI document"},
-                                        ],
-                                    },
+                                    createApiResponseParagraph("Find and read the AI document"),
                                 ],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -1151,15 +1161,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     version: 1,
                     content: {
                         elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [
-                                    {
-                                        type: "Text",
-                                        text: "This document explains artificial intelligence concepts.",
-                                    },
-                                ],
-                            },
+                            createApiResponseParagraph(
+                                "This document explains artificial intelligence concepts.",
+                            ),
                         ],
                     },
                 },
@@ -1337,7 +1341,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -1505,7 +1509,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -1528,10 +1532,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -1757,7 +1760,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -1785,13 +1788,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -1914,7 +1913,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -1942,13 +1941,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -2127,7 +2122,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -2169,13 +2164,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -2380,7 +2371,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -2408,13 +2399,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -2550,7 +2537,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -2573,13 +2560,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -2753,7 +2736,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -2781,13 +2764,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -2998,7 +2977,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -3028,10 +3007,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -3660,6 +3638,41 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
                 },
                 previousTarget: previousTarget,
             });
+        });
+    });
+
+    test("skips injection without throwing when the mention API returns 404", async () => {
+        const {span} = testTracer.getRoot().startSpan("test-span");
+
+        const unresolvableChatId = generateId<ChatId>();
+        const request = createBaseRequest({
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+                wasMentioned: true,
+                viewingTarget: {type: "Chat", id: unresolvableChatId},
+            },
+        });
+
+        jest.spyOn(apiClient, "get").mockRejectedValueOnce(new NotFoundError("API request failed"));
+
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+                span,
+                request,
+                transaction,
+                conversation,
+            );
+
+            const items = await ChatGptAgentConversationItemCollection.list(transaction);
+            expect(items.size).toBe(0);
         });
     });
 });

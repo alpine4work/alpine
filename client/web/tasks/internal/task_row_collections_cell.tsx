@@ -21,7 +21,7 @@ import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useHoverWithOverlaySupport} from "~/client/web/helpers/use_hover_with_overlay_support.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/client/web/styles/styles.js";
 import {
     maxTaskRowViewCollectionsColumnWidth,
@@ -80,7 +80,6 @@ function TaskCollectionChipWithNavigation({
     collection: TaskCollectionModel;
     nameMaxWidth?: Spacing;
 }) {
-    const {space} = useSpaceContext();
     const navigate = useNavigate();
     const [isPendingNavigation, setIsPendingNavigation] = useState(false);
 
@@ -94,7 +93,7 @@ function TaskCollectionChipWithNavigation({
 
                 setIsPendingNavigation(true);
 
-                navigate(`/s/${space.id}/tasks/collections/${collection.id}`).finally(() => {
+                navigate(`/task-collection/${collection.id}`).finally(() => {
                     setIsPendingNavigation(false);
                 });
             }}

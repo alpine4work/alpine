@@ -1,4 +1,4 @@
-import {SpaceContext} from "~/client/web/spaces/space_context_types.js";
+import {SpaceContext} from "~/client/web/spaces/context/space_context_types.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";

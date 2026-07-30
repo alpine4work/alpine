@@ -23,6 +23,7 @@ import {
     useCurrentDate,
     useCurrentTimeRoundedToHour,
 } from "~/client/web/remix/use_current_time_rounded_to_hour.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {
@@ -54,6 +55,7 @@ export function ChannelMobileEditor({
     const isInitialAppRender = useIsInitialAppRender();
     const currentDate = useCurrentDate();
     const currentTime = useCurrentTimeRoundedToHour();
+    const {space} = useSpaceContext();
 
     const containerRef = useRef<HTMLDivElement>(null);
     const nameInputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +68,11 @@ export function ChannelMobileEditor({
     }));
 
     const [{descriptionState, hasDescriptionChanged}, setDescriptionState] = useState(() => ({
-        descriptionState: ContentEditorState.create(initialDescription, {selection: "start"}),
+        descriptionState: ContentEditorState.create({
+            spaceId: space.id,
+            content: initialDescription,
+            selection: "start",
+        }),
         hasDescriptionChanged: false,
     }));
 

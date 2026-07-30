@@ -3,12 +3,10 @@ import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbo
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {
-    FileTaskAuthorizer,
-    authorizeTaskAccessIfPossible,
-    getTaskNotificationSubscribers,
-    getTaskOwnerIfPossible,
-} from "~/server/tasks/data/task_table.js";
+import {authorizeTaskAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_access_if_possible.js";
+import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
+import {getTaskNotificationSubscribers} from "~/server/tasks/data/get_task_notification_subscribers.js";
+import {getTaskOwnerIfPossible} from "~/server/tasks/data/get_task_owner_if_possible.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

@@ -11,7 +11,8 @@ description: |
 
 Use this skill when the user wants to author a new social media demo video. These demos live in
 `admin/marketing/2026_04_scalable_demos/demos/{NNN}_{name}_demo_*.{ts,tsx}` and follow a tight
-format: a Playwright-seeded screen recording + a Remotion composition with a reaction overlay.
+format: a Playwright-seeded screen recording + a Remotion composition. New demos should default to
+the plain full-frame composition style unless the recording shape needs something custom.
 
 **Before doing anything else, read two files:**
 
@@ -70,10 +71,9 @@ matter for this demo:
 6. **Any UI state to prepare before the human presses record?** (hide sidebar, dismiss a tooltip,
    pre-fill a field, focus a particular element) — goes in `prepare: async page => {…}`.
 
-7. **Which reaction character sits outside the recording frame?** Default: match the driver's
-   character (Cass → Yeti Blue, Rose → Tree Green, etc., from the roster in `AGENTS.md`). Ask for
-   emotion:
-   `Celebrate | DeadInside | Hardship | Happy | Laugh | Lolsob | Shock | Heart | Yes | No | ThankYou`.
+7. **Should this be an automated recording or a manual one?** Ask whether they want automated
+   cursor/typing/clicking via `actions` + `createDemoCursor`, or whether they want to pilot the UI
+   themselves while the recorder only seeds the state and shows instructions.
 
 Keep questions targeted — skip entire categories that clearly don't apply (no need to ask about chat
 for a document-editing demo). If the user has already described the feature in enough detail, you
@@ -88,7 +88,7 @@ Before touching code, restate the plan in ~10 lines:
 - Seeded entities (one line each)
 - Landing path
 - Viewport + prepare hooks
-- Reaction character + emotion
+- Recording mode (`automated` with cursor/typing actions vs `manual`)
 
 Get a yes from the user before scaffolding.
 
@@ -111,13 +111,17 @@ Edit the generated `{NNN}_{name}_demo_recorder.ts` using the patterns from `AGEN
 - If a "suggested list" ordering is requested, use `addSearchAffinityEntityPointsForTest` with
   descending large point values (`999_000_000`, `998_000_000`, …) — see
   `fictional_ambrook_suggestions.ts`.
+- If the user chose **automated recording**, implement the interaction in `actions: [...]` and use
+  the cursor/typing patterns from `AGENTS.md` (`createDemoCursor`, `moveToElement`, `clickElement`,
+  `pressSequentially`, `wait`).
+- If the user chose **manual recording**, leave the interaction for the human and make the
+  `instructions` markdown concrete enough to follow live.
 - Pass `session`, `path`, `viewport`, `prepare`, and a good `instructions` markdown string to
   `recorder.record(...)`. **The `instructions` are read both by you (during recording) and by
   `dev demo content-prompt` (when generating social copy) — make them descriptive.**
 
-Also update the generated `{NNN}_{name}_demo_composition.tsx` to set the `reaction` prop to the
-driver's character + the chosen emotion. Leave `backgroundImageSrc` at the default unless the user
-asked for a specific background.
+Also update the generated `{NNN}_{name}_demo_composition.tsx` if the viewport or recording shape
+needs something custom, but default to the plain full-frame composition template.
 
 ### Step 5: Verify
 

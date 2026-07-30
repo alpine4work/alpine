@@ -30,10 +30,12 @@ const context = createTestContext({
         getSearchMentionEntityIfPossible: async () => ({
             isPrivate: false,
             entity: new SearchEntityModel({
-                id: `Channel:${generateId<ChannelId>()}`,
+                type: "Channel",
                 title: "Some title",
-                titleVersion: {type: "Integer", version: 0},
-                media: null,
+                channel: {
+                    id: generateId<ChannelId>(),
+                    version: 0,
+                },
             }),
         }),
     },
@@ -156,7 +158,7 @@ test("updateRoomChatAccessPolicy rejects direct chats", async () => {
 // Local→Local update: `validateAccessPolicyUpdateForServer` returns no site
 // transaction entries, so this exercises the `transactionEntries.length === 0`
 // branch where the chat is updated via `directlyUpdateItem` and
-// `getDynamoGeneralRealtimeEventTransactionForSite` returns no site events.
+// `getRynamoEventsForSite` returns no site events.
 test("updateRoomChatAccessPolicy returns no site events when not crossing into a site", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -183,18 +185,15 @@ test("updateRoomChatAccessPolicy returns no site events when not crossing into a
         notification: null,
     });
 
-    const siteEvents = await result.getDynamoGeneralRealtimeEventTransactionForSite(
-        session.action(),
-    );
+    const siteEvents = await result.getRynamoEventsForSite(session.action());
     expect(siteEvents).toEqual([]);
 });
 
 // Local→Site update: `validateAccessPolicyUpdateForServer` produces "add to site"
 // transaction entries, so this exercises the `transactionEntries.length > 0`
 // branch where the chat write and the site item writes go through
-// `executeTransaction` together and
-// `getDynamoGeneralRealtimeEventTransactionForSite` materializes the resulting
-// site events.
+// `executeTransaction` together and `getRynamoEventsForSite` materializes the
+// resulting site events.
 test("updateRoomChatAccessPolicy emits site events when moving chat into a site", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -224,9 +223,7 @@ test("updateRoomChatAccessPolicy emits site events when moving chat into a site"
         notification: null,
     });
 
-    const siteEvents = await result.getDynamoGeneralRealtimeEventTransactionForSite(
-        session.action(),
-    );
+    const siteEvents = await result.getRynamoEventsForSite(session.action());
     expect(siteEvents.length).toBeGreaterThan(0);
 
     const attributesItem = await ChatTable.getItem(context, {
@@ -282,9 +279,7 @@ test("updateRoomChatAccessPolicy emits site events when moving chat out of a sit
         notification: null,
     });
 
-    const siteEvents = await result.getDynamoGeneralRealtimeEventTransactionForSite(
-        session.action(),
-    );
+    const siteEvents = await result.getRynamoEventsForSite(session.action());
     expect(siteEvents.length).toBeGreaterThan(0);
 
     const attributesItem = await ChatTable.getItem(context, {

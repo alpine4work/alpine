@@ -3,7 +3,6 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {
     ChannelAttributesItem,
@@ -11,14 +10,13 @@ import {
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
 import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -54,12 +52,10 @@ export async function createChannel(
 ): Promise<{
     id: ChannelId;
     createdTime: Date;
-    getDynamoGeneralRealtimeItem: (
+    getRynamoItem: (context: ServerActionContext) => Promise<RynamoItem<ChannelModel>>;
+    getRynamoEventsForSite: (
         context: ServerActionContext,
-    ) => Promise<DynamoGeneralRealtimeItem<ChannelModel>>;
-    getDynamoGeneralRealtimeEventTransactionForSite: (
-        context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -89,7 +85,7 @@ export async function createChannel(
     const {transactionEntry, getEvent} =
         ForumRealtimeTable.transactionCreateItemWithEvent(channelItem);
 
-    await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+    await RynamoTableSchema.executeTransaction(context, [
         transactionEntry,
         // Make sure the `Contributors` item is created at the same time as our channel
         // item.
@@ -156,17 +152,18 @@ export async function createChannel(
             spaceId,
             entityId: `Channel:${channelItem.channelId}`,
             interaction: {type: "HighIntentUpdate"},
+            siteId: getSiteIdFromAccessPolicyIfExists(accessPolicy),
         }),
     );
 
     return {
         id: channelItem.channelId,
         createdTime: channelItem.createdTime,
-        getDynamoGeneralRealtimeItem: async context => {
+        getRynamoItem: async context => {
             const {item} = await getEvent(context);
             return item;
         },
-        getDynamoGeneralRealtimeEventTransactionForSite: async context =>
-            runAllPromises(transactionEntries.map(entry => entry.getEvent(context))),
+        getRynamoEventsForSite: async context =>
+            await runAllPromises(transactionEntries.map(entry => entry.getEvent(context))),
     };
 }

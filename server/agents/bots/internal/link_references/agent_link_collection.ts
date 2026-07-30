@@ -34,6 +34,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -108,6 +109,13 @@ export type CreateAgentLinkOptions =
           preview: string;
       }
     | {
+          type: "Site";
+          site: {
+              id: SiteId;
+              name: string;
+          };
+      }
+    | {
           type: "Task";
           task: {
               id: TaskId;
@@ -138,14 +146,14 @@ export async function createAgentLink(
         case "Account": {
             const account = options.account;
 
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "Account",
                 accountId: account.id,
                 name: account.shortName ?? account.name,
             });
         }
         case "Chat": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "ChatMessages",
                 chatId: options.chat.id,
                 label: options.chat.name,
@@ -155,7 +163,7 @@ export async function createAgentLink(
             });
         }
         case "ChatMessage": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "ChatMessages",
                 chatId: options.chatId,
                 ...getMessagesListPageInfo(options.messageIndex),
@@ -165,14 +173,14 @@ export async function createAgentLink(
             });
         }
         case "Channel": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "Channel",
                 channelId: options.channel.id,
                 name: options.channel.name,
             });
         }
         case "Document": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "DocumentPage",
                 documentId: options.document.id,
                 title: options.document.title,
@@ -180,7 +188,7 @@ export async function createAgentLink(
             });
         }
         case "DocumentComment": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "DocumentCommentThreadComments",
                 documentId: options.documentId,
                 commentThreadId: options.commentThreadId,
@@ -191,7 +199,7 @@ export async function createAgentLink(
             });
         }
         case "Post": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "PostComments",
                 postId: options.post.id,
                 ...getMessagesListPageInfo(0),
@@ -201,7 +209,7 @@ export async function createAgentLink(
             });
         }
         case "PostComment": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "PostComments",
                 postId: options.postId,
                 ...getMessagesListPageInfo(options.commentIndex),
@@ -210,8 +218,15 @@ export async function createAgentLink(
                 tokenLimitForPage: agentMessageFirstPageTokenLimit,
             });
         }
+        case "Site": {
+            return await actuallyPutAgentLink(storage, {
+                type: "Site",
+                siteId: options.site.id,
+                name: options.site.name,
+            });
+        }
         case "Task": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "Task",
                 taskId: options.task.id,
                 title: options.task.title,
@@ -219,7 +234,7 @@ export async function createAgentLink(
             });
         }
         case "TaskComment": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "TaskComments",
                 taskId: options.taskId,
                 ...getMessagesListPageInfo(options.commentIndex),
@@ -229,7 +244,7 @@ export async function createAgentLink(
             });
         }
         case "TaskCollection": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "TaskCollection",
                 collectionId: options.taskCollection.id,
                 name: options.taskCollection.name,
@@ -467,9 +482,9 @@ async function actuallyPutAgentLink<Link extends AgentLink>(
     // Make sure we're running in a transaction in addition to the process-wide mutex
     // to really make sure we're not writing to the same label concurrently.
     if ("rollback" in storage) {
-        return run(storage);
+        return await run(storage);
     } else {
-        return storage.transaction(run);
+        return await storage.transaction(run);
     }
 }
 
@@ -535,7 +550,7 @@ export async function findAgentLinkForApiPathIfExists(
     const path = await AgentLinkPathByApiPathCollection.get(storage, targetPath);
     if (!path) return undefined;
 
-    return getAgentLink<AgentLink>(storage, path);
+    return await getAgentLink<AgentLink>(storage, path);
 }
 
 function assertValidAgentLink(link: AgentLink): void {
@@ -560,6 +575,7 @@ function assertValidAgentLink(link: AgentLink): void {
         }
         case "Account":
         case "Channel":
+        case "Site":
         case "Task":
         case "TaskCollection":
             return;

@@ -5,10 +5,13 @@ ts_project(
     test_deps = [
         "//server/bots/test_helpers",
         "//server/chat/test_helpers",
+        "//server/documents/data",
         "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/forum/data",
         "//server/forum/test_helpers",
+        "//server/tasks/data",
+        "//server/tasks/data/test_helpers",
     ],
     tests = {
         "evaluate_access_policy_test": {"size": "medium"},

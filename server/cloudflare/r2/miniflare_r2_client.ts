@@ -371,7 +371,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             spanName += ` ${bucketName}`;
         }
 
-        return tracer.withSpan(spanName, async span => {
+        return await tracer.withSpan(spanName, async span => {
             span.addData({
                 cloudflare: {
                     r2: {

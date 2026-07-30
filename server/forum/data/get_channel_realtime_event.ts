@@ -6,9 +6,9 @@ import {
     allowedPostSortRangeTypesForGetPostRealtimeEvent,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {getPostItemForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
-import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
-import {DynamoGeneralRealtimeChannelOrPostEvent} from "~/shared/forum/channel_realtime_protocol.js";
+import {RynamoChannelOrPostEvent} from "~/shared/forum/channel_realtime_protocol.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 
@@ -18,9 +18,9 @@ import {ChannelId} from "~/shared/id/types/id_types.js";
 export async function getChannelRealtimeEvent(
     context: ServerSessionActionContext,
     channelId: ChannelId,
-    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>,
-): Promise<ReadonlyArray<DynamoGeneralRealtimeChannelOrPostEvent>> {
-    const [, actualEventTransaction] = await runAllPromises([
+    events: ReadonlyArray<RynamoEventStub>,
+): Promise<ReadonlyArray<RynamoChannelOrPostEvent>> {
+    const [, actualEvents] = await runAllPromises([
         // Authorizing in parallel means we'll batch the channel read in
         // `authorizeChannelAccess()` with any DynamoDB reads from the
         // `ForumRealtimeTable.getRealtimeEvent()` call.
@@ -29,7 +29,7 @@ export async function getChannelRealtimeEvent(
         ForumRealtimeTable.getRealtimeEvent(
             context,
             await runAllPromises(
-                eventTransaction.map(async eventStub => {
+                events.map(async eventStub => {
                     const itemKey = ForumRealtimeTable.deserializeOpaqueItemKey(eventStub.item.key);
 
                     // Check that the `itemKey` we're reading is for the channel we've authorized.
@@ -63,5 +63,5 @@ export async function getChannelRealtimeEvent(
         ),
     ]);
 
-    return actualEventTransaction as ReadonlyArray<DynamoGeneralRealtimeChannelOrPostEvent>;
+    return actualEvents as ReadonlyArray<RynamoChannelOrPostEvent>;
 }

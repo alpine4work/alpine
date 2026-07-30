@@ -7,6 +7,7 @@ import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {moveSiteEntry} from "~/server/sites/data/move_site_entry.js";
 import {updateSiteAccessPolicy} from "~/server/sites/data/update_site_access_policy.js";
 import {updateSiteContainerLabel} from "~/server/sites/data/update_site_container_label.js";
+import {updateSiteName} from "~/server/sites/data/update_site_name.js";
 import {addEntityToSite} from "~/server/sites/entity_actions/add_entity_to_site.js";
 import {removeEntityFromSite} from "~/server/sites/entity_actions/remove_entity_from_site.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
@@ -23,6 +24,7 @@ import {
     SiteSideBarSectionId,
     SiteTopBarId,
 } from "~/shared/id/types/id_types.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {
     SiteContainerId,
     SiteSideBarContainerIdObject,
@@ -30,7 +32,6 @@ import {
     SiteTopBarContainerIdObject,
     printSiteContainerId,
 } from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 let testSiteCount = 1;
@@ -209,6 +210,15 @@ export class TestSite {
             orderKey,
         });
         return id;
+    }
+
+    public async updateName(session: TestSpaceSession, name: string): Promise<void> {
+        const context = session.action();
+        const {getRynamoEvents} = await updateSiteName(context, {siteId: this.id, name});
+        // Flush the rynamo events so realtime subscribers (the site's durable object, and
+        // any connected client through it) actually receive the update — matches what the
+        // RPC handler in `sites_rpc_implementations.ts` does.
+        await getRynamoEvents(context);
     }
 
     public async updateContainerLabel(

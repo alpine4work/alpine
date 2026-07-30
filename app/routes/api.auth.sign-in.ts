@@ -38,7 +38,7 @@ export async function action({request, context, span}: LoaderArgs) {
             JSON.stringify(
                 AuthSignInOrSignUpOutputSchema.serialize({
                     ok: true,
-                    openSpaceId,
+                    open: openSpaceId ? {type: "ActiveSpace" as const, spaceId: openSpaceId} : null,
                 }),
             ),
             {

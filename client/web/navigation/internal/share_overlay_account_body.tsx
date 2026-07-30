@@ -13,7 +13,7 @@ import {Spacer} from "~/client/web/design/spacer.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {messageInputEditorPaddingYPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
@@ -54,7 +54,10 @@ export function ShareOverlayAccountBody({
         // policy.
         willNotifyPeople:
             selectedAccounts.length !== 1 || selectedAccounts[0]!.id !== currentAccount?.id,
-        messageState: ContentEditorState.create(emptyMessageContentWithReferences),
+        messageState: ContentEditorState.create({
+            spaceId: space.id,
+            content: emptyMessageContentWithReferences,
+        }),
     }));
 
     if (!willNotifyPeople && willAlwaysNotifyPeople) {
@@ -92,9 +95,10 @@ export function ShareOverlayAccountBody({
                                 setState(state => ({
                                     willNotifyPeople,
                                     // Keep the content but reset the selection when `willNotifyPeople` changes.
-                                    messageState: ContentEditorState.create(
-                                        state.messageState.getContent(),
-                                    ),
+                                    messageState: ContentEditorState.create({
+                                        spaceId: space.id,
+                                        content: state.messageState.getContent(),
+                                    }),
                                 }));
                             }}
                         >
@@ -163,6 +167,8 @@ export function ShareOverlayAccountBody({
                                             spaceId: space.id,
                                             entityId: `Account:${account.id}`,
                                             interaction: {type: "HighIntentUpdate"},
+                                            // Accounts cannot live in a site.
+                                            siteId: null,
                                         });
                                     }
                                 }}
@@ -276,6 +282,8 @@ export function ShareOverlayAccountBody({
                                         spaceId: space.id,
                                         entityId: `Account:${account.id}`,
                                         interaction: {type: "HighIntentUpdate"},
+                                        // Accounts cannot live in a site.
+                                        siteId: null,
                                     });
                                 }
                             }}

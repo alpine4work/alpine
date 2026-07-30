@@ -44,7 +44,6 @@ import {
 import {NavigationBarResult} from "~/client/web/navigation/navigation_bar_types.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     documentCommentThreadActionsHeight,
     documentCommentThreadHeaderMinHeightWithoutPaddingTop,
@@ -361,7 +360,6 @@ function DocumentCommentThreadListView(
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
 
-    const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const [tree, setTree, setTreeOptimistically] = useStateWithOptimisticUpdates(() => {
@@ -418,7 +416,13 @@ function DocumentCommentThreadListView(
     const contentSnippetByCommentThreadId = useStableValue(
         ContentSnippetByCommentThreadIdSchema,
         useMemo(
-            () => collectCommentThreadSnippets(content.doc),
+            () =>
+                new Map(
+                    mapIterable(
+                        collectCommentThreadSnippets(content.doc),
+                        ([commentThreadId, snippet]) => [commentThreadId, snippet.node],
+                    ),
+                ),
             [collectCommentThreadSnippets, content.doc],
         ),
     );
@@ -957,7 +961,7 @@ function DocumentCommentThreadListView(
                         },
                         getMessageUrl: commentIndex => {
                             return new URL(
-                                `/s/${space.id}/documents/${documentId}?comments=${item.commentThread.id}&comment=${commentIndex}`,
+                                `/doc/${documentId}?thread=${item.commentThread.id}&comment=${commentIndex}`,
                                 window.location.href,
                             );
                         },
@@ -1190,7 +1194,6 @@ function DocumentCommentThreadListView(
             handleUpdateMessagesOptimistically,
             isNativeMobileTabBarHidden,
             backgroundSlopBottomIfPinnedCommentInput,
-            space.id,
             inputParentByCommentThreadId,
             inputRefByCommentThreadId,
             isConnected,

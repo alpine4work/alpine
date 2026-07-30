@@ -297,7 +297,7 @@ async function main(): Promise<{exitCode: number}> {
         choices: [...choices1, ...choices2, ...choices3],
     });
 
-    return executeChoice();
+    return await executeChoice();
 }
 
 main()
@@ -383,7 +383,7 @@ async function displayTestLogPath(testLogPath: string) {
         stdio: ["inherit", "inherit", "inherit"],
     });
 
-    return waitForProcessExitWithAnyCode(subprocess);
+    return await waitForProcessExitWithAnyCode(subprocess);
 }
 
 async function openTestOutputPath(testOutputPath: string) {

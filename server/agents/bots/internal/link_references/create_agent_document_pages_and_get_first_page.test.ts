@@ -3,6 +3,8 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {getAgentLink} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {putAgentLocalDocumentContent} from "~/server/agents/bots/internal/link_references/agent_local_document_content_collection.js";
 import {createAgentDocumentPagesAndReturnFirstPage} from "~/server/agents/bots/internal/link_references/create_agent_document_pages_and_get_first_page.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
@@ -15,12 +17,23 @@ afterEach(async () => {
 
 describe("createDocumentPagesAndGetFirstPage", () => {
     const documentId = generateId<DocumentId>();
+    const mockEntityId = "Document:mock";
+    const mockApiContentKeyEncoder = new ApiContentKeyEncoder({entityId: mockEntityId, version: 0});
+    let nextMockApiContentKeyPos = 0;
 
     function createParagraphElement(text: string) {
         return {
             type: "Paragraph" as const,
+            key: createMockApiContentKey(),
             elements: [{type: "Text" as const, text}],
         };
+    }
+
+    function createMockApiContentKey(): ApiContentKey {
+        return mockApiContentKeyEncoder.encode({
+            pos: nextMockApiContentKeyPos++,
+            nodeSize: 0,
+        });
     }
 
     test("creates single page for short document", async () => {

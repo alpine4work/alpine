@@ -17,6 +17,8 @@ export function getApiMentionReferenceNoun(
             return "task";
         case "TaskCollection":
             return "task collection";
+        case "Site":
+            return "site";
         default:
             throw exhaustive(type);
     }

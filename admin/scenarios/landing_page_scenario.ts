@@ -56,7 +56,7 @@ export async function createLandingPageScenario(
         // We need to figure out a way to get avatars uploaded for bots for test scenarios.
         const bot = await TestBot.get(space.context, getDynamoSeedConstants().mockChatGptBotId);
 
-        return bot.instantiate(roseCompas);
+        return await bot.instantiate(roseCompas);
     })();
 
     const accounts = {...accountsWithoutChatGpt, chatGpt};
@@ -139,7 +139,7 @@ export async function createLandingPageScenario(
             const scale = 1.15;
             const clipRight = 60;
 
-            const url = new UrlPath(`/s/${space.id}/dev/feed`);
+            const url = new UrlPath(`/dev/feed/${space.id}`);
             url.searchParams.set(
                 "entries",
                 JSON.stringify(Schema.array(FeedEntrySchema).serialize(heroFeedEntries)),
@@ -161,7 +161,7 @@ export async function createLandingPageScenario(
             };
         })(),
         (() => {
-            const path = new UrlPath(`/s/${space.id}/tasks/collections/${sprintCollection.id}`);
+            const path = new UrlPath(`/task-collection/${sprintCollection.id}`);
 
             path.searchParams.set(
                 "filter",
@@ -210,7 +210,7 @@ export async function createLandingPageScenario(
         (() => {
             return {
                 name: "documents_demo",
-                path: `/s/${space.id}/documents/${demoDocument.id}`,
+                path: `/doc/${demoDocument.id}`,
                 viewport: {
                     width: 780,
                     height: 1118,
@@ -241,7 +241,7 @@ export async function createLandingPageScenario(
 
             return {
                 name: "forum_demo",
-                path: `/s/${space.id}/channels/${demoChannel.id}`,
+                path: `/channel/${demoChannel.id}`,
                 viewport: {
                     width: Math.round(width * scale),
                     height: Math.round(height * scale),
@@ -271,9 +271,7 @@ export async function createLandingPageScenario(
 
             return {
                 name: "chat_demo_1",
-                path: `/s/${space.id}/dev/empty?link=${encodeURIComponent(
-                    `/s/${space.id}/chat/${demoChat1.id}`,
-                )}`,
+                path: `/dev/empty/${space.id}?link=${encodeURIComponent(`/chat/${demoChat1.id}`)}`,
                 viewport: {
                     width,
                     height,
@@ -351,9 +349,7 @@ export async function createLandingPageScenario(
 
             return {
                 name: "chat_demo_2",
-                path: `/s/${space.id}/dev/empty?link=${encodeURIComponent(
-                    `/s/${space.id}/chat/${demoChat2.id}`,
-                )}`,
+                path: `/dev/empty/${space.id}?link=${encodeURIComponent(`/chat/${demoChat2.id}`)}`,
                 viewport: {
                     width,
                     height,
@@ -381,7 +377,7 @@ export async function createLandingPageScenario(
 
             return {
                 name: "inbox_demo",
-                path: `/s/${space.id}/inbox`,
+                path: `/inbox/${space.id}`,
                 session: inboxDemoAccount,
                 viewport: {
                     width: width + spaceSideBarWidth + 1,
@@ -420,7 +416,7 @@ export async function createLandingPageScenario(
 
             return {
                 name: "search_demo",
-                path: `/s/${space.id}/dev/empty`,
+                path: `/dev/empty/${space.id}`,
                 viewport: {
                     width,
                     height,
@@ -457,7 +453,7 @@ export async function createLandingPageScenario(
 
             return {
                 name: "agents_demo",
-                path: `/s/${space.id}/documents/${agentsDemoDocument.id}`,
+                path: `/doc/${agentsDemoDocument.id}`,
                 viewport: {
                     width: width + spaceSideBarWidth,
                     height,
@@ -490,7 +486,7 @@ export async function createLandingPageScenario(
             const height = Math.round(580 * scale);
             const feedCreateSectionTranslateY = 144 - 24;
 
-            const url = new UrlPath(`/s/${space.id}/dev/feed`);
+            const url = new UrlPath(`/dev/feed/${space.id}`);
             url.searchParams.set(
                 "entries",
                 JSON.stringify(Schema.array(FeedEntrySchema).serialize(demoFeedEntries)),

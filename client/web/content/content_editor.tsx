@@ -1,6 +1,14 @@
 import classNames from "classnames";
+import {ListBullets, ListChecks, ListNumbers} from "phosphor-react";
 import {closeHistory, history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
-import {Fragment, Node, Schema as ProsemirrorSchema, ResolvedPos, Slice} from "prosemirror-model";
+import {
+    Fragment,
+    Node,
+    NodeType,
+    Schema as ProsemirrorSchema,
+    ResolvedPos,
+    Slice,
+} from "prosemirror-model";
 import {
     AllSelection,
     EditorState,
@@ -49,6 +57,7 @@ import {createContentEditorCheckListItemNodeViewConstructor} from "~/client/web/
 import {ContentEditorCodeBlockLanguagePickerComboBox} from "~/client/web/content/internal/content_editor_code_block_language_picker_combo_box.js";
 import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/web/content/internal/content_editor_code_block_node_view.js";
 import {createContentEditorCommentMarkViewConstructor} from "~/client/web/content/internal/content_editor_comment_mark_view.js";
+import {ContentEditorDatePickerOverlay} from "~/client/web/content/internal/content_editor_date_picker_overlay.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/web/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/web/content/internal/content_editor_dom_parser.js";
 import {createContentEditorFileFloatNodeViewConstructor} from "~/client/web/content/internal/content_editor_file_float_node_view.js";
@@ -88,6 +97,8 @@ import {
     getContentEditorFileDropTargets,
 } from "~/client/web/content/internal/get_content_editor_file_drop_targets.js";
 import {getContentEditorInsertMenuActions} from "~/client/web/content/internal/get_content_editor_insert_menu_actions.js";
+import {isGiphyEnabled, preloadGiphyTrending} from "~/client/web/content/internal/giphy_fetch.js";
+import {createConvertListItemsAtIndentCommand} from "~/client/web/content/internal/helpers/create_convert_list_items_at_indent_command.js";
 import {
     FileInfo,
     FileInfoWithEntity,
@@ -96,6 +107,10 @@ import {
 import {createContentEditorTableNodeView} from "~/client/web/content/internal/table/content_editor_table_node_view.js";
 import {uploadFile} from "~/client/web/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/web/content/internal/use_content_editor_debug_tools.js";
+import {
+    ContentEditorDateDecorationMatch,
+    getContentEditorDateMatchAtPos,
+} from "~/client/web/content/state/content_editor_date_decoration_plugin.js";
 import {openContentEditorCommentInputFloaterMetaKey} from "~/client/web/content/state/content_editor_meta_keys.js";
 import {ContentSpellCheckSuggestion} from "~/client/web/content/state/content_editor_spell_checker_configuration.js";
 import {getContentEditorSpellCheckerLints} from "~/client/web/content/state/content_editor_spell_checker_plugin.js";
@@ -123,7 +138,7 @@ import {AppContext, useAppContextIfExists} from "~/client/web/context/app_contex
 import {Box} from "~/client/web/design/box.js";
 import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
-import {MenuActionsSection} from "~/client/web/design/menu.js";
+import {MenuAction, MenuActionsSection} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {
@@ -155,8 +170,8 @@ import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
+import {useSpaceContextIfExists} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContextIfExists} from "~/client/web/spaces/space_context.js";
 import {
     contentEditorStyles,
     contentStyles,
@@ -165,6 +180,7 @@ import {
 import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
+import {formatDateInOriginalFormat} from "~/shared/content/content_editor_date_format.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     getContentReferencedIdsForSlice,
@@ -190,6 +206,7 @@ import {DocumentContentCover} from "~/shared/documents/document_content_cover.js
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {isFileImageContentType} from "~/shared/files/file_content_type.js";
 import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -236,6 +253,8 @@ import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
 import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {hasDatePickerFeature} from "~/shared/spaces/has_date_picker_feature.js";
+import {hasGifPickerFeature} from "~/shared/spaces/has_gif_picker_feature.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
@@ -377,6 +396,12 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
     insertFiles(files: ReadonlyArray<File>): void;
 
     /**
+     * Insert a file from a URL. The server downloads the file from the URL instead of
+     * requiring a client-side upload.
+     */
+    insertFileFromUrl(url: URL): void;
+
+    /**
      * Insert a table node.
      */
     insertTable(): void;
@@ -397,6 +422,11 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
      * the selection is empty nothing happens.
      */
     openMobileKeyboardToolbarCommentInputIfPossible(): void;
+
+    /**
+     * Open the GIF picker floater. Only works when `onSelectGif` is provided.
+     */
+    openGifPicker(): void;
 
     /**
      * Get the internal ProseMirror editor view object. Prefer the public methods on
@@ -665,6 +695,12 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     ) => SafeFloatingPromise<void>;
 
     /**
+     * Called when the user selects a GIF from the picker. When provided, the GIF
+     * insert action appears in menus.
+     */
+    onSelectGif?: (url: URL) => void;
+
+    /**
      * Custom `isBodyEmpty` prop. We'll consider the body empty if
      * `isContentBodyEmpty()` is true or this function is true.
      */
@@ -848,12 +884,18 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             insertQuoteBlock: unimplementedDispatchCommand,
             insertCodeBlock: unimplementedDispatchCommand,
             insertFiles: unimplementedDispatchCommand,
+            insertFileFromUrl: unimplementedDispatchCommand,
             insertTable: unimplementedDispatchCommand,
             setHasPresentShortcut: unimplementedDispatchCommand,
             setCover: unimplementedDispatchCommand,
             openMobileKeyboardToolbarCommentInputIfPossible: () => {
                 throw new UnimplementedError(
                     "Opening the content editor\u2019s mobile keyboard toolbar comment input on initial render is not implemented",
+                );
+            },
+            openGifPicker: () => {
+                throw new UnimplementedError(
+                    "Opening the GIF picker on initial render is not implemented",
                 );
             },
             _getInternalView: () => {
@@ -928,6 +970,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         fileAttachmentTarget,
         commentFileAttachmentTarget,
         onPasteOrDropFiles,
+        onSelectGif,
         isBodyEmpty: isBodyEmptyFromProps,
         onSpellCheckIgnoreLint,
         spellCheckIgnoredLints,
@@ -960,6 +1003,18 @@ function ContentEditor<Content extends ContentWithReferences>(
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
     const blockWidth = useContentBlockWidth();
+    const isGifPickerEnabled =
+        !!onSelectGif &&
+        !!spaceContext &&
+        hasGifPickerFeature(spaceContext.space.id) &&
+        isGiphyEnabled();
+
+    const isDatePickerDisabled =
+        typeof window !== "undefined" && localStorage.getItem("disableDatePicker") === "true";
+    const hasDatePickerUiFeature =
+        spaceContext !== null && !isDatePickerDisabled
+            ? hasDatePickerFeature(spaceContext.space.id)
+            : false;
 
     // We choose our interaction mode based on whether the device's primary input can
     // hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g. iOS).
@@ -1057,6 +1112,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const viewRef = useRef<
         | (EditorView & {
               insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+              insertFileFromUrl: (url: URL) => void;
           })
         | null
     >(null);
@@ -1068,6 +1124,12 @@ function ContentEditor<Content extends ContentWithReferences>(
     /* ========================================================================== *\
      *                               Component ref                                *
     \* ========================================================================== */
+
+    const openGifPicker = useCallback(() => {
+        if (!isGifPickerEnabled) return;
+        const view = assertExists(viewRef.current);
+        view.dispatch(setContentEditorFloaterState(view.state.tr, {type: "GifPicker"}));
+    }, [isGifPickerEnabled]);
 
     useImperativeHandle(
         editorRef,
@@ -1141,6 +1203,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     setIsMobileCommentInputOpen(true);
                 }
             },
+            openGifPicker,
             insertUnorderedListItem: () =>
                 insertContentUnorderedListItem(assertExists(viewRef.current)),
             insertOrderedListItem: () =>
@@ -1151,6 +1214,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             insertQuoteBlock: () => insertContentQuoteBlock(assertExists(viewRef.current)),
             insertCodeBlock: () => insertContentCodeBlock(assertExists(viewRef.current)),
             insertFiles: files => insertContentFiles(assertExists(viewRef.current), files),
+            insertFileFromUrl: url => assertExists(viewRef.current).insertFileFromUrl(url),
             insertTable: () => insertContentTable(assertExists(viewRef.current)),
             setHasPresentShortcut: hasPresentShortcut => {
                 const view = assertExists(viewRef.current);
@@ -1166,8 +1230,18 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return assertExists(viewRef.current);
             },
         }),
-        [],
+        [openGifPicker],
     );
+
+    // Preload trending GIFs on mount so the picker opens instantly.
+    const hasPreloadedGiphyRef = useRef(false);
+    useEffect(() => {
+        if (hasPreloadedGiphyRef.current) return;
+        hasPreloadedGiphyRef.current = true;
+        if (isGifPickerEnabled && context) {
+            preloadGiphyTrending(context);
+        }
+    }, [context, isGifPickerEnabled]);
 
     /* ========================================================================== *\
      *                         ProseMirror initialization                         *
@@ -1190,6 +1264,12 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         const initialState = unwrap(propsRef.current.state);
         const schema = initialState.doc.type.schema;
+        // This editor view is initialized once and remounts when the space changes, so
+        // it's safe to capture the date picker feature flag at mount time.
+        const hasDatePickerUiFeatureForEditorView =
+            spaceContextRef.current !== null
+                ? hasDatePickerFeature(spaceContextRef.current.space.id)
+                : false;
 
         const initialIsDualModality = isDualModalityRef.current;
         const initialAccessLevel = propsRef.current.accessLevel ?? "Manage";
@@ -1480,11 +1560,41 @@ function ContentEditor<Content extends ContentWithReferences>(
             }),
         };
 
+        function openDatePicker(
+            view: EditorView,
+            dateMatch: ContentEditorDateDecorationMatch,
+            autoFocus: boolean,
+        ) {
+            if (!hasDatePickerUiFeatureForEditorView) return;
+
+            const savedSelection = view.state.selection;
+            const tr = view.state.tr.setSelection(
+                TextSelection.create(view.state.doc, dateMatch.from, dateMatch.to),
+            );
+            view.dispatch(tr);
+            setDatePickerState({
+                key: generateId(),
+                match: dateMatch,
+                isVisible: true,
+                autoFocus,
+                savedSelection,
+            });
+        }
+
         /* ========================================================================== *\
          *                                Click events                                *
         \* ========================================================================== */
 
         viewProps.handleClick = (view, pos, event) => {
+            // Open date picker when clicking a detected date decoration.
+            if (hasDatePickerUiFeatureForEditorView) {
+                const dateMatch = getContentEditorDateMatchAtPos(view.state, pos);
+                if (dateMatch && pos > dateMatch.from && pos < dateMatch.to) {
+                    openDatePicker(view, dateMatch, false);
+                    return true;
+                }
+            }
+
             // Don't perform the default ProseMirror behavior when clicking a file.
             //
             // We have pointer event listeners in `content_editor_file_node_view.ts` that
@@ -1822,20 +1932,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                     mentionElement.removeAttribute("data-cy-mention");
                     continue;
                 }
-
-                const spaceIdMatch = href.match(/\/s\/([^/]+)/);
-                if (!spaceIdMatch) {
-                    mentionElement.removeAttribute("data-cy-mention");
-                    continue;
-                }
-
-                if (
-                    !spaceContextRef.current ||
-                    spaceIdMatch[1] !== spaceContextRef.current.space.id
-                ) {
-                    mentionElement.removeAttribute("data-cy-mention");
-                    continue;
-                }
             }
         };
 
@@ -1870,6 +1966,78 @@ function ContentEditor<Content extends ContentWithReferences>(
                 createTransaction: () => Transaction,
             ) => void;
         }) {
+            function isUrlUploadFileInfo(fileInfo: FileInfo | FileInfoWithEntity): boolean {
+                return fileInfo.type === "UploadFile" && fileInfo.input.type === "Url";
+            }
+
+            // When pasting from certain sources (like Google Photos), the clipboard contains
+            // both HTML with `<img>` tags pointing to authenticated URLs AND raw image data.
+            // The HTML URLs won't work because they require authentication cookies that the
+            // server doesn't have. In this case, prefer the raw image files from the
+            // clipboard.
+            //
+            // We detect this by checking if raw image files exist in `dataTransfer.items` and
+            // the parsed HTML only produced URL-backed file uploads. If so, we clear the
+            // parsed HTML result and let the code below process the raw files instead.
+            if (dataTransfer?.items) {
+                let hasRawImageFiles = false;
+                for (const item of dataTransfer.items) {
+                    if (item.kind === "file" && isFileImageContentType(item.type)) {
+                        hasRawImageFiles = true;
+                        break;
+                    }
+                }
+
+                if (hasRawImageFiles) {
+                    // For schemas with file nodes: if the slice only contains file/fileRow nodes and
+                    // every parsed file came from a URL, clear both the slice and the upload info map.
+                    // This allows the raw file processing code below to handle the paste using the
+                    // actual image data.
+                    if (schema.nodes.file && schema.nodes.fileRow) {
+                        let sliceOnlyContainsFiles = slice.content.childCount > 0;
+                        slice.content.forEach(node => {
+                            if (
+                                node.type !== schema.nodes.file &&
+                                node.type !== schema.nodes.fileRow
+                            ) {
+                                sliceOnlyContainsFiles = false;
+                            }
+                        });
+
+                        let onlyHasUrlUploads = temporaryPastedFileInfoById !== undefined;
+                        for (const temporaryPastedFileInfo of temporaryPastedFileInfoById?.values() ??
+                            emptyArray) {
+                            if (!isUrlUploadFileInfo(temporaryPastedFileInfo)) {
+                                onlyHasUrlUploads = false;
+                                break;
+                            }
+                        }
+
+                        if (sliceOnlyContainsFiles && onlyHasUrlUploads) {
+                            slice = Slice.empty;
+                            // Also clear the map so the `temporaryPastedFileInfoById.size === 0` check below
+                            // passes and raw files get processed.
+                            temporaryPastedFileInfoById?.clear();
+                        }
+                    }
+
+                    // For schemas without file nodes: files are tracked separately in
+                    // `temporaryPastedFileInfosForParent`. If all entries are URL-based uploads, clear
+                    // them so we use raw files instead.
+                    if (
+                        !schema.nodes.file &&
+                        temporaryPastedFileInfosForParent &&
+                        temporaryPastedFileInfosForParent.length > 0
+                    ) {
+                        const allUrlUploads =
+                            temporaryPastedFileInfosForParent.every(isUrlUploadFileInfo);
+                        if (allUrlUploads) {
+                            temporaryPastedFileInfosForParent.length = 0;
+                        }
+                    }
+                }
+            }
+
             // If we're dropping or pasting an empty slice that means ProseMirror couldn't
             // parse the data in `dataTransfer`. If `dataTransfer` has any files then let's use
             // `FileProcessorService` to attach the file to our content.
@@ -2069,22 +2237,19 @@ function ContentEditor<Content extends ContentWithReferences>(
                             // we don't need to perform another attach mutation. Instead, all we need to do is
                             // load the file (since it's not in our references).
                             else if (isDeepEqual(fromTarget, toTarget)) {
-                                return getFileFromAttachment(context, {
-                                    spaceId: temporaryPastedFileInfo.spaceId,
+                                return await getFileFromAttachment(context, {
                                     fileId: temporaryPastedFileInfo.fileId,
                                     target: toTarget,
                                 });
                             }
                             // Otherwise, let's attach the file to its new attachment target.
                             else if (fromTarget === "Uploader") {
-                                return attachFileAsUploader(context, {
-                                    spaceId: temporaryPastedFileInfo.spaceId,
+                                return await attachFileAsUploader(context, {
                                     fileId: temporaryPastedFileInfo.fileId,
                                     target: toTarget,
                                 });
                             } else {
-                                return attachFileFromAttachment(context, {
-                                    spaceId: temporaryPastedFileInfo.spaceId,
+                                return await attachFileFromAttachment(context, {
                                     fileId: temporaryPastedFileInfo.fileId,
                                     fromTarget,
                                     toTarget,
@@ -2135,7 +2300,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 progressStore: actualPromise.progressStore,
                             });
 
-                            return fileReferencePromiseResolver.promise;
+                            return await fileReferencePromiseResolver.promise;
                         }
                         default:
                             throw exhaustive(temporaryPastedFileInfo);
@@ -2251,9 +2416,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             // If we're pasting a URL for a `SearchEntityId` in an empty paragraph then instead
             // of pasting the URL text we want to paste a file node.
-            if (spaceContextRef.current && selection.from === selection.to) {
+            if (selection.from === selection.to) {
                 const entityId = parseSearchEntityIdFromUrl(
-                    spaceContextRef.current.space.id,
                     event.clipboardData?.getData("text/plain") ?? "",
                 );
                 if (entityId !== null) {
@@ -2297,7 +2461,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                             temporaryPastedFileInfosForParent.push({
                                 type: "AttachFileEntity",
-                                spaceId: spaceContextRef.current.space.id,
+                                spaceId: assertExists(spaceContextRef.current).space.id,
                                 fileEntityId: entityId,
                             });
                         }
@@ -3060,6 +3224,77 @@ function ContentEditor<Content extends ContentWithReferences>(
             });
         };
 
+        const insertFileFromUrl = (url: URL) => {
+            const fileId = generateFileIdWithSynchronizedClock();
+
+            if (temporaryPastedFileInfoById === undefined) {
+                temporaryPastedFileInfoById = new Map();
+                scheduleMicrotask(() => {
+                    temporaryPastedFileInfoById = undefined;
+                });
+            }
+
+            temporaryPastedFileInfoById.set(fileId, {
+                type: "UploadFile",
+                input: {type: "Url", url},
+            });
+
+            const posOrSelection = view.state.selection;
+
+            const slice = new Slice(
+                Fragment.from(
+                    schema.node(
+                        isPosInContentTable(posOrSelection.$head) ? "fileRowTable" : "fileRow",
+                        {},
+                        [schema.node("file", {fileId})],
+                    ),
+                ),
+                0,
+                0,
+            );
+
+            handleInsertSlice({
+                asyncSpanName: "<ContentEditor> insert file from URL",
+                remember: [posOrSelection],
+                slice,
+                dataTransfer: null,
+                action: ([posOrSelection], slice, createTransaction) => {
+                    const transaction = createTransaction();
+
+                    if (
+                        posOrSelection instanceof NodeSelection &&
+                        posOrSelection.node.type.name === "file"
+                    ) {
+                        posOrSelection.replaceWith(transaction, schema.node("file", {fileId}));
+                    } else {
+                        const singleNode = slice.content.firstChild;
+                        if (singleNode) {
+                            posOrSelection.replaceWith(transaction, singleNode);
+                        } else {
+                            posOrSelection.replace(transaction, slice);
+                        }
+                    }
+
+                    if (slice.content.firstChild) {
+                        const $newPos = findInsertedNodeAfterReplaceRangeWith(
+                            posOrSelection.$from,
+                            transaction.doc,
+                            slice.content.firstChild,
+                        );
+
+                        if ($newPos) {
+                            transaction.setSelection(
+                                new NodeSelection(transaction.doc.resolve($newPos.pos + 1)),
+                            );
+                        }
+                    }
+
+                    view.focus();
+                    view.dispatch(transaction.scrollIntoView());
+                },
+            });
+        };
+
         /* ========================================================================== *\
          *                                Misc events                                 *
         \* ========================================================================== */
@@ -3072,6 +3307,24 @@ function ContentEditor<Content extends ContentWithReferences>(
             if (floaterState.type === "Mention") {
                 floaterState.handleKeyDownRef.current?.(event);
                 if (event.defaultPrevented) return true;
+            }
+
+            // Open date picker with keyboard when Enter is pressed inside a date decoration.
+            if (
+                hasDatePickerUiFeatureForEditorView &&
+                event.key === "Enter" &&
+                !event.altKey &&
+                !event.shiftKey &&
+                !event.metaKey &&
+                !event.ctrlKey
+            ) {
+                const {from} = view.state.selection;
+                const dateMatch = getContentEditorDateMatchAtPos(view.state, from);
+                if (dateMatch && from > dateMatch.from && from < dateMatch.to) {
+                    event.preventDefault();
+                    openDatePicker(view, dateMatch, true);
+                    return true;
+                }
             }
 
             if (
@@ -3642,6 +3895,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         viewRef.current = Object.assign(view, {
             insertFiles,
+            insertFileFromUrl,
             getBlockWidth: () => blockWidthRef.current,
             getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
         });
@@ -4669,6 +4923,45 @@ function ContentEditor<Content extends ContentWithReferences>(
     }, [isMobileCommentInputOpen, setDecorationCallbacks, viewRef]);
 
     /* ========================================================================== *\
+     *                            Date picker state                               *
+    \* ========================================================================== */
+
+    const [datePickerState, setDatePickerState] = useState<{
+        key: Id;
+        match: ContentEditorDateDecorationMatch;
+        isVisible: boolean;
+        autoFocus: boolean;
+        savedSelection: Selection;
+    } | null>(null);
+
+    // A hidden anchor element positioned over the detected date text so that
+    // OverlayAnimated can position the picker relative to it.
+    const [datePickerAnchorElement, setDatePickerAnchorElement] = useState<HTMLDivElement | null>(
+        null,
+    );
+    useLayoutEffect(() => {
+        if (
+            !hasDatePickerUiFeature ||
+            !datePickerState?.isVisible ||
+            !viewRef.current ||
+            !datePickerAnchorElement
+        ) {
+            return;
+        }
+
+        const view = viewRef.current;
+        const startCoords = view.coordsAtPos(datePickerState.match.from);
+        const endCoords = view.coordsAtPos(datePickerState.match.to);
+        const editorRect = view.dom.getBoundingClientRect();
+
+        datePickerAnchorElement.style.position = "absolute";
+        datePickerAnchorElement.style.left = `${startCoords.left - editorRect.left}px`;
+        datePickerAnchorElement.style.top = `${startCoords.top - editorRect.top}px`;
+        datePickerAnchorElement.style.width = `${endCoords.right - startCoords.left}px`;
+        datePickerAnchorElement.style.height = `${endCoords.bottom - startCoords.top}px`;
+    }, [datePickerAnchorElement, datePickerState, hasDatePickerUiFeature]);
+
+    /* ========================================================================== *\
      *                          Code block toolbar state                          *
     \* ========================================================================== */
 
@@ -4926,46 +5219,120 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }
             }
 
-            return {
-                actions: [
-                    [
-                        {
-                            label: "Undo",
-                            isDisabled: !canUndo,
-                            keyboardShortcutHint: renderKeyboardShortcutHint(
-                                clientInfo,
-                                "mod",
-                                "z",
-                            ),
-                            onPress: () => {
-                                undo(view.state, view.dispatch, view);
-                            },
+            const menuActions: Array<MenuActionsSection> = [
+                [
+                    {
+                        label: "Undo",
+                        isDisabled: !canUndo,
+                        keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "z"),
+                        onPress: () => {
+                            undo(view.state, view.dispatch, view);
                         },
-                        {
-                            label: "Redo",
-                            isDisabled: !canRedo,
-                            keyboardShortcutHint: renderKeyboardShortcutHint(
-                                clientInfo,
-                                "mod",
-                                "y",
-                            ),
-                            onPress: () => {
-                                redo(view.state, view.dispatch, view);
-                            },
+                    },
+                    {
+                        label: "Redo",
+                        isDisabled: !canRedo,
+                        keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "y"),
+                        onPress: () => {
+                            redo(view.state, view.dispatch, view);
                         },
-                    ],
-                    [
-                        {
-                            hasChildren: true,
-                            key: "insert",
-                            label: "Insert",
-                            actions: getContentEditorInsertMenuActions({schema, viewRef}),
-                        },
-                    ],
+                    },
                 ],
+            ];
+
+            const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
+            let currentListItemNode: Node | null = null;
+
+            if (posResult) {
+                const $pos = state.doc.resolve(posResult.pos);
+
+                for (let depth = $pos.depth; depth > 0; depth--) {
+                    const node = $pos.node(depth);
+                    if (node.type.groups.includes("listItem")) {
+                        currentListItemNode = node;
+                        break;
+                    }
+                }
+            }
+
+            if (currentListItemNode && posResult) {
+                const listConversionActions: Array<MenuAction> = [];
+                const rightClickPos = posResult.pos;
+
+                const conversionTargets: Array<{
+                    icon: ReactElement;
+                    label: string;
+                    nodeType: NodeType | undefined;
+                }> = [
+                    {
+                        icon: <ListBullets />,
+                        label: "Turn into bullet list",
+                        nodeType: schema.nodes.unorderedListItem,
+                    },
+                    {
+                        icon: <ListNumbers />,
+                        label: "Turn into number list",
+                        nodeType: schema.nodes.orderedListItem,
+                    },
+                    {
+                        icon: <ListChecks />,
+                        label: "Turn into check list",
+                        nodeType: schema.nodes.checkListItem,
+                    },
+                ];
+
+                for (const target of conversionTargets) {
+                    if (!target.nodeType || target.nodeType === currentListItemNode.type) continue;
+
+                    listConversionActions.push({
+                        icon: target.icon,
+                        iconPlacement: "end",
+                        label: target.label,
+                        onPress: () => {
+                            // Move selection to the right-clicked position so the conversion command operates
+                            // on the correct list.
+                            view.dispatch(
+                                view.state.tr.setSelection(
+                                    TextSelection.near(view.state.doc.resolve(rightClickPos)),
+                                ),
+                            );
+                            const command = createConvertListItemsAtIndentCommand(target.nodeType!);
+                            command(view.state, view.dispatch, view);
+                        },
+                    });
+                }
+
+                if (listConversionActions.length > 0) {
+                    menuActions.push(listConversionActions);
+                }
+            }
+
+            menuActions.push([
+                {
+                    hasChildren: true,
+                    key: "insert",
+                    label: "Insert",
+                    actions: getContentEditorInsertMenuActions({
+                        schema,
+                        viewRef,
+                        onOpenGifPicker: isGifPickerEnabled ? openGifPicker : undefined,
+                    }),
+                },
+            ]);
+
+            return {
+                actions: menuActions,
             };
         },
-        [canRedo, canUndo, clientInfo, hasEditAccessLevel, schema],
+        [
+            canRedo,
+            canUndo,
+            clientInfo,
+            hasEditAccessLevel,
+            isGifPickerEnabled,
+            openGifPicker,
+            schema,
+        ],
     );
 
     // Manually add context menu actions on `contextmenu` event since we can't render a
@@ -4983,6 +5350,64 @@ function ContentEditor<Content extends ContentWithReferences>(
             view.dom.removeEventListener("contextmenu", handleContextMenu);
         };
     }, [getContextMenuActions]);
+
+    /* ========================================================================== *\
+     *                           Date picker handlers                             *
+    \* ========================================================================== */
+
+    function handleDatePickerChange(newDateString: string) {
+        if (!datePickerState) return;
+        const view = viewRef.current;
+        if (!view) return;
+
+        const newText = formatDateInOriginalFormat(newDateString, datePickerState.match.format);
+        const {from, to} = datePickerState.match;
+
+        // Re-focus the editor first so ProseMirror can accept the selection change. Focus
+        // may have moved to the calendar overlay.
+        view.focus();
+
+        let tr = view.state.tr.replaceWith(from, to, view.state.schema.text(newText));
+
+        // Restore the selection to where it was before the picker opened. Map through the
+        // replacement in case positions shifted.
+        const mappedSelection = datePickerState.savedSelection.map(tr.doc, tr.mapping);
+        tr = tr.setSelection(mappedSelection);
+
+        view.dispatch(tr);
+
+        setDatePickerState(state => (state ? {...state, isVisible: false} : null));
+    }
+
+    // Close the date picker as soon as the cursor position changes (e.g. arrow keys,
+    // clicking elsewhere). We store the selection at open time and compare on every
+    // editor state update.
+    const datePickerSelectionAtOpenRef = useRef<Selection | null>(null);
+    useEffect(() => {
+        if (!hasDatePickerUiFeature) {
+            datePickerSelectionAtOpenRef.current = null;
+            if (datePickerState !== null) {
+                setDatePickerState(null);
+            }
+            return;
+        }
+
+        if (!datePickerState?.isVisible) {
+            datePickerSelectionAtOpenRef.current = null;
+            return;
+        }
+
+        // Record the selection on the first render after open.
+        if (datePickerSelectionAtOpenRef.current === null) {
+            datePickerSelectionAtOpenRef.current = unwrappedState.selection;
+            return;
+        }
+
+        // Close if the selection changed at all.
+        if (!unwrappedState.selection.eq(datePickerSelectionAtOpenRef.current)) {
+            setDatePickerState(prev => (prev ? {...prev, isVisible: false} : null));
+        }
+    }, [datePickerState, hasDatePickerUiFeature, unwrappedState]);
 
     /* ========================================================================== *\
      *                                   Render                                   *
@@ -5019,7 +5444,36 @@ function ContentEditor<Content extends ContentWithReferences>(
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
                 mentionFloaterSectionOrder={mentionFloaterSectionOrder}
                 onPasteOrDropFiles={onPasteOrDropFiles}
+                onSelectGif={isGifPickerEnabled ? onSelectGif : undefined}
             />
+            {hasDatePickerUiFeature && datePickerState && (
+                <>
+                    <div
+                        ref={setDatePickerAnchorElement}
+                        style={{position: "absolute", pointerEvents: "none"}}
+                    />
+                    {datePickerAnchorElement && (
+                        <ContentEditorDatePickerOverlay
+                            key={datePickerState.key}
+                            targetElement={datePickerAnchorElement}
+                            isVisible={datePickerState.isVisible}
+                            date={datePickerState.match.date}
+                            onDateChange={handleDatePickerChange}
+                            onCloseWithAnimation={() => {
+                                viewRef.current?.focus();
+                                setDatePickerState(state =>
+                                    state ? {...state, isVisible: false} : null,
+                                );
+                            }}
+                            onCloseWithoutAnimation={() => {
+                                viewRef.current?.focus();
+                                setDatePickerState(null);
+                            }}
+                            autoFocus={datePickerState.autoFocus}
+                        />
+                    )}
+                </>
+            )}
             <ContentEditorFileToolbarController
                 state={unwrappedState}
                 viewRef={viewRef}
@@ -5081,6 +5535,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                         setIsMobileCommentInputOpen(true);
                     }}
+                    onOpenGifPicker={isGifPickerEnabled ? openGifPicker : undefined}
                 />
             )}
             {mobileLinkModalState && (

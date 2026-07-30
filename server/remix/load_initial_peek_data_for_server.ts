@@ -40,7 +40,7 @@ export async function loadInitialPeekDataForServer(
 
     await runAllPromises(
         routeMatches.map(async match => {
-            if (match.route.id.startsWith("routes/s.$spaceId.peek")) {
+            if (match.route.id.startsWith("routes/_space.peek")) {
                 loadExtraRouteIds.push(match.route.id);
             }
 
@@ -90,7 +90,7 @@ async function processLoaderResult(result: unknown): Promise<unknown> {
         const originalData = (result as any)[Symbol.for("remix.response.json")];
         return originalData !== undefined ? originalData : await result.json();
     } else {
-        return result.text();
+        return await result.text();
     }
 }
 

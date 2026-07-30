@@ -49,7 +49,7 @@ export function startLambdaLocal(
         server,
         port,
         stop: async () => {
-            return new Promise<void>(resolve => {
+            return await new Promise<void>(resolve => {
                 runAllPromises(sqsConsumers.map(consumer => consumer.stop()))
                     .then(() => {
                         resolve();

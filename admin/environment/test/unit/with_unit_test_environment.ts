@@ -83,6 +83,7 @@ import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
@@ -303,7 +304,9 @@ export function actuallyCreateUnitTestEnvironment(
         sendRequestToDurableObject?: (
             context: Context<{}>,
             request: {
-                url: string;
+                url: `/api/durable-objects/${string}`;
+                serviceName: TokenServiceName;
+                route: `/api/durable-objects/${string}`;
                 body?: SchemaSerializedValue | null;
             },
         ) => Promise<any>;
@@ -693,7 +696,7 @@ export function actuallyCreateUnitTestEnvironment(
             broadcastToDurableObject: broadcast => durableObjectBroadcasts.push(broadcast),
             sendRequestToDurableObject: async (context, request) => {
                 durableObjectRequests.push(request);
-                return options.sendRequestToDurableObject?.(context, request);
+                return await options.sendRequestToDurableObject?.(context, request);
             },
         }),
         files: new TestFilesContextModule(),

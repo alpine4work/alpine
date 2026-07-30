@@ -39,7 +39,7 @@ function getDirectChatOption(page: Page, name1: string, name2: string) {
 }
 
 async function openNewChat(page: Page, spaceId: SpaceId) {
-    await page.goto(`/s/${spaceId}/chat/new`);
+    await page.goto(`/chat/new/${spaceId}`);
     await page.waitForFunction("dev.ready");
 }
 
@@ -81,6 +81,9 @@ async function addHighIntentAffinity({
             spaceId: session.space.id,
             entityId,
             interaction: {type: "HighIntentUpdate"},
+            // This test fixture only ever passes `Account:` or `Chat:` ids and doesn't set up
+            // sites, so no site cascade applies.
+            siteId: null,
         });
     }
 }
@@ -492,7 +495,7 @@ test("reload preserves chat param room selection", async ({page, context: browse
     await roomChat.sendMessage(sessionActor, "reload room message");
 
     await services.signIn(browserContext, sessionActor);
-    await page.goto(`/s/${space.id}/chat/new?chat=${roomChat.id}`);
+    await page.goto(`/chat/new/${space.id}?chat=${roomChat.id}`);
     await page.waitForFunction("dev.ready");
 
     await expect(getPickerInput(page).getByText("Reload Room")).toBeVisible();

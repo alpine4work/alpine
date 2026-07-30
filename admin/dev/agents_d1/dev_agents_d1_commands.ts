@@ -64,6 +64,9 @@ async function runDevAgentsD1Process(
 
     try {
         if (consumeOutput) {
+            // TODO: Re-enable `@typescript-eslint/return-await` after deciding whether this
+            // `try`/`catch` should handle async process failures.
+            // eslint-disable-next-line @typescript-eslint/return-await
             return runProcess(wranglerPath, wranglerArguments, options);
         } else {
             await runProcessWithInheritedStdio(wranglerPath, wranglerArguments, options);

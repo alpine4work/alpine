@@ -1,5 +1,7 @@
-import {expect, test} from "@playwright/test";
+import {type Page, expect, test} from "@playwright/test";
+import {activateMobileButton} from "~/app/integration_tests/helpers/activate_mobile_button.js";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createChannel} from "~/server/forum/data/create_channel.js";
@@ -12,6 +14,12 @@ const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 
+async function replacePostEditorText({page, text}: {page: Page; text: string}) {
+    const postEditor = page.getByLabel("Post", {exact: true});
+    await postEditor.press(await pageKeyboardShortcut(page, "mod", "a"));
+    await postEditor.type(text);
+}
+
 test("can create posts", async ({page, context: browserContext, isMobile}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
@@ -19,7 +27,7 @@ test("can create posts", async ({page, context: browserContext, isMobile}) => {
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await expect(page.getByText("Test Channel")).toBeVisible();
 
@@ -61,7 +69,7 @@ test("can create multiline formatted posts", async ({page, context: browserConte
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await expect(page.getByText("Test Channel")).toBeVisible();
 
@@ -84,12 +92,7 @@ test("can create multiline formatted posts", async ({page, context: browserConte
     await expect(page.getByRole("heading", {name: "Test heading"})).toBeVisible();
 });
 
-test("can edit a post in a channel", async ({
-    page,
-    context: browserContext,
-    isMobile,
-    viewport,
-}) => {
+test("can edit a post in a channel", async ({page, context: browserContext, viewport}) => {
     assert(viewport);
 
     const channel = await createChannel(context.action(session1), {
@@ -104,7 +107,7 @@ test("can edit a post in a channel", async ({
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
 
@@ -119,9 +122,7 @@ test("can edit a post in a channel", async ({
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
     // Can update with the save button.
-    await page.getByLabel("Post", {exact: true}).press("End");
-    await page.getByLabel("Post", {exact: true}).press("Backspace");
-    await page.getByLabel("Post", {exact: true}).type("2");
+    await replacePostEditorText({page, text: "Test post content 2"});
     await page.getByRole("button", {name: "Save"}).click();
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
@@ -138,10 +139,10 @@ test("can edit a post in a channel", async ({
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 2");
 
     // Can update with Cmd-Enter keyboard shortcut.
-    await page.getByLabel("Post", {exact: true}).press("End");
-    await page.getByLabel("Post", {exact: true}).press("Backspace");
-    await page.getByLabel("Post", {exact: true}).type("3");
-    await page.getByLabel("Post", {exact: true}).press(`${isMobile ? "Meta" : "Control"}+Enter`);
+    await replacePostEditorText({page, text: "Test post content 3"});
+    await page
+        .getByLabel("Post", {exact: true})
+        .press(await pageKeyboardShortcut(page, "mod", "enter"));
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeHidden();
@@ -163,7 +164,7 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
 
@@ -175,9 +176,7 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
     // Can update with the save button.
-    await page.getByLabel("Post", {exact: true}).press("End");
-    await page.getByLabel("Post", {exact: true}).press("Backspace");
-    await page.getByLabel("Post", {exact: true}).type("2");
+    await replacePostEditorText({page, text: "Test post content 2"});
     if (!isMobile) {
         await page.getByRole("button", {name: "Save"}).click();
     } else {
@@ -187,7 +186,7 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
         // so we can have a save button in the header.
         await page
             .getByLabel("Post", {exact: true})
-            .press(`${isMobile ? "Meta" : "Control"}+Enter`);
+            .press(await pageKeyboardShortcut(page, "mod", "enter"));
     }
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
@@ -201,10 +200,10 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 2");
 
     // Can update with Cmd-Enter keyboard shortcut.
-    await page.getByLabel("Post", {exact: true}).press("End");
-    await page.getByLabel("Post", {exact: true}).press("Backspace");
-    await page.getByLabel("Post", {exact: true}).type("3");
-    await page.getByLabel("Post", {exact: true}).press(`${isMobile ? "Meta" : "Control"}+Enter`);
+    await replacePostEditorText({page, text: "Test post content 3"});
+    await page
+        .getByLabel("Post", {exact: true})
+        .press(await pageKeyboardShortcut(page, "mod", "enter"));
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeHidden();
@@ -231,7 +230,7 @@ test("asks for confirmation to save edited post", async ({
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeHidden();
     await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
@@ -247,9 +246,7 @@ test("asks for confirmation to save edited post", async ({
     await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
-    await page.getByLabel("Post", {exact: true}).press("End");
-    await page.getByLabel("Post", {exact: true}).press("Backspace");
-    await page.getByLabel("Post", {exact: true}).type("2");
+    await replacePostEditorText({page, text: "Test post content 2"});
 
     if (!isMobile) {
         await expect(page.getByRole("alertdialog", {name: "Save post"})).toBeHidden();
@@ -258,7 +255,8 @@ test("asks for confirmation to save edited post", async ({
 
         await page.getByRole("button", {name: "Discard changes"}).click();
     } else {
-        await page.getByRole("button", {name: "Cancel"}).click();
+        await page.getByLabel("Post", {exact: true}).blur();
+        await activateMobileButton(page, "Cancel");
     }
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();

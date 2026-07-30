@@ -198,7 +198,7 @@ self.addEventListener("pushsubscriptionchange", (event: PushSubscriptionChangeEv
             clock: unsynchronizedSystemClock,
             sendEvent: sendTracerEvent,
         });
-        return tracer.withSpan("Handle push subscription change event", async span => {
+        return await tracer.withSpan("Handle push subscription change event", async span => {
             const existingSubscriptions = await getAllWebPushSubscriptions();
             const staleSubscriptionPromises = existingSubscriptions
                 // Important to only deregister subscriptions for old browserIds, otherwise we

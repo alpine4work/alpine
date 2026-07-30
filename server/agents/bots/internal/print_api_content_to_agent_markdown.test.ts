@@ -4,18 +4,11 @@ import {agentMessageFirstPageTokenLimit} from "~/server/agents/bots/internal/age
 import {AgentLink} from "~/server/agents/bots/internal/link_references/agent_link.js";
 import {listAgentLinksForTest} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {printApiContentToAgentMarkdown} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/content/into_api_content.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {
-    DocumentCommentThreadId,
-    DocumentId,
-    PostId,
-    SpaceId,
-    TaskId,
-} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, PostId, TaskId} from "~/shared/id/types/id_types.js";
 
-const spaceId = generateId<SpaceId>();
 const documentId = generateId<DocumentId>();
 const otherDocumentId = generateId<DocumentId>();
 const postId = generateId<PostId>();
@@ -28,11 +21,11 @@ afterEach(async () => {
 });
 
 async function testPrintAgentContentToMarkdown(
-    content: ApiContentResponse,
+    content: ApiContentResponseWithoutKeys,
     expectedMarkdown: string,
     expectedContentLinkReferences: ReadonlyMap<string, AgentLink> = emptyMap,
 ) {
-    const actualMarkdown = await printApiContentToAgentMarkdown(storage, content, {spaceId});
+    const actualMarkdown = await printApiContentToAgentMarkdown(storage, content);
 
     expect(actualMarkdown).toEqual(expectedMarkdown);
 
@@ -364,7 +357,7 @@ test("link with mention-like URL becomes HTML anchor tag with replaced href", as
                             marks: [
                                 {
                                     type: "Link",
-                                    url: `https://alpine.inc/s/${spaceId}/documents/${documentId}?mention`,
+                                    url: `https://alpine.inc/doc/${documentId}?mention`,
                                 },
                             ],
                         },
@@ -400,7 +393,7 @@ test("code block with links gets href attributes replaced", async () => {
                                     marks: [
                                         {
                                             type: "Link",
-                                            url: `https://alpine.inc/s/${spaceId}/d/123?mention=true`,
+                                            url: `https://alpine.inc/d/123?mention=true`,
                                         },
                                     ],
                                 },
@@ -522,55 +515,47 @@ test("identical mentions with same label and target path reuse the same referenc
 
 test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", async () => {
     const actualMarkdown1 = await storage.transaction(transaction =>
-        printApiContentToAgentMarkdown(
-            transaction,
-            {
-                elements: [
-                    {
-                        type: "Paragraph",
-                        elements: [
-                            {type: "Text", text: "See "},
-                            {
-                                type: "Mention",
-                                target: {
-                                    type: "Document",
-                                    id: documentId,
-                                },
-                                title: "My Document",
+        printApiContentToAgentMarkdown(transaction, {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "See "},
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Document",
+                                id: documentId,
                             },
-                            {type: "Text", text: "."},
-                        ],
-                    },
-                ],
-            },
-            {spaceId},
-        ),
+                            title: "My Document",
+                        },
+                        {type: "Text", text: "."},
+                    ],
+                },
+            ],
+        }),
     );
 
     const actualMarkdown2 = await storage.transaction(transaction =>
-        printApiContentToAgentMarkdown(
-            transaction,
-            {
-                elements: [
-                    {
-                        type: "Paragraph",
-                        elements: [
-                            {type: "Text", text: "Also see "},
-                            {
-                                type: "Mention",
-                                target: {
-                                    type: "Document",
-                                    id: otherDocumentId,
-                                },
-                                title: "My Document",
+        printApiContentToAgentMarkdown(transaction, {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Also see "},
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Document",
+                                id: otherDocumentId,
                             },
-                            {type: "Text", text: "."},
-                        ],
-                    },
-                ],
-            },
-            {spaceId},
-        ),
+                            title: "My Document",
+                        },
+                        {type: "Text", text: "."},
+                    ],
+                },
+            ],
+        }),
     );
 
     expect(actualMarkdown1).toEqual(`See [My Document](/document/my-document).\n`);

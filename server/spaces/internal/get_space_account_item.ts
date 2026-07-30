@@ -33,7 +33,7 @@ export async function getSpaceAccountItemIfExists(
         allowsEventualReadConsistency?: boolean;
     } = {},
 ): Promise<SpaceAccountItem | null> {
-    return SpaceAccountItemContextCache.get(
+    return await SpaceAccountItemContextCache.get(
         context,
         allowsEventualReadConsistency ? {consistency, allowsEventualReadConsistency} : consistency,
         `${spaceId}:${accountId}`,
@@ -91,7 +91,7 @@ export async function getSpaceAccountItemWithEventualThenStrongConsistency(
     });
     if (spaceAccountItem) return spaceAccountItem;
 
-    return getSpaceAccountItem(context, spaceId, accountId, {
+    return await getSpaceAccountItem(context, spaceId, accountId, {
         consistency: "StrongWithinCache",
     });
 }

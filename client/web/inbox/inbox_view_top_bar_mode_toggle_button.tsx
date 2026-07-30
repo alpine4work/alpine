@@ -1,13 +1,14 @@
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 
 export function InboxViewTopBarModeToggleButton({
     filter,
     onNewPress,
     onArchivePress,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     onNewPress: () => MaybePromise<void>;
     onArchivePress: () => MaybePromise<void>;
 }) {
@@ -23,13 +24,13 @@ export function InboxViewTopBarModeToggleButton({
                 New
             </Button>
             <Button
-                variant={filter === "Archive" ? "quiet-on" : "quiet-off"}
+                variant={filter === "Done" ? "quiet-on" : "quiet-off"}
                 height="6"
                 paddingX="2"
-                pressErrorTitle="Can&#x2019;t open old notifications"
+                pressErrorTitle="Can&#x2019;t open done notifications"
                 onPress={onArchivePress}
             >
-                Old
+                Done
             </Button>
         </Box>
     );

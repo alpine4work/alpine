@@ -216,7 +216,7 @@ export class ChatRealtimeConnection {
         if (eventStub.type === "UpdateChat") {
             return eventStub;
         } else {
-            return this._connection.transformEvent(context, eventStub);
+            return await this._connection.transformEvent(context, eventStub);
         }
     }
 

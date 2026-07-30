@@ -32,7 +32,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {pointerEventsNoneNotInheritedClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {
     taskGridViewColumnHeaderHeight,
@@ -420,7 +420,7 @@ export function TaskPersonalView({
                     iconPlacement: "end",
                     pressErrorTitle: "Couldn\u2019t copy link",
                     onPress: async () => {
-                        const url = new URL(`/s/${space.id}/tasks`, window.location.href);
+                        const url = new URL(`/my-tasks/${space.id}`, window.location.href);
                         await writeTextToClipboard(url.toString());
                     },
                 },
@@ -484,6 +484,7 @@ export function TaskPersonalView({
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
         menuActions: navigationBarMenuActions,
+        defaultPreviousRoute: `/home/${space.id}`,
     });
 
     /* ========================================================================== *\

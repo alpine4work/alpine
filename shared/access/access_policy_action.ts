@@ -11,11 +11,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
-// TODO(#sites)
-//
-// - AddToSite
-// - RemoveFromSite
-// - ChangeSite
 export type AccessPolicyAction =
     | {
           readonly type: "AddAccountGrants";
@@ -64,11 +59,9 @@ export type AccessPolicyAction =
  * only works with regular access policies - site access policies are managed
  * through the site itself.
  */
-export function reduceAccessPolicy(
-    actorAccountId: AccountId,
-    accessPolicy: LocalAccessPolicy | (ResolvedAccessPolicyWithGenerations & {type: "Local"}),
-    action: AccessPolicyAction,
-): LocalAccessPolicy {
+export function reduceAccessPolicy<
+    Policy extends ResolvedAccessPolicyWithGenerations | LocalAccessPolicy,
+>(actorAccountId: AccountId, accessPolicy: Policy, action: AccessPolicyAction): Policy {
     const actorManageGeneration = getAccountAccessPolicyManageGeneration(
         actorAccountId,
         accessPolicy,

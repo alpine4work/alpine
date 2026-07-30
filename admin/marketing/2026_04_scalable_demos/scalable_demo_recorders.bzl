@@ -5,6 +5,7 @@ def scalable_demo_recorders():
 
     common_data = [
         ":2026_04_scalable_demos",
+        ":fixtures",
         "@playwright_browsers//:browsers",
     ]
 

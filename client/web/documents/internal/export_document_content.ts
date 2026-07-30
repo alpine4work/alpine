@@ -85,8 +85,8 @@ export async function exportDocumentContent({
                 .getEntityStore(entity.entity)
                 .getSnapshot();
 
-            if (entityData.media?.type !== "TaskDisplayStatus") return;
-            return entityData.media.displayStatus;
+            if (entityData.type !== "Task") return;
+            return entityData.task.displayStatus.value;
         },
         getFileIfExists: fileId => {
             const fileRef = content.references.fileById?.get(fileId);
@@ -133,7 +133,7 @@ export async function exportDocumentContent({
         },
     });
 
-    const markdownTree = printApiContentToMarkdownTree(apiContent, {spaceId});
+    const markdownTree = printApiContentToMarkdownTree(apiContent);
 
     const traverse = (node: Parent) => {
         // Headings from `ApiContent` should always start at level 2. That way we can add

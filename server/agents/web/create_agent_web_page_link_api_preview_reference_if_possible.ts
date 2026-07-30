@@ -12,6 +12,7 @@ export function createAgentWebPageLinkApiPreviewReferenceIfPossible(
         case "Post":
         case "Task":
         case "TaskCollection":
+        case "Site":
             return link;
         case "TaskMessageList":
             return link.task;

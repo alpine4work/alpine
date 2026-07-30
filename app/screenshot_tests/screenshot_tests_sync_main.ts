@@ -16,7 +16,13 @@ import {quote} from "~/shared/helpers/string/quote.js";
 
 const githubOwner = "cyberworlds";
 const githubRepo = "cyberworlds";
-const artifactName = "bazel_screenshot_testlogs";
+
+// The legacy CI pipeline uploads a single `bazel_screenshot_testlogs` artifact.
+// The split-runner pipeline shards screenshot tests across runners and uploads one
+// `bazel_screenshot_{N}_testlogs` artifact per shard that produced testlogs
+// (shards whose screenshots all matched upload nothing). Match both so the sync
+// works against either pipeline.
+const artifactNamePattern = /^bazel_screenshot(?:_\d+)?_testlogs$/;
 
 type ScreenshotSyncCounts = {
     foundCount: number;
@@ -30,24 +36,32 @@ async function main(): Promise<void> {
     const pr = await getGithubPullRequest();
     console.log(`Found PR: ${pr.url}`);
 
-    const {artifact, run} = await getGithubActionsScreenshotTestArtifact(pr);
-    console.log(`Downloading \`${artifact.name}\` from: ${run.url}`);
+    const {artifacts, run} = await getGithubActionsScreenshotTestArtifacts(pr);
+    const artifactNames = artifacts.map(artifact => artifact.name);
+    console.log(`Downloading \`${artifactNames.join("`, `")}\` from: ${run.url}`);
 
     await withTemporaryDirectory(
         os.tmpdir(),
         "cyberworlds_screenshot_tests_sync_",
         async temporaryDirectoryPath => {
-            await downloadGithubActionsRunArtifact({
-                run,
-                downloadDirectoryPath: temporaryDirectoryPath,
-            });
+            // Download each artifact into its own directory so sharded artifacts can't
+            // overwrite each other's files.
+            await runAllPromises(
+                artifacts.map(artifact =>
+                    downloadGithubActionsRunArtifact({
+                        run,
+                        artifactName: artifact.name,
+                        downloadDirectoryPath: joinPath(temporaryDirectoryPath, artifact.name),
+                    }),
+                ),
+            );
 
             const {foundCount, copiedCount} =
                 await syncScreenshotsFromBazelTestlogs(temporaryDirectoryPath);
 
             if (foundCount === 0) {
                 throw new FailedPreconditionError(
-                    quote`No screenshots found in \`${artifact.name}\``,
+                    quote`No screenshots found in \`${artifactNames.join("`, `")}\``,
                 );
             }
 
@@ -85,9 +99,9 @@ async function getGithubPullRequest(): Promise<GithubPullRequest> {
     return JSON.parse(output);
 }
 
-async function getGithubActionsScreenshotTestArtifact(
+async function getGithubActionsScreenshotTestArtifacts(
     pr: GithubPullRequest,
-): Promise<{artifact: GithubActionsRunArtifact; run: GithubActionsRun}> {
+): Promise<{artifacts: Array<GithubActionsRunArtifact>; run: GithubActionsRun}> {
     const runs = await listGithubActionsRunsForBranch(pr.headRefName);
 
     if (runs.length === 0) {
@@ -96,23 +110,50 @@ async function getGithubActionsScreenshotTestArtifact(
         );
     }
 
-    for (const run of runs.filter(run => run.headSha === pr.headRefOid)) {
-        const artifacts = await listGithubActionsRunArtifacts(run.databaseId);
-        const artifact = artifacts.find(candidate => candidate.name === artifactName);
+    // Only consider runs for the PR's current head commit. Artifacts from runs of
+    // older commits were rendered from stale code and must never be synced.
+    const headRuns = runs.filter(run => run.headSha === pr.headRefOid);
 
-        if (artifact === undefined) continue;
+    if (headRuns.length === 0) {
+        throw new FailedPreconditionError(
+            quote`No GitHub Actions runs found for the PR\u2019s head commit (${pr.headRefOid}). If you just pushed, CI may not have started yet.`,
+        );
+    }
 
-        if (artifact.expired) {
+    for (const run of headRuns) {
+        // Screenshot artifacts upload per job, so we only need the screenshot test jobs to
+        // be complete — not the whole run (e.g. integration tests may still be going). If
+        // a screenshot job is still running its artifact may not exist yet, so tell the
+        // caller to retry instead of failing with a confusing "no artifact" error.
+        const jobs = await listGithubActionsRunJobs(run.databaseId);
+        const incompleteScreenshotJobs = jobs.filter(
+            job => job.name.startsWith("Screenshot tests") && job.status !== "completed",
+        );
+        if (incompleteScreenshotJobs.length > 0) {
             throw new FailedPreconditionError(
-                quote`Found ${artifactName}, but the artifact has expired`,
+                quote`Screenshot test jobs are still running for the PR\u2019s head commit: ${run.url}. Try again once they finish.`,
             );
         }
 
-        return {artifact, run};
+        const artifacts = (await listGithubActionsRunArtifacts(run.databaseId)).filter(artifact =>
+            artifactNamePattern.test(artifact.name),
+        );
+
+        if (artifacts.length === 0) continue;
+
+        const unexpiredArtifacts = artifacts.filter(artifact => !artifact.expired);
+
+        if (unexpiredArtifacts.length === 0) {
+            throw new FailedPreconditionError(
+                quote`Found ${artifacts.map(artifact => artifact.name).join(", ")}, but the artifacts have expired`,
+            );
+        }
+
+        return {artifacts: unexpiredArtifacts, run};
     }
 
     throw new FailedPreconditionError(
-        quote`No ${artifactName} artifact found in recent GitHub Actions runs for ${pr.headRefName}`,
+        quote`No screenshot testlogs artifacts found in recent GitHub Actions runs for ${pr.headRefName}. If all screenshot tests passed there are no new screenshots to sync.`,
     );
 }
 
@@ -160,11 +201,27 @@ async function listGithubActionsRunArtifacts(
     return JSON.parse(output).artifacts;
 }
 
+type GithubActionsRunJob = {
+    name: string;
+    status: string;
+    conclusion: string | null;
+};
+
+async function listGithubActionsRunJobs(runId: number): Promise<Array<GithubActionsRunJob>> {
+    const output = await runGh([
+        "api",
+        `/repos/${githubOwner}/${githubRepo}/actions/runs/${runId}/jobs?per_page=100`,
+    ]);
+    return JSON.parse(output).jobs;
+}
+
 async function downloadGithubActionsRunArtifact({
     run,
+    artifactName,
     downloadDirectoryPath,
 }: {
     run: GithubActionsRun;
+    artifactName: string;
     downloadDirectoryPath: string;
 }): Promise<void> {
     await runGh([
@@ -185,8 +242,9 @@ async function syncScreenshotsFromBazelTestlogs(
 ): Promise<ScreenshotSyncCounts> {
     const workspacePath = getWorkspacePath();
 
+    // Each artifact was downloaded into its own subdirectory, hence the leading `*`.
     const outputZipPaths = await glob(
-        joinPath(directoryPath, "app/screenshot_tests/*_test/test.outputs/outputs.zip"),
+        joinPath(directoryPath, "*/app/screenshot_tests/*_test/test.outputs/outputs.zip"),
     );
 
     const counts: ScreenshotSyncCounts = {foundCount: 0, copiedCount: 0, skippedCount: 0};
@@ -197,7 +255,7 @@ async function syncScreenshotsFromBazelTestlogs(
 
     await runAllPromises(
         outputZipPaths.map(async outputZipPath => {
-            const match = assertExists(outputZipPath.match(/\/([a-z0-9]+)_screenshot_test\//));
+            const match = assertExists(outputZipPath.match(/\/([a-z0-9_]+)_screenshot_test\//));
             const testName = match[1]!;
 
             const unzipDirectoryPath = dirname(outputZipPath);

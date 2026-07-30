@@ -31,7 +31,7 @@ test("can add and remove a document cover", async ({page, context: browserContex
     const document = await TestDocument.create(session, {title: "Test Document"});
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     const editor = page.getByRole("textbox", {name: "Document"});
     await expect(editor).toBeVisible();
@@ -88,7 +88,7 @@ test("can use randomize button in cover modal", async ({
     const document = await TestDocument.create(session, {title: "Test Document"});
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     const editor = page.getByRole("textbox", {name: "Document"});
     await expect(editor).toBeVisible();

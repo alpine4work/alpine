@@ -110,7 +110,7 @@ async function getDemoName(): Promise<string> {
     }
 
     if (name === undefined) {
-        return inquirer.input({
+        return await inquirer.input({
             message: "Demo name (snake_case):",
             validate: value =>
                 demoNameRegExp.test(value) ||
@@ -215,7 +215,6 @@ async function updateRemotionRoot(
         // not prose — they must not be replaced with typographic quotes.
         `                id="${demoNumber}-${demoIdName}-demo"\n` +
         `                component={${demoNamePascal}DemoComposition}\n` +
-        `                recordingWidth={scalableDemoNarrowViewportWidth}\n` +
         `                durationInFrames={${demoNameCamel}DemoDurationInFrames}\n` +
         `            />\n`;
 

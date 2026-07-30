@@ -37,7 +37,7 @@ export class TaskRealtimeServiceEdgeRouter extends TaskRealtimeServiceRouterBase
     protected override async _loadRoutes(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
     ): Promise<TaskRealtimeServiceRoutes> {
-        return fetchWithTracer(
+        return await fetchWithTracer(
             context.tracer.getTracer(),
             `${this._protocol}//${this._host}/api/task-realtime-service-routes`,
             {serviceName: "AppService", route: "/api/task-realtime-service-routes"},

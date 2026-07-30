@@ -8,18 +8,27 @@ import * as prettier from "prettier";
 import * as babelPrettierPlugin from "prettier/plugins/babel";
 import * as estreePrettierPlugin from "prettier/plugins/estree";
 import {Fragment, Node} from "prosemirror-model";
+import {Step} from "prosemirror-transform";
+import {findSpans} from "unicode-default-word-boundary";
 import {calebKnownAccountId, rachelKnownAccountId} from "~/shared/accounts/known_account_ids.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentContentProsemirrorSchema,
+    DocumentWithoutTitleContentProsemirrorSchema,
+} from "~/shared/documents/document_content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {diff} from "~/shared/helpers/diff/diff.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
+import {ExhaustiveStep} from "~/shared/prosemirror/exhaustive_step.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 const commentThreadId1 = assertId<DocumentCommentThreadId>("346p2absnbj88gcpmf048ff6r1");
@@ -43,7 +52,7 @@ const table = (...children: Children) => schema.nodes.table.create({}, fragment(
 const tableRow = (...children: Children) => schema.nodes.tableRow.create({}, fragment(children));
 const tableCell = (...children: Children) => schema.nodes.tableCell.create({}, fragment(children));
 const fileFloat = (...children: Array<Node>) =>
-    schema.nodes.fileFloat!.create({direction: "left"}, Fragment.fromArray(children));
+    schema.nodes.fileFloat.create({direction: "left"}, Fragment.fromArray(children));
 const fileRow = (...children: Array<Node>) =>
     schema.nodes.fileRow!.create({}, Fragment.fromArray(children));
 const file = (fileId: FileId = fileId1) => schema.nodes.file!.create({fileId});
@@ -79,8 +88,8 @@ const checkListItem = (
     ...children: [attrs: {indent?: number; checked?: boolean}, ...Children] | Children
 ) =>
     children[0] && isObject(children[0]) && "indent" in children[0]
-        ? schema.nodes.checkListItem!.create(children[0] as any, fragment(children.slice(1) as any))
-        : schema.nodes.checkListItem!.create(null, fragment(children as any));
+        ? schema.nodes.checkListItem.create(children[0] as any, fragment(children.slice(1) as any))
+        : schema.nodes.checkListItem.create(null, fragment(children as any));
 
 const heading = (...children: [attrs: {level?: number}, ...Children] | Children) =>
     children[0] && isObject(children[0]) && "level" in children[0]
@@ -91,6 +100,19 @@ const fragment = (children: Children | Child): Fragment =>
     !isReadonlyArray(children) ? fragment([children]) : Fragment.fromArray(children.map(node));
 
 const node = (child: Child): Node => (typeof child === "string" ? schema.text(child) : child);
+
+// The `schema` above (`DocumentWithoutTitleContentProsemirrorSchema`) has no
+// `title` node, so these helpers use the full document schema to build documents
+// with a `title`. An empty title is a `title` node with no text children (it can't
+// hold an empty text node). Text nodes are schema-specific, so build them with
+// `titleSchema` too.
+const titleSchema = DocumentContentProsemirrorSchema;
+const titleDoc = (...children: Array<Node>) =>
+    titleSchema.nodes.doc.create({}, Fragment.fromArray(children));
+const title = (text?: string) =>
+    titleSchema.nodes.title.create({}, text ? titleSchema.text(text) : null);
+const titleParagraph = (text?: string) =>
+    titleSchema.nodes.paragraph.create({}, text ? titleSchema.text(text) : null);
 
 const testCases: ReadonlyArray<{
     readonly only?: CommitBlocker;
@@ -2331,6 +2353,21 @@ const testCases: ReadonlyArray<{
         old: doc(paragraph("e"), paragraph("5")),
         new: doc(quoteBlock(paragraph(break_(), "q"))),
     },
+    // Regression test: A document `title` going from empty to non-empty. The
+    // non-empty, unchanged body paragraph would make the diff misalign the title
+    // against the body (producing an invalid document with two titles) without a
+    // title-specific compatibility key.
+    {
+        id: "253",
+        old: titleDoc(title(), titleParagraph("body")),
+        new: titleDoc(title("Hello"), titleParagraph("body")),
+    },
+    // A document `title` going from non-empty to empty.
+    {
+        id: "254",
+        old: titleDoc(title("Hello"), titleParagraph("body")),
+        new: titleDoc(title(), titleParagraph("body")),
+    },
 ];
 
 let nextExpectedId = 1;
@@ -2356,8 +2393,20 @@ for (const testCase of testCases) {
 
             const steps = diffProsemirrorNodes(testCase.old, testCase.new);
 
+            let deletedSize = 0;
+            for (const step of steps) {
+                deletedSize += calculateStepDeletedSize(step);
+            }
+
+            const theoreticallyOptimalDeletedSize = calculateTheoreticallyOptimalDeletedSize(
+                testCase.old,
+                testCase.new,
+            );
+
             let string = "";
             let doc: Node | null = testCase.old;
+
+            string += `deletedSize: ${deletedSize}\ntheoreticallyOptimalDeletedSize: ${theoreticallyOptimalDeletedSize}\n\n`;
 
             for (const step of steps) {
                 const stepString = await prettier.format(JSON.stringify(step.toJSON()), {
@@ -2407,4 +2456,227 @@ for (const testCase of testCases) {
             expect(doc.toJSON()).toEqual(testCase.new.toJSON());
         });
     });
+}
+
+function calculateStepDeletedSize(actualStep: Step): number {
+    const step = actualStep as ExhaustiveStep;
+
+    switch (step.jsonID) {
+        case "replace":
+            return step.to - step.from;
+        case "replaceAround":
+            return step.gapFrom - step.from + (step.to - step.gapTo);
+        case "attr":
+        case "docAttr":
+        case "addMark":
+        case "removeMark":
+        case "addNodeMark":
+        case "removeNodeMark":
+        case "removeAllMarks":
+        case "addMarksAfterRemoveAll":
+            return 0;
+        default:
+            throw exhaustive(step);
+    }
+}
+
+/**
+ * Calculates the minimum amount of content that a theoretically optimal differ
+ * would need to delete to produce `newNode` from `oldNode`.
+ *
+ * I (@calebmer) spent a lot of time trying to implement this theoretically optimal
+ * differ but I just couldn't figure it out. So instead I went with a naive
+ * approach that doesn't generate optimal steps for many kinds of structural
+ * updates. My theoretical approach was to tokenize the nodes and perform a Myers
+ * diff on the tokens. Then to turn that diff into a set of steps (each that
+ * preserved the document structure along the way). This function takes the core
+ * diffing logic of one of my implementation branches (that failed because I
+ * couldn't address every edge case) and uses it to calculate an optimal deleted
+ * size that an implementation based on this method should reach in most cases.
+ */
+function calculateTheoreticallyOptimalDeletedSize(oldNode: Node, newNode: Node): number {
+    const oldTokens = Array.from(tokenizeFragment([], oldNode.content));
+    const newTokens = Array.from(tokenizeFragment([], newNode.content));
+
+    const changes = diff(oldTokens, newTokens, {equals: areTokensCompatible});
+
+    let deletedSize = 0;
+
+    for (const change of changes) {
+        if (change.type === "Removed") {
+            switch (change.oldToken.type) {
+                case "OpenNode":
+                    deletedSize += 1;
+                    break;
+                case "CloseNode":
+                    deletedSize += 1;
+                    break;
+                case "LeafNode":
+                    deletedSize += change.oldToken.node.nodeSize;
+                    break;
+                case "Text":
+                    deletedSize += change.oldToken.text.length;
+                    break;
+                default:
+                    throw exhaustive(change.oldToken);
+            }
+        }
+    }
+
+    return deletedSize;
+}
+
+type TokenParent = {
+    readonly node: Node;
+};
+
+type Token = OpenNodeToken | CloseNodeToken | LeafNodeToken | TextToken;
+
+type OpenNodeToken = {
+    readonly type: "OpenNode";
+    readonly parents: ReadonlyArray<TokenParent>;
+    readonly node: Node;
+};
+
+type CloseNodeToken = {
+    readonly type: "CloseNode";
+    readonly parents: ReadonlyArray<TokenParent>;
+    readonly node: Node;
+};
+
+type LeafNodeToken = {
+    readonly type: "LeafNode";
+    readonly parents: ReadonlyArray<TokenParent>;
+    readonly node: Node;
+};
+
+type TextToken = {
+    readonly type: "Text";
+    readonly parents: ReadonlyArray<TokenParent>;
+    readonly text: string;
+};
+
+function* tokenizeFragment(
+    parents: ReadonlyArray<TokenParent>,
+    fragment: Fragment,
+): IterableIterator<Token> {
+    for (const node of fragment.content) {
+        yield* tokenizeNode(parents, node);
+    }
+}
+
+function* tokenizeNode(parents: ReadonlyArray<TokenParent>, node: Node): IterableIterator<Token> {
+    if (node.isText) {
+        for (const {text} of findSpans(node.text!)) {
+            yield {type: "Text", parents, text};
+        }
+        return;
+    }
+
+    if (node.isLeaf) {
+        yield {type: "LeafNode", parents, node};
+        return;
+    }
+
+    yield {type: "OpenNode", parents, node};
+    yield* tokenizeFragment([...parents, {node}], node.content);
+    yield {type: "CloseNode", parents, node};
+}
+
+function areTokensCompatible(token1: Token, token2: Token): boolean {
+    switch (token1.type) {
+        case "OpenNode":
+        case "CloseNode":
+        case "LeafNode": {
+            if (token1.type !== token2.type) return false;
+            if (token1.node.type !== token2.node.type) return false;
+            if (!isDeepEqual(token1.node.attrs, token2.node.attrs)) return false;
+            return areTokenParentsCompatible(token1.parents, token2.parents);
+        }
+        case "Text": {
+            if (token2.type !== "Text") return false;
+            if (token1.text !== token2.text) return false;
+            return areTokenParentsCompatible(token1.parents, token2.parents);
+        }
+        default:
+            throw exhaustive(token1);
+    }
+}
+
+function areTokenParentsCompatible(
+    token1Parents: ReadonlyArray<TokenParent>,
+    token2Parents: ReadonlyArray<TokenParent>,
+): boolean {
+    const minTokenParentsLength = Math.min(token1Parents.length, token2Parents.length);
+    let lastCommonTokenParentIndex = -1;
+
+    for (let index = 0; index < minTokenParentsLength; index++) {
+        const token1Parent = token1Parents[index]!;
+        const token2Parent = token2Parents[index]!;
+
+        // Compatible if the types are the same.
+        if (token1Parent.node.type === token2Parent.node.type) {
+            lastCommonTokenParentIndex = index;
+            continue;
+        }
+
+        // Compatible if both nodes are textblocks. This means we can freely join/split
+        // between the two node types. For example: true when comparing `paragraph()` and
+        // `heading()`.
+        if (token1Parent.node.type.isTextblock && token2Parent.node.type.isTextblock) {
+            lastCommonTokenParentIndex = index;
+            continue;
+        }
+
+        // Compatible if the two types have similar content. This means we can freely
+        // join/split between the two node types. For example: true when comparing
+        // `unorderedListItem()` and `orderedListItem()`.
+        if (token1Parent.node.type.compatibleContent(token2Parent.node.type)) {
+            lastCommonTokenParentIndex = index;
+            continue;
+        }
+
+        break;
+    }
+
+    // Compatible if we can use wrap/unwrap to move our token from one parent to
+    // another. For example: false when comparing `paragraph()` and
+    // `table(tableRow(tableCell(paragraph())))` but true when comparing `paragraph()`
+    // and `quoteBlock(paragraph())`.
+    if (!canWrapOrUnwrapTokenParents(token1Parents, lastCommonTokenParentIndex + 1)) {
+        return false;
+    }
+
+    // Compatible if we can use wrap/unwrap to move our token from one parent to
+    // another. For example: false when comparing `paragraph()` and
+    // `table(tableRow(tableCell(paragraph())))` but true when comparing `paragraph()`
+    // and `quoteBlock(paragraph())`.
+    if (!canWrapOrUnwrapTokenParents(token2Parents, lastCommonTokenParentIndex + 1)) {
+        return false;
+    }
+
+    return true;
+}
+
+function canWrapOrUnwrapTokenParents(
+    tokenParents: ReadonlyArray<TokenParent>,
+    startIndex: number,
+): boolean {
+    for (let index = startIndex; index < tokenParents.length - 1; index++) {
+        const tokenParent2NodeType = tokenParents[index + 1]!.node.type;
+
+        const tokenParent1NodeType =
+            index > 0
+                ? tokenParents[index - 1]!.node.type
+                : tokenParent2NodeType.schema.topNodeType;
+
+        // Check that the parent chain allows wrapping/unwrapping each individual parent
+        // node. If we can wrap/unwrap then our diff algorithm will be able to produce
+        // steps to update the old node to the new node.
+        if (tokenParent1NodeType.contentMatch.matchType(tokenParent2NodeType)) continue;
+
+        return false;
+    }
+
+    return true;
 }

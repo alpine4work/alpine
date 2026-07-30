@@ -868,7 +868,7 @@ describe("task query filter binary encoding", () => {
     for (const {name, filters: filters1} of testCases) {
         test(`${name}`, () => {
             const buffer1 = serializeTaskQueryFilters(filters1);
-            const filters2 = deserializeTaskQueryFilters(buffer1);
+            const filters2 = deserializeTaskQueryFilters(new Uint8Array(buffer1));
             const buffer2 = serializeTaskQueryFilters(filters2);
 
             expect(filters1).toEqual(filters2);

@@ -44,7 +44,7 @@ async function main() {
                         hasInternalAccess: true,
                     });
 
-                    return TestSession.create(account);
+                    return await TestSession.create(account);
                 })(),
                 seedTestMockChatGptBot(context, {
                     agentServiceLocalPort: services.getAgentServicePort(),

@@ -92,10 +92,15 @@ export type ContentEditorCommentInputFloaterState = {
     };
 };
 
+export type ContentEditorGifPickerFloaterState = {
+    readonly type: "GifPicker";
+};
+
 export type ContentEditorFloaterState =
     | ContentEditorPointerToolbarFloaterState
     | ContentEditorKeyboardHighlightFloaterState
     | ContentEditorKeyboardLinkFloaterState
     | ContentEditorPointerLinkFloaterState
     | ContentEditorMentionFloaterState
-    | ContentEditorCommentInputFloaterState;
+    | ContentEditorCommentInputFloaterState
+    | ContentEditorGifPickerFloaterState;

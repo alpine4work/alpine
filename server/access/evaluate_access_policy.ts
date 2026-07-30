@@ -35,6 +35,11 @@ export async function evaluateAccessPolicy(
     expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<boolean> {
+    // Inform the discovery context module about the `SpaceId` for this access policy
+    // we're evaluating. In `AppService` this will start loading space data for the
+    // space chrome.
+    context.discovery?.discoverSpaceId(spaceId, "AuthorizeAccess");
+
     const accessPolicy = isAccessPolicyOrResolvedAccessPolicy(rawAccessPolicy)
         ? await intoEffectiveAccessPolicy(context, rawAccessPolicy, options)
         : rawAccessPolicy;
@@ -84,7 +89,7 @@ export async function evaluateAccessPolicy(
                 return false;
             }
 
-            return evaluateAccessPolicyForAccount(
+            return await evaluateAccessPolicyForAccount(
                 context,
                 spaceId,
                 context.actor.getAccountId(),
@@ -148,6 +153,19 @@ export async function evaluateAccessPolicy(
             // If the bot's scope is everyone in the space and we didn't have
             // `accessPolicy.defaultGrant` earlier then the bot can't read this private entity.
             if (botAccessPolicy.defaultGrant !== null) return false;
+
+            // If the scoped entity has a `urlGrant`, the bot may be used in URL-sharing or
+            // anonymous-adjacent flows. It must not read other private resources. We return
+            // false unconditionally here because:
+            //
+            // - URL grants only ever grant `View` access (enforced by the
+            //   `assertEqualTypes<AccessPolicyUrlGrant["level"], "View">()` above).
+            // - The early `accessPolicy.urlGrant` check above already returns `true` for any
+            //   case where the target's own URL grant satisfies `expectedAccessLevel`.
+            //
+            // So by the time we reach here, the bot's URL-grant scope can't legitimately
+            // unlock access at the requested level.
+            if (botAccessPolicy.urlGrant !== null) return false;
 
             let hasSomeAccountWithAccess = false;
             const accountIdsWithoutAccessBeforeMembershipCheck: Array<AccountId> = [];
@@ -213,9 +231,10 @@ export async function evaluateAccessPolicyForAccount(
     accountId: AccountId,
     rawAccessPolicy: AccessPolicy | ResolvedAccessPolicy | EffectiveAccessPolicy,
     expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<boolean> {
     const accessPolicy = isAccessPolicyOrResolvedAccessPolicy(rawAccessPolicy)
-        ? await intoEffectiveAccessPolicy(context, rawAccessPolicy)
+        ? await intoEffectiveAccessPolicy(context, rawAccessPolicy, options)
         : rawAccessPolicy;
 
     // If there's a `urlGrant` then everyone has access at this level. Even when

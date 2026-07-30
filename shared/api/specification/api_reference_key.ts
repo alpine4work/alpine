@@ -1,5 +1,6 @@
 import type {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {assertId} from "~/shared/id/id.js";
 import {
@@ -9,6 +10,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -24,7 +26,16 @@ export type ApiReferenceKey =
     | `PostMessage:${PostId}-${number}`
     | `Task:${TaskId}`
     | `TaskMessage:${TaskId}-${number}`
-    | `TaskCollection:${TaskCollectionId}`;
+    | `TaskCollection:${TaskCollectionId}`
+    | `Site:${SiteId}`;
+
+// Make sure the type before the `:` in `ApiReferenceKey` exactly matches reference
+// `type` properties. That way we can conveniently filter `ApiReferenceKey` by
+// type.
+assertEqualTypes<
+    ApiReferenceKey extends `${infer Type}:${string}` ? Type : never,
+    ApiReference["type"]
+>();
 
 export function printApiReferenceKey(key: ApiReference): ApiReferenceKey {
     switch (key.type) {
@@ -50,6 +61,8 @@ export function printApiReferenceKey(key: ApiReference): ApiReferenceKey {
             return `TaskMessage:${key.id}-${key.index}`;
         case "TaskCollection":
             return `TaskCollection:${key.id}`;
+        case "Site":
+            return `Site:${key.id}`;
         default:
             throw exhaustive(key);
     }
@@ -117,6 +130,9 @@ export function parseApiReferenceKey(key: ApiReferenceKey): ApiReference {
 
         case "TaskCollection":
             return {type: "TaskCollection", id: assertId<TaskCollectionId>(data)};
+
+        case "Site":
+            return {type: "Site", id: assertId<SiteId>(data)};
 
         default:
             throw new InvalidArgumentError("Unrecognized `ApiReferenceKey` type");

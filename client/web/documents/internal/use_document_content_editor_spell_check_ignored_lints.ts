@@ -1,8 +1,8 @@
 import {Memo, useCallback, useMemo} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {SubscribeToSpellCheckIgnoredLintEventsFunction} from "~/client/web/documents/use_document_content_editor_web_socket.js";
-import {useDynamoGeneralRealtimeQuery} from "~/client/web/dynamo/use_dynamo_general_realtime_query.js";
-import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {useRynamoQuery} from "~/client/web/dynamo/use_rynamo_query.js";
+import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {
     backfillSpellCheckIgnoredLints,
@@ -19,7 +19,7 @@ export function useDocumentContentEditorSpellCheckIgnoredLints({
     subscribeToPongs,
 }: {
     documentId: DocumentId;
-    initialSpellCheckIgnoredLints: DynamoGeneralRealtimeQueryResult<SpellCheckIgnoredLintModel>;
+    initialSpellCheckIgnoredLints: RynamoQueryResult<SpellCheckIgnoredLintModel>;
     isConnected: boolean;
     subscribeToSpellCheckIgnoredLintEvents: SubscribeToSpellCheckIgnoredLintEventsFunction;
     subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
@@ -27,7 +27,7 @@ export function useDocumentContentEditorSpellCheckIgnoredLints({
     const context = useAppContext();
 
     const {query: spellCheckIgnoredLintsQuery, handleEvent: handleEventForSpellCheckIgnoredLint} =
-        useDynamoGeneralRealtimeQuery(initialSpellCheckIgnoredLints, {
+        useRynamoQuery(initialSpellCheckIgnoredLints, {
             isConnected,
             subscribeToEvents: subscribeToSpellCheckIgnoredLintEvents,
             subscribeToPongs,

@@ -14,7 +14,7 @@ import {ReactionRadialPicker} from "~/client/web/reactions/internal/reaction_rad
 import {ReactionTooltip} from "~/client/web/reactions/internal/reaction_tooltip.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonHeightRem,

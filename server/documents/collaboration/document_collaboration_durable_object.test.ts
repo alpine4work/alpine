@@ -42,7 +42,11 @@ import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
+import {
+    DocumentCollaborationProtocol,
+    DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
+    DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
+} from "~/shared/documents/document_collaboration_protocol.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {
@@ -81,8 +85,8 @@ import {
     deleteDocumentComment,
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 import {SiteEntityModel} from "~/shared/sites/site_model.js";
 import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -91,7 +95,7 @@ const context = createTestWorkerContext({
     sitesInjection,
     searchInjection: testMessagingRealtimeImplementationSearchInjection,
 });
-const {connectForTest} = DocumentCollaborationDurableObject.test(context);
+const {connectForTest, fetchForTest} = DocumentCollaborationDurableObject.test(context);
 
 function massageDocument(document: DocumentModel) {
     return {
@@ -103,6 +107,27 @@ function massageDocument(document: DocumentModel) {
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
     return new Slice(Fragment.from(schema.text(text)), 0, 0);
+}
+
+function createUpdateContentWithDiffRequest({version, text}: {version: number; text: string}) {
+    return new Request("https://cyberworlds.local/update-content-with-diff", {
+        method: "POST",
+        body: JSON.stringify(
+            DocumentCollaborationUpdateContentWithDiffRequestBodySchema.serialize({
+                version,
+                content: [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, text.length > 0 ? [schema.text(text)] : []),
+                ],
+            }),
+        ),
+    });
+}
+
+async function readUpdateContentWithDiffResponse(response: Response) {
+    return DocumentCollaborationUpdateContentWithDiffResponseBodySchema.deserialize(
+        await response.json(),
+    );
 }
 
 function waitForPersistence(
@@ -6480,6 +6505,157 @@ test("can get presence updates across viewer/editor connections", async () => {
     });
 });
 
+describe("update-content-with-diff route", () => {
+    test("updates document content", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createUpdateContentWithDiffRequest({version: 0, text: "New notes"}),
+        );
+
+        expect(await readUpdateContentWithDiffResponse(response)).toMatchObject({
+            ok: true,
+            spaceId: space.id,
+            newVersion: 1,
+            newContent: expect.objectContaining({
+                textContent: "New notes",
+            }),
+        });
+    });
+
+    test("requires edit access", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+
+        const document = await TestDocument.create(session1, {
+            access: {
+                type: "Local",
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                ]),
+                defaultGrant: {level: "View"},
+                urlGrant: null,
+            },
+        });
+
+        await connectForTest(context.action(session1), document.id);
+
+        const response = await fetchForTest(
+            context.action(session2),
+            document.id,
+            createUpdateContentWithDiffRequest({version: 0, text: "New notes"}),
+        );
+
+        expect(await readUpdateContentWithDiffResponse(response)).toMatchObject({
+            ok: false,
+            error: expect.any(PermissionDeniedError),
+        });
+    });
+
+    test("doesn\u2019t mutate document content when authorization fails", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+
+        const document = await TestDocument.create(session1, {
+            access: {
+                type: "Local",
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                ]),
+                defaultGrant: {level: "View"},
+                urlGrant: null,
+            },
+        });
+
+        const editorResponse = await fetchForTest(
+            context.action(session1),
+            document.id,
+            createUpdateContentWithDiffRequest({version: 0, text: "Editor notes"}),
+        );
+
+        expect(await readUpdateContentWithDiffResponse(editorResponse)).toMatchObject({
+            ok: true,
+            newVersion: 1,
+        });
+
+        // A viewer without edit access tries to update the content. Authorization runs in
+        // parallel with computing the update but rejects before we mutate state.
+        const viewerResponse = await fetchForTest(
+            context.action(session2),
+            document.id,
+            createUpdateContentWithDiffRequest({version: 1, text: "Viewer notes"}),
+        );
+
+        expect(await readUpdateContentWithDiffResponse(viewerResponse)).toMatchObject({
+            ok: false,
+            error: expect.any(PermissionDeniedError),
+        });
+
+        // The failed update didn't apply: the editor's next update still builds on top of
+        // version 1 with the editor's content, advancing to exactly version 2.
+        const nextEditorResponse = await fetchForTest(
+            context.action(session1),
+            document.id,
+            createUpdateContentWithDiffRequest({version: 1, text: "Editor notes again"}),
+        );
+
+        expect(await readUpdateContentWithDiffResponse(nextEditorResponse)).toMatchObject({
+            ok: true,
+            newVersion: 2,
+            newContent: expect.objectContaining({
+                textContent: "Editor notes again",
+            }),
+        });
+    });
+
+    test("doesn\u2019t kill the durable object when authorization fails", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+
+        const document = await TestDocument.create(session1, {
+            access: {
+                type: "Local",
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                ]),
+                defaultGrant: {level: "View"},
+                urlGrant: null,
+            },
+        });
+
+        // Keep the durable object alive with an editor connection so we can observe
+        // whether the failed update corrupts its state or kills it.
+        const connection1 = await connectForTest(context.action(session1), document.id);
+        connection1.takeEvents();
+
+        const response = await fetchForTest(
+            context.action(session2),
+            document.id,
+            createUpdateContentWithDiffRequest({version: 0, text: "Viewer notes"}),
+        );
+
+        expect(await readUpdateContentWithDiffResponse(response)).toMatchObject({
+            ok: false,
+            error: expect.any(PermissionDeniedError),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        // The failed update wasn't optimistically applied, so no content events were
+        // broadcast and the durable object stays alive instead of being killed by a failed
+        // persistence of an unauthorized update.
+        expect(connection1.isClosed()).toEqual(false);
+        expect(connection1.takeEvents()).toEqual([]);
+    });
+});
+
 testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
     async createRoom(sessions) {
         const document = await TestDocument.create(sessions[0], {access: "Public"});
@@ -6630,8 +6806,8 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
 // Site addition and removal via intentionallyUpdateAccessPolicy
 // =============================================================================
 
-// TODO(#sites): Create testing framework for adding/removing from sites similar to
-// the way we have "messaging" tests
+// TODO(#sites-not-blocking): Create testing framework for adding/removing from
+// sites similar to the way we have "messaging" tests
 describe("adding and removing documents from sites", () => {
     test("adding a document to a site persists the site entity ref and updates the document\u2019s access policy", async () => {
         const space = await TestSpace.create(context);
@@ -6703,7 +6879,7 @@ describe("adding and removing documents from sites", () => {
         );
 
         // Verify site events were returned in the response
-        expect(result.eventTransactionForSite.length).toBeGreaterThan(0);
+        expect(result.eventsForSite.length).toBeGreaterThan(0);
     });
 
     test("removing a document from a site removes the entity ref and restores Local access policy", async () => {

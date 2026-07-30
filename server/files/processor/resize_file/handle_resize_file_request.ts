@@ -43,7 +43,7 @@ export async function handleResizeFileRequest(
         _context: any,
         action: () => Promise<Value>,
     ): Promise<Value> => {
-        return action();
+        return await action();
     };
 
     return await processContext.with({actor: actorContextModule}, context => {

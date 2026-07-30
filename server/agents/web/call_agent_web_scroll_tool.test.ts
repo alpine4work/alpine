@@ -40,9 +40,7 @@ const context: AgentWebContext = {
 };
 
 function createDocumentContentFromParagraphs(paragraphTextList: ReadonlyArray<string>) {
-    return parseApiContentFromMarkdown(paragraphTextList.join("\n\n"), {
-        spaceId,
-    }) as ApiContentResponse;
+    return parseApiContentFromMarkdown(paragraphTextList.join("\n\n")) as ApiContentResponse;
 }
 
 function createReadResponse(response: string): {

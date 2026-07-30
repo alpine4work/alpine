@@ -5,7 +5,7 @@ import {OverlayTriggerButtonRef} from "~/client/web/design/overlay_trigger_butto
 import {PrettyNumber} from "~/client/web/design/pretty_number.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {inputPlaceholderStyles} from "~/client/web/styles/styles.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";

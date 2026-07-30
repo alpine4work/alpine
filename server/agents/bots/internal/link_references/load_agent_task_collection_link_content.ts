@@ -14,7 +14,7 @@ import {
     ApiAccount,
     ApiTaskCollection,
     ApiTaskStatus,
-    ApiTaskWithoutContent,
+    ApiTaskWithoutNotes,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -68,7 +68,7 @@ export async function loadAgentTaskCollectionLinkContent({
 
     const [
         {
-            data: {taskCollection},
+            data: {collection},
         },
         {
             data: {tasks},
@@ -85,8 +85,7 @@ export async function loadAgentTaskCollectionLinkContent({
         }),
     ]);
 
-    if (tasks.length === 0)
-        return getEmptyTaskCollectionContent(taskCollection, appliedStatusesFilter);
+    if (tasks.length === 0) return getEmptyTaskCollectionContent(collection, appliedStatusesFilter);
 
     const taskContentPromises = tasks.map(async (task): Promise<ListItem> => {
         const taskLink = await createAgentLink(transaction, {type: "Task", task});
@@ -112,7 +111,7 @@ export async function loadAgentTaskCollectionLinkContent({
     // TODO(calebmer, #ai): We should include the first few tasks in the task
     // collection and give ChatGPT a tool to read more.
     const [preambleContent, ...tasksContent] = await runAllPromises([
-        getTaskCollectionPreamble(transaction, link, taskCollection, appliedStatusesFilter),
+        getTaskCollectionPreamble(transaction, link, collection, appliedStatusesFilter),
         ...taskContentPromises,
     ]);
 
@@ -230,7 +229,7 @@ function printTaskStatus(status: ApiTaskStatus): string {
 
 async function intoTaskMetadataList(
     transaction: DurableObjectTransactionInterface,
-    task: ApiTaskWithoutContent,
+    task: ApiTaskWithoutNotes,
 ): Promise<List> {
     const assigneeListItem = await intoAssigneeListItem(transaction, task.assignee);
     const dueDateListItem = intoDueDateListItem(task.due);

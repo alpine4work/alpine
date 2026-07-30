@@ -3,17 +3,17 @@ import {intoAccessPolicyModel} from "~/server/access/into_access_policy_model.js
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {
-    DynamoGeneralRealtimeTableItemType,
-    DynamoGeneralRealtimeTableSchema,
-    DynamoGeneralRealtimeTableSchemaGetTypes,
-} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
-import {authorizePostAccess} from "~/server/forum/data/authorize_post_access.js";
-import {authorizePostDraftAccess} from "~/server/forum/data/authorize_post_draft_access.js";
+import {authorizePostAccessIfPossible} from "~/server/forum/data/authorize_post_access.js";
+import {authorizePostDraftAccessIfPossible} from "~/server/forum/data/authorize_post_draft_access.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
+import {
+    RynamoTableItemType,
+    RynamoTableSchema,
+    RynamoTableSchemaGetTypes,
+} from "~/server/rynamo/rynamo_table_schema.js";
 import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {
@@ -21,7 +21,7 @@ import {
     MessageContentSchema,
     emptyMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     ChannelContributorsModel,
@@ -30,14 +30,15 @@ import {
     ChannelPreviewModel,
     maxChannelTopContributorCount,
 } from "~/shared/forum/channel_model.js";
-import {ChannelBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/channel_realtime_protocol.js";
+import {ChannelBroadcastRealtimeEventsSchema} from "~/shared/forum/channel_realtime_protocol.js";
 import {PostContent, PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostModel, maxPostPreviewCommentAuthorCount} from "~/shared/forum/post_model.js";
-import {PostBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/post_realtime_protocol.js";
+import {PostBroadcastRealtimeEventsSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -56,7 +57,7 @@ import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_s
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
-export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
+export const ForumRealtimeTable = RynamoTableSchema.new({
     // Enable optional features we use that may incur extra costs.
     features: {
         realtimeQuery: {Channel: true},
@@ -449,7 +450,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    broadcastEventTransaction: async (context, eventTransaction) => {
+    broadcastEvents: async (context, events) => {
         // Split up event transactions so we send everything in a `ChannelId` to that
         // channel and nothing else. We have to split for security: if two channels are
         // updated in the same transaction, a user connected to channel 1 shouldn't get
@@ -458,10 +459,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
         // This means clients may see a glitch where an atomic update across two channels
         // is applied separately. This is fine as in practice we don't have any
         // cross-channel updates it's critical for users to see atomically.
-        const eventTransactionByChannelId = new Map<
-            ChannelId,
-            Array<DynamoGeneralRealtimeEventStub>
-        >();
+        const eventsByChannelId = new Map<ChannelId, Array<RynamoEventStub>>();
 
         // We also send post updates to the corresponding post durable object. That way
         // single post views that have a WebSocket connection to `PostRealtimeService` will
@@ -486,11 +484,11 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
         // meaningful.
         //
         // [1]: https://developers.cloudflare.com/workers/platform/pricing/#durable-objects
-        const eventTransactionByPostId = new Map<PostId, Array<DynamoGeneralRealtimeEventStub>>();
+        const eventsByPostId = new Map<PostId, Array<RynamoEventStub>>();
 
         await runAllPromises(
             mapIterable(
-                eventTransaction,
+                events,
                 async ({
                     itemKey,
                     eventStub,
@@ -506,7 +504,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                         // channel is created.
                         if (!isChannelCreationEvent) {
                             getOrSetDefaultMapValue(
-                                eventTransactionByChannelId,
+                                eventsByChannelId,
                                 itemKey.channelId,
                                 () => [],
                             ).push(eventStub);
@@ -520,11 +518,9 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                         // Optimization: Don't broadcast post creation events to post durable objects. No
                         // one will be subscribed to the post durable object before the post is created.
                         if (!isPostCreationEvent) {
-                            getOrSetDefaultMapValue(
-                                eventTransactionByPostId,
-                                itemKey.postId,
-                                () => [],
-                            ).push(eventStub);
+                            getOrSetDefaultMapValue(eventsByPostId, itemKey.postId, () => []).push(
+                                eventStub,
+                            );
                         }
 
                         const {oldValue: oldChannelId, newValue: newChannelId} =
@@ -535,11 +531,9 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 
                         // Send post realtime updates to the channel realtime stream the post is a part of.
                         if (newChannelId !== undefined) {
-                            getOrSetDefaultMapValue(
-                                eventTransactionByChannelId,
-                                newChannelId,
-                                () => [],
-                            ).push(eventStub);
+                            getOrSetDefaultMapValue(eventsByChannelId, newChannelId, () => []).push(
+                                eventStub,
+                            );
                         }
 
                         if (oldChannelId !== undefined && oldChannelId !== newChannelId) {
@@ -558,26 +552,26 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 
         await runAllPromises(
             concatIterables(
-                mapIterable(eventTransactionByChannelId, async ([channelId, eventTransaction]) => {
+                mapIterable(eventsByChannelId, async ([channelId, events]) => {
                     await context.edge.broadcastToDurableObject(
                         `/api/durable-objects/channels/${channelId}/broadcast-realtime-event-transaction`,
                         {
                             serviceName: "ChannelRealtimeService",
                             route: "/api/durable-objects/channels/:channelId/broadcast-realtime-event-transaction",
-                            body: ChannelBroadcastRealtimeEventTransactionSchema.serialize({
-                                eventTransaction,
+                            body: ChannelBroadcastRealtimeEventsSchema.serialize({
+                                events,
                             }),
                         },
                     );
                 }),
-                mapIterable(eventTransactionByPostId, async ([postId, eventTransaction]) => {
+                mapIterable(eventsByPostId, async ([postId, events]) => {
                     await context.edge.broadcastToDurableObject(
                         `/api/durable-objects/posts/${postId}/broadcast-realtime-event-transaction`,
                         {
                             serviceName: "PostRealtimeService",
                             route: "/api/durable-objects/posts/:postId/broadcast-realtime-event-transaction",
-                            body: PostBroadcastRealtimeEventTransactionSchema.serialize({
-                                eventTransaction,
+                            body: PostBroadcastRealtimeEventsSchema.serialize({
+                                events,
                             }),
                         },
                     );
@@ -591,22 +585,30 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 const FilePostAuthorizer = FileAuthorizer.new(
     ForumRealtimeTable,
     "Post",
-    async (context, target, expectedAccessLevel) => {
+    async (context, target, expectedAccessLevel, options) => {
         switch (target.type) {
             case "Post":
-                await authorizePostAccess(context, target.postId, expectedAccessLevel);
-                break;
+                return mapResult(
+                    await authorizePostAccessIfPossible(
+                        context,
+                        target.postId,
+                        expectedAccessLevel,
+                        options,
+                    ),
+                    () => {},
+                );
             case "PostDraft":
-                await authorizePostDraftAccess(
+                return await authorizePostDraftAccessIfPossible(
                     context,
                     target.spaceId,
                     target.accountId,
                     target.draftId,
                 );
-                break;
             case "PostComments":
-                await authorizePostAccess(context, target.postId, "View");
-                break;
+                return mapResult(
+                    await authorizePostAccessIfPossible(context, target.postId, "View", options),
+                    () => {},
+                );
             default:
                 throw exhaustive(target);
         }
@@ -616,10 +618,10 @@ const FilePostAuthorizer = FileAuthorizer.new(
 export {FilePostAuthorizer as InternalFilePostAuthorizer};
 
 // We use an index with join queries since it reduces write/storage costs (compared
-// to `addExpensiveFullIndex()`) and the read performance sacrifice isn't that bad
-// since most of the time posts will be viewed through home feed or inbox anyway
-// (vs querying a channel).
-export const ChannelPostsIndex = ForumRealtimeTable.addIndexWithQueryJoin({
+// to `addExpensiveFullEventualConsistencyIndex()`) and the read performance
+// sacrifice isn't that bad since most of the time posts will be viewed through
+// home feed or inbox anyway (vs querying a channel).
+ForumRealtimeTable.addEventualConsistencyIndexWithQueryJoin({
     name: "ChannelPosts",
     itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
     partitionKeyAttributes: {
@@ -627,6 +629,26 @@ export const ChannelPostsIndex = ForumRealtimeTable.addIndexWithQueryJoin({
     },
     sortKeyAttributes: {
         createdTime: DynamoKeyAttributeSchema.date,
+    },
+});
+
+// We use an index with join queries since it reduces write/storage costs (compared
+// to `addExpensiveFullEventualConsistencyIndex()`) and the read performance
+// sacrifice isn't that bad since most of the time posts will be viewed through
+// home feed or inbox anyway (vs querying a channel).
+//
+// We use a strong consistency index so we can query channel posts via the API with
+// strong read-after-write consistency. This increases the cost of writes but
+// that's fine, we don't create posts often.
+export const ChannelPostsIndex = ForumRealtimeTable.addStrongConsistencyIndexWithQueryJoin({
+    name: "ChannelPosts2",
+    itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
+    partitionKeyAttributes: {
+        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
+    },
+    sortKeyAttributes: {
+        createdTime: DynamoKeyAttributeSchema.date,
+        postId: DynamoKeyAttributeSchema.id<PostId>(),
     },
 });
 
@@ -733,25 +755,25 @@ async function createPostModelFromItem(
     });
 }
 
-export type ChannelAttributesItem = DynamoGeneralRealtimeTableItemType<
+export type ChannelAttributesItem = RynamoTableItemType<
     typeof ForumRealtimeTable,
     "Channel",
     "Attributes"
 >;
 
-export type ChannelContributorsItem = DynamoGeneralRealtimeTableItemType<
+export type ChannelContributorsItem = RynamoTableItemType<
     typeof ForumRealtimeTable,
     "Channel",
     "Contributors"
 >;
 
-export type PostAttributesItem = DynamoGeneralRealtimeTableItemType<
+export type PostAttributesItem = RynamoTableItemType<
     typeof ForumRealtimeTable,
     "Post",
     "Attributes"
 >;
 
-export type ChannelPostFilesItem = DynamoGeneralRealtimeTableItemType<
+export type ChannelPostFilesItem = RynamoTableItemType<
     typeof ForumRealtimeTable,
     "Channel",
     "PostFiles"
@@ -760,7 +782,7 @@ export type ChannelPostFilesItem = DynamoGeneralRealtimeTableItemType<
 // Uses TypeScript to make sure if a new channel sort range is added we consider
 // whether `getChannelRealtimeEvent()` is allowed to return it or not.
 export const allowedChannelSortRangeTypesForGetChannelRealtimeEvent: Record<
-    (DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
+    (RynamoTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
         readonly partitionType: "Channel";
     })["sortRangeType"],
     boolean
@@ -773,7 +795,7 @@ export const allowedChannelSortRangeTypesForGetChannelRealtimeEvent: Record<
 // Uses TypeScript to make sure if a new post sort range is added we consider
 // whether `getPostRealtimeEvent()` is allowed to return it or not.
 export const allowedPostSortRangeTypesForGetPostRealtimeEvent: Record<
-    (DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
+    (RynamoTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
         readonly partitionType: "Post";
     })["sortRangeType"],
     boolean
@@ -782,7 +804,7 @@ export const allowedPostSortRangeTypesForGetPostRealtimeEvent: Record<
 };
 
 export function serializeForumRealtimeTableOpaqueItemKeyForTest(
-    itemKey: DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"],
+    itemKey: RynamoTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"],
 ) {
     assert(import.meta.jest);
     return ForumRealtimeTable.serializeOpaqueItemKey(itemKey);

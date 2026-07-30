@@ -37,7 +37,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     colorSchemeVars,
     pointerEventsNoneNotInheritedClassName,
@@ -1259,7 +1259,7 @@ function TaskRowView(
                                 taskId: ghostTaskId,
                                 taskAction: {
                                     type: "Create",
-                                    creatorId: currentAccount.id,
+                                    creator: {accountId: currentAccount.id, from: null},
                                     creatorTimeZone: timeZone,
                                 },
                             },
@@ -1325,10 +1325,7 @@ function TaskRowView(
                     iconPlacement: "end",
                     pressErrorTitle: "Couldn\u2019t copy task link",
                     onPress: async () => {
-                        const url = new URL(
-                            `/s/${task.getSpaceId()}/tasks/${task.id}`,
-                            window.location.href,
-                        );
+                        const url = new URL(`/task/${task.id}`, window.location.href);
                         await writeTextToClipboard(url.toString());
                     },
                 },
@@ -1707,7 +1704,7 @@ function TaskRowView(
                                 description="Open"
                                 pressErrorTitle="Couldn&#x2019;t open task"
                                 onPress={async () => {
-                                    await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
+                                    await navigate(`/task/${task.id}`);
 
                                     // After opening a task, (probably the task was opened in a peek) then unfocus the
                                     // button. That way keyboard events like "Escape" will be handled by the peek and
@@ -1837,6 +1834,7 @@ function TaskRowView(
                     query={query}
                     isQueryManuallySorted={isQueryManuallySorted}
                     task={task}
+                    taskEntryRevertCount={taskEntry?.revertCount ?? 0}
                     onTitleChange={onTitleChange}
                     placeholder={titlePlaceholder}
                     indentation={parents.length}

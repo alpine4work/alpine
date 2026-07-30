@@ -8,7 +8,7 @@ import {
 import {observeInboxItem} from "~/server/notifications/data/internal/observe_inbox_item.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
@@ -43,8 +43,8 @@ export async function getInboxChannelPostsEntryPosts(
         commentLimit: number;
     },
 ): Promise<{
-    inboxEntry: DynamoGeneralRealtimeItem<InboxChannelPostsEntryModel>;
-    posts: Array<DynamoGeneralRealtimeItem<PostModel>>;
+    inboxEntry: RynamoItem<InboxChannelPostsEntryModel>;
+    posts: Array<RynamoItem<PostModel>>;
     initialCommentsByPostId: Map<
         PostId,
         {

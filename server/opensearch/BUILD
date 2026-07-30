@@ -21,6 +21,7 @@ ts_project(
         # the context types would require a deep refactor of ServerActionContext.
         "//server/importer/importer_service:__pkg__",
         "//server/rpc:__subpackages__",
+        "//server/tasks/data/test_helpers:__pkg__",
     ],
     deps = [
         "//:node_modules/@types/json-bigint",

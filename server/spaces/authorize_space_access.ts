@@ -1,3 +1,4 @@
+import {DiscoveryContextModule} from "~/server/context/discovery_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
@@ -24,6 +25,7 @@ export type AuthorizeSpaceAccessContextModules = {
     batch: BatchContextModule;
     dynamo: DynamoContextModule;
     actor: ActorContextModule;
+    discovery?: DiscoveryContextModule;
 };
 
 /**
@@ -43,6 +45,9 @@ export async function authorizeSpaceAccess(
     expectedRole?: SpaceRole,
     options?: {allowInvitePending?: boolean},
 ): Promise<void> {
+    // Inform any calling code the `SpaceId` we're working with.
+    context.discovery?.discoverSpaceId(spaceId, "AuthorizeAccess");
+
     switch (context.actor.type) {
         case "Session":
         case "ImpersonatedAccount":
@@ -99,17 +104,14 @@ export async function authorizeSpaceAccess(
  * `authorizeSpaceAccess()`.
  */
 export async function authorizeSpaceAccessIfPossible(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        actor: ActorContextModule;
-    }>,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     expectedRole?: SpaceRole,
     options?: {allowInvitePending?: boolean},
 ): Promise<Result<void, ErrorBase>> {
+    // Inform any calling code the `SpaceId` we're working with.
+    context.discovery?.discoverSpaceId(spaceId, "AuthorizeAccess");
+
     switch (context.actor.type) {
         case "Session":
         case "ImpersonatedAccount":

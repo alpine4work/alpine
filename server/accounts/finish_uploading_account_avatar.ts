@@ -24,7 +24,7 @@ export async function finishUploadingAccountAvatar(
         );
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const oldAccountItem = await getAccountItem(context, accountId);
         const oldAccountAvatar = oldAccountItem.avatar;
 

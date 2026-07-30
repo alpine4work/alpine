@@ -1,12 +1,8 @@
 import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/get_account_time_zone_if_exists.js";
-import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {
-    DynamoGeneralRealtimeTableDeletedItem,
-    DynamoGeneralRealtimeTableSchema,
-} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {computeDigestNotificationsNextScheduledDateTimeIfEligible} from "~/server/notifications/data/digest/compute_digest_notifications_next_scheduled_date_time_if_eligible.js";
 import {getInitialInboxItem} from "~/server/notifications/data/internal/get_initial_inbox_item.js";
 import {
@@ -19,6 +15,7 @@ import {
     InboxEntryItemKey,
     InboxTable,
 } from "~/server/notifications/data/internal/inbox_table.js";
+import {RynamoTableDeletedItem, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
@@ -68,7 +65,7 @@ type InboxEntryMaybeDeletedItem =
     | {
           readonly isDeleted: true;
           readonly item: null;
-          readonly deletedItem: DynamoGeneralRealtimeTableDeletedItem;
+          readonly deletedItem: RynamoTableDeletedItem;
       };
 
 /**
@@ -94,7 +91,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         options: {
             isInitialAttempt: boolean;
             addAdditionalTransactionEntry: (
-                entry: DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry,
+                entry: DynamoTransactionEntry | RynamoTransactionEntry,
             ) => void;
             updateOtherInboxEntry: <OtherItemKey extends InboxEntryItemKey>(
                 otherItemKey: OtherItemKey,
@@ -138,7 +135,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             if (isInitialAttempt && initialInboxItemIfExists !== undefined)
                 return initialInboxItemIfExists;
 
-            return InboxTable.getItemIfExists(context, {
+            return await InboxTable.getItemIfExists(context, {
                 partitionType: "Account",
                 sortRangeType: "InboxAttributes",
                 spaceId: itemKey.spaceId,
@@ -198,9 +195,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             oldInboxItem ??
             DynamoItem.create(getInitialInboxItem(itemKey.spaceId, itemKey.accountId));
 
-        const transactionEntries: Array<
-            DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry
-        > = [];
+        const transactionEntries: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
 
         const pushTransactionEntries = (
             oldInboxEntryItem: InboxEntryMaybeDeletedItem | null,
@@ -331,7 +326,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             };
         }
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, transactionEntries, {
+        await RynamoTableSchema.executeTransaction(context, transactionEntries, {
             clientRequestToken,
         });
 

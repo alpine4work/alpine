@@ -1,7 +1,4 @@
-import {
-    DynamoGeneralRealtimeEventStubSchema,
-    createDynamoGeneralRealtimeEventSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SiteOrSiteEntryModelSchema} from "~/shared/sites/site_model.js";
 import {
@@ -13,13 +10,9 @@ import {
  * Schema for realtime events that can occur in a Site partition. Includes both
  * site attribute changes and site item changes.
  */
-export type DynamoGeneralRealtimeSiteEvent = SchemaType<
-    typeof DynamoGeneralRealtimeSiteEventSchema
->;
+export type RynamoSiteEvent = SchemaType<typeof RynamoSiteEventSchema>;
 
-export const DynamoGeneralRealtimeSiteEventSchema = createDynamoGeneralRealtimeEventSchema(
-    SiteOrSiteEntryModelSchema,
-);
+export const RynamoSiteEventSchema = createRynamoEventSchema(SiteOrSiteEntryModelSchema);
 
 export type SiteRealtimeEvent = WebSocketProtocolEventType<typeof SiteRealtimeProtocol>;
 
@@ -30,9 +23,9 @@ export type SiteRealtimeEvent = WebSocketProtocolEventType<typeof SiteRealtimePr
 export const SiteRealtimeProtocol = defineWebSocketProtocol({
     procedures: {},
     events: {
-        RealtimeEventTransaction: Schema.object({
-            type: Schema.value("RealtimeEventTransaction"),
-            eventTransaction: Schema.array(DynamoGeneralRealtimeSiteEventSchema),
+        RealtimeEvents: Schema.object({
+            type: Schema.value("RealtimeEvents"),
+            events: Schema.array(RynamoSiteEventSchema),
         }),
     },
 });
@@ -42,6 +35,6 @@ export const SiteRealtimeProtocol = defineWebSocketProtocol({
  * transformed to full events with authorization before being sent to connected
  * clients.
  */
-export const SiteBroadcastRealtimeEventTransactionSchema = Schema.object({
-    eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
+export const SiteBroadcastRealtimeEventsSchema = Schema.object({
+    events: Schema.array(RynamoEventStubSchema),
 });

@@ -9,11 +9,18 @@ export function prepareTaskCollectionForClient(
         id: collection.id,
         spaceId: collection.spaceId,
         createdTime: collection.createdTime,
-        creatorId: collection.creatorId,
+        creator:
+            collection.creatorId === null
+                ? null
+                : {
+                      accountId: collection.creatorId,
+                      from: collection.creatorFrom,
+                  },
         deletedTime: collection.rawDeletedTime,
         undeletedTime: collection.rawUndeletedTime,
         name: collection.name,
         color: collection.color,
         accessPolicy: collection.accessPolicy,
+        defaults: collection.defaults,
     });
 }

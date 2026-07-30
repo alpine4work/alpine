@@ -18,7 +18,7 @@ export default implementRpcs(definitions, {
     createSite: {
         visibility: ["AppClient"],
         execute: async (context, input, {callId}) => {
-            const {getDynamoGeneralRealtimeEventTransaction} = await createSite(
+            const {getRynamoEvents} = await createSite(
                 context.actor.authorizeSession(),
                 {
                     spaceId: input.spaceId,
@@ -28,22 +28,19 @@ export default implementRpcs(definitions, {
                 },
                 {clientRequestToken: callId},
             );
-            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
+            return {events: await getRynamoEvents(context)};
         },
     },
 
     updateSiteName: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransaction} = await updateSiteName(
-                context.actor.authorizeSession(),
-                {
-                    siteId: input.siteId,
-                    name: input.name,
-                },
-            );
+            const {getRynamoEvents} = await updateSiteName(context.actor.authorizeSession(), {
+                siteId: input.siteId,
+                name: input.name,
+            });
             return {
-                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+                events: await getRynamoEvents(context),
             };
         },
     },
@@ -51,7 +48,7 @@ export default implementRpcs(definitions, {
     updateSiteAccessPolicy: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransaction} = await updateSiteAccessPolicy(
+            const {getRynamoEvents} = await updateSiteAccessPolicy(
                 context.actor.authorizeSession(),
                 {
                     siteId: input.siteId,
@@ -59,14 +56,14 @@ export default implementRpcs(definitions, {
                 },
             );
 
-            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
+            return {events: await getRynamoEvents(context)};
         },
     },
 
     createSiteContainer: {
         visibility: ["AppClient"],
         execute: async (context, input, {callId}) => {
-            const {getDynamoGeneralRealtimeEventTransaction} = await createSiteContainer(
+            const {getRynamoEvents} = await createSiteContainer(
                 context.actor.authorizeSession(),
                 input.siteId,
                 {
@@ -78,7 +75,7 @@ export default implementRpcs(definitions, {
             );
 
             return {
-                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+                events: await getRynamoEvents(context),
             };
         },
     },
@@ -86,12 +83,12 @@ export default implementRpcs(definitions, {
     updateSiteContainerLabel: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransaction} = await updateSiteContainerLabel(
+            const {getRynamoEvents} = await updateSiteContainerLabel(
                 context.actor.authorizeSession(),
                 input,
             );
             return {
-                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+                events: await getRynamoEvents(context),
             };
         },
     },
@@ -99,13 +96,10 @@ export default implementRpcs(definitions, {
     moveSiteEntry: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransaction} = await moveSiteEntry(
-                context.actor.authorizeSession(),
-                input,
-            );
+            const {getRynamoEvents} = await moveSiteEntry(context.actor.authorizeSession(), input);
 
             return {
-                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+                events: await getRynamoEvents(context),
             };
         },
     },
@@ -115,14 +109,14 @@ export default implementRpcs(definitions, {
         execute: async (context, input, {callId}) => {
             // The RPC takes SiteItemId but deleteSiteContainer expects SiteContainerId This
             // RPC is for containers only - use removeEntityFromSite for entity refs
-            const {getDynamoGeneralRealtimeEventTransaction} = await deleteSiteContainer(
+            const {getRynamoEvents} = await deleteSiteContainer(
                 context.actor.authorizeSession(),
                 input,
                 {clientRequestToken: callId},
             );
 
             return {
-                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+                events: await getRynamoEvents(context),
             };
         },
     },
@@ -130,12 +124,12 @@ export default implementRpcs(definitions, {
     addEntityToSite: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransactionForSite} = await addEntityToSite(
+            const {getRynamoEventsForSite} = await addEntityToSite(
                 context.actor.authorizeSession(),
                 input,
             );
             return {
-                eventTransaction: await getDynamoGeneralRealtimeEventTransactionForSite(context),
+                events: await getRynamoEventsForSite(context),
             };
         },
     },
@@ -143,12 +137,12 @@ export default implementRpcs(definitions, {
     removeEntityFromSite: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransactionForSite} = await removeEntityFromSite(
+            const {getRynamoEventsForSite} = await removeEntityFromSite(
                 context.actor.authorizeSession(),
                 input,
             );
             return {
-                eventTransaction: await getDynamoGeneralRealtimeEventTransactionForSite(context),
+                events: await getRynamoEventsForSite(context),
             };
         },
     },
@@ -156,7 +150,7 @@ export default implementRpcs(definitions, {
     authorizeSiteAccess: {
         visibility: ["AppClient", "SiteRealtimeService"],
         execute: async (context, input) => {
-            return authorizeSiteAccess(
+            return await authorizeSiteAccess(
                 context.actor.authorizeSession(),
                 input.siteId,
                 input.expectedAccessLevel,
@@ -167,12 +161,12 @@ export default implementRpcs(definitions, {
     getSiteRealtimeEvent: {
         visibility: ["SiteRealtimeService"],
         execute: async (context, input) => {
-            const eventTransaction = await getSiteRealtimeEvent(
+            const events = await getSiteRealtimeEvent(
                 context.actor.authorizeSession(),
                 input.siteId,
-                input.eventTransaction,
+                input.events,
             );
-            return {eventTransaction};
+            return {events};
         },
     },
 

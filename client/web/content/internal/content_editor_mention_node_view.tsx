@@ -23,16 +23,13 @@ import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {
-    isFileEntityId,
-    parseFileEntityId,
-    printFileEntityIdIntoPath,
-} from "~/shared/files/file_entity_id.js";
+import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {getFileEntityIfPossible} from "~/shared/rpc/files_rpc_definitions.js";
+import {getDynamicSearchEntityPathForFileEntity} from "~/shared/search/path/get_search_entity_path.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -198,7 +195,12 @@ export function createContentEditorMentionNodeViewConstructor({
                         iconPlacement: "end",
                         onPress: async () => {
                             const url = new URL(
-                                printFileEntityIdIntoPath(spaceId, mentionEntityId),
+                                getDynamicSearchEntityPathForFileEntity({
+                                    spaceId,
+                                    fileEntityId: mentionEntityId,
+                                    fileEntityResult:
+                                        references.fileEntityById?.get(mentionEntityId) ?? null,
+                                }),
                                 window.location.href,
                             );
                             await writeTextToClipboard(url.toString());

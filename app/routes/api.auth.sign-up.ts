@@ -16,7 +16,7 @@ export async function action({request, context, span}: LoaderArgs) {
 
         const input = AuthSignUpInputSchema.deserialize(await request.json());
 
-        const {sessionId, sessionAccountId, openSpaceId} =
+        const {sessionId, sessionAccountId, open} =
             await attemptOneTimePasswordSignUpThenCreateSpace(context, {
                 emailAddress: input.emailAddress,
                 oneTimePassword: input.oneTimePassword,
@@ -33,12 +33,7 @@ export async function action({request, context, span}: LoaderArgs) {
         });
 
         return new Response(
-            JSON.stringify(
-                AuthSignInOrSignUpOutputSchema.serialize({
-                    ok: true,
-                    openSpaceId,
-                }),
-            ),
+            JSON.stringify(AuthSignInOrSignUpOutputSchema.serialize({ok: true, open})),
             {
                 status: 200,
                 headers: {"content-type": "application/json"},

@@ -88,6 +88,7 @@ import {
     DataLossError,
     FailedPreconditionError,
     InvalidArgumentError,
+    NotFoundError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {serializeError} from "~/shared/error/error_schema.js";
@@ -158,7 +159,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
     ): Promise<Response> {
         switch (route) {
             case "FetchConversationState": {
-                return this._fetchConversationState(context, request, span);
+                return await this._fetchConversationState(context, request, span);
             }
             case "NotFound": {
                 return new Response("404 Not Found", {
@@ -232,7 +233,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
         const agentUsageLimitWindowsPromise = span.withSpan(
             "Get agent usage limit windows",
             async span =>
-                getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
+                await getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
                     accountId: request.event.authorId,
                     currentTimestamp: currentTime.getTime(),
                 }),
@@ -534,7 +535,7 @@ async function requestChatGptAgent(
     await ensureMessagesInChatGptAgentConversation(span, request, session.newMessageIndex);
 
     // Send a message from ChatGPT.
-    return createChatGptAgentMessage(span, request, {
+    return await createChatGptAgentMessage(span, request, {
         env,
         model,
         session,
@@ -854,7 +855,14 @@ async function createChatGptAgentResponse(
     //
     // Keep calling recursively until there are no more function calls.
     if (hasFunctionCallOutputItem) {
-        return createChatGptAgentResponse(span, env, request, model, session, totalUsedMillicents);
+        return await createChatGptAgentResponse(
+            span,
+            env,
+            request,
+            model,
+            session,
+            totalUsedMillicents,
+        );
     }
 
     return {usedMillicents: totalUsedMillicents, model};
@@ -1116,7 +1124,7 @@ async function callChatGptAgentFunction({
                 );
             }
 
-            return handleCreateDocumentFunctionCall(span, request, session, {
+            return await handleCreateDocumentFunctionCall(span, request, session, {
                 title: functionCallArguments.title,
                 content: functionCallArguments.content,
             });
@@ -1378,12 +1386,20 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
         request.event.viewingTarget &&
         !isDeepEqual(request.event.viewingTarget, currentlyViewingTargetState?.target)
     ) {
-        const {data} = await getApiReference(
-            tracer,
-            request.apiClient,
-            request.event.viewingTarget,
+        const mentionResult = await captureResultPromise(
+            getApiReference(tracer, request.apiClient, request.event.viewingTarget),
         );
-        newViewingTarget = data.mention;
+
+        // Some `viewingTarget`s can't be resolved by `/{type}/{id}/mention` (most notably
+        // 1:1 chats, including the user's chat with the agent itself), which the API
+        // returns as a 404. Context injection is best-effort, so skip it rather than
+        // failing the whole webhook.
+        if (!mentionResult.ok) {
+            if (mentionResult.error instanceof NotFoundError) return;
+            throw mentionResult.error;
+        }
+
+        newViewingTarget = mentionResult.value.data.mention;
     }
 
     const previousEntity = currentlyViewingTargetState?.target ?? null;
@@ -1567,6 +1583,15 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
             return {
                 type: "TaskCollection",
                 taskCollection: {
+                    id: entity.target.id,
+                    name: entity.title,
+                },
+            };
+        }
+        case "Site": {
+            return {
+                type: "Site",
+                site: {
                     id: entity.target.id,
                     name: entity.title,
                 },

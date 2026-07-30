@@ -4,6 +4,7 @@ import {
     CollaborativeContentEditorAction,
     CollaborativeContentEditorState,
     createCollaborativeContentEditorStateReducer,
+    getCollaborativeContentEditorStatePersistedContent,
     getInitialCollaborativeContentEditorState,
 } from "~/client/web/content/collaborative_content_editor_state.js";
 import {
@@ -43,6 +44,7 @@ import {
     AccountId,
     DocumentCommentThreadId,
     FileId,
+    SpaceId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -148,6 +150,7 @@ type DocumentContentEditorExtraState = {
 
 export function getInitialDocumentContentEditorState(
     options: {
+        spaceId: SpaceId;
         accessLevel: AccessLevel;
     } & (
         | {
@@ -165,6 +168,7 @@ export function getInitialDocumentContentEditorState(
     ),
 ): DocumentContentEditorState {
     return getInitialCollaborativeContentEditorState({
+        spaceId: options.spaceId,
         initialVersion: options.initialVersion ?? 0,
         initialContent: options.initialContent ?? {
             doc: createEmptyDocumentContent(options.currentAccountId),
@@ -648,11 +652,12 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
         }
         case "ResetToPersistedVersion": {
             return getInitialDocumentContentEditorState({
+                spaceId: state.spaceId,
                 currentAccountId: state.extra.currentAccountId,
                 accessLevel: state.extra.accessLevel,
                 initialVersion: state.persistedVersion,
                 initialContent: {
-                    doc: getDocumentContentEditorStatePersistedContent(state),
+                    doc: getCollaborativeContentEditorStatePersistedContent(state),
                     references: state.editorState.getContent().references,
                 },
                 // Try to maintain the user's selection while resetting state.
@@ -715,31 +720,4 @@ export function reduceDocumentContentReferences(
         default:
             return reduceContentReferencesShared(references, action);
     }
-}
-
-/**
- * Get the persisted `DocumentContent` based on our editor state. The persisted
- * content lags behind the content in our editor state since the editor state may
- * include local changes and may include optimistic changes that have been accepted
- * by the durable object but not our database.
- */
-export function getDocumentContentEditorStatePersistedContent(
-    state: DocumentContentEditorState,
-): DocumentContent {
-    const version = state.editorState.getVersion();
-
-    // If we're at the persisted version then return the doc as-is. If `version` is
-    // less than `state.persistedVersion` then we've probably received some realtime
-    // events out-of-order. We may still be waiting on the steps from persisted content
-    // from realtime. Don't throw while we're in this state.
-    if (version <= state.persistedVersion) {
-        return state.editorState.getDocWithoutSendableSteps();
-    }
-
-    const oldContent =
-        state.extra.rememberedSteps[
-            state.extra.rememberedSteps.length - (version - state.persistedVersion)
-        ]!.contentBeforeStep.get();
-
-    return oldContent;
 }

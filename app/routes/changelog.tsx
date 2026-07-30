@@ -16,7 +16,7 @@ import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
 import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {createDynamoGeneralRealtimeQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -27,20 +27,18 @@ import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model
 /**
  * Standalone route for `/changelog` that displays a specific document.
  *
- * This route duplicates some logic from
- * `s.$spaceId.documents.$documentId._index.tsx` because we can't reuse that route
- * directly:
+ * This route duplicates some logic from `_space.doc.$documentId._index.tsx`
+ * because we can't reuse that route directly:
  *
- * 1. **URL rewriting doesn't work**: Rewriting `/changelog` to
- *    `/s/.../documents/...` in EdgeService or via Cloudflare rules causes an
- *    infinite redirect loop. Remix hydrates on the client and detects a mismatch
- *    between the browser URL (`/changelog`) and the server-rendered route,
- *    triggering navigation attempts.
+ * 1. **URL rewriting doesn't work**: Rewriting `/changelog` to `/doc/...` in
+ *    EdgeService or via Cloudflare rules causes an infinite redirect loop. Remix
+ *    hydrates on the client and detects a mismatch between the browser URL
+ *    (`/changelog`) and the server-rendered route, triggering navigation attempts.
  *
  * 2. **Can't reuse the document route's exports**: The document route is a child
- *    of `s.$spaceId.tsx` which provides `SpaceContext`. It uses `useParams()` to
- *    get IDs from the URL and `useSpaceContext()` from the parent layout. A
- *    root-level route like `/changelog` doesn't have access to these.
+ *    of `_space.tsx` which provides `SpaceContext`. It uses `useParams()` to get
+ *    IDs from the URL and `useSpaceContext()` from the parent layout. A root-level
+ *    route like `/changelog` doesn't have access to these.
  *
  * 3. **Different data requirements**: The document route's loader assumes the
  *    parent layout already loaded space/account data. This route must load
@@ -54,9 +52,7 @@ const changelogDocumentId = "5fcpht8pr6mh52v5z6cscj08gw" as DocumentId;
 const LoaderSchema = Schema.object({
     space: SpaceModel.schema(),
     document: DocumentModel.schema(),
-    spellCheckIgnoredLints: createDynamoGeneralRealtimeQuerySchema(
-        SpellCheckIgnoredLintModel.schema(),
-    ),
+    spellCheckIgnoredLints: createRynamoQuerySchema(SpellCheckIgnoredLintModel.schema()),
 });
 
 export function links(): Array<LinkDescriptor> {

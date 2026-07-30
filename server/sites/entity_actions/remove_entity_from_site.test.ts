@@ -1,9 +1,13 @@
-// TODO(#sites): Create testing framework for adding/removing from sites similar to
-// the way we have "messaging" tests
+// TODO(#sites-not-blocking): Create testing framework for adding/removing from
+// sites similar to the way we have "messaging" tests
 
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
+import {getDocumentContent} from "~/server/documents/data/documents_actions.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {handleUpdateContentWithoutOptimisticBroadcastForTest} from "~/server/documents/test_helpers/handle_update_content_without_optimistic_broadcast_for_test.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -13,34 +17,43 @@ import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {updateSiteAccessPolicy} from "~/server/sites/data/update_site_access_policy.js";
 import {addEntityToSite} from "~/server/sites/entity_actions/add_entity_to_site.js";
 import {removeEntityFromSite} from "~/server/sites/entity_actions/remove_entity_from_site.js";
+import {buildTestSiteEntityData} from "~/server/sites/test_helpers/build_test_site_entity_data.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
     SiteItemSearchEntityId,
     SiteItemSearchEntityIdObject,
-} from "~/shared/sites/site_item_search_entity_id.js";
+    isSiteItemSearchEntityId,
+} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteEntityModel} from "~/shared/sites/site_model.js";
 
 const searchInjection: Partial<SearchInjection> = {
-    getSearchMentionEntityIfPossible: async (_context, _spaceId, entityId) => ({
-        isPrivate: false as const,
-        entity: new SearchEntityModel({
-            id: entityId,
-            title: "Test Entity",
-            titleVersion: null,
-            media: null,
-        }),
-    }),
+    getSearchMentionEntityIfPossible: async (_context, _spaceId, entityId) => {
+        assert(isSiteItemSearchEntityId(entityId));
+        return {
+            isPrivate: false as const,
+            entity: new SearchEntityModel(buildTestSiteEntityData(entityId)),
+        };
+    },
 };
 
-const context = createTestContext({sitesInjection, searchInjection});
+const context = createTestContext({
+    sitesInjection,
+    searchInjection,
+    documentsInjection,
+    // Documents are removed from a site by sending an access-policy update to the
+    // document's collaboration durable object, which doesn't run in the in-process
+    // test context. Reimplement that one route directly against the test database.
+    sendRequestToDurableObject: handleUpdateContentWithoutOptimisticBroadcastForTest,
+});
 
 describe("removeEntityFromSite", () => {
     // The `Record<SiteItemSearchEntityIdObject["type"], \u2026>` makes TypeScript fail
@@ -290,11 +303,53 @@ describe("removeEntityFromSite", () => {
             });
         },
         Document: () => {
-            // TODO(#sites): Documents are added/removed via
-            // `context.edge.sendRequestToDurableObject(...)` to the document's collaboration
-            // durable object, which isn't wired up in this test context. Either move this case
-            // into `document_collaboration_durable_object.test.ts` or add edge wiring here.
-            test.todo("removes a Document from a site and restores Local access policy");
+            test("removes a Document from a site and restores Local access policy", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession();
+                const site = await TestSite.create(session, {name: "Test Site"});
+                const siteId = site.id;
+                const rootContainerId = site.initialRootContainerId;
+
+                const document = await TestDocument.create(session, {title: "Test Document"});
+                const entityId: SiteItemSearchEntityId = `Document:${document.id}`;
+
+                await updateSiteAccessPolicy(session.action(), {
+                    siteId,
+                    accessPolicy: {
+                        type: "Local",
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "View"},
+                        urlGrant: null,
+                    },
+                });
+                await addEntityToSite(session.action(), {
+                    siteId,
+                    spaceId: space.id,
+                    entityId,
+                    parentId: rootContainerId,
+                    orderKey: assertOrderKey("a0"),
+                });
+
+                // Verify the entity was added.
+                const previewAfterAdd = await getSitePreview(session.action(), siteId);
+                expect(previewAfterAdd.initialData.firstEntityId).toBe(entityId);
+
+                await removeEntityFromSite(session.action(), {siteId, spaceId: space.id, entityId});
+
+                const [sitePreview, documentContent] = await runAllPromises([
+                    getSitePreview(session.action(), siteId),
+                    getDocumentContent(session.action(), document.id),
+                ]);
+
+                expect(sitePreview.initialData.firstEntityId).toBeNull();
+                // `removeEntityFromSite` copies the site's Local access policy onto the document,
+                // so it's no longer a `Site` policy.
+                expect(documentContent.content.attrs.accessPolicy).toEqual(
+                    expect.objectContaining({type: "Local"}),
+                );
+            });
         },
     };
     for (const setup of Object.values(entityTypeTests)) setup();
@@ -378,11 +433,6 @@ describe("removeEntityFromSite", () => {
 // =============================================================================
 
 describe("addEntityToSite and removeEntityFromSite edge cases", () => {
-    // TODO(#sites): Re-add after removal fails with ConditionalCheckFailed because
-    // `dangerouslyGetAddToSiteTransactionEntries` uses
-    // `transactionCreateItemWithEvent` which expects the item doesn't exist. After
-    // deletion, the realtime table still has a tombstone. Fix by using
-    // `transactionCreateOrReplaceItemWithEvent` instead.
     test("add then remove then re-add increments the entity version", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();

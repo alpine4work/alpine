@@ -21,7 +21,7 @@ export type RenderContentMentionToTextSearchEntity =
     | {
           readonly isPrivate: false;
           readonly title: string | null;
-          readonly getAccountMediaShortName: (() => string) | null;
+          readonly getAuthorData: (() => Pick<AccountModelWithoutSpaceData, "name">) | null;
       };
 
 export function renderContentMentionToText(
@@ -78,8 +78,8 @@ export function renderContentMentionToText(
 
             // Posts start with "in ${channelName}: " and expect client rendering code to add
             // the post author name to the start of the title.
-            if (entity.getAccountMediaShortName !== null && mention.entityId.startsWith("Post:")) {
-                entityTitle = `${entity.getAccountMediaShortName()} ${entityTitle}`;
+            if (entity.getAuthorData !== null && mention.entityId.startsWith("Post:")) {
+                entityTitle = `${getAccountShortNameWithoutFullNameTooltip(entity.getAuthorData())} ${entityTitle}`;
             }
 
             return entityTitle;

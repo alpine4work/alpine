@@ -71,7 +71,7 @@ export class ChatMessageModel
         contentVersion: number,
         pos: number | "Files",
     ): string {
-        const baseUrl = `/s/${spaceId}/chat/${this.chatId}/messages/${this.index}/reactions`;
+        const baseUrl = `/chat/${this.chatId}/message/${this.index}/reactions`;
         const at = pos === "Files" ? "files" : `${pos}@${contentVersion}`;
         return `${baseUrl}?at=${at}`;
     }

@@ -31,7 +31,7 @@ export class SesEmailContextModule extends EmailContextModuleBase {
         emailType: NonTransactionalEmailType;
         baseUrl: string;
     }): Promise<URL> {
-        return this._tokenAgent.privateSide.dangerouslySignUrl(
+        return await this._tokenAgent.privateSide.dangerouslySignUrl(
             "AppService",
             this._serializeUnsubscribeUrl({accountId, spaceId, emailType, baseUrl}),
             // Unsubscribe URLs are valid for 30 days

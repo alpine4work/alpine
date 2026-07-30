@@ -1,5 +1,7 @@
 import {setupContentFileEntityPreviewContainer} from "~/client/web/content/file_entity/internal/content_file_entity_preview_container.js";
+import {renderContentFileEntitySiteBreadcrumb} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
 import {renderTaskDisplayStatusCircle} from "~/client/web/design/task_display_status_circle_html.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {
@@ -22,11 +24,13 @@ export function renderContentFileTaskCollectionEntityPreview(
         layout,
         platform,
         spacingScale,
+        siteRegistry,
     }: {
         fileEntity: FileEntityModel;
         layout: ContentFileLayout;
         platform: Platform;
         spacingScale: SpacingScale;
+        siteRegistry: SiteRegistry;
     },
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileTaskCollectionEntityModelSchema);
@@ -37,6 +41,16 @@ export function renderContentFileTaskCollectionEntityPreview(
         spacingScale,
         transformScaleBaseFontSize: "100",
     });
+
+    if (fileEntity.site) {
+        renderContentFileEntitySiteBreadcrumb({
+            get,
+            siteRegistry,
+            parent: scaledContainerHtml,
+            site: fileEntity.site,
+            platform,
+        });
+    }
 
     {
         const headerHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));

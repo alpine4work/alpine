@@ -24,7 +24,7 @@ import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_el
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {TaskRowShimmer} from "~/client/web/shimmer/task_row_shimmer.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
@@ -834,7 +834,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                     taskId: newTaskId,
                     taskAction: {
                         type: "Create",
-                        creatorId: currentAccount.id,
+                        creator: {accountId: currentAccount.id, from: null},
                         creatorTimeZone: timeZone,
                     },
                 },
@@ -870,7 +870,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         taskId: newTaskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: currentAccount.id,
+                            creator: {accountId: currentAccount.id, from: null},
                             creatorTimeZone: timeZone,
                         },
                     },
@@ -951,7 +951,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                             taskId: newTaskId,
                             taskAction: {
                                 type: "Create",
-                                creatorId: currentAccount.id,
+                                creator: {accountId: currentAccount.id, from: null},
                                 creatorTimeZone: timeZone,
                             },
                         },
@@ -1012,7 +1012,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                     taskId: newTaskId,
                     taskAction: {
                         type: "Create",
-                        creatorId: currentAccount.id,
+                        creator: {accountId: currentAccount.id, from: null},
                         creatorTimeZone: timeZone,
                     },
                 },

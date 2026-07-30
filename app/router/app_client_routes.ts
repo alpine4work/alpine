@@ -1,6 +1,7 @@
 import {createClientRoutes, loadRouteModuleWithBlockingLinks} from "@remix-run/react";
 import jsonStableStringify from "json-stable-stringify";
 import {DataRouteObject, LazyRouteFunction} from "react-router";
+import {getSiteLoaderDataForPendingNavigation} from "~/app/router/get_site_loader_data_for_pending_navigation.js";
 import {RootErrorBoundary} from "~/app/router/root_error_boundary.js";
 import {createLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {processLoaderResult} from "~/client/web/remix/process_loader_result.js";
@@ -9,6 +10,7 @@ import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core
 import {
     ErrorBase,
     FailedPreconditionError,
+    InternalError,
     UnavailableError,
     getErrorCode,
 } from "~/shared/error/error.js";
@@ -112,15 +114,25 @@ function updateAppClientRoutes(routes: Array<DataRouteObject>) {
     function updateDataRoute(route: DataRouteObject) {
         makeDataRouteThrowUnavailableError(route);
 
-        if (route.id === "routes/s.$spaceId.inbox") {
+        if (route.id === "routes/_space.inbox.$spaceId") {
             hasUpdatedInboxDataRoute = true;
             updateInboxDataRoute(route, routeById);
         }
 
-        if (route.id.startsWith("routes/s.$spaceId.tasks.")) {
+        if (
+            route.id.startsWith("routes/_space.task.") ||
+            route.id.startsWith("routes/_space.task-collection.") ||
+            route.id.startsWith("routes/_space.task-view.") ||
+            route.id.startsWith("routes/_space.my-tasks.")
+        ) {
             hasUpdatedTaskDataRoute = true;
             updateTaskDataRoute(route);
-        } else if (route.id.startsWith("routes/s.$spaceId.peek.tasks.")) {
+        } else if (
+            route.id.startsWith("routes/_space.peek.task.") ||
+            route.id.startsWith("routes/_space.peek.task-collection.") ||
+            route.id.startsWith("routes/_space.peek.task-view.") ||
+            route.id.startsWith("routes/_space.peek.my-tasks.")
+        ) {
             hasUpdatedPeekTaskDataRoute = true;
             updateTaskDataRoute(route);
         }
@@ -144,15 +156,15 @@ function updateAppClientRoutes(routes: Array<DataRouteObject>) {
                     childRoute.ErrorBoundary = RootErrorBoundary;
                 }
             }
-        } else if (route.id === "routes/s.$spaceId") {
+        } else if (route.id === "routes/_space") {
             // Don't add a loader timeout for our space layout route. The space layout route
             // will conditionally render `<Outlet>`s based on whether they're done loading or
             // not.
             hasUpdatedSpaceLayoutDataRoute = true;
 
-            // Make sure all route children of `routes/s.$spaceId.tsx` have the same error
-            // boundary. This is so we don't have to add an `ErrorBoundary` export to each
-            // space route file.
+            // Make sure all route children of `routes/_space` have the same error boundary.
+            // This is so we don't have to add an `ErrorBoundary` export to each space route
+            // file.
             //
             // We need to implement the same thing in `app_server_routes.ts` so we have the
             // same error boundary when server rendering.
@@ -166,11 +178,11 @@ function updateAppClientRoutes(routes: Array<DataRouteObject>) {
                     childRoute.ErrorBoundary = SpaceRouteErrorBoundary;
                 }
             }
-        } else if (route.id === "routes/s.$spaceId.peek") {
+        } else if (route.id === "routes/_space.peek") {
             // Don't add a loader timeout for our peek route. The peek layout route will
             // conditionally render `<Outlet>`s based on whether they're done loading or not.
             hasUpdatedSpacePeekLayoutDataRoute = true;
-        } else if (route.id.startsWith("routes/s.$spaceId.")) {
+        } else if (route.id.startsWith("routes/_space.")) {
             hasUpdatedSpaceDataRoute = true;
 
             // The ordering here is important. Inflight request reuse handling should be BEFORE
@@ -374,10 +386,16 @@ function updateInboxDataRoute(route: DataRouteObject, routeById: Map<string, Dat
                 data.peekData.hydrationData.loaderData,
             )) {
                 if (
-                    routeId.startsWith("routes/s.$spaceId.tasks.") ||
-                    routeId.startsWith("routes/s.$spaceId.peek.tasks.")
+                    routeId.startsWith("routes/_space.task.") ||
+                    routeId.startsWith("routes/_space.task-collection.") ||
+                    routeId.startsWith("routes/_space.task-view.") ||
+                    routeId.startsWith("routes/_space.my-tasks.") ||
+                    routeId.startsWith("routes/_space.peek.task.") ||
+                    routeId.startsWith("routes/_space.peek.task-collection.") ||
+                    routeId.startsWith("routes/_space.peek.task-view.") ||
+                    routeId.startsWith("routes/_space.peek.my-tasks.")
                 ) {
-                    const spaceId = assertId<SpaceId>(args[0].params.spaceId ?? "");
+                    const spaceId = getTaskDataRouteSpaceId(args[0].params, peekData);
                     assert(
                         spaceRouteModule.Component &&
                             "clientLoaderTaskStoreLoaderData" in spaceRouteModule.Component &&
@@ -418,7 +436,7 @@ function updateInboxDataRoute(route: DataRouteObject, routeById: Map<string, Dat
 
 const spaceRouteModulePromise = new Lazy(() =>
     loadRouteModuleWithBlockingLinks(
-        window.__remixManifest.routes["routes/s.$spaceId"]!,
+        window.__remixManifest.routes["routes/_space"]!,
         window.__remixRouteModules,
     ),
 );
@@ -432,8 +450,8 @@ const spaceRouteModulePromise = new Lazy(() =>
  * We don't use Remix's `clientLoader` feature since that forces us to load the
  * route code _before_ we can execute the server loader. This creates a network
  * waterfall which slows down the rendering of task routes. Instead, the function
- * we need to call should be available in the `s.$spaceId.tsx` bundle. So import
- * that route module (which should be cached) and call the function from there.
+ * we need to call should be available in the `_space.tsx` bundle. So import that
+ * route module (which should be cached) and call the function from there.
  *
  * Remember this loader doesn't run on initial render!
  */
@@ -455,7 +473,7 @@ function updateTaskDataRoute(route: DataRouteObject) {
 
         const data = await processLoaderResult(result);
 
-        const spaceId = assertId<SpaceId>(args[0].params.spaceId ?? "");
+        const spaceId = getTaskDataRouteSpaceId(args[0].params, data);
         assert(
             spaceRouteModule.Component &&
                 "clientLoaderTaskStoreLoaderData" in spaceRouteModule.Component &&
@@ -466,6 +484,16 @@ function updateTaskDataRoute(route: DataRouteObject) {
         // Headers and status code are lost for task routes.
         return data;
     };
+}
+
+function getTaskDataRouteSpaceId(params: {spaceId?: string}, data: unknown): SpaceId {
+    if (typeof params.spaceId === "string") return assertId<SpaceId>(params.spaceId);
+
+    if (isObject(data) && typeof data.spaceId === "string") {
+        return assertId<SpaceId>(data.spaceId);
+    }
+
+    throw new InternalError("Task route loader data must include `spaceId`");
 }
 
 /**
@@ -552,17 +580,17 @@ const makeSpaceDataRouteShowLoadingIndicatorSymbol = Symbol(
  * route but show a fullscreen loading spinner while waiting on data.
  *
  * To accomplish this we modify the Remix route object's client loader function for
- * routes under `/s/:spaceId` to wait at most
+ * routes under `_space` route to wait at most
  * `delayScreenTransitionLoadingIndicatorLimitMs` for the server loader. If we
  * don't have server data back before then we finish the navigation anyway and
- * depend on `s.$spaceId.tsx` or `s.$spaceId.peek.tsx` to render a fullscreen
- * loading spinner.
+ * depend on `_space.tsx` or `_space.peek.tsx` to render a fullscreen loading
+ * spinner.
  *
  * This is coordinated by "loading indicator loader data". Instead of returning a
  * loader data object, we return an object created by
  * `createLoadingIndicatorLoaderData()` which contains a promise to the loader
- * data. If `s.$spaceId.tsx` sees this as any child route's loader data it'll
- * render a fullscreen loading indicator until the promise has resolved.
+ * data. If `_space.tsx` sees this as any child route's loader data it'll render a
+ * fullscreen loading indicator until the promise has resolved.
  */
 function makeSpaceDataRouteShowLoadingIndicator(route: DataRouteObject) {
     // TODO(calebmer): This won't work for routes with a `clientLoader()`. We don't
@@ -594,11 +622,22 @@ function makeSpaceDataRouteShowLoadingIndicator(route: DataRouteObject) {
         if (result !== makeSpaceDataRouteShowLoadingIndicatorSymbol) {
             return result;
         } else {
+            const [{request, params}] = args;
+
             return createLoadingIndicatorLoaderData(
                 PromiseImmediate.resolve(routeLoaderPromise)
                     // Since `@remix-run/router` won't get a chance to unwrap the response we have to
                     // do it here.
                     .then(processLoaderResult),
+                {
+                    // Let the site context follow a pending within-site navigation while the route
+                    // shimmer is showing.
+                    siteLoaderData: getSiteLoaderDataForPendingNavigation({
+                        routeId: route.id,
+                        request,
+                        params,
+                    }),
+                },
             );
         }
     };

@@ -133,6 +133,7 @@ def _app_client_optimize_deps_impl(ctx):
         "react/jsx-dev-runtime",
         "react-dom/client",
         "@remix-run/react",
+
     ]
 
     ctx.actions.run_shell(

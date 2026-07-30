@@ -20,6 +20,7 @@ ts_project(
         "//:node_modules/react-router",
         "//:node_modules/react-router-dom",
         "//client/web/helpers",
+        "//client/web/spaces/context",
         "//shared/design",
         "//shared/helpers",
         "//shared/messaging",

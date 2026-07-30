@@ -27,7 +27,11 @@ import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {upcastTaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {upcastTaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
-import {TaskTitleUpdateModel, emptyTaskTitleUpdateModel} from "~/shared/tasks/title/task_title.js";
+import {
+    TaskTitleUpdateModel,
+    emptyTaskTitleUpdateModel,
+    generateTaskTitleClientIdFromRealmId,
+} from "~/shared/tasks/title/task_title.js";
 
 // We use an interface to prevent you from calling methods that mutate the store or
 // accessing `store.clock`.
@@ -52,6 +56,7 @@ type TaskUndoAction =
               readonly withoutUndoMerge: boolean;
               readonly getTitleUpdate: (
                   getTask: (taskId: TaskId) => TaskModel | null,
+                  getTaskEntryRevertCount: (taskId: TaskId) => number,
               ) => TaskTitleUpdateModel;
           };
       };
@@ -129,6 +134,9 @@ export class TaskUndoActions {
                 return task ? {task, actions: null} : {task: null, actions: []};
             }).task;
         };
+        const getTaskEntryRevertCount = (taskId: TaskId): number => {
+            return store.getTaskEntrySnapshot(taskId)?.revertCount ?? 0;
+        };
 
         for (let actionIndex = 0; actionIndex < this._actions.length; actionIndex++) {
             const unreconciledAction = this._actions[actionIndex]!;
@@ -143,7 +151,10 @@ export class TaskUndoActions {
                 action = {...unreconciledAction, time: newTime};
                 newActions.push(action);
             } else {
-                const titleUpdate = unreconciledAction.taskAction.getTitleUpdate(getTask);
+                const titleUpdate = unreconciledAction.taskAction.getTitleUpdate(
+                    getTask,
+                    getTaskEntryRevertCount,
+                );
 
                 action = {
                     ...unreconciledAction,
@@ -706,14 +717,19 @@ function pushTaskUndoAction(
                 taskAction: {
                     type: "UpdateTitle",
                     withoutUndoMerge: action.taskAction.withoutUndoMerge ?? false,
-                    getTitleUpdate: getTask => {
+                    getTitleUpdate: (getTask, getTaskEntryRevertCount) => {
                         // The task must still exist in our store to be able to undo title changes! Since
                         // we need the latest title to figure out the right IDs.
                         const task = getTask(action.taskId);
                         if (!task) return emptyTaskTitleUpdateModel.get();
 
                         return (
-                            titleUpdate.invert(task.getTitle()) ?? emptyTaskTitleUpdateModel.get()
+                            titleUpdate.invert(
+                                generateTaskTitleClientIdFromRealmId({
+                                    revertCount: getTaskEntryRevertCount(action.taskId),
+                                }),
+                                task.getTitle(),
+                            ) ?? emptyTaskTitleUpdateModel.get()
                         );
                     },
                 },

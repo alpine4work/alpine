@@ -133,7 +133,7 @@ function PostContentViewHeaderChannelBase({
     const navigate = useNavigate();
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            navigate(`/s/${channel.spaceId}/channels/${channel.id}`, {
+            navigate(`/channel/${channel.id}`, {
                 stopPropagation: stopNavigateToChannelPropagation,
             });
         },
@@ -154,7 +154,7 @@ function PostContentViewHeaderChannelBase({
                         cursor: "pointer",
                         opacity: isPressed ? "60" : undefined,
                     })}
-                    href={`/s/${channel.spaceId}/channels/${channel.id}`}
+                    href={`/channel/${channel.id}`}
                     onClick={event => {
                         // Custom link navigation handling...
                         event.preventDefault();

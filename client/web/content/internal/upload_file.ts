@@ -541,7 +541,7 @@ async function uploadFileWithMultipartUploadIfNeeded(
         let progress = 0;
         getProgress = () => progress;
 
-        return fetchWithTracer(
+        return await fetchWithTracer(
             context.tracer.getTracer(),
             uploadUrl,
             {
@@ -560,7 +560,7 @@ async function uploadFileWithMultipartUploadIfNeeded(
                 // opting to pass the body in directly here. Since if `body` is a `File` we want
                 // the browser to stream the file from disk without loading any data to memory.
                 fetch: async request => {
-                    return fetchWithXhr(request, {
+                    return await fetchWithXhr(request, {
                         body:
                             // Unfortunately, `XMLHttpRequest` doesn't support streaming request bodies. So we
                             // have to load the readable stream's entire data into memory. We could use
@@ -790,7 +790,7 @@ async function uploadFileWithMultipartUploadIfNeeded(
         throw new InternalError(`Expected ${partCount} parts but got ${parts.length} parts`);
     }
 
-    return fetchWithTracer(
+    return await fetchWithTracer(
         context.tracer.getTracer(),
         new URL(
             `/api/files/${spaceId}/multipart-upload/${fileId}/complete?upload=${uploadId}`,

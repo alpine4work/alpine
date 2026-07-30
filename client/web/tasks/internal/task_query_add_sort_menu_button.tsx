@@ -6,7 +6,7 @@ import {
     OverlayTriggerButtonRef,
     OverlayTriggerButtonState,
 } from "~/client/web/design/overlay_trigger_button.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";

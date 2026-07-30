@@ -45,7 +45,8 @@ export function applyTaskActionToTaskModelData(
     switch (action.type) {
         case "Create": {
             const isCompatible =
-                task.creator.accountId === action.creatorId &&
+                task.creator.accountId === action.creator.accountId &&
+                areTaskCreatorFromsEqual(task.creator.from, action.creator.from) &&
                 task.createdTime.isEqual(
                     new TaskFilterableTime({
                         absoluteTime: actionTime,
@@ -57,13 +58,35 @@ export function applyTaskActionToTaskModelData(
                 throw new FailedPreconditionError("Incompatible create action");
             }
 
-            const creator = mergeTaskSortableAccounts(
-                task.creator,
-                getActionReferencedSortableAccount(action.creatorId),
+            const mergedCreator = mergeTaskSortableAccounts(
+                {
+                    accountId: task.creator.accountId,
+                    workingAccountName: task.creator.workingAccountName,
+                    workingAccountNameVersion: task.creator.workingAccountNameVersion,
+                },
+                getActionReferencedSortableAccount(action.creator.accountId),
             );
 
-            if (task.creator === creator) return task;
-            return {...task, creator};
+            let newAccessPolicy = task.accessPolicy;
+
+            if (action.accessPolicy) {
+                newAccessPolicy = newAccessPolicy
+                    ? newAccessPolicy.apply({
+                          value: action.accessPolicy,
+                          version: actionTime,
+                      })
+                    : new AccessPolicyRegister(action.accessPolicy, actionTime);
+            }
+
+            if (task.creator === mergedCreator && task.accessPolicy === newAccessPolicy) {
+                return task;
+            }
+
+            return {
+                ...task,
+                creator: {...mergedCreator, from: action.creator.from},
+                accessPolicy: newAccessPolicy,
+            };
         }
         case "Delete": {
             const newDeletedTime =
@@ -383,4 +406,13 @@ export function applyTaskActionToTaskModelData(
         default:
             throw exhaustive(action);
     }
+}
+
+function areTaskCreatorFromsEqual(
+    from1: TaskModelData["creator"]["from"],
+    from2: TaskModelData["creator"]["from"],
+) {
+    if (from1 === from2) return true;
+    if (from1 === null || from2 === null) return false;
+    return from1.type === from2.type && from1.accountId === from2.accountId;
 }

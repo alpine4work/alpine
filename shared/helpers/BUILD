@@ -15,6 +15,7 @@ CORE_SRCS = [
     "object/is_plain_object.ts",
     "object/map_object_values.ts",
     "object/omit_object.ts",
+    "types/distributive_omit.ts",
 ]
 
 # We have a separate `helpers_core` package with a small number of essential

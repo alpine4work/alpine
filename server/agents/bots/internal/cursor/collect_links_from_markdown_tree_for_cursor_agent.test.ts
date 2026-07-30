@@ -2,12 +2,10 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {collectLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/internal/cursor/collect_links_from_markdown_tree_for_cursor_agent.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/content/into_api_content.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-
-const spaceId = generateId<SpaceId>();
+import {AccountId, ChannelId, DocumentId, TaskId} from "~/shared/id/types/id_types.js";
 
 const storage = new DurableObjectStorage(new MemoryStorage());
 
@@ -19,7 +17,7 @@ describe("account mentions", () => {
     test("ignores account links", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -36,9 +34,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         // The markdown tree has the mention as a link with /account/ prefix
         expect(printMarkdownTree(markdownTree)).toContain("[Alice](/account/alice)");
@@ -53,7 +49,7 @@ describe("account mentions", () => {
         const aliceId = generateId<AccountId>();
         const bobId = generateId<AccountId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -76,9 +72,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -90,7 +84,7 @@ describe("non-account links", () => {
     test("collects document links", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -107,9 +101,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -120,7 +112,7 @@ describe("non-account links", () => {
     test("collects task links", async () => {
         const taskId = generateId<TaskId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -141,9 +133,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -155,7 +145,7 @@ describe("non-account links", () => {
     test("collects channel links", async () => {
         const channelId = generateId<ChannelId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -172,9 +162,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -187,7 +175,7 @@ describe("non-account links", () => {
         const documentId = generateId<DocumentId>();
         const taskId = generateId<TaskId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -219,9 +207,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -241,7 +227,7 @@ describe("nested content", () => {
     test("collects links from nested content like lists", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "UnorderedList",
@@ -266,9 +252,7 @@ describe("nested content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -279,7 +263,7 @@ describe("nested content", () => {
     test("collects links from blockquotes", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Quote",
@@ -300,9 +284,7 @@ describe("nested content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -313,7 +295,7 @@ describe("nested content", () => {
 
 describe("edge cases", () => {
     test("returns empty map for content with no links", async () => {
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -322,9 +304,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -332,13 +312,11 @@ describe("edge cases", () => {
     });
 
     test("returns empty map for empty content", async () => {
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -348,7 +326,7 @@ describe("edge cases", () => {
     test("handles links with styled text", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponse = {
+        const content: ApiContentResponseWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -364,9 +342,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 

@@ -82,7 +82,7 @@ import {
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {PostShimmer} from "~/client/web/shimmer/post_shimmer.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {feedCreateSectionMinHeight} from "~/client/web/styles/feed_shared_styles.js";
 import {
     feedEntryHeight,
@@ -124,7 +124,7 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
@@ -215,8 +215,8 @@ function PostListView(
         onUpdatePostCommentsOptimistically,
         onLoadMorePosts,
         shouldBeConnectedToChannelRealtime,
-        onPostRealtimeEventTransaction,
-        onOptimisticPostRealtimeEventTransaction,
+        onPostRealtimeEvents,
+        onOptimisticPostRealtimeEvents,
         aside,
         sideBarLeftSize,
         sideBarRightSize,
@@ -313,9 +313,7 @@ function PostListView(
          *   `shouldBeConnectedToChannelRealtime` is true then we should be getting
          *   realtime updates from `ChannelRealtimeService`.
          */
-        onPostRealtimeEventTransaction: Memo<
-            (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>) => void
-        >;
+        onPostRealtimeEvents: Memo<(events: ReadonlyArray<RynamoEvent<PostModel>>) => void>;
 
         /**
          * Make an arbitrary update to a post optimistically. Must provide a promise that
@@ -323,11 +321,11 @@ function PostListView(
          * transaction update is applied. If the promise rejects then we revert the
          * optimistic update.
          *
-         * Similar to `onPostRealtimeEventTransaction` but allows for an optimistic update.
+         * Similar to `onPostRealtimeEvents` but allows for an optimistic update.
          */
-        onOptimisticPostRealtimeEventTransaction: Memo<
+        onOptimisticPostRealtimeEvents: Memo<
             (
-                promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
+                promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
                 postId: PostId,
                 update: (post: PostModel) => PostModel,
             ) => void
@@ -767,7 +765,7 @@ function PostListView(
                 steps,
             });
 
-            onPostRealtimeEventTransaction(event.eventTransaction);
+            onPostRealtimeEvents(event.events);
         },
     });
 
@@ -868,6 +866,7 @@ function PostListView(
             startEditingPost: post => {
                 postEditingDispatch({
                     type: "StartEditing",
+                    spaceId: space.id,
                     postId: post.id,
                     contentVersion: post.contentUpdate?.mappings.length ?? 0,
                     content: post.content,
@@ -875,7 +874,7 @@ function PostListView(
                 });
             },
         }),
-        [jumpToMessageRange, platform, postEditingDispatch],
+        [jumpToMessageRange, platform, postEditingDispatch, space.id],
     );
 
     // Make sure the bottom of the scroll view stays visible when the keyboard opens
@@ -1150,7 +1149,7 @@ function PostListView(
                     return {
                         key: "Header",
                         minHeight: addRemLengths(
-                            hasNavigationBar ? spacing[navigationBarHeight] : "0rem",
+                            navigationBar?.effectiveNavigationBarHeight ?? "0rem",
                             item.header.type === "FeedCreateSection"
                                 ? feedCreateSectionMinHeight[platform]
                                 : "0rem",
@@ -1174,7 +1173,11 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {hasNavigationBar && <Spacer space={navigationBarHeight} />}
+                                    {hasNavigationBar && (
+                                        <Spacer
+                                            space={navigationBar.effectiveNavigationBarHeight}
+                                        />
+                                    )}
                                     {item.header.type === "Channel" ? (
                                         <ChannelViewHeader
                                             header={item.header}
@@ -1342,9 +1345,7 @@ function PostListView(
                                                 routeLayout === "narrow" &&
                                                 !isPostView
                                             ) {
-                                                navigate(
-                                                    `/s/${item.post.spaceId}/posts/${item.post.id}`,
-                                                );
+                                                navigate(`/post/${item.post.id}`);
                                                 return;
                                             }
 
@@ -1367,8 +1368,8 @@ function PostListView(
                                                 },
                                             );
                                         }}
-                                        onOptimisticPostRealtimeEventTransaction={
-                                            onOptimisticPostRealtimeEventTransaction
+                                        onOptimisticPostRealtimeEvents={
+                                            onOptimisticPostRealtimeEvents
                                         }
                                         isPostArchived={isPostArchived}
                                         onArchivePost={onArchivePost}
@@ -1667,7 +1668,7 @@ function PostListView(
                                 });
                             }}
                             shouldBeConnectedToChannelRealtime={shouldBeConnectedToChannelRealtime}
-                            onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
+                            onPostRealtimeEvents={onPostRealtimeEvents}
                         />
                     );
 
@@ -1776,6 +1777,7 @@ function PostListView(
                                     {!shouldRenderWithRelativePositioning && !isPostView && (
                                         <div
                                             style={{
+                                                pointerEvents: "none",
                                                 position: "absolute",
                                                 top: postContentPositionOffset,
                                                 height: offset + height - postContentPositionOffset,
@@ -2012,6 +2014,7 @@ function PostListView(
         [
             posts,
             hasNavigationBar,
+            navigationBar?.effectiveNavigationBarHeight,
             routeLayout,
             sideBarLeftSpacer,
             asideSpacer,
@@ -2027,7 +2030,7 @@ function PostListView(
             jumpToPostRangeState,
             idBase,
             isShowingAllContentByPostId,
-            onOptimisticPostRealtimeEventTransaction,
+            onOptimisticPostRealtimeEvents,
             isPostArchived,
             onArchivePost,
             onUnarchivePost,
@@ -2046,7 +2049,7 @@ function PostListView(
             inputParentByPostId,
             inputRefByPostId,
             shouldBeConnectedToChannelRealtime,
-            onPostRealtimeEventTransaction,
+            onPostRealtimeEvents,
             platform,
             onUpdatePostComments,
             navigate,
@@ -2082,7 +2085,7 @@ function PostListView(
                         assert(parent.type === "PostRange");
 
                         await navigate(
-                            `/s/${space.id}/posts/${postId}?parent=${parent.startPos}-${parent.endPos}@${parent.contentVersion}`,
+                            `/post/${postId}?parent=${parent.startPos}-${parent.endPos}@${parent.contentVersion}`,
                         );
                         return;
                     }
@@ -2398,7 +2401,7 @@ function PostListView(
                                     shouldBeConnectedToChannelRealtime={
                                         shouldBeConnectedToChannelRealtime
                                     }
-                                    onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
+                                    onPostRealtimeEvents={onPostRealtimeEvents}
                                 />
                             );
                         })()}

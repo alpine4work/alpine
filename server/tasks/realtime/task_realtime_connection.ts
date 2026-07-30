@@ -1,6 +1,10 @@
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {authorizeSiteAccessIfPossible} from "~/server/sites/data/authorize_site_access.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
+import {authorizeTaskCollectionIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_collection_index_doc_access_if_possible.js";
+import {authorizeTaskIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_index_doc_access_if_possible.js";
+import {getTaskGridViewExpansionState} from "~/server/tasks/data/get_task_grid_view_expansion_state.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
@@ -10,11 +14,6 @@ import {
     TaskRealtimeSessionActionContextModules,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
-import {
-    authorizeTaskCollectionIndexDocAccessIfPossible,
-    authorizeTaskIndexDocAccessIfPossible,
-    getTaskGridViewExpansionState,
-} from "~/server/tasks/data/task_table.js";
 import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
 import {
     TaskRealtimeCollectionSubscription,
@@ -58,6 +57,7 @@ import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     BrowserId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
@@ -2098,12 +2098,15 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
 
             const [, result] = await runAllPromises([
                 collectionPromise,
-                impersonateAccountAsSystemContext(context, this.accountId, async accountContext =>
-                    authorizeTaskCollectionIndexDocAccessIfPossible(
-                        accountContext,
-                        await collectionPromise,
-                        "View",
-                    ),
+                impersonateAccountAsSystemContext(
+                    context,
+                    this.accountId,
+                    async accountContext =>
+                        await authorizeTaskCollectionIndexDocAccessIfPossible(
+                            accountContext,
+                            await collectionPromise,
+                            "View",
+                        ),
                 ),
             ]);
 
@@ -2112,5 +2115,19 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
 
         const authorizationState = await referencedCollectionState.authorizationStatePromise;
         return authorizationState.type === "Authorized";
+    }
+
+    public async isSiteAccessAuthorized(
+        context: TaskRealtimeSystemActionContext,
+        siteId: SiteId,
+    ): Promise<boolean> {
+        const result = await impersonateAccountAsSystemContext(
+            context,
+            this.accountId,
+            async accountContext =>
+                await authorizeSiteAccessIfPossible(accountContext, siteId, "View"),
+        );
+
+        return result?.ok ?? false;
     }
 }

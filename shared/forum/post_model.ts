@@ -88,7 +88,7 @@ export class PostCommentModel
         contentVersion: number,
         pos: number | "Files",
     ): string {
-        const baseUrl = `/s/${spaceId}/posts/${this.postId}/comments/${this.index}/reactions`;
+        const baseUrl = `/post/${this.postId}/comment/${this.index}/reactions`;
         const at = pos === "Files" ? "files" : `${pos}@${contentVersion}`;
         return `${baseUrl}?at=${at}`;
     }

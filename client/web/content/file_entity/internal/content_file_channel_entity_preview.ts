@@ -9,6 +9,7 @@ import {
     addContentFileEntitySubscribeButtonBehavior,
     renderContentFileEntitySubscribeButton,
 } from "~/client/web/content/file_entity/internal/content_file_entity_subscribe_button.js";
+import {renderContentFileEntitySiteBreadcrumb} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/render_content_to_html.js";
 import {AppContext} from "~/client/web/context/app_context.js";
@@ -80,7 +81,7 @@ export function renderContentFileChannelEntityPreview(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         suppressHydrationWarning: () => void;
     },
 ) {
@@ -99,15 +100,36 @@ export function renderContentFileChannelEntityPreview(
             }),
         });
 
+    // Header group: breadcrumb + name container. Wrapped in a no-gap column so the
+    // parent's `channelViewHeaderSectionGap` flex gap doesn't contribute to the
+    // breadcrumb-to-title spacing — that gap is owned by the breadcrumb's own
+    // `paddingBottom` (see `navigationBarBreadcrumbToTitleSpacing`).
+    const headerGroupHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
+    headerGroupHtml.setAttribute("class", sprinkles({display: "flex", flexDirection: "column"}));
+
+    if (fileEntity.site) {
+        renderContentFileEntitySiteBreadcrumb({
+            get,
+            siteRegistry,
+            parent: headerGroupHtml,
+            site: fileEntity.site,
+            platform,
+        });
+    }
+
     {
-        const nameContainerHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
+        const nameContainerHtml = headerGroupHtml.appendChild(new HtmlElementGenerator("div"));
 
         nameContainerHtml.setAttribute(
             "class",
             sprinkles({
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "center",
+                // Align the subscribe button to the bottom of the row so the bell + label sit on
+                // the same line as the channel name. `center` would put the button at the
+                // container's vertical center, which is slightly above the title baseline because
+                // the 500 font name is 2px taller than the constrained container.
+                alignItems: fileEntity.site ? "flex-end" : "center",
                 gap: "3",
                 // Make sure we don't grow beyond the subscribe button height. The 500 font size
                 // name is 2px larger than the subscribe button height.

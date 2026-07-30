@@ -29,20 +29,26 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 export async function expensivelyGetAllSpaceAccounts(
     context: ServerActionContext,
     spaceId: SpaceId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {
+        consistency = "Eventual",
+        allowInvitePending = false,
+    }: {
+        consistency?: DynamoReadConsistency;
+        allowInvitePending?: boolean;
+    } = {},
 ): Promise<ReadonlyArray<AccountModel>> {
     // Skip the cache, load all space accounts with strong consistency.
     if (consistency === "Strong") {
         // `spaceAccountsCache.getData` already check the `authorizeSpaceAccess`
         // internally, so only check for strong consistency block.
-        await authorizeSpaceAccess(context, spaceId);
+        await authorizeSpaceAccess(context, spaceId, undefined, {allowInvitePending});
 
-        return getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(context, spaceId, {
+        return await getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(context, spaceId, {
             isBlocking: true,
             consistency: "Strong",
         });
     }
 
-    const {accounts} = await spaceAccountsCache.getData(context, spaceId);
+    const {accounts} = await spaceAccountsCache.getData(context, spaceId, {allowInvitePending});
     return accounts;
 }

@@ -200,100 +200,102 @@ const shimmerOptionsByRouteId: Record<
       }
     | false
 > = {
-    "routes/s.$spaceId._index": {component: FeedRouteShimmer},
-    "routes/s.$spaceId.channels.$channelId._index": {component: ChannelRouteShimmer},
-    "routes/s.$spaceId.channels.$channelId.files": {component: ChannelFilesRouteShimmer},
-    "routes/s.$spaceId.channels.new": {component: ChannelCreatorRouteShimmer},
-    "routes/s.$spaceId.chat.$chatId._index": {
+    "routes/_space.home.$spaceId._index": {component: FeedRouteShimmer},
+    "routes/_space.channel.$channelId._index": {component: ChannelRouteShimmer},
+    "routes/_space.channel.$channelId.files": {component: ChannelFilesRouteShimmer},
+    "routes/_space.channel.new.$spaceId": {component: ChannelCreatorRouteShimmer},
+    "routes/_space.chat.$chatId._index": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: ChatRouteShimmer,
     },
-    "routes/s.$spaceId.chat.$chatId.messages.$index.reactions": {component: ReactionsRouteShimmer},
-    "routes/s.$spaceId.chat.new": {component: NewChatRouteShimmer},
-    "routes/s.$spaceId.chat.room.new": {component: RoomChatCreatorRouteShimmer},
-    "routes/s.$spaceId.chat.with.$accountId": {component: ChatRouteShimmer},
-    "routes/s.$spaceId.create._index": {component: CreateRouteShimmer},
-    "routes/s.$spaceId.create.more": {component: CreateRouteShimmer},
+    "routes/_space.chat.$chatId.message.$index.reactions": {component: ReactionsRouteShimmer},
+    "routes/_space.chat.new.$spaceId": {component: NewChatRouteShimmer},
+    "routes/_space.chat.room.new.$spaceId": {component: RoomChatCreatorRouteShimmer},
+    "routes/_space.chat.with.$accountId.$spaceId": {component: ChatRouteShimmer},
+    "routes/_space.create.$spaceId._index": {component: CreateRouteShimmer},
+    "routes/_space.create.$spaceId.more": {component: CreateRouteShimmer},
     // Empty route...empty shimmer.
-    "routes/s.$spaceId.dev.empty": {component: () => null},
-    "routes/s.$spaceId.dev.feed": {component: FeedRouteShimmer},
-    "routes/s.$spaceId.documents.$documentId._index": {component: DocumentRouteShimmer},
-    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId._index": {
+    "routes/_space.dev.empty.$spaceId": {component: () => null},
+    "routes/_space.dev.feed.$spaceId": {component: FeedRouteShimmer},
+    "routes/_space.doc.$documentId._index": {component: DocumentRouteShimmer},
+    "routes/_space.doc.$documentId.thread.$commentThreadId._index": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: DocumentCommentThreadRouteShimmer,
     },
-    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId.$index.reactions": {
+    "routes/_space.doc.$documentId.thread.$commentThreadId.comment.$index.reactions": {
         component: ReactionsRouteShimmer,
     },
-    "routes/s.$spaceId.documents.$documentId.duplicate": {
+    "routes/_space.doc.$documentId.duplicate": {
         component: ContentDuplicationRouteShimmer,
     },
-    "routes/s.$spaceId.favorites": {component: SearchFavoritesRouteShimmer},
-    "routes/s.$spaceId.inbox": {component: InboxRouteShimmer},
-    "routes/s.$spaceId.more._index": {component: MoreRouteShimmer},
-    "routes/s.$spaceId.more.settings": {
+    "routes/_space.favorites.$spaceId": {component: SearchFavoritesRouteShimmer},
+    "routes/_space.inbox.$spaceId": {component: InboxRouteShimmer},
+    "routes/_space.more.$spaceId": {component: MoreRouteShimmer},
+    "routes/_space.more.settings.$spaceId": {
         component: () => <MobileSettingsRowsShimmer titleWidth="28" sectionCounts={[2, 4]} />,
     },
-    "routes/s.$spaceId.more.switch-space": {component: MoreSwitchSpaceRouteShimmer},
-    "routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration": {
+    "routes/_space.more.switch-space.$spaceId": {component: MoreSwitchSpaceRouteShimmer},
+    "routes/_space.notifications.channel-posts.$channelIdAndBucketGeneration": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: ChannelPostsNotificationRouteShimmer,
     },
-    "routes/s.$spaceId.notifications.document-comment-threads.$documentIdAndBucketGeneration": {
+    "routes/_space.notifications.document-threads.$documentIdAndBucketGeneration": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: DocumentCommentThreadRouteShimmer,
     },
-    "routes/s.$spaceId.notifications.unsubscribe": false,
-    "routes/s.$spaceId.posts.$postId._index": {
+    "routes/_space.notifications.unsubscribe.$spaceId": false,
+    "routes/_space.post.$postId._index": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: PostRouteShimmer,
     },
-    "routes/s.$spaceId.posts.$postId.reactions": {
+    "routes/_space.post.$postId.reactions": {
         component: ReactionsRouteShimmer,
     },
-    "routes/s.$spaceId.posts.$postId.comments.$index.reactions": {component: ReactionsRouteShimmer},
-    "routes/s.$spaceId.posts.new.$draftId": {component: NewPostRouteShimmer},
-    "routes/s.$spaceId.search": {component: SearchRouteShimmer},
-    "routes/s.$spaceId.settings.bots._index": {component: SpaceBotListSettingsRouteShimmer},
-    "routes/s.$spaceId.settings.bots.$botId": {component: SpaceBotSettingsRouteShimmer},
-    "routes/s.$spaceId.settings.general": {component: SpaceGeneralSettingsRouteShimmer},
-    "routes/s.$spaceId.settings.integrations._index": {
+    "routes/_space.post.$postId.comment.$index.reactions": {component: ReactionsRouteShimmer},
+    "routes/_space.post.new.$draftId.$spaceId": {component: NewPostRouteShimmer},
+    "routes/_space.search.$spaceId": {component: SearchRouteShimmer},
+    "routes/_space.settings.$spaceId.bots._index": {component: SpaceBotListSettingsRouteShimmer},
+    "routes/_space.settings.$spaceId.bots.$botId": {component: SpaceBotSettingsRouteShimmer},
+    "routes/_space.settings.$spaceId.general": {component: SpaceGeneralSettingsRouteShimmer},
+    "routes/_space.settings.$spaceId.integrations._index": {
         component: SpaceIntegrationsSettingsRouteShimmer,
     },
-    "routes/s.$spaceId.settings.integrations.notion": {
+    "routes/_space.settings.$spaceId.integrations.notion": {
         component: SpaceNotionImportSettingsRouteShimmer,
     },
-    "routes/s.$spaceId.settings.integrations.slack": {
+    "routes/_space.settings.$spaceId.integrations.slack": {
         component: SpaceSlackIntegrationSettingsRouteShimmer,
     },
 
-    "routes/s.$spaceId.settings.people": {component: SpacePeopleSettingsRouteShimmer},
-    "routes/s.$spaceId.settings.profile": {component: SpaceProfileSettingsRouteShimmer},
-    "routes/s.$spaceId.settings.notifications": {component: SpaceNotificationsSettingsRouteShimmer},
+    "routes/_space.settings.$spaceId.people": {component: SpacePeopleSettingsRouteShimmer},
+    "routes/_space.settings.$spaceId.profile": {component: SpaceProfileSettingsRouteShimmer},
+    "routes/_space.settings.$spaceId.notifications": {
+        component: SpaceNotificationsSettingsRouteShimmer,
+    },
 
-    "routes/s.$spaceId.tasks._index": {component: TaskPersonalRouteShimmer},
+    "routes/_space.my-tasks.$spaceId": {component: TaskPersonalRouteShimmer},
     // TODO: `inboxBannerMaxWidth` for this route.
-    "routes/s.$spaceId.tasks.$taskId._index": {component: TaskDetailRouteShimmer},
-    "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions": {component: ReactionsRouteShimmer},
-    "routes/s.$spaceId.tasks.$taskId.duplicate": {component: ContentDuplicationRouteShimmer},
-    "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskCollectionRouteShimmer},
-    "routes/s.$spaceId.tasks.view": {component: TaskQueryRouteShimmer},
+    "routes/_space.task.$taskId._index": {component: TaskDetailRouteShimmer},
+    "routes/_space.task.$taskId.comment.$index.reactions": {component: ReactionsRouteShimmer},
+    "routes/_space.task.$taskId.duplicate": {component: ContentDuplicationRouteShimmer},
+    "routes/_space.task-collection.$collectionId": {component: TaskCollectionRouteShimmer},
+    "routes/_space.task-view.new.$spaceId": {component: TaskQueryRouteShimmer},
 
     // These routes currently only perform a redirect. They don't render any UI and so
     // don't need a shimmer.
-    "routes/s.$spaceId.accounts.$accountId": false,
-    "routes/s.$spaceId.settings._index": false,
+    "routes/_space.settings.$spaceId._index": false,
 
     // This route is only used to handle the OAuth callback from Slack. It doesn't
     // render any UI and so doesn't need a shimmer.
-    "routes/s.$spaceId.integrations.slack.oauth": false,
+    "routes/_space.integrations.slack.oauth.$spaceId": false,
 
     // NOTE(rohit): We don't have a design for layout routes.
-    "routes/s.$spaceId.settings": false,
+    "routes/_space.settings.$spaceId": false,
 
-    "routes/s.$spaceId.invite._index": false,
-    "routes/s.$spaceId.invite.reject-and-mark-as-spam": false,
-    "routes/s.$spaceId.invite.accept": {component: FeedRouteShimmer},
+    // TODO(#sites): Sites routes don't have a custom shimmer design yet, so show the
+    // generic fullscreen loading spinner.
+    "routes/_space.site.$siteId._index": false,
+    "routes/_space.site.$siteId.navigate": false,
 };
 
 const RouteShimmerMemo = memo(RouteShimmer);
@@ -339,7 +341,15 @@ function RouteShimmer({
 
     if (!withInboxBanner) {
         return (
-            <Box ref={containerRef} width="full" height="full" overflow="hidden">
+            <Box
+                ref={containerRef}
+                width="full"
+                height="full"
+                overflow="hidden"
+                // Lets screenshot tests wait for the route shimmer to take over the outlet (e.g.
+                // to capture the site chrome staying mounted around it during a pending nav).
+                data-testid={process.env.NODE_ENV !== "production" ? "RouteShimmer" : undefined}
+            >
                 <shimmerOptions.component
                     searchParams={searchParams}
                     withInboxBanner={withInboxBanner}
@@ -359,6 +369,9 @@ function RouteShimmer({
                     // like it.
                     "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${spacing[inboxBannerHeight]})`,
                 }}
+                // Lets screenshot tests wait for the route shimmer to take over the outlet (e.g.
+                // to capture the site chrome staying mounted around it during a pending nav).
+                data-testid={process.env.NODE_ENV !== "production" ? "RouteShimmer" : undefined}
             >
                 <Box
                     position="absolute"
@@ -1774,7 +1787,7 @@ function InboxRouteShimmer() {
                     </Box>
                     <Box flexGrow="1" overflow="hidden">
                         <RouteShimmer
-                            routeId="routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration"
+                            routeId="routes/_space.notifications.channel-posts.$channelIdAndBucketGeneration"
                             searchParams={emptySearchParams}
                             withInboxBanner={true}
                         />

@@ -2,7 +2,7 @@ import {TestMessage} from "~/server/messaging/test_helpers/test_messaging_room_b
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {InboxTaskEntryModel} from "~/shared/notifications/inbox_model.js";
 
@@ -41,6 +41,7 @@ export function expectInboxTaskEntryModel({
         loudNotificationCount,
         latestComment: {
             createdTime: latestComment.comment.createdTime,
+            index: latestComment.comment.index,
             author: expect.objectContaining({id: latestComment.comment.author.id}),
             contentTextSnippet: latestComment.contentTextSnippet,
             isStickyMention: latestComment.isStickyMention ?? false,

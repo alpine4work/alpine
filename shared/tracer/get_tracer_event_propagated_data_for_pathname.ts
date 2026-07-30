@@ -5,7 +5,6 @@ import {
     ChatId,
     DocumentId,
     PostId,
-    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -18,85 +17,72 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 export function getTracerEventPropagatedDataForPathname(pathname: string): TracerEventData | null {
     assert(pathname.startsWith("/"));
 
-    const pathnameParts = pathname.slice(1).split("/");
+    let pathnameParts = pathname.slice(1).split("/");
 
-    if (pathnameParts[0] !== "s") return null;
+    // Remove `peek` from the path so paths like `/peek/task/:taskId` will correctly
+    // parse out the `TaskId`.
+    if (pathnameParts[0] === "peek") pathnameParts = pathnameParts.slice(1);
 
-    if (pathnameParts.length === 1) return null;
-    const spaceId = pathnameParts[1]!;
-    if (!isId<SpaceId>(spaceId)) return null;
-
-    // Remove `peek` from the path so paths like `/s/:spaceId/peek/tasks/:taskId` will
-    // correctly parse out the `TaskId`.
-    if (pathnameParts[2] === "peek") pathnameParts.splice(2, 1);
-
-    if (pathnameParts.length >= 4) {
-        switch (pathnameParts[2]) {
-            case "channels": {
-                const channelId = pathnameParts[3]!;
+    if (pathnameParts.length >= 2) {
+        switch (pathnameParts[0]) {
+            case "channel": {
+                const channelId = pathnameParts[1]!;
                 if (isId<ChannelId>(channelId)) {
-                    return {context: {spaceId, channelId}};
+                    return {context: {channelId}};
                 }
                 break;
             }
             case "chat": {
-                const chatId = pathnameParts[3]!;
+                const chatId = pathnameParts[1]!;
                 if (isId<ChatId>(chatId)) {
-                    return {context: {spaceId, chatId}};
+                    return {context: {chatId}};
                 }
                 break;
             }
-            case "documents": {
-                const documentId = pathnameParts[3]!;
+            case "doc": {
+                const documentId = pathnameParts[1]!;
                 if (isId<DocumentId>(documentId)) {
-                    return {context: {spaceId, documentId}};
+                    return {context: {documentId}};
                 }
                 break;
             }
-            case "posts": {
-                const postId = pathnameParts[3]!;
+            case "post": {
+                const postId = pathnameParts[1]!;
                 if (isId<PostId>(postId)) {
-                    return {context: {spaceId, postId}};
+                    return {context: {postId}};
                 }
                 break;
             }
-            case "tasks": {
-                switch (pathnameParts[3]) {
-                    case "collections": {
-                        if (pathnameParts.length >= 5) {
-                            const taskCollectionId = pathnameParts[4]!;
-                            if (isId<TaskCollectionId>(taskCollectionId)) {
-                                return {context: {spaceId, taskCollectionId}};
-                            }
-                        }
-                        break;
-                    }
-                    default: {
-                        const taskId = pathnameParts[3]!;
-                        if (isId<TaskId>(taskId)) {
-                            return {context: {spaceId, taskId}};
-                        }
-                        break;
-                    }
+            case "task": {
+                const taskId = pathnameParts[1]!;
+                if (isId<TaskId>(taskId)) {
+                    return {context: {taskId}};
+                }
+                break;
+            }
+            case "task-collection": {
+                const collectionId = pathnameParts[1]!;
+                if (isId<TaskCollectionId>(collectionId)) {
+                    return {context: {taskCollectionId: collectionId}};
                 }
                 break;
             }
             case "notifications": {
-                if (pathnameParts.length >= 5) {
-                    switch (pathnameParts[3]) {
+                if (pathnameParts.length >= 3) {
+                    switch (pathnameParts[1]) {
                         case "channel-posts": {
-                            const channelIdAndBucketGeneration = pathnameParts[4]!;
+                            const channelIdAndBucketGeneration = pathnameParts[2]!;
                             const [channelId] = channelIdAndBucketGeneration.split("-");
                             if (channelId && isId<ChannelId>(channelId)) {
-                                return {context: {spaceId, channelId}};
+                                return {context: {channelId}};
                             }
                             break;
                         }
-                        case "document-comment-threads": {
-                            const documentIdAndBucketGeneration = pathnameParts[4]!;
+                        case "document-threads": {
+                            const documentIdAndBucketGeneration = pathnameParts[2]!;
                             const [documentId] = documentIdAndBucketGeneration.split("-");
                             if (documentId && isId<DocumentId>(documentId)) {
-                                return {context: {spaceId, documentId}};
+                                return {context: {documentId}};
                             }
                             break;
                         }
@@ -107,5 +93,5 @@ export function getTracerEventPropagatedDataForPathname(pathname: string): Trace
         }
     }
 
-    return {context: {spaceId}};
+    return null;
 }

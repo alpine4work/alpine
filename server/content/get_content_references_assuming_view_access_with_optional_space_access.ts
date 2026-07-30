@@ -35,7 +35,7 @@ export async function getContentReferencedIdsAssumingViewAccessWithOptionalSpace
     // However, if the actor doesn't have space access (but has view access) then when
     // we fetch accounts we want to return stubs that only reveal the account's name.
     if ((await authorizeSpaceAccessIfPossible(context, spaceId)).ok) {
-        return getContentReferences(context, spaceId, fileAuthorizer, referencedIds, options);
+        return await getContentReferences(context, spaceId, fileAuthorizer, referencedIds, options);
     } else {
         const [contentReferences, accounts] = await runAllPromises([
             getContentReferences(
@@ -86,7 +86,7 @@ export async function getContentReferencesAssumingViewAccessWithOptionalSpaceAcc
 ): Promise<ContentReferences> {
     const referencedIds = getContentReferencedIdsForNode(content);
 
-    return getContentReferencedIdsAssumingViewAccessWithOptionalSpaceAccess(
+    return await getContentReferencedIdsAssumingViewAccessWithOptionalSpaceAccess(
         context,
         spaceId,
         fileAuthorizer,

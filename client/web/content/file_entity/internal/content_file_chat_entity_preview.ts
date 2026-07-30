@@ -9,6 +9,7 @@ import {
     addContentFileEntitySubscribeButtonBehavior,
     renderContentFileEntitySubscribeButton,
 } from "~/client/web/content/file_entity/internal/content_file_entity_subscribe_button.js";
+import {renderContentFileEntitySiteBreadcrumb} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {Reporter} from "~/client/web/design/reporter.js";
@@ -83,7 +84,7 @@ export function renderContentFileChatEntityPreview(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         suppressHydrationWarning: () => void;
     },
 ) {
@@ -122,6 +123,28 @@ export function renderContentFileChatEntityPreview(
         ].join("; "),
     );
 
+    if (fileEntity.site) {
+        // Wrap the breadcrumb in a div with `padding-top: scaledContainerPaddingPx` so its
+        // top sits at the same distance from the box edge as the breadcrumb in other
+        // entity previews (which inherit that distance from the container's natural
+        // `padding-top`). The chat container uses `withoutContainerPaddingY`, so we
+        // replicate the top breathing room here.
+        const breadcrumbWrapperHtml = scaledContainerHtml.appendChild(
+            new HtmlElementGenerator("div"),
+        );
+        breadcrumbWrapperHtml.setAttribute(
+            "style",
+            `padding-top: ${(containerPaddingPx / transformScale).toFixed(2)}px`,
+        );
+        renderContentFileEntitySiteBreadcrumb({
+            get,
+            siteRegistry,
+            parent: breadcrumbWrapperHtml,
+            site: fileEntity.site,
+            platform,
+        });
+    }
+
     renderFileChatEntityPreviewTopBar(get, scaledContainerHtml, {
         fileEntity,
         currentAccount,
@@ -130,6 +153,11 @@ export function renderContentFileChatEntityPreview(
         isSmallerThanHalfOfBlockMaxWidth,
         transformScale,
         containerPaddingPx,
+        // Suppress the top bar's own `padding-top` when the site breadcrumb is rendered
+        // above it — the breadcrumb's `padding-bottom`
+        // (`navigationBarBreadcrumbToTitleSpacing`) is now the only spacing between the
+        // breadcrumb and the chat name.
+        suppressTopPadding: fileEntity.site !== null,
     });
 
     const messagesContainerHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
@@ -244,6 +272,7 @@ function renderFileChatEntityPreviewTopBar(
         isSmallerThanHalfOfBlockMaxWidth,
         transformScale,
         containerPaddingPx,
+        suppressTopPadding = false,
     }: {
         fileEntity: FileChatEntityModel;
         currentAccount: AccountModel | null;
@@ -252,6 +281,7 @@ function renderFileChatEntityPreviewTopBar(
         isSmallerThanHalfOfBlockMaxWidth: boolean;
         transformScale: number;
         containerPaddingPx: number;
+        suppressTopPadding?: boolean;
     },
 ) {
     const topBarHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
@@ -269,12 +299,13 @@ function renderFileChatEntityPreviewTopBar(
     );
 
     const scaledContainerPaddingPx = containerPaddingPx / transformScale;
+    const topBarPaddingTopPx = suppressTopPadding ? 0 : scaledContainerPaddingPx;
 
     topBarHtml.setAttribute(
         "style",
         [
-            `padding: ${scaledContainerPaddingPx.toFixed(2)}px 0`,
-            `height: ${(convertRemLengthToPx(contentStyles.fileEntityPreviewSubscribeButtonHeight, spacingScale) + scaledContainerPaddingPx * 2).toFixed(2)}px`,
+            `padding: ${topBarPaddingTopPx.toFixed(2)}px 0 ${scaledContainerPaddingPx.toFixed(2)}px 0`,
+            `height: ${(convertRemLengthToPx(contentStyles.fileEntityPreviewSubscribeButtonHeight, spacingScale) + topBarPaddingTopPx + scaledContainerPaddingPx).toFixed(2)}px`,
         ].join("; "),
     );
 
@@ -394,7 +425,7 @@ export function addContentFileChatEntityPreviewBehavior(
         spaceId,
     }: {
         fileEntity: FileEntityModel;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         spaceId: SpaceId;
         getReporter: () => Reporter;
         isInert: boolean;

@@ -12,12 +12,6 @@ import {
     getDocumentPreviewIfPossible,
 } from "~/server/documents/data/documents_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {
-    DynamoGeneralRealtimeTableItemKeyType,
-    DynamoGeneralRealtimeTableItemType,
-    DynamoGeneralRealtimeTableSchema,
-    DynamoGeneralRealtimeTableSchemaGetTypes,
-} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {dangerouslyGetPostAuthorWithoutAuthorization} from "~/server/forum/data/dangerously_get_post_author_without_authorization.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getPostAuthorAndChannelPreviewIfPossible} from "~/server/forum/data/get_post_author_and_channel_preview.js";
@@ -29,9 +23,17 @@ import {
     getNotificationPostContentSnippet,
 } from "~/server/notifications/core/get_notification_content_snippet.js";
 import {ScheduleDateTimeSchema} from "~/server/notifications/core/schedule_date_time.js";
+import {authorizeInboxAccessForAccount} from "~/server/notifications/data/authorize_inbox_access_for_account.js";
+import {
+    RynamoTableItemKeyType,
+    RynamoTableItemType,
+    RynamoTableSchema,
+    RynamoTableSchemaGetTypes,
+} from "~/server/rynamo/rynamo_table_schema.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
-import {getTaskCommentPayload, getTaskOwnerIfPossible} from "~/server/tasks/data/task_table.js";
+import {getTaskOwnerIfPossible} from "~/server/tasks/data/get_task_owner_if_possible.js";
+import {getTaskCommentPayload} from "~/server/tasks/data/task_messaging.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     MessageContent,
@@ -39,8 +41,8 @@ import {
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -82,11 +84,11 @@ import {
     InboxPostCommentsEntryModel,
     InboxTaskEntryModel,
 } from "~/shared/notifications/inbox_model.js";
-import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
+import {MyAccountBroadcastInboxRealtimeEventsSchema} from "~/shared/notifications/my_account_protocol.js";
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
-type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
+type InboxTableTypes = RynamoTableSchemaGetTypes<typeof InboxTable>;
 
 export type InboxAttributesItem = MergeObjectIntersection<
     InboxTableTypes["Item"] & {
@@ -103,49 +105,49 @@ export type InboxEntryItemKey = MergeObjectIntersection<
     InboxTableTypes["ItemKey"] & (typeof inboxEntryItemTypes)[number]
 >;
 
-export type InboxChannelPostsEntryItem = DynamoGeneralRealtimeTableItemType<
+export type InboxChannelPostsEntryItem = RynamoTableItemType<
     typeof InboxTable,
     "Inbox",
     "ChannelPostsEntry"
 >;
 
-export type InboxChannelPostsEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+export type InboxChannelPostsEntryItemKey = RynamoTableItemKeyType<
     typeof InboxTable,
     "Inbox",
     "ChannelPostsEntry"
 >;
 
-export type InboxPostCommentsEntryItem = DynamoGeneralRealtimeTableItemType<
+export type InboxPostCommentsEntryItem = RynamoTableItemType<
     typeof InboxTable,
     "Inbox",
     "PostCommentsEntry"
 >;
 
-export type InboxPostCommentsEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+export type InboxPostCommentsEntryItemKey = RynamoTableItemKeyType<
     typeof InboxTable,
     "Inbox",
     "PostCommentsEntry"
 >;
 
-export type InboxDocumentNewCommentThreadsEntryItem = DynamoGeneralRealtimeTableItemType<
+export type InboxDocumentNewCommentThreadsEntryItem = RynamoTableItemType<
     typeof InboxTable,
     "Inbox",
     "DocumentNewCommentThreadsEntry"
 >;
 
-export type InboxDocumentNewCommentThreadsEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+export type InboxDocumentNewCommentThreadsEntryItemKey = RynamoTableItemKeyType<
     typeof InboxTable,
     "Inbox",
     "DocumentNewCommentThreadsEntry"
 >;
 
-export type InboxDocumentCommentThreadEntryItem = DynamoGeneralRealtimeTableItemType<
+export type InboxDocumentCommentThreadEntryItem = RynamoTableItemType<
     typeof InboxTable,
     "Inbox",
     "DocumentCommentThreadEntry"
 >;
 
-export type InboxDocumentCommentThreadEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+export type InboxDocumentCommentThreadEntryItemKey = RynamoTableItemKeyType<
     typeof InboxTable,
     "Inbox",
     "DocumentCommentThreadEntry"
@@ -165,7 +167,7 @@ const inboxEntryItemTypes = [
     {partitionType: "Inbox", sortRangeType: "TaskEntry"},
 ] as const;
 
-export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
+export const InboxTable = RynamoTableSchema.new({
     name: "Inbox",
     features: {
         deleteItem: {
@@ -872,6 +874,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                     : "",
                                 isStickyMention: item.latestMessage.isStickyMention,
                                 clerical: item.latestMessage.clerical,
+                                index: item.latestMessage.index,
                             },
                             otherChatAccount,
                         });
@@ -1003,6 +1006,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 ? {
                                       author: latestComment.author,
                                       createdTime: latestComment.comment.createdTime,
+                                      index: latestComment.comment.index,
                                       contentTextSnippet: hasPostAccess
                                           ? // If the actor lost access to the post then don't show them the latest comment
                                             // snippet. They may have already seen this content in a push notification so it's
@@ -1083,6 +1087,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 ),
                             ),
                             latestPost: {
+                                id: latestPostId,
                                 author: latestPostAuthor,
                                 createdTime: latestPost.createdTime,
                                 contentTextSnippet:
@@ -1145,6 +1150,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             latestComment: {
                                 author: latestCommentAuthor,
                                 createdTime: item.latestComment.createdTime,
+                                index: item.latestComment.index,
                                 contentTextSnippet: documentResult.ok
                                     ? // If the actor lost access to the document then don't show them the latest comment
                                       // snippet. They may have already seen this content in a push notification so it's
@@ -1238,6 +1244,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 ),
                             ),
                             firstCommentThread: {
+                                id: firstCommentThreadId,
                                 author: firstCommentThreadAuthor,
                                 createdTime: firstCommentThread.createdTime,
                                 contentTextSnippet:
@@ -1309,6 +1316,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             latestComment: {
                                 author: latestCommentAuthor,
                                 createdTime: item.latestComment.createdTime,
+                                index: item.latestComment.index,
                                 contentTextSnippet: taskOwnerResult.ok
                                     ? // If the actor lost access to the task then don't show them the latest comment
                                       // snippet. They may have already seen this content in a push notification so it's
@@ -1330,20 +1338,20 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    broadcastEventTransaction: async (context, eventTransaction) => {
+    broadcastEvents: async (context, events) => {
         // Split up event transactions by unique `SpaceId` and `AccountId` combinations. By
         // splitting a transaction it may not be applied atomically. We split by
         // `AccountId` since events need to go to different durable objects.
         //
         // Having a transaction across two accounts or two spaces isn't theoretically
         // impossible but would be weird and doesn't currently happen in practice.
-        const eventTransactionBySpaceIdAndAccountId = new Map<
+        const eventsBySpaceIdAndAccountId = new Map<
             `${SpaceId}:${AccountId}`,
-            Array<DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>>
+            Array<RynamoEvent<SchemaType<typeof InboxItemModelSchema>>>
         >();
 
         await runAllPromises(
-            mapIterable(eventTransaction, async ({itemKey, getEvent}) => {
+            mapIterable(events, async ({itemKey, getEvent}) => {
                 // It's safe to use `context` to load the event (even if `context` is a system
                 // context). Since in the `models` object above we always call
                 // `protectInboxEntryModelBuilder()` to make sure we're building an inbox entry
@@ -1351,7 +1359,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                 const event = await getEvent(context);
 
                 getOrSetDefaultMapValue(
-                    eventTransactionBySpaceIdAndAccountId,
+                    eventsBySpaceIdAndAccountId,
                     `${itemKey.spaceId}:${itemKey.accountId}`,
                     () => [],
                 ).push(event);
@@ -1359,25 +1367,22 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
         );
 
         await runAllPromises(
-            Array.from(
-                eventTransactionBySpaceIdAndAccountId,
-                async ([spaceIdAndAccountId, eventTransaction]) => {
-                    const [spaceId, accountId] = spaceIdAndAccountId.split(":");
-                    assert(spaceId && isId<SpaceId>(spaceId));
-                    assert(accountId && isId<AccountId>(accountId));
+            Array.from(eventsBySpaceIdAndAccountId, async ([spaceIdAndAccountId, events]) => {
+                const [spaceId, accountId] = spaceIdAndAccountId.split(":");
+                assert(spaceId && isId<SpaceId>(spaceId));
+                assert(accountId && isId<AccountId>(accountId));
 
-                    await context.edge.broadcastToDurableObject(
-                        `/api/durable-objects/my-account/${accountId}/broadcast-inbox-realtime-event-transaction`,
-                        {
-                            serviceName: "MyAccountService",
-                            route: "/api/durable-objects/my-account/:accountId/broadcast-inbox-realtime-event-transaction",
-                            body: MyAccountBroadcastInboxRealtimeEventTransactionSchema.serialize({
-                                eventTransaction,
-                            }),
-                        },
-                    );
-                },
-            ),
+                await context.edge.broadcastToDurableObject(
+                    `/api/durable-objects/my-account/${accountId}/broadcast-inbox-realtime-event-transaction`,
+                    {
+                        serviceName: "MyAccountService",
+                        route: "/api/durable-objects/my-account/:accountId/broadcast-inbox-realtime-event-transaction",
+                        body: MyAccountBroadcastInboxRealtimeEventsSchema.serialize({
+                            events,
+                        }),
+                    },
+                );
+            }),
         );
     },
 });
@@ -1413,7 +1418,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
  * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/LSI.html
  */
-export const InboxEntriesIndex = InboxTable.addExpensiveFullIndex({
+export const InboxEntriesIndex = InboxTable.addExpensiveFullEventualConsistencyIndex({
     name: "InboxEntries",
     itemTypes: inboxEntryItemTypes,
     partitionKeyAttributes: {
@@ -1458,22 +1463,24 @@ export const InboxEntriesIndex = InboxTable.addExpensiveFullIndex({
  * notification at a given time. Note that
  * `digestNotificationsNextScheduledDateTime` is in UTC time.
  */
-export const NotificationDigestEntriesIndex = InboxTable.addIndexWithoutRealtime({
-    name: "NotificationDigestEntries",
-    itemTypes: [{partitionType: "Account", sortRangeType: "InboxAttributes"}],
-    partitionKeyAttributes: {
-        digestNotificationsNextScheduledDateTime:
-            DynamoKeyAttributeSchema.ScheduleDateTime.nullable(),
+export const NotificationDigestEntriesIndex = InboxTable.addEventualConsistencyIndexWithoutRealtime(
+    {
+        name: "NotificationDigestEntries",
+        itemTypes: [{partitionType: "Account", sortRangeType: "InboxAttributes"}],
+        partitionKeyAttributes: {
+            digestNotificationsNextScheduledDateTime:
+                DynamoKeyAttributeSchema.ScheduleDateTime.nullable(),
+        },
+        sortKeyAttributes: {
+            spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+            accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+            digestNotificationsOptedOutTime: DynamoKeyAttributeSchema.date.nullable(),
+        },
+        filter: item =>
+            item.digestNotificationsNextScheduledDateTime !== null &&
+            item.digestNotificationsOptedOutTime === null,
     },
-    sortKeyAttributes: {
-        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
-        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
-        digestNotificationsOptedOutTime: DynamoKeyAttributeSchema.date.nullable(),
-    },
-    filter: item =>
-        item.digestNotificationsNextScheduledDateTime !== null &&
-        item.digestNotificationsOptedOutTime === null,
-});
+);
 
 /**
  * When you're building an `InboxEntryModel` it should be with an actor
@@ -1485,7 +1492,7 @@ export const NotificationDigestEntriesIndex = InboxTable.addIndexWithoutRealtime
  * event job) then we impersonate the account associated with the inbox entry to
  * avoid loading data with a system permission level.
  */
-function protectInboxEntryModelBuilder<Value>(
+async function protectInboxEntryModelBuilder<Value>(
     context: ServerActionContext,
     {accountId}: {accountId: AccountId},
     action: (context: ServerActionContext) => Promise<Value>,
@@ -1495,7 +1502,7 @@ function protectInboxEntryModelBuilder<Value>(
             throw new PermissionDeniedError("Can\u2019t read inbox as an anonymous actor");
         }
         case "System": {
-            return impersonateAccountAsSystemContext(
+            return await impersonateAccountAsSystemContext(
                 context.actor.authorizeSystem(),
                 accountId,
                 action,
@@ -1506,10 +1513,15 @@ function protectInboxEntryModelBuilder<Value>(
             if (context.actor.getAccountId() !== accountId) {
                 throw new PermissionDeniedError("Can only read inbox for our own account");
             }
-            return action(context);
+            return await action(context);
         }
         case "Bot": {
-            throw new InternalError("Bot actors shouldn\u2019t have an inbox");
+            await authorizeInboxAccessForAccount(context, {
+                spaceId: context.actor.getSpaceId(),
+                accountId,
+                expectedAccessLevel: "View",
+            });
+            return await action(context);
         }
         default:
             throw exhaustive(context.actor);

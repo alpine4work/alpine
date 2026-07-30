@@ -45,8 +45,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 
 declare module "mdast" {
     export interface EmphasisData {
@@ -80,14 +78,7 @@ declare module "mdast" {
 
 export type ApiContentMarkdownPrinterOptions = {
     /**
-     * The `SpaceId` of the content we're printing. The `SpaceId` is added to generated
-     * mention links.
-     */
-    readonly spaceId: SpaceId;
-
-    /**
-     * If `true` then we convert comment marks to `<comment>` tags. Which isn't valid
-     * HTML but we feel will be easier for an agent to understand.
+     * If `true` then we convert comment marks to simple `<comment>` tags.
      *
      * ```html
      * <mark data-comment="1234567890">commented text</mark>
@@ -107,7 +98,7 @@ export {printApiContentToMarkdown as printApiContentToMarkdownTree};
 
 function actuallyPrintApiContentToMarkdown(
     content: ApiContent,
-    options: ApiContentMarkdownPrinterOptions,
+    options: ApiContentMarkdownPrinterOptions = {},
 ): string {
     const root = printApiContentToMarkdown(content, options);
     return printMarkdownTree(root);
@@ -144,25 +135,57 @@ export function printMarkdownTree(root: Root | RootContent): string {
 
 function printApiContentToMarkdown(
     content: ApiContent,
-    options: ApiContentMarkdownPrinterOptions,
+    options: ApiContentMarkdownPrinterOptions = {},
 ): Root {
+    const firstPrintableBlockElementIndex = getFirstPrintableBlockElementIndex(content.elements);
+
     return {
         type: "root",
         children:
             // If the first element in our content is a divider then we serialize it using the
-            // HTML syntax `<hr />` so the divider isn't confused with frontmatter.
-            content.elements.length > 0 && content.elements[0]!.type === "Divider"
+            // HTML syntax `<hr />` so the divider isn't confused with frontmatter. Ignore
+            // leading empty lists since they don't print any markdown and are stripped by
+            // normalization during round trips.
+            firstPrintableBlockElementIndex !== -1 &&
+            content.elements[firstPrintableBlockElementIndex]!.type === "Divider"
                 ? Array.from(
                       concatIterables(
                           [{type: "html", value: "<hr />"}],
                           printApiContentBlockElementsToMarkdown(
-                              content.elements.slice(1),
+                              content.elements.slice(firstPrintableBlockElementIndex + 1),
                               options,
                           ),
                       ),
                   )
                 : Array.from(printApiContentBlockElementsToMarkdown(content.elements, options)),
     };
+}
+
+/**
+ * Finds the first block element that can produce markdown output.
+ *
+ * Empty lists are skipped because they don't print anything and normalization
+ * removes them during markdown round trips.
+ */
+function getFirstPrintableBlockElementIndex(
+    elements: ReadonlyArray<ApiContentBlockElement>,
+): number {
+    for (let index = 0; index < elements.length; index++) {
+        const element = elements[index]!;
+
+        if (
+            (element.type === "UnorderedList" ||
+                element.type === "OrderedList" ||
+                element.type === "CheckList") &&
+            element.items.length === 0
+        ) {
+            continue;
+        }
+
+        return index;
+    }
+
+    return -1;
 }
 
 function* printApiContentBlockElementsToMarkdown(
@@ -352,7 +375,7 @@ function* printApiContentBlockElementToMarkdown(
             break;
         }
         case "File": {
-            const fileUrl = printApiFileContentUrl(options.spaceId, element.id);
+            const fileUrl = printApiFileContentUrl(element.id);
             if (!element.contentType || isWebSafeImageContentType(element.contentType)) {
                 // Web safe images (and files with unknown content type) use markdown image syntax.
                 yield {
@@ -381,10 +404,7 @@ function* printApiContentBlockElementToMarkdown(
                 children: [
                     {
                         type: "image",
-                        url: printApiPreviewReferenceToPreviewUrl(
-                            options.spaceId,
-                            element.reference,
-                        ),
+                        url: printApiPreviewReferenceToPreviewUrl(element.reference),
                         alt: printApiMentionReferenceToMentionLinkLabel(element.reference),
                         data: {previewElement: element},
                     },
@@ -438,7 +458,6 @@ function* printApiContentBlockElementToMarkdown(
                     lines.push(
                         printApiContentFileOrPreviewBlockElementToMarkdown(
                             item.element,
-                            options.spaceId,
                             `flex: 0 0 ${widthPercent}%`,
                         ),
                     );
@@ -453,7 +472,7 @@ function* printApiContentBlockElementToMarkdown(
             const style = `float: ${side}; clear: both`;
             yield {
                 type: "html",
-                value: `<div style="${style}">\n${printApiContentFileOrPreviewBlockElementToMarkdown(element.element, options.spaceId)}\n</div>`,
+                value: `<div style="${style}">\n${printApiContentFileOrPreviewBlockElementToMarkdown(element.element)}\n</div>`,
                 data:
                     element.element.type === "Preview"
                         ? {previewElement: element.element}
@@ -511,13 +530,12 @@ function printApiContentFileOrPreviewBlockElementToMarkdown(
     element:
         | {readonly type: "File"; readonly id: string; readonly contentType?: string}
         | {readonly type: "Preview"; readonly reference: ApiPreviewReference},
-    spaceId: SpaceId,
     style?: string,
 ): string {
     const styleAttr = style ? ` style="${escapeHtml(style)}"` : "";
     switch (element.type) {
         case "File": {
-            const fileUrl = printApiFileContentUrl(spaceId, element.id);
+            const fileUrl = printApiFileContentUrl(element.id);
             return printApiContentFileBlockElementToMarkdown(
                 fileUrl,
                 element.contentType,
@@ -525,7 +543,7 @@ function printApiContentFileOrPreviewBlockElementToMarkdown(
             );
         }
         case "Preview": {
-            const previewUrl = printApiPreviewReferenceToPreviewUrl(spaceId, element.reference);
+            const previewUrl = printApiPreviewReferenceToPreviewUrl(element.reference);
             const title = element.reference.title?.trim() ? element.reference.title : "";
             return `<img alt="${escapeHtml(title)}" src="${escapeHtml(previewUrl)}"${styleAttr} />`;
         }
@@ -704,11 +722,7 @@ export function isSimpleApiContentTableBlockElementForTest(
 ): boolean {
     assert(import.meta.jest);
 
-    return (
-        printSimpleApiContentTableBlockElementToMarkdownIfPossible(element, {
-            spaceId: generateId(),
-        }) !== null
-    );
+    return printSimpleApiContentTableBlockElementToMarkdownIfPossible(element, {}) !== null;
 }
 
 function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
@@ -1273,7 +1287,6 @@ function* printApiContentInlineElementToMarkdown(
                 {
                     type: "link",
                     url: printApiMentionReferenceToMentionUrl(element.reference, {
-                        spaceId: options.spaceId,
                         isAccountShortName: element.isAccountShortName,
                     }),
                     children: [
@@ -1347,26 +1360,29 @@ export function printApiMentionReferenceToMentionLinkLabel(
 
 export function printApiMentionReferenceToMentionUrl(
     reference: ApiMentionReference,
-    {spaceId, isAccountShortName}: {spaceId: SpaceId; isAccountShortName: boolean | undefined},
+    {isAccountShortName}: {isAccountShortName: boolean | undefined},
 ) {
     switch (reference.type) {
         case "Account": {
-            return `https://alpine.inc/s/${spaceId}/accounts/${reference.id}?mention${
-                isAccountShortName ? "=short" : ""
-            }`;
+            return `https://alpine.inc/mention/${reference.id}${isAccountShortName ? "?short" : ""}`;
         }
         case "Channel":
-            return `https://alpine.inc/s/${spaceId}/channels/${reference.id}?mention`;
+            return `https://alpine.inc/channel/${reference.id}?mention`;
         case "Chat":
-            return `https://alpine.inc/s/${spaceId}/chats/${reference.id}?mention`;
+            return `https://alpine.inc/chat/${reference.id}?mention`;
         case "Document":
-            return `https://alpine.inc/s/${spaceId}/documents/${reference.id}?mention`;
+            return `https://alpine.inc/doc/${reference.id}?mention`;
         case "Post":
-            return `https://alpine.inc/s/${spaceId}/posts/${reference.id}?mention`;
+            return `https://alpine.inc/post/${reference.id}?mention`;
+        case "Site":
+            // TODO(#sites-api): This differs from the App! The question that we need to answer
+            // is: "Should a Site API mention reroute the caller to the first entity in the
+            // site?". Probably not
+            return `https://alpine.inc/site/${reference.id}?mention`;
         case "Task":
-            return `https://alpine.inc/s/${spaceId}/tasks/${reference.id}?mention`;
+            return `https://alpine.inc/task/${reference.id}?mention`;
         case "TaskCollection":
-            return `https://alpine.inc/s/${spaceId}/tasks/collections/${reference.id}?mention`;
+            return `https://alpine.inc/task-collection/${reference.id}?mention`;
         default:
             throw exhaustive(reference);
     }
@@ -1376,30 +1392,29 @@ export function printApiMentionReferenceToMentionUrl(
 // points to our app which would render a custom previewer, but `<img>`, `<video>`,
 // `<audio>`, and `<object>` tags need the raw file content to work. This should
 // serve the file bytes directly (or redirect to a signed URL).
-export function printApiFileContentUrl(spaceId: SpaceId, fileId: string): string {
-    return `https://alpine.inc/s/${spaceId}/files/${fileId}/content`;
+export function printApiFileContentUrl(fileId: string): string {
+    return `https://alpine.inc/file/${fileId}/content`;
 }
 
-export function printApiPreviewReferenceToPreviewUrl(
-    spaceId: SpaceId,
-    reference: ApiPreviewReference,
-): string {
+export function printApiPreviewReferenceToPreviewUrl(reference: ApiPreviewReference): string {
     // TODO(#sites): Add Site to PreviewTarget.
     switch (reference.type) {
         case "Channel":
             // TODO: Implement /preview endpoints that generate a PNG or similar image for each
             // previewable entity. Can also serve as OpenGraph images.
-            return `https://alpine.inc/s/${spaceId}/channels/${reference.id}/preview`;
+            return `https://alpine.inc/channel/${reference.id}/preview`;
         case "Chat":
-            return `https://alpine.inc/s/${spaceId}/chats/${reference.id}/preview`;
+            return `https://alpine.inc/chat/${reference.id}/preview`;
         case "Document":
-            return `https://alpine.inc/s/${spaceId}/documents/${reference.id}/preview`;
+            return `https://alpine.inc/doc/${reference.id}/preview`;
         case "Post":
-            return `https://alpine.inc/s/${spaceId}/posts/${reference.id}/preview`;
+            return `https://alpine.inc/post/${reference.id}/preview`;
         case "Task":
-            return `https://alpine.inc/s/${spaceId}/tasks/${reference.id}/preview`;
+            return `https://alpine.inc/task/${reference.id}/preview`;
         case "TaskCollection":
-            return `https://alpine.inc/s/${spaceId}/tasks/collections/${reference.id}/preview`;
+            return `https://alpine.inc/task-collection/${reference.id}/preview`;
+        case "Site":
+            return `https://alpine.inc/site/${reference.id}/preview`;
         default:
             throw exhaustive(reference);
     }
@@ -1486,8 +1501,7 @@ function* printApiContentInlineElementMarksToMarkdown(
         if (
             url?.protocol === "https:" &&
             url.host === "alpine.inc" &&
-            url.pathname.startsWith(`/s/${options.spaceId}/`) &&
-            url.searchParams.has("mention")
+            (url.searchParams.has("mention") || url.pathname.startsWith("/mention/"))
         ) {
             mentionishMark = mark;
         }

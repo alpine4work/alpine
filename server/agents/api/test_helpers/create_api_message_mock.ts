@@ -56,6 +56,7 @@ export function createApiMessageMock({
                               : parent.contentSnippet,
                   }
                 : undefined,
+            files: [],
         },
     };
 }

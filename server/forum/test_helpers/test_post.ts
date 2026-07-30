@@ -40,7 +40,7 @@ import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {
     PostContent,
@@ -54,7 +54,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
@@ -133,7 +133,7 @@ export class TestPost extends TestCommentRoomBase {
         {};
 
         if (typeof content === "string") {
-            content = parsePostTestContent(channel.space.id, content);
+            content = parsePostTestContent(content);
         }
 
         const attachFiles =
@@ -380,7 +380,7 @@ export class TestPost extends TestCommentRoomBase {
         return (await getPost(this.space.systemAction(), this.id)).model;
     }
 
-    public async getRealtime(): Promise<DynamoGeneralRealtimeItem<PostModel>> {
+    public async getRealtime(): Promise<RynamoItem<PostModel>> {
         return await getPost(this.space.systemAction(), this.id);
     }
 
@@ -412,7 +412,7 @@ export class TestPost extends TestCommentRoomBase {
         );
 
         if (typeof content === "string") {
-            content = parsePostTestContent(this.space.id, content);
+            content = parsePostTestContent(content);
         }
 
         const attachFiles =
@@ -477,7 +477,7 @@ export class TestPost extends TestCommentRoomBase {
         session: TestSession,
         reaction: Reaction | "GenericLike" | ReactionEmotion = "GenericLike",
     ) {
-        return setPostReaction(
+        return await setPostReaction(
             session.action().clone({
                 apns: new TestApnsContextModule(),
                 webPush: new TestWebPushContextModule(),
@@ -493,11 +493,11 @@ export class TestPost extends TestCommentRoomBase {
     }
 
     public async deleteReaction(session: TestSession) {
-        return deletePostReaction(session.action(), this.id);
+        return await deletePostReaction(session.action(), this.id);
     }
 }
 
-function parsePostTestContent(spaceId: SpaceId, content: string): PostContent {
-    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+function parsePostTestContent(content: string): PostContent {
+    const apiContent = parseApiContentFromMarkdown(content);
     return assertPostContent(fromApiContent(PostContentProsemirrorSchema, apiContent));
 }

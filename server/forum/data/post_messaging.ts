@@ -54,6 +54,7 @@ import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_spac
 import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -61,7 +62,7 @@ import {
     MessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -143,14 +144,14 @@ export async function createPostComment(
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const postItemPromise = getPostItemForAuthorizationIfExists(context, postId, {consistency});
 
-        const [postItem, parentForEvent] = await runAllPromises([
+        const [{postItem, channelAccessPolicy}, parentForEvent] = await runAllPromises([
             postItemPromise.then(async postItem => {
                 if (!postItem) throw createPostNotFoundError(postId);
 
-                await runAllPromises([
+                const [{accessPolicy: channelAccessPolicy}] = await runAllPromises([
                     authorizeChannelAccess(context, postItem.channelId, "Comment", {consistency}),
 
                     // Make sure all the provided files exist.
@@ -168,7 +169,7 @@ export async function createPostComment(
                     ),
                 ]);
 
-                return postItem;
+                return {postItem, channelAccessPolicy};
             }),
 
             (async (): Promise<ApiBotWebhookCreatedMessageEventParent | null> => {
@@ -472,6 +473,7 @@ export async function createPostComment(
                         content.nodeSize < 50
                             ? {type: "LowIntentUpdate"}
                             : {type: "MediumIntentUpdate"},
+                    siteId: getSiteIdFromAccessPolicyIfExists(channelAccessPolicy),
                 }),
             );
 
@@ -490,6 +492,8 @@ export async function createPostComment(
                             spaceId: postItem.spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
+                            // Accounts cannot live in a site.
+                            siteId: null,
                         });
                     }
                 });
@@ -1153,7 +1157,7 @@ export async function getPostComment(
 
     if (!item) throw createPostCommentNotFoundError(postId, commentIndex);
 
-    return createPostCommentModelFromItem(context, spaceId, postId, item);
+    return await createPostCommentModelFromItem(context, spaceId, postId, item);
 }
 
 /**
@@ -1189,7 +1193,7 @@ export async function getPostCommentAtVersion(
         })(),
     ]);
 
-    return createPostCommentModelFromItem(context, spaceId, postId, item);
+    return await createPostCommentModelFromItem(context, spaceId, postId, item);
 }
 
 /**
@@ -1618,7 +1622,7 @@ export async function getPostAndInitialComments(
         commentLimit: number;
     },
 ): Promise<{
-    post: DynamoGeneralRealtimeItem<PostModel>;
+    post: RynamoItem<PostModel>;
     initialComments: Array<PostCommentModel>;
     initialOtherReferencedComments: Array<PostCommentModel>;
 }> {
@@ -1642,6 +1646,12 @@ export async function getPostAndInitialComments(
 
     const postItem = await getPostItemWithContentForAuthorization(context, postId);
 
+    // Optimization: Don't wait until the channel loads (and so we call
+    // `evaluateAccessPolicy()`) to report the post's `SpaceId` as discovered.
+    context.discovery?.discoverSpaceId(postItem.spaceId, "AuthorizeAccess");
+
+    const authorizationPromise = authorizeChannelAccess(context, postItem.channelId, "View");
+
     const commentPromises: Array<Promise<PostCommentModel>> = [];
 
     const commentIndexes = new Set<number>();
@@ -1662,7 +1672,7 @@ export async function getPostAndInitialComments(
     }
 
     const [, post, comments, otherReferencedComments] = await runAllPromises([
-        authorizeChannelAccess(context, postItem.channelId, "View"),
+        authorizationPromise,
         ForumRealtimeTable.buildRealtimeItem(context, postItem),
         runAllPromises(commentPromises),
         runAllPromises(
@@ -1677,7 +1687,7 @@ export async function getPostAndInitialComments(
                     );
                     if (!commentItem) throw new InternalError("Parent comment not found");
 
-                    return createPostCommentModelFromItem(
+                    return await createPostCommentModelFromItem(
                         context,
                         postItem.spaceId,
                         postId,
@@ -2291,7 +2301,12 @@ export async function backfillPostComments(
                 createMessageModelFromItem: async (context, item) => {
                     const postItem = await postItemPromise;
                     if (!postItem) throw createPostNotFoundError(postId);
-                    return createPostCommentModelFromItem(context, postItem.spaceId, postId, item);
+                    return await createPostCommentModelFromItem(
+                        context,
+                        postItem.spaceId,
+                        postId,
+                        item,
+                    );
                 },
             }),
         ]);

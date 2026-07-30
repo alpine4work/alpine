@@ -5,14 +5,14 @@ import {putMockAgentRecording} from "~/admin/environment/demo_space/put_mock_age
 import {createDemoCursor} from "~/admin/marketing/2026_04_scalable_demos/helpers/demo_cursor.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
 import {scalableDemoWideViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     // Instantiate the Cursor bot into the space. Pass `services` so the bot gets a
     // webhook URL pointing at the local agent service mock endpoint — required for
@@ -66,7 +66,6 @@ Due date appears one day earlier than expected.
         cursor,
         `/tasks/${dueDateTask.id}`,
         createMockAgentRecording(
-            space.id,
             [
                 2000,
                 "## Incorrect Due Date Display\n\nStarted coding. I\u2019ll let you know when I\u2019m done [(watch me work)](http://localhost:3000).",
@@ -128,7 +127,7 @@ and sends it.
 2. Start recording, then press Enter in this terminal to begin the automated actions.
         `,
         session: accounts.elleKappaTan,
-        path: `/s/${space.id}/tasks/collections/${bugsCollection.id}`,
+        path: `/task-collection/${bugsCollection.id}`,
         viewport: {width: scalableDemoWideViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

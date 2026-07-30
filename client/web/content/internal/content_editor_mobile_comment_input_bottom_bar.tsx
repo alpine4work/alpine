@@ -18,7 +18,7 @@ import {useOverlayRootPortalElement} from "~/client/web/design/overlay_helpers.j
 import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {emptyMessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
@@ -45,12 +45,12 @@ export function ContentEditorMobileCommentInputBottomBar({
         "Can\u2019t server render `<ContentEditorMobileCommentInputBottomBar>`",
     );
 
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const inputRef = useRef<MessageInputRef>(null);
 
     const [commentState, setCommentState] = useState(() =>
-        ContentEditorState.create(emptyMessageContentWithReferences),
+        ContentEditorState.create({spaceId: space.id, content: emptyMessageContentWithReferences}),
     );
     const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);

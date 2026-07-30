@@ -131,7 +131,7 @@ export async function createServiceTokenAgent<
  */
 export async function getServiceTokenAgentKeyFromOption(arg: string): Promise<string> {
     if (arg.startsWith("/")) {
-        return fs.readFile(arg, "utf8");
+        return await fs.readFile(arg, "utf8");
     } else {
         return arg;
     }

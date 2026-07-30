@@ -5,7 +5,7 @@ import {flushSync} from "react-dom";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/web/dynamo/dynamo_general_realtime_index_query.js";
+import {RynamoIndexQuery} from "~/client/web/dynamo/rynamo_index_query.js";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/web/helpers/events/is_modified_keyboard_event.js";
@@ -40,15 +40,13 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 
 export function InboxView({
@@ -57,8 +55,8 @@ export function InboxView({
     initialPeekData,
     onPeekChange,
 }: {
-    filter: "New" | "Archive";
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
     initialPeekData: {spacePath: string; hydrationData: HydrationState} | null;
     onPeekChange: (peek: PeekSwitcherStatePeekBase<{key: DynamoItemKey | null}> | null) => void;
 }) {
@@ -186,7 +184,7 @@ export function InboxView({
     }, [query, rememberedSelectedEntryCursor]);
 
     const selectEntry = useCallback(
-        (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null): Promise<void> => {
+        (entry: RynamoItem<InboxEntryModel> | null): Promise<void> => {
             if (!entry) {
                 return switchPeek(null);
             }
@@ -323,8 +321,8 @@ function InboxViewEntries({
     selectEntry,
     isEntryTimeVisible,
 }: {
-    filter: "New" | "Archive";
-    query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    query: RynamoIndexQuery<InboxEntryModel>;
     tryLoadingMore: (
         viewHeight: number,
         renderedRange: {startIndex: number; endIndex: number} | null,
@@ -332,10 +330,10 @@ function InboxViewEntries({
     itemsDeletedByLastChangeForAnimation: ReadonlyArray<{
         index: number;
         cursor: DynamoIndexCursor;
-        item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+        item: RynamoItem<InboxEntryModel>;
     }>;
     selectedEntryKey: DynamoItemKey | null;
-    selectEntry: Memo<(entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>>;
+    selectEntry: Memo<(entry: RynamoItem<InboxEntryModel>) => Promise<void>>;
     isEntryTimeVisible: boolean;
 }) {
     const archiveInboxEntry = useArchiveInboxEntry();

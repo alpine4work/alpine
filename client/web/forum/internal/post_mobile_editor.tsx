@@ -77,6 +77,10 @@ export function PostMobileEditor({
         });
     }, []);
 
+    const onSelectGif = useCallback((url: URL) => {
+        editorRef.current?.insertFileFromUrl(url);
+    }, []);
+
     useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
         // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on initial
         //   render.
@@ -185,6 +189,7 @@ export function PostMobileEditor({
                                 // correctly handle loading and error states.
                                 assertExists(createButtonRef.current).press();
                             }}
+                            onSelectGif={onSelectGif}
                         />
                     </Box>
                 </OverlayScopeContextProvider>

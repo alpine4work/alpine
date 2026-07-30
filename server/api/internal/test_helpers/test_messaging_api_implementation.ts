@@ -6,33 +6,97 @@ import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messag
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/api_content_key.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
+import {
+    ApiMessageRoomPath,
+    parseApiMessageRoomPath,
+} from "~/shared/api/specification/parse_api_path.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+import {
+    TaskTitleModel,
+    createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 const knownTaskId = generateId<TaskId>();
 const privateTaskId = generateId<TaskId>();
 const deletedTaskId = generateId<TaskId>();
 
+/**
+ * Wraps expected paragraph and heading content with key matchers.
+ */
+function expectApiContentWithTextBlockKeys(content: {
+    elements: Array<
+        | {type: "Paragraph"; elements: Array<unknown>}
+        | {type: "Heading"; level: number; elements: Array<unknown>}
+    >;
+}) {
+    return {
+        elements: content.elements.map(element => ({
+            ...element,
+            key: expect.any(String),
+        })),
+    };
+}
+
+function getApiMessageEntityIdForRoomPath(
+    roomPath: ApiMessageRoomPath,
+    messageIndex: number,
+): SearchDynamicEntityId {
+    const room = parseApiMessageRoomPath(roomPath);
+
+    switch (room.type) {
+        case "Chat":
+            return `ChatMessage:${room.id}-${messageIndex}`;
+        case "DocumentCommentThread":
+            return `DocumentComment:${room.id}-${room.threadId}-${messageIndex}`;
+        case "Post":
+            return `PostComment:${room.id}-${messageIndex}`;
+        case "Task":
+            return `TaskComment:${room.id}-${messageIndex}`;
+        default:
+            throw exhaustive(room);
+    }
+}
+
 export const testMessagingApiImplementationSearchInjection: Partial<SearchInjection> = {
     getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
         if (entityId === `Task:${knownTaskId}`) {
+            const displayStatus = {
+                displayStatus: "OpenActive",
+                version: [0, 0],
+            } as const;
             return {
                 isPrivate: false,
                 entity: new SearchEntityModel({
-                    id: entityId,
+                    type: "Task",
                     title: "Some bug",
-                    titleVersion: {type: "Integer", version: 0},
-                    media: null,
+                    task: {
+                        id: knownTaskId,
+                        titleSnapshot: new TaskTitleModel(
+                            createTaskTitleFromText(
+                                randomlyGenerateTaskTitleClientId(),
+                                "Some bug",
+                            ),
+                        ).getSnapshot(),
+                        displayStatus: {
+                            value: displayStatus.displayStatus,
+                            version: displayStatus.version,
+                        },
+                    },
                 }),
             };
         }
@@ -44,13 +108,28 @@ export const testMessagingApiImplementationSearchInjection: Partial<SearchInject
         }
 
         if (entityId === `Task:${deletedTaskId}`) {
+            const displayStatus = {
+                displayStatus: "OpenActive",
+                version: [0, 0],
+            } as const;
             return {
                 isPrivate: false,
                 entity: new SearchEntityModel({
-                    id: entityId,
+                    type: "Task",
                     title: null,
-                    titleVersion: {type: "Integer", version: 0},
-                    media: null,
+                    task: {
+                        id: deletedTaskId,
+                        titleSnapshot: new TaskTitleModel(
+                            createTaskTitleFromText(
+                                randomlyGenerateTaskTitleClientId(),
+                                "Deleted task",
+                            ),
+                        ).getSnapshot(),
+                        displayStatus: {
+                            value: displayStatus.displayStatus,
+                            version: displayStatus.version,
+                        },
+                    },
                 }),
             };
         }
@@ -112,11 +191,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can\u2019t read message in room bot doesn\u2019t have access to", async () => {
@@ -227,11 +304,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can read message with account mention", async () => {
@@ -278,12 +353,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb Meredith](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `Hello [Caleb Meredith](https://alpine.inc/mention/${session2.account.id})\n`,
             );
         });
 
@@ -331,12 +402,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention=short)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}?short)\n`,
             );
         });
 
@@ -384,12 +451,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Unknown task](https://alpine.inc/s/${space.id}/tasks/${unknownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}?mention)\n`,
             );
         });
 
@@ -435,12 +498,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Some bug](https://alpine.inc/s/${space.id}/tasks/${knownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}?mention)\n`,
             );
         });
 
@@ -486,12 +545,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Private task](https://alpine.inc/s/${space.id}/tasks/${privateTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}?mention)\n`,
             );
         });
 
@@ -537,12 +592,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Deleted task](https://alpine.inc/s/${space.id}/tasks/${deletedTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}?mention)\n`,
             );
         });
 
@@ -591,11 +642,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can\u2019t send message to room that doesn\u2019t exist", async () => {
@@ -706,11 +755,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can create message with parent", async () => {
@@ -771,11 +818,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can create message with parent then read it back", async () => {
@@ -840,11 +885,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can read messages", async () => {
@@ -884,11 +927,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can\u2019t read messages in room bot doesn\u2019t have access to", async () => {
@@ -976,11 +1017,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can read messages with account mention", async () => {
@@ -1030,12 +1069,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb Meredith](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `Hello [Caleb Meredith](https://alpine.inc/mention/${session2.account.id})\n`,
             );
         });
 
@@ -1086,12 +1121,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention=short)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}?short)\n`,
             );
         });
 
@@ -1142,12 +1173,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Unknown task](https://alpine.inc/s/${space.id}/tasks/${unknownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}?mention)\n`,
             );
         });
 
@@ -1196,12 +1223,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Some bug](https://alpine.inc/s/${space.id}/tasks/${knownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}?mention)\n`,
             );
         });
 
@@ -1250,12 +1273,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Private task](https://alpine.inc/s/${space.id}/tasks/${privateTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}?mention)\n`,
             );
         });
 
@@ -1304,12 +1323,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Deleted task](https://alpine.inc/s/${space.id}/tasks/${deletedTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}?mention)\n`,
             );
         });
 
@@ -1876,11 +1891,7 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(`\
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(`\
 # Hello, world!
 
 ## Level 2
@@ -1920,11 +1931,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("<hr />\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "<hr />\n",
+            );
         });
 
         test("can create message with italic mark", async () => {
@@ -1971,11 +1980,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, *world*!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, *world*!\n",
+            );
         });
 
         test("can create message with highlight mark that\u2019s dropped", async () => {
@@ -2022,11 +2029,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can create message with comment mark that\u2019s dropped", async () => {
@@ -2073,11 +2078,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         describe("message streams", () => {
@@ -2119,14 +2122,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Hello, world!"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -2161,7 +2164,9 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {elements: [{type: "Paragraph", elements: []}]},
+                                content: expectApiContentWithTextBlockKeys({
+                                    elements: [{type: "Paragraph", elements: []}],
+                                }),
                             }),
                         }),
                     }),
@@ -2218,14 +2223,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -2282,14 +2287,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -2390,7 +2395,7 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
@@ -2405,11 +2410,147 @@ export function testMessagingApiImplementation(
                                             elements: [{type: "Text", text: "Test part 3"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
                 });
+            });
+
+            test("stream message content keys decode to merged content positions", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+                const apiKey = await botAccount.createApiKey(room.getBotScope());
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {
+                        isStream: true,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Base"}],
+                                },
+                            ],
+                        },
+                    },
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                const messageIndex = messageResponse.body.message.index;
+
+                expect(
+                    await server.POST(`${roomPath}/messages/${messageIndex}/stream/parts`, {
+                        headers: {authorization: `bearer ${apiKey}`},
+                        body: {
+                            payload: {
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Part 1"}],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    }),
+                ).toEqual(expect.objectContaining({status: 200}));
+
+                expect(
+                    await server.POST(`${roomPath}/messages/${messageIndex}/stream/parts`, {
+                        headers: {authorization: `bearer ${apiKey}`},
+                        body: {
+                            payload: {
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Part 2"}],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    }),
+                ).toEqual(expect.objectContaining({status: 200}));
+
+                const response = await server.GET(`${roomPath}/messages/${messageIndex}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect(response).toEqual({
+                    status: 200,
+                    headers: expect.objectContaining({"content-type": "application/json"}),
+                    body: expect.objectContaining({
+                        message: expect.objectContaining({
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: expectApiContentWithTextBlockKeys({
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Base"}],
+                                        },
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Part 1"}],
+                                        },
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Part 2"}],
+                                        },
+                                    ],
+                                }),
+                            }),
+                        }),
+                    }),
+                });
+
+                const [baseElement, part1Element, part2Element] =
+                    response.body.message.payload.content.elements;
+                assert(baseElement?.type === "Paragraph");
+                assert(baseElement.key !== undefined);
+                assert(part1Element?.type === "Paragraph");
+                assert(part1Element.key !== undefined);
+                assert(part2Element?.type === "Paragraph");
+                assert(part2Element.key !== undefined);
+
+                const baseNode = MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Base"),
+                ]);
+                const part1Node = MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Part 1"),
+                ]);
+                const part2Node = MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Part 2"),
+                ]);
+                const decoder = new ApiContentKeyDecoder(
+                    getApiMessageEntityIdForRoomPath(roomPath, messageIndex),
+                );
+
+                expect([
+                    decoder.decode(baseElement.key),
+                    decoder.decode(part1Element.key),
+                    decoder.decode(part2Element.key),
+                ]).toEqual([
+                    {version: 0, pos: 0, nodeSize: baseNode.nodeSize},
+                    {version: 0, pos: baseNode.nodeSize, nodeSize: part1Node.nodeSize},
+                    {
+                        version: 0,
+                        pos: baseNode.nodeSize + part1Node.nodeSize,
+                        nodeSize: part2Node.nodeSize,
+                    },
+                ]);
             });
 
             test("can\u2019t put stream message part if message isn\u2019t a stream", async () => {
@@ -2578,7 +2719,9 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {elements: [{type: "Paragraph", elements: []}]},
+                                content: expectApiContentWithTextBlockKeys({
+                                    elements: [{type: "Paragraph", elements: []}],
+                                }),
                             }),
                         }),
                     }),
@@ -2647,7 +2790,9 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {elements: [{type: "Paragraph", elements: []}]},
+                                content: expectApiContentWithTextBlockKeys({
+                                    elements: [{type: "Paragraph", elements: []}],
+                                }),
                             }),
                         }),
                     }),
@@ -2748,7 +2893,7 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
@@ -2763,7 +2908,7 @@ export function testMessagingApiImplementation(
                                             elements: [{type: "Text", text: "Test part 3"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -2864,14 +3009,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 3"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3016,7 +3161,7 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
@@ -3031,7 +3176,7 @@ export function testMessagingApiImplementation(
                                             elements: [{type: "Text", text: "Test part 5"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3141,7 +3286,7 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
@@ -3152,7 +3297,7 @@ export function testMessagingApiImplementation(
                                             elements: [{type: "Text", text: "Test part 2"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3216,14 +3361,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3331,7 +3476,7 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
@@ -3346,7 +3491,7 @@ export function testMessagingApiImplementation(
                                             elements: [{type: "Text", text: "Test part 3"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3440,14 +3585,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3541,14 +3686,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3630,14 +3775,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3809,14 +3954,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3892,14 +4037,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),

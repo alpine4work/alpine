@@ -12,10 +12,12 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
+import {DeadlineExceededError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxDocumentNewCommentThreadsEntryModel} from "~/shared/notifications/inbox_model.js";
 
@@ -34,20 +36,18 @@ import {InboxDocumentNewCommentThreadsEntryModel} from "~/shared/notifications/i
 export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
     context: ServerSessionActionContext,
     {
-        spaceId,
         documentId,
         bucketGeneration,
         commentLimit,
         commentThreadCountAgainstLimit,
     }: {
-        spaceId: SpaceId;
         documentId: DocumentId;
         bucketGeneration: number;
         commentLimit: number;
         commentThreadCountAgainstLimit: number;
     },
 ): Promise<{
-    inboxEntry: DynamoGeneralRealtimeItem<InboxDocumentNewCommentThreadsEntryModel>;
+    inboxEntry: RynamoItem<InboxDocumentNewCommentThreadsEntryModel>;
     document: DocumentModel;
     commentThreads: ReadonlyArray<DocumentCommentThreadModel>;
     initialCommentsByCommentThreadId: Map<
@@ -58,8 +58,11 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
         }
     >;
 }> {
+    const spaceIdPromiseResolver = createPromiseResolver<SpaceId>();
+
     const inboxEntryPromise = (async () => {
         const accountId = context.actor.getAccountId();
+        const spaceId = await spaceIdPromiseResolver.promise;
 
         await runAllPromises([
             authorizeSpaceAccess(context, spaceId),
@@ -144,6 +147,21 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
         return inboxEntry;
     })();
 
+    // Defend against a deadlock between `onSpaceId` and `commentThreadIds`. For
+    // example if `getDocumentAndCommentThreadsWithInitialComments()` awaits
+    // `commentThreadIds` before calling `onSpaceId`.
+    //
+    // `getDocumentAndCommentThreadsWithInitialComments()` should never do this!
+    // However, in case of a developer accidentally not realizing this, it's better to
+    // throw an error than to have a promise deadlock that hangs forever.
+    const spaceIdPromiseResolverTimeout = createTimeout(() => {
+        spaceIdPromiseResolver.reject(
+            new DeadlineExceededError(
+                "Timed out waiting for `onSpaceId`, most likely there\u2019s a deadlock between the `commentThreadIds` promise and `onSpaceId`",
+            ),
+        );
+    }, 2000);
+
     const [inboxEntry, {document, commentThreads, initialCommentsByCommentThreadId}] =
         await runAllPromises([
             inboxEntryPromise,
@@ -154,7 +172,22 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
                 ),
                 commentLimit,
                 commentThreadCountAgainstLimit,
-            }),
+                onSpaceId: spaceId => {
+                    spaceIdPromiseResolverTimeout.clear();
+                    spaceIdPromiseResolver.resolve(spaceId);
+                },
+            }).then(
+                result => {
+                    spaceIdPromiseResolverTimeout.clear();
+                    spaceIdPromiseResolver.resolve(result.document.spaceId);
+                    return result;
+                },
+                error => {
+                    spaceIdPromiseResolverTimeout.clear();
+                    spaceIdPromiseResolver.reject(error);
+                    throw error;
+                },
+            ),
         ]);
 
     return {

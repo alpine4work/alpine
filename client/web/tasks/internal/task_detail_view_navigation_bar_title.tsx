@@ -19,6 +19,7 @@ import {
     TaskTitleUpdateModel,
     addFallbackToTaskTitle,
     emptyTaskTitleModel,
+    randomlyGenerateTaskTitleClientId,
     taskFallbackTitle,
 } from "~/shared/tasks/title/task_title.js";
 
@@ -146,13 +147,29 @@ export function TaskProjectDetailViewNavigationBarTitle({
                     onCancel={() => setIsEditingTitleInline(false)}
                     onSave={title => {
                         if (!task) {
-                            onTitleChange(emptyTaskTitleModel.get().replace(0, 0, title));
+                            onTitleChange(
+                                emptyTaskTitleModel.get().replace(
+                                    // When we're replacing the full title every update, we're ok with generating a new
+                                    // client ID each time. Since adjacent Yjs item optimizations won't apply anyway.
+                                    randomlyGenerateTaskTitleClientId(),
+                                    0,
+                                    0,
+                                    title,
+                                ),
+                            );
                         } else {
                             // Don't try to do piecemeal updates for project task titles. Update the full
                             // thing! Our input doesn't show realtime updates so trying to merge for realtime
                             // updates after the update would likely get an unexpected result.
                             onTitleChange(
-                                task.getTitle().replace(0, originalTitleText.length, title),
+                                task.getTitle().replace(
+                                    // When we're replacing the full title every update, we're ok with generating a new
+                                    // client ID each time. Since adjacent Yjs item optimizations won't apply anyway.
+                                    randomlyGenerateTaskTitleClientId(),
+                                    0,
+                                    originalTitleText.length,
+                                    title,
+                                ),
                             );
                         }
                         setIsEditingTitleInline(false);

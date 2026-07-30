@@ -1,4 +1,11 @@
-import {Ref, forwardRef, useId, useRef} from "react";
+import {
+    ReactElement,
+    KeyboardEvent as ReactKeyboardEvent,
+    Ref,
+    forwardRef,
+    useId,
+    useRef,
+} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
@@ -48,6 +55,12 @@ export type TextInputProps = {
      * If the escape key is pressed while focused on this text input this event fires.
      */
     onEscape?: () => void;
+
+    /**
+     * Called when a key is pressed while the input is focused. Fires after the
+     * built-in Enter/Escape handlers.
+     */
+    onKeyDown?: (event: ReactKeyboardEvent<HTMLInputElement>) => void;
 
     /**
      * Placeholder text for when the value is empty.
@@ -128,6 +141,17 @@ export type TextInputProps = {
     paddingRight?: Spacing | number;
 
     /**
+     * Remove the border and background from the input so it can be embedded inside
+     * another container.
+     */
+    withoutBorder?: boolean;
+
+    /**
+     * An optional icon rendered to the left of the input.
+     */
+    icon?: ReactElement;
+
+    /**
      * Are we forcing the focus ring to be visible? See the `isVisible` prop on
      * `<FocusRing>` for more information.
      */
@@ -204,6 +228,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         onEnter,
         onModEnter,
         onEscape,
+        onKeyDown,
         placeholder,
         isDisabled,
         isReadOnly,
@@ -216,6 +241,8 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         isFontItalic = false,
         hasFontStrikeDecoration = false,
         paddingRight,
+        withoutBorder = false,
+        icon,
         isFocusRingVisible = false,
         maxLength,
     }: Omit<TextInputProps, "label"> &
@@ -258,103 +285,140 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         "code-extra-bold": true,
     }[fontStyle];
 
-    return (
-        <FocusRing offset="border" isVisible={isFocusRingVisible}>
-            <input
-                ref={useMergedRefs(ref, inputRef)}
-                className={sprinkles({
-                    boxShadow: "elevation-5-with-grey-10-border",
-                    borderRadius: "1",
-                    display: "block",
-                    width: "full",
-                    height: ({"75": "7", "100": "9"} as const)[fontSize],
-                    paddingX: ({"75": "2", "100": "2.5"} as const)[fontSize],
-                    paddingRight: typeof paddingRight !== "number" ? paddingRight : undefined,
-                    fontSize,
-                    fontStyle,
-                    backgroundColor: isDisabled || isReadOnly ? "grey-5" : "grey-0",
-                    color: isDisabled || isReadOnly ? "grey-70" : "grey-100",
-                })}
-                style={{
-                    paddingRight: typeof paddingRight === "number" ? paddingRight : undefined,
+    const inputElement = (
+        <input
+            ref={useMergedRefs(ref, inputRef)}
+            className={sprinkles({
+                ...(!withoutBorder
+                    ? {
+                          boxShadow: "elevation-5-with-grey-10-border",
+                          backgroundColor: isDisabled || isReadOnly ? "grey-5" : "grey-0",
+                      }
+                    : {backgroundColor: "transparent"}),
+                borderRadius: "1",
+                display: "block",
+                width: "full",
+                height: icon ? undefined : ({"75": "7", "100": "9"} as const)[fontSize],
+                paddingX: icon ? undefined : ({"75": "2", "100": "2.5"} as const)[fontSize],
+                paddingRight: typeof paddingRight !== "number" ? paddingRight : undefined,
+                fontSize,
+                fontStyle,
+                color: isDisabled || isReadOnly ? "grey-70" : "grey-100",
+            })}
+            style={{
+                ...(icon ? {flex: 1} : undefined),
+                paddingRight: typeof paddingRight === "number" ? paddingRight : undefined,
 
-                    fontStyle: isFontItalic ? "italic" : undefined,
-                    // Italics in our code font is controlled by a variable font setting instead of
-                    // `font-style: italic`.
-                    // eslint-disable-next-line cyberworlds/string-quotes
-                    fontVariationSettings: isCodeFontStyle && isFontItalic ? '"ital" 1' : undefined,
-                    // Allow contextual alternate glyphs in regular text content.
-                    // eslint-disable-next-line cyberworlds/string-quotes
-                    fontFeatureSettings: inputType === "text" ? '"calt" on' : '"calt" off',
-                    // Was a strike requested for the font? Only render a strike if the value isn't
-                    // empty. Otherwise the strike renders on the placeholder which looks funny.
-                    ...(hasFontStrikeDecoration && value.length > 0
-                        ? {textDecorationLine: "line-through", textDecorationThickness: 1}
-                        : undefined),
-                }}
-                id={id}
-                aria-label={ariaLabel}
-                aria-labelledby={ariaLabelledby}
-                aria-describedby={ariaDescribedby}
-                type={inputType}
-                value={value}
-                onChange={event => onChange(event.currentTarget.value)}
-                placeholder={placeholder}
-                disabled={isDisabled}
-                readOnly={isReadOnly}
-                autoComplete={autoComplete}
-                autoCapitalize={autoCapitalize}
-                // If this is a password input and we've set `autoComplete` to `off`, then also
-                // tell 1Password to ignore this field.
-                // https://developer.1password.com/docs/web/compatible-website-design/#ignore-offers-to-save-or-fill-specific-fields
-                data-1p-ignore={
-                    (inputType === "email" || inputType === "password") && autoComplete === "off"
-                        ? ""
-                        : undefined
+                fontStyle: isFontItalic ? "italic" : undefined,
+                // Italics in our code font is controlled by a variable font setting instead of
+                // `font-style: italic`.
+                // eslint-disable-next-line cyberworlds/string-quotes
+                fontVariationSettings: isCodeFontStyle && isFontItalic ? '"ital" 1' : undefined,
+                // Allow contextual alternate glyphs in regular text content.
+                // eslint-disable-next-line cyberworlds/string-quotes
+                fontFeatureSettings: inputType === "text" ? '"calt" on' : '"calt" off',
+                // Was a strike requested for the font? Only render a strike if the value isn't
+                // empty. Otherwise the strike renders on the placeholder which looks funny.
+                ...(hasFontStrikeDecoration && value.length > 0
+                    ? {textDecorationLine: "line-through", textDecorationThickness: 1}
+                    : undefined),
+            }}
+            id={id}
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledby}
+            aria-describedby={ariaDescribedby}
+            type={inputType}
+            value={value}
+            onChange={event => onChange(event.currentTarget.value)}
+            placeholder={placeholder}
+            disabled={isDisabled}
+            readOnly={isReadOnly}
+            autoComplete={autoComplete}
+            autoCapitalize={autoCapitalize}
+            // If this is a password input and we've set `autoComplete` to `off`, then also
+            // tell 1Password to ignore this field.
+            // https://developer.1password.com/docs/web/compatible-website-design/#ignore-offers-to-save-or-fill-specific-fields
+            data-1p-ignore={
+                (inputType === "email" || inputType === "password") && autoComplete === "off"
+                    ? ""
+                    : undefined
+            }
+            name={formName}
+            enterKeyHint={onEnter ? "done" : undefined}
+            maxLength={maxLength}
+            onKeyDown={event => {
+                if (
+                    onModEnter &&
+                    event.key === "Enter" &&
+                    !event.altKey &&
+                    !event.shiftKey &&
+                    // Cmd+Enter on MacOS platforms should trigger the callback Ctrl+Enter on non-MacOS
+                    // platforms should trigger the callback
+                    (isAppleDevice ? event.metaKey : event.ctrlKey)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onModEnter();
+                    return;
                 }
-                name={formName}
-                enterKeyHint={onEnter ? "done" : undefined}
-                maxLength={maxLength}
-                onKeyDown={event => {
-                    if (
-                        onModEnter &&
-                        event.key === "Enter" &&
-                        !event.altKey &&
-                        !event.shiftKey &&
-                        // Cmd+Enter on MacOS platforms should trigger the callback Ctrl+Enter on non-MacOS
-                        // platforms should trigger the callback
-                        (isAppleDevice ? event.metaKey : event.ctrlKey)
-                    ) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onModEnter();
-                        return;
-                    }
 
-                    if (
-                        onEnter &&
-                        event.key === "Enter" &&
-                        !event.altKey &&
-                        !event.shiftKey &&
-                        // Ctrl+Enter on non-MacOS platforms should trigger the callback
-                        (!isAppleDevice || !event.ctrlKey) &&
-                        // Cmd+Enter on MacOS platforms should trigger the callback
-                        (isAppleDevice || !event.metaKey)
-                    ) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onEnter();
-                        return;
-                    }
+                if (
+                    onEnter &&
+                    event.key === "Enter" &&
+                    !event.altKey &&
+                    !event.shiftKey &&
+                    // Ctrl+Enter on non-MacOS platforms should trigger the callback
+                    (!isAppleDevice || !event.ctrlKey) &&
+                    // Cmd+Enter on MacOS platforms should trigger the callback
+                    (isAppleDevice || !event.metaKey)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onEnter();
+                    return;
+                }
 
-                    if (onEscape && event.key === "Escape" && !isModifiedKeyboardEvent(event)) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onEscape();
-                        return;
-                    }
-                }}
-            />
+                if (onEscape && event.key === "Escape" && !isModifiedKeyboardEvent(event)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onEscape();
+                    return;
+                }
+
+                onKeyDown?.(event);
+            }}
+        />
+    );
+
+    const focusRingElement = (
+        <FocusRing offset="border" isVisible={isFocusRingVisible}>
+            {inputElement}
         </FocusRing>
     );
+
+    if (icon) {
+        return (
+            <Box
+                display="flex"
+                alignItems="center"
+                gap="2"
+                height={({"75": "7", "100": "9"} as const)[fontSize]}
+                paddingX={({"75": "2", "100": "2.5"} as const)[fontSize]}
+                borderRadius="1"
+                className={sprinkles({
+                    ...(!withoutBorder
+                        ? {
+                              boxShadow: "elevation-5-with-grey-10-border",
+                              backgroundColor: isDisabled || isReadOnly ? "grey-5" : "grey-0",
+                          }
+                        : {backgroundColor: "transparent"}),
+                })}
+            >
+                {icon}
+                {focusRingElement}
+            </Box>
+        );
+    }
+
+    return focusRingElement;
 });

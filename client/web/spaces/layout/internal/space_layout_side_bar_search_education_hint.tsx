@@ -6,7 +6,7 @@ import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_sh
 import {useHintOracle} from "~/client/web/design/use_hint_oracle.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {pingAnimationClassName} from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
@@ -27,7 +27,7 @@ export function SpaceLayoutSideBarSearchEducationHint({
     const {space, currentAccountSettings, updateCurrentAccountSettings} = useSpaceContext();
 
     // Detect feed view from current route. The feed view is the space home page.
-    const isOnFeedView = location.pathname === `/s/${space.id}`;
+    const isOnFeedView = location.pathname === `/home/${space.id}`;
 
     // Update state when on feed view: arm the hint if it hasn't been dismissed. We
     // check localStorage directly to avoid a race condition where `useLocalStorage`

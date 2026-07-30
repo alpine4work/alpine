@@ -93,6 +93,10 @@ import {
     SearchEntityMediaSchema,
 } from "~/server/search/data/index/internal/search_entity_media.js";
 import {
+    SearchEntityTitleVersion,
+    SearchEntityTitleVersionSchema,
+} from "~/server/search/data/index/internal/search_entity_title_version_schema.js";
+import {
     getPossiblyStaleChannelSearchAffinityEntityIds,
     getPossiblyStaleTaskCollectionSearchAffinityEntityIds,
     internalDangerouslyGetSpaceChannelSearchAffinityEntities,
@@ -106,6 +110,7 @@ import {
     searchEntityKeywordIndexWaitForRefreshDelayMs,
     withIndexSearchEntityEmbeddingChunksJobLock,
 } from "~/server/search/data/table/search_entity_actions.js";
+import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {
     authorizeSpaceAccess,
@@ -119,10 +124,8 @@ import {getSpaceAccountSettings} from "~/server/spaces/get_space_account_setting
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {spaceWelcomePackageSearchEntityMaxCount} from "~/server/spaces/space_welcome_package_search_entity_max_count.js";
-import {
-    getTaskCollectionSearchResultBodyTextSnippetIfPossible,
-    getTaskCollectionSearchResultIfPossible,
-} from "~/server/tasks/data/task_table.js";
+import {getTaskCollectionSearchResultBodyTextSnippetIfPossible} from "~/server/tasks/data/get_task_collection_search_result_body_text_snippet_if_possible.js";
+import {getTaskCollectionSearchResultIfPossible} from "~/server/tasks/data/get_task_collection_search_result_if_possible.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {
     AccessPolicyAccountGrantWithoutGeneration,
@@ -132,12 +135,12 @@ import {
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
-    ContentReferences,
     ContentReferencesSearchEntity,
     emptyContentReferences,
 } from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {printContentSingleLineTextSnippetPreservingMarks} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {ContextBatcher} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -149,7 +152,6 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-    UnimplementedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
@@ -160,6 +162,7 @@ import {
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertNotAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
@@ -177,6 +180,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
@@ -201,16 +205,22 @@ import {
     SearchEntityId,
     SearchMentionEntityId,
     getSearchMentionEntityTypes,
+    isSearchDynamicEntityId,
+    isSearchEntityId,
     isSearchMentionEntityId,
     parseSearchDynamicEntityId,
+    parseSearchDynamicEntityIdWithoutAccount,
     parseSearchMentionEntityId,
     printSearchDynamicEntityId,
     printSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
-import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
 import {
     SearchAffinityEntityModel,
+    SearchChatEntityMediaModel,
     SearchEntityModel,
+    SearchEntityModelData,
+    SearchEntityModelDataWithAccount,
+    isSearchAffinityEntityModelData,
     isSearchEntityModelId,
 } from "~/shared/search/search_entity_model.js";
 import {
@@ -218,13 +228,9 @@ import {
     SearchEntityResultModel,
     SearchFavoriteEntityResultModel,
 } from "~/shared/search/search_entity_result_model.js";
-import {
-    SearchEntityTitleVersion,
-    SearchEntityTitleVersionSchema,
-} from "~/shared/search/search_entity_title_version.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {searchStaticEntityById} from "~/shared/search/search_static_entity.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {searchShortcutFavoriteEntityMaxCount} from "~/shared/spaces/space_account_settings.js";
 import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collection_search_entity_base.js";
 import {getTaskSearchEntityBase} from "~/shared/tasks/get_task_search_entity_base.js";
@@ -1904,22 +1910,6 @@ export async function searchByKeywords(
                   }).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
                 : emptyArray;
 
-            const hitMedia = hit.fields.media?.[0];
-
-            let media: SearchEntityMediaModel | null = null;
-            if (hitMedia) {
-                if (hitMedia.type === "TaskCollectionColor") {
-                    media = hitMedia;
-                } else {
-                    media = await prepareSearchEntityMediaForResult(
-                        context,
-                        spaceId,
-                        entityId,
-                        hitMedia,
-                    );
-                }
-            }
-
             // If this hit is for a task collection then we'll include, as the search result
             // body, a summary of how many tasks are in the collection and when the collection
             // was last updated. This is helpful for a user comparing multiple task collections
@@ -1956,6 +1946,7 @@ export async function searchByKeywords(
                 );
             }
 
+            const hitMedia = hit.fields.media?.[0];
             let model: SearchEntityModel | AccountModel;
 
             if (!isSearchEntityModelId(entityId)) {
@@ -1966,16 +1957,10 @@ export async function searchByKeywords(
 
                 model = await getAccount(context, spaceId, hitMedia.accountId);
             } else {
-                model = new SearchEntityModel({
-                    id: entityId,
-                    title: prepareSearchEntityTitleForResult(
-                        context.actor.type,
-                        entityId,
-                        hit.fields.title?.[0] ?? null,
-                        media,
-                    ),
+                model = await prepareSearchEntityForResult(context, spaceId, entityId, {
+                    title: hit.fields.title?.[0] ?? null,
                     titleVersion: hit.fields.titleVersion?.[0] ?? null,
-                    media,
+                    hitMedia,
                 });
             }
 
@@ -2428,11 +2413,6 @@ export async function searchBySemantics(
                 : [];
 
             const hitMedia = hit.fields["entity.media"]?.[0];
-
-            const media = hitMedia
-                ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, hitMedia)
-                : null;
-
             let model: SearchEntityModel | AccountModel;
 
             if (!isSearchEntityModelId(entityId)) {
@@ -2443,16 +2423,10 @@ export async function searchBySemantics(
 
                 model = await getAccount(context, spaceId, hitMedia.accountId);
             } else {
-                model = new SearchEntityModel({
-                    id: entityId,
-                    title: prepareSearchEntityTitleForResult(
-                        context.actor.type,
-                        entityId,
-                        hit.fields["entity.title"]?.[0] ?? null,
-                        media,
-                    ),
+                model = await prepareSearchEntityForResult(context, spaceId, entityId, {
+                    title: hit.fields["entity.title"]?.[0] ?? null,
                     titleVersion: hit.fields["entity.titleVersion"]?.[0] ?? null,
-                    media,
+                    hitMedia,
                 });
             }
 
@@ -2504,11 +2478,9 @@ function spotCheckSearchEntityAccess(
         case "Task":
         case "TaskCollection":
         case "Post":
+        case "Site":
             mentionEntityId = printSearchMentionEntityId(entityIdObject);
             break;
-        case "Site":
-            // TODO(#sites): Implement
-            throw new UnimplementedError("Site mentions not implemented");
         case "DocumentComment":
             mentionEntityId = `Document:${entityIdObject.documentId}`;
             break;
@@ -2557,17 +2529,18 @@ function spotCheckSearchEntityAccess(
     );
 }
 
-async function prepareSearchEntityMediaForResult(
+async function prepareAccountOrAccountPileMediaForResult(
     context: ServerActionContext,
     spaceId: SpaceId,
-    entityId: SearchDynamicEntityId,
-    media: SearchEntityMedia,
+    media: SearchEntityMedia & {type: "Account" | "AccountPile"},
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<SearchEntityMediaModel> {
+): Promise<SearchChatEntityMediaModel> {
     switch (media.type) {
         case "Account": {
-            const account = await getAccount(context, spaceId, media.accountId, options);
-            return {type: "Account", account};
+            return {
+                type: "Account",
+                account: await getAccount(context, spaceId, media.accountId, options),
+            };
         }
         case "AccountPile": {
             const sortAccountIdLast = (accountId: AccountId) => {
@@ -2623,12 +2596,242 @@ async function prepareSearchEntityMediaForResult(
                 accountCount: media.accountCount,
             };
         }
-        case "TaskCollectionColor":
-        case "TaskDisplayStatus": {
-            return media;
-        }
         default:
             throw exhaustive(media);
+    }
+}
+
+async function prepareSearchEntityForResult(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    entityId: Exclude<SearchDynamicEntityId, `Account:${AccountId}`>,
+    fields: {
+        title: string | null;
+        titleVersion: SearchEntityTitleVersion | null;
+        hitMedia?: SearchEntityMedia | null;
+    },
+): Promise<SearchEntityModel> {
+    return new SearchEntityModel(
+        await prepareSearchEntityDataForResult(context, spaceId, entityId, fields),
+    );
+}
+
+async function prepareSearchEntityDataForResult(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    entityId: Exclude<SearchDynamicEntityId, `Account:${AccountId}`>,
+    {
+        title,
+        titleVersion,
+        hitMedia,
+    }: {
+        title: string | null;
+        titleVersion: SearchEntityTitleVersion | null;
+        hitMedia?: SearchEntityMedia | null;
+    },
+): Promise<SearchEntityModelData> {
+    const idObject = parseSearchDynamicEntityIdWithoutAccount(entityId);
+    switch (idObject.type) {
+        case "Document": {
+            // TODO(ifitzsimmons, 2026-05-19): We need to reindex the semantic search index to
+            // fix this properly. After that, we should assert that the title version is the
+            // expected type. We saw an error in production where document entities do not have
+            // the expected `Integer` title version, which is crashing the app. This is a short
+            // term fix that will allow us to investigate the issue without end-user impact.
+            const version = titleVersion?.type === "Integer" ? titleVersion.version : -1;
+
+            return {
+                type: "Document",
+                title,
+                document: {
+                    id: idObject.documentId,
+                    version,
+                },
+            };
+        }
+        case "Channel": {
+            // TODO(ifitzsimmons, 2026-05-19): We need to reindex the semantic search index to
+            // fix this properly. After that, we should assert that the title version is the
+            // expected type.
+            const version = titleVersion?.type === "Integer" ? titleVersion.version : -1;
+
+            return {
+                type: "Channel",
+                title,
+                channel: {
+                    id: idObject.channelId,
+                    version,
+                },
+            };
+        }
+        case "Chat": {
+            assert(hitMedia?.type === "AccountPile" || hitMedia?.type === "Account");
+            const media = await prepareAccountOrAccountPileMediaForResult(
+                context,
+                spaceId,
+                hitMedia,
+            );
+
+            function getChatVersion(): number | null {
+                if (titleVersion === null) return null;
+                // TODO(ifitzsimmons, 2026-05-19): We need to reindex the semantic search index to
+                // fix this properly. After that, we should assert that the title version is the
+                // expected type.
+                return titleVersion.type === "Integer" ? titleVersion.version : -1;
+            }
+
+            return {
+                type: "Chat",
+                title: prepareChatSearchEntityTitleForResult(context.actor.type, title, media),
+                chat: {
+                    id: idObject.chatId,
+                    version: getChatVersion(),
+                    media,
+                },
+            };
+        }
+        case "Task": {
+            assert(titleVersion?.type === "TaskTitle");
+
+            // TODO(ifitzsimmons, 2026-05-19): We saw an error in production where task
+            // entities do not have display statuses, which is crashing the app for a set of
+            // users. This is a short term fix that will allow us to investigate the issue
+            // without end-user impact. It may be that the tasks in question are deleted, but
+            // it's hard to say without more data.
+            const displayStatus =
+                hitMedia?.type === "TaskDisplayStatus"
+                    ? ({value: hitMedia.displayStatus, version: hitMedia.version} as const)
+                    : ({value: "OpenInactive", version: zeroHybridLogicalTime} as const);
+
+            return {
+                type: "Task",
+                title,
+                task: {
+                    id: idObject.taskId,
+                    titleSnapshot: titleVersion.snapshot,
+                    deletedTime: titleVersion.deletedTime,
+                    displayStatus,
+                },
+            };
+        }
+        case "TaskCollection": {
+            assert(titleVersion?.type === "HybridLogicalTime");
+
+            // TODO(ifitzsimmons, 2026-05-19): We saw an error in production where task
+            // collections do not have colors, which is crashing the app for a set of users.
+            // This is a short term fix that will allow us to investigate the issue without
+            // end-user impact. It may be that the collections in question are deleted, but
+            // it's hard to say without more data.
+            const color =
+                hitMedia?.type === "TaskCollectionColor"
+                    ? ({value: hitMedia.color, version: hitMedia.version} as const)
+                    : ({value: null, version: zeroHybridLogicalTime} as const);
+            return {
+                type: "TaskCollection",
+                title,
+                collection: {
+                    id: idObject.collectionId,
+                    titleVersion: titleVersion.time,
+                    color,
+                },
+            };
+        }
+        case "Post": {
+            assert(hitMedia?.type === "Account");
+
+            let postVersion: {
+                version: number;
+                channelVersion: number;
+            };
+            // TODO(ifitzsimmons, 2026-05-19): We need to reindex the semantic search index to
+            // fix this properly. After that, we should assert that the title version is the
+            // expected type.
+            if (titleVersion?.type !== "Integers") {
+                postVersion = {version: -1, channelVersion: -1};
+            } else {
+                assert(titleVersion.versions.length === 2);
+                postVersion = {
+                    version: titleVersion.versions[0]!,
+                    channelVersion: titleVersion.versions[1]!,
+                };
+            }
+            const author = await getAccount(context, spaceId, hitMedia.accountId);
+
+            return {
+                type: "Post",
+                title,
+                post: {
+                    id: idObject.postId,
+                    ...postVersion,
+                    author,
+                },
+            };
+        }
+        case "ChatMessage": {
+            assert(hitMedia?.type === "Account");
+            return {
+                type: "ChatMessage",
+                title: null,
+                message: {
+                    chatId: idObject.chatId,
+                    index: idObject.messageIndex,
+                    author: await getAccount(context, spaceId, hitMedia.accountId),
+                },
+            };
+        }
+        case "DocumentComment": {
+            assert(hitMedia?.type === "Account");
+            return {
+                type: "DocumentComment",
+                title: null,
+                comment: {
+                    documentId: idObject.documentId,
+                    commentThreadId: idObject.commentThreadId,
+                    index: idObject.commentIndex,
+                    author: await getAccount(context, spaceId, hitMedia.accountId),
+                },
+            };
+        }
+        case "PostComment": {
+            assert(hitMedia?.type === "Account");
+            return {
+                type: "PostComment",
+                title: null,
+                comment: {
+                    postId: idObject.postId,
+                    index: idObject.commentIndex,
+                    author: await getAccount(context, spaceId, hitMedia.accountId),
+                },
+            };
+        }
+        case "TaskComment": {
+            assert(hitMedia?.type === "Account");
+            return {
+                type: "TaskComment",
+                title: null,
+                comment: {
+                    taskId: idObject.taskId,
+                    index: idObject.commentIndex,
+                    author: await getAccount(context, spaceId, hitMedia.accountId),
+                },
+            };
+        }
+        case "Site": {
+            assert(hitMedia?.type === "Site");
+            assert(titleVersion?.type === "Integer");
+
+            return {
+                type: "Site",
+                title,
+                site: {
+                    id: idObject.siteId,
+                    version: titleVersion.version,
+                    firstEntityId: hitMedia.firstEntityId,
+                },
+            };
+        }
+        default:
+            throw exhaustive(idObject);
     }
 }
 
@@ -2638,17 +2841,15 @@ async function prepareSearchEntityMediaForResult(
  * chat use a nicer name which is a concatenation of short names excluding the
  * actor. We use the short names of the accounts in the chat's `AccountPile` media.
  */
-function prepareSearchEntityTitleForResult(
+function prepareChatSearchEntityTitleForResult(
     actorType: ServerActionContext["actor"]["type"],
-    entityId: SearchDynamicEntityId,
     title: string | null,
-    media: SearchEntityMediaModel | null,
+    media: SearchChatEntityMediaModel,
 ): string | null {
     if (title === null) return null;
 
     if (
-        media?.type !== "AccountPile" ||
-        !entityId.startsWith("Chat:") ||
+        media.type !== "AccountPile" ||
         // HACK: Room chats have a null `accountCount` whereas direct chats have an integer
         // `accountCount`. So check `accountCount === null` to tell if this is a room chat.
         media.accountCount === null
@@ -2667,10 +2868,9 @@ export async function getSearchDirectChatEntityTitleAndMedia(
 ) {
     const sortedAccountIds = sortSearchDirectChatEntityAccountIds(chatId, accountIds);
 
-    const media = await prepareSearchEntityMediaForResult(
+    const media = await prepareAccountOrAccountPileMediaForResult(
         context,
         spaceId,
-        `Chat:${chatId}`,
         {
             type: "AccountPile",
             previewAccountIds: sortedAccountIds.slice(
@@ -2697,14 +2897,10 @@ export async function getSearchDirectChatEntityTitleAndMedia(
 }
 
 type SearchEntityModelBaseResult =
-    | {
+    | (SearchEntityModelDataWithAccount & {
           isPrivate: false;
-          id: SearchDynamicEntityId;
           spaceId: SpaceId;
-          title: string | null;
-          titleVersion: SearchEntityTitleVersion | null;
-          media: SearchEntityMediaModel | null;
-      }
+      })
     | {isPrivate: true};
 
 type SearchEntityIndexDoc = {
@@ -2773,7 +2969,7 @@ export async function getSearchEntityWithStrongConsistency(
     context: ServerActionContext,
     spaceId: SpaceId,
     entityId: SearchMentionEntityId,
-) {
+): Promise<SearchEntityModelDataWithAccount> {
     const {type} = parseSearchMentionEntityId(entityId);
 
     const entity = await fallbackGetSearchEntityBaseIfPossible(
@@ -2803,12 +2999,7 @@ export async function getSearchEntityWithStrongConsistency(
         });
     }
 
-    return {
-        id: entityId,
-        title: entity.title,
-        titleVersion: entity.titleVersion,
-        media: entity.media,
-    };
+    return entity;
 }
 
 /**
@@ -2839,11 +3030,13 @@ async function fallbackGetSearchEntityBaseIfPossible(
 
             return {
                 isPrivate: false,
-                id: entityId,
+                type: "Document",
                 spaceId: document.spaceId,
                 title: document.getTitle(),
-                titleVersion: {type: "Integer", version: document.version},
-                media: null,
+                document: {
+                    id: entityIdObject.documentId,
+                    version: document.version,
+                },
             };
         }
         case "Channel": {
@@ -2858,11 +3051,13 @@ async function fallbackGetSearchEntityBaseIfPossible(
 
             return {
                 isPrivate: false,
-                id: entityId,
+                type: "Channel",
                 spaceId: channel.spaceId,
                 title: channel.name,
-                titleVersion: {type: "Integer", version: channel.version},
-                media: null,
+                channel: {
+                    id: entityIdObject.channelId,
+                    version: channel.version,
+                },
             };
         }
         case "Chat": {
@@ -2877,24 +3072,26 @@ async function fallbackGetSearchEntityBaseIfPossible(
                 case "Room": {
                     return {
                         isPrivate: false,
-                        id: entityId,
+                        type: "Chat",
                         spaceId: chat.spaceId,
                         title: chat.definition.name,
-                        titleVersion: {type: "Integer", version: chat.version},
-                        media: await prepareSearchEntityMediaForResult(
-                            context,
-                            spaceId,
-                            entityId,
-                            getSearchRoomChatEntityMedia(
-                                entityIdObject.chatId,
-                                chat.definition.creatorId,
-                                getChatSearchEntityContributorIds(
-                                    chat.definition,
-                                    chat.messagesSummary,
+                        chat: {
+                            id: entityIdObject.chatId,
+                            version: chat.version,
+                            media: await prepareAccountOrAccountPileMediaForResult(
+                                context,
+                                spaceId,
+                                getSearchRoomChatEntityMedia(
+                                    entityIdObject.chatId,
+                                    chat.definition.creatorId,
+                                    getChatSearchEntityContributorIds(
+                                        chat.definition,
+                                        chat.messagesSummary,
+                                    ),
                                 ),
+                                {consistency: "StrongWithinCache"},
                             ),
-                            {consistency: "StrongWithinCache"},
-                        ),
+                        },
                     };
                 }
                 case "Direct": {
@@ -2914,11 +3111,14 @@ async function fallbackGetSearchEntityBaseIfPossible(
 
                     return {
                         isPrivate: false,
-                        id: entityId,
+                        type: "Chat",
                         spaceId: chat.spaceId,
                         title,
-                        titleVersion: null,
-                        media,
+                        chat: {
+                            id: entityIdObject.chatId,
+                            version: chat.version,
+                            media,
+                        },
                     };
                 }
                 default:
@@ -2935,10 +3135,15 @@ async function fallbackGetSearchEntityBaseIfPossible(
             if (!taskResult.ok) return {isPrivate: true};
             const task = taskResult.value;
 
+            const taskSearchEntityBase = getTaskSearchEntityBase(task);
             return {
-                ...getTaskSearchEntityBase(task),
                 isPrivate: false,
-                id: entityId,
+                type: "Task",
+                title: taskSearchEntityBase.title,
+                task: {
+                    id: entityIdObject.taskId,
+                    ...taskSearchEntityBase,
+                },
                 spaceId: task.getSpaceId(),
             };
         }
@@ -2952,10 +3157,16 @@ async function fallbackGetSearchEntityBaseIfPossible(
             if (!collectionResult.ok) return {isPrivate: true};
             const collection = collectionResult.value;
 
+            const taskCollectionSearchEntityBase = getTaskCollectionSearchEntityBase(collection);
             return {
-                ...getTaskCollectionSearchEntityBase(collection),
                 isPrivate: false,
-                id: entityId,
+                type: "TaskCollection",
+                title: taskCollectionSearchEntityBase.title,
+                collection: {
+                    id: entityIdObject.collectionId,
+                    titleVersion: taskCollectionSearchEntityBase.titleVersion,
+                    color: taskCollectionSearchEntityBase.color,
+                },
                 spaceId: collection.getSpaceId(),
             };
         }
@@ -2978,7 +3189,7 @@ async function fallbackGetSearchEntityBaseIfPossible(
                     spaceId,
                     post.authorId,
                 ),
-                fallbackGetSearchContentReferences(
+                fallbackGetSearchContentReferencesForPostTitle(
                     // It's fine to read references with eventual consistency.
                     context.dynamo.unexpectStrongReadConsistency(),
                     spaceId,
@@ -2999,28 +3210,56 @@ async function fallbackGetSearchEntityBaseIfPossible(
 
             return {
                 isPrivate: false,
-                id: entityId,
+                type: "Post",
                 spaceId: post.spaceId,
                 title,
-                titleVersion: {type: "Integers", versions: [post.version, post.channel.version]},
-                media: {type: "Account", account: postAuthor},
+                post: {
+                    id: entityIdObject.postId,
+                    version: post.version,
+                    channelVersion: post.channel.version,
+                    author: postAuthor,
+                },
             };
         }
-        case "Site":
-            // TODO(#sites): Implement site search entity support
-            throw new UnimplementedError("Site search entities are not supported");
+        case "Site": {
+            const siteResult = await getSitePreviewIfPossible(context, entityIdObject.siteId, {
+                consistency: "StrongWithinCache",
+            });
+            if (!siteResult) return null;
+            if (!siteResult.ok) return {isPrivate: true};
+            const site = siteResult.value;
+
+            return {
+                isPrivate: false,
+                type: "Site",
+                spaceId: site.initialData.spaceId,
+                title: site.initialData.name,
+                site: {
+                    id: entityIdObject.siteId,
+                    version: site.initialData.version,
+                    firstEntityId: site.initialData.firstEntityId,
+                },
+            };
+        }
         default:
             throw exhaustive(entityIdObject);
     }
 }
 
-async function fallbackGetSearchContentReferences(
+async function fallbackGetSearchContentReferencesForPostTitle(
     context: ServerActionContext,
     spaceId: SpaceId,
     originEntityId: SearchEntityId,
     content: Node,
     seen: ReadonlySet<SearchEntityId>,
-): Promise<ContentReferences> {
+): Promise<{
+    accountById: ReadonlyMap<AccountId, AccountModelData>;
+    searchEntityById: ReadonlyMap<
+        SearchMentionEntityId,
+        | (RenderContentMentionToTextSearchEntity & {entity?: undefined})
+        | ContentReferencesSearchEntity
+    >;
+}> {
     seen = new Set(addToIterable(seen, originEntityId));
 
     const referencedIds = getContentReferencedIdsForNode(content);
@@ -3035,25 +3274,33 @@ async function fallbackGetSearchContentReferences(
             }),
         ),
         runAllPromises(
-            mapIterable(referencedSearchEntityIds, entityId => {
-                // If we've already seen this `entityId` then instead of loading it again (which
-                // would cause an infinite loop), break the cycle.
-                if (seen.has(entityId)) {
-                    return {
-                        isPrivate: false,
-                        entity: new SearchEntityModel({
-                            id: entityId,
+            mapIterable(
+                referencedSearchEntityIds,
+                async (
+                    entityId,
+                ): Promise<
+                    RenderContentMentionToTextSearchEntity | ContentReferencesSearchEntity | null
+                > => {
+                    // The goal of this broader function is to get the references for a Post title and
+                    // we want to print the title of the post as succinctly as possible. If the same
+                    // entity is referenced multiple times within a post title, we truncate the title
+                    // to avoid repeating the same entity name multiple times.
+                    //
+                    // So if we've already seen this `entityId` then instead of loading it again (which
+                    // would cause an infinite loop), break the cycle and return the truncated title.
+                    if (seen.has(entityId)) {
+                        return {
+                            isPrivate: false,
                             title: "[…]",
-                            titleVersion: null,
-                            media: null,
-                        }),
-                    };
-                }
+                            getAuthorData: null,
+                        };
+                    }
 
-                // You may have copy/pasted some content from a different space. In that case a
-                // mentioned entity may not exist.
-                return getSearchMentionEntityIfPossible(context, spaceId, entityId, seen);
-            }),
+                    // You may have copy/pasted some content from a different space. In that case a
+                    // mentioned entity may not exist.
+                    return await getSearchMentionEntityIfPossible(context, spaceId, entityId, seen);
+                },
+            ),
         ),
     ]);
 
@@ -3062,13 +3309,13 @@ async function fallbackGetSearchContentReferences(
         accountById: new Map(
             filterMapIterable(referencedAccounts, account => {
                 if (!account) return;
-                return [account.id, account];
+                return [account.id, account.initialData];
             }),
         ),
         searchEntityById: new Map(
             filterMapIterable(referencedSearchEntities, (searchEntity, index) => {
                 if (!searchEntity) return;
-                const searchEntityId = referencedSearchEntityIds[index]!;
+                const searchEntityId = assertExists(referencedSearchEntityIds[index]);
                 return [searchEntityId, searchEntity];
             }),
         ),
@@ -3078,7 +3325,7 @@ async function fallbackGetSearchContentReferences(
 /**
  * Get the titles and media of the provided search entity if the search entity
  * exists and the account has access to the search entity. The media will be
- * returned as `SearchEntityMediaModel` to be `SearchEntityModel` ready.
+ * returned as `SearchChatEntityMediaModel` to be `SearchEntityModel` ready.
  */
 async function getSearchEntityBaseIfPossible(
     context: ServerActionContext,
@@ -3117,11 +3364,10 @@ async function getSearchEntityBaseIfPossible(
 
                 return {
                     isPrivate: false,
-                    id: entityId,
-                    spaceId,
+                    type: "Account",
+                    account,
                     title: account.initialData.name,
-                    titleVersion: {type: "Integer", version: account.initialData.nameVersion},
-                    media: {type: "Account", account},
+                    spaceId,
                 };
             }
 
@@ -3144,7 +3390,7 @@ async function getSearchEntityBaseIfPossible(
         // If the entity WAS found in the OpenSearch index but its access policy doesn't
         // allow us to read it then we don't check DynamoDB since we expect the same
         // result.
-        return fallbackGetSearchEntityBaseIfPossible(
+        return await fallbackGetSearchEntityBaseIfPossible(
             // Expect strong read consistency since if we can't find the entity in OpenSearch
             // that implies it was just created so we're running the risk of eventual
             // consistency lag anyway.
@@ -3255,17 +3501,29 @@ async function getSearchEntityBaseIfPossible(
     const titleVersion = doc.fields.titleVersion?.[0] ?? null;
     const docMedia = doc.fields.media?.[0] ?? null;
 
-    const media = docMedia
-        ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, docMedia)
-        : null;
+    const idObject = parseSearchDynamicEntityId(entityId);
+    if (idObject.type === "Account") {
+        const account = await getAccount(context, spaceId, idObject.accountId);
+        return {
+            type: "Account",
+            isPrivate: false,
+            spaceId,
+            title: account.initialData.name,
+            account,
+        };
+    }
+
+    assert(isSearchEntityModelId(entityId));
+    const searchEntityData = await prepareSearchEntityDataForResult(context, spaceId, entityId, {
+        title,
+        titleVersion,
+        hitMedia: docMedia,
+    });
 
     return {
         isPrivate: false,
-        id: entityId,
         spaceId,
-        title: prepareSearchEntityTitleForResult(context.actor.type, entityId, title, media),
-        titleVersion,
-        media,
+        ...searchEntityData,
     };
 }
 
@@ -3284,22 +3542,12 @@ export async function getSearchEntityIfPossible(
     const entity = await getSearchEntityBaseIfPossible(context, spaceId, entityId);
     if (entity === null || entity.isPrivate === true) return entity;
 
-    if (!isSearchEntityModelId(entity.id)) {
-        // The only `SearchEntityId` which isn't a `SearchEntityModelId` is
-        // `Account:${AccountId}`. Expect that account search entities always have an
-        // account media object.
-        assert(entity.media?.type === "Account");
-
-        return {isPrivate: false, entity: entity.media.account};
+    if (entity.type === "Account") {
+        return {isPrivate: false, entity: entity.account};
     } else {
         return {
             isPrivate: false,
-            entity: new SearchEntityModel({
-                id: entity.id,
-                title: entity.title,
-                titleVersion: entity.titleVersion,
-                media: entity.media,
-            }),
+            entity: new SearchEntityModel(omitObject(entity, ["spaceId", "isPrivate"])),
         };
     }
 }
@@ -3323,22 +3571,13 @@ export async function getSearchAffinityEntityIfPossible(
     const entity = await getSearchEntityBaseIfPossible(context, spaceId, entityId);
     if (entity === null || entity.isPrivate === true) return entity;
 
-    if (!isSearchEntityModelId(entityId)) {
-        // The only `SearchEntityId` which isn't a `SearchEntityModelId` is
-        // `Account:${AccountId}`. Expect that account search entities always have an
-        // account media object.
-        assert(entity.media?.type === "Account");
-
-        return {isPrivate: false, entity: entity.media.account};
+    if (entity.type === "Account") {
+        return {isPrivate: false, entity: entity.account};
     } else {
+        assert(isSearchAffinityEntityModelData(entity));
         return {
             isPrivate: false,
-            entity: SearchAffinityEntityModel.new({
-                id: entityId,
-                title: entity.title,
-                titleVersion: entity.titleVersion,
-                media: entity.media,
-            }),
+            entity: SearchAffinityEntityModel.new(omitObject(entity, ["spaceId", "isPrivate"])),
         };
     }
 }
@@ -3361,14 +3600,11 @@ export async function getSearchMentionEntityIfPossible(
     const entity = await getSearchEntityBaseIfPossible(context, spaceId, entityId, seen);
     if (entity === null || entity.isPrivate === true) return entity;
 
+    assert(entity.type !== "Account");
+
     return {
         isPrivate: false,
-        entity: new SearchEntityModel({
-            id: entity.id as SearchMentionEntityId,
-            title: entity.title,
-            titleVersion: entity.titleVersion,
-            media: entity.media,
-        }),
+        entity: new SearchEntityModel(omitObject(entity, ["spaceId", "isPrivate"])),
     };
 }
 
@@ -3565,10 +3801,9 @@ export async function searchByAffinity(
             if (favoriteEntity.entityId === "TaskPersonal") {
                 result = new SearchFavoriteEntityResultModel({
                     model: SearchAffinityEntityModel.new({
+                        type: "Static",
                         id: favoriteEntity.entityId,
                         title: searchStaticEntityById[favoriteEntity.entityId].title,
-                        titleVersion: null,
-                        media: null,
                     }),
                     score: 0,
                     favoriteOrderKey: favoriteEntity.orderKey,
@@ -3612,10 +3847,9 @@ export async function searchByAffinity(
         if (entity.entityId === "TaskPersonal") {
             result = new SearchAffinityEntityResultModel({
                 model: SearchAffinityEntityModel.new({
+                    type: "Static",
                     id: entity.entityId,
                     title: searchStaticEntityById[entity.entityId].title,
-                    titleVersion: null,
-                    media: null,
                 }),
                 score: entity.points,
                 favoriteOrderKey: entity.favoriteOrderKey,
@@ -3763,9 +3997,11 @@ export async function searchMentionByKeywords(
             const titleVersion = hit.fields.titleVersion?.[0] ?? null;
             const hitMedia = hit.fields.media?.[0] ?? null;
 
-            const media = hitMedia
-                ? await prepareSearchEntityMediaForResult(context, spaceId, hit.id, hitMedia)
-                : null;
+            const model = await prepareSearchEntityForResult(context, spaceId, hit.id, {
+                title,
+                titleVersion,
+                hitMedia,
+            });
 
             return {
                 score:
@@ -3775,23 +4011,13 @@ export async function searchMentionByKeywords(
                     //
                     // Our hacky way of detecting direct chats is checking whether `accountCount` is
                     // non-null. Room chats have a null `accountCount`.
-                    (hit.id.startsWith("Chat:") &&
-                    media?.type === "AccountPile" &&
-                    media.accountCount !== null
+                    (model.initialData.type === "Chat" &&
+                    model.initialData.chat.media.type === "AccountPile" &&
+                    model.initialData.chat.media.accountCount !== null
                         ? demotionScore
                         : 0),
 
-                model: new SearchEntityModel({
-                    id: hit.id,
-                    title: prepareSearchEntityTitleForResult(
-                        context.actor.type,
-                        hit.id,
-                        title,
-                        media,
-                    ),
-                    titleVersion,
-                    media,
-                }),
+                model,
             };
         }),
     );
@@ -4085,9 +4311,13 @@ export async function searchRoomChatsByKeywords(
     const chats = await runAllPromises(
         hits.map(async hit => {
             // Could be an assert since we should filter out non-chat entities in our search.
-            if (!hit.id.startsWith("Chat:")) return null;
+            if (!isSearchEntityId(hit.id) || !isSearchDynamicEntityId(hit.id)) return null;
 
-            const hitId = hit.id as `Chat:${ChatId}`;
+            const idObject = parseSearchDynamicEntityId(hit.id);
+
+            // Could be an assert since we should filter out non-chat entities in our search.
+            if (idObject.type !== "Chat") return null;
+
             const hitMedia = hit.fields.media?.[0] ?? null;
             const hitTitle = hit.fields.title?.[0] ?? null;
             const hitTitleVersion = hit.fields.titleVersion?.[0] ?? null;
@@ -4098,22 +4328,34 @@ export async function searchRoomChatsByKeywords(
             // risk we have the wrong `AccessPolicy` indexed! So when we get results back from
             // OpenSearch, we perform ocassional spot checks to double check entity access
             // against an authoritative source (typically DynamoDB).
-            spotCheckSearchEntityAccess(context, "searchRoomChatsByKeywords", spaceId, hitId);
+            spotCheckSearchEntityAccess(
+                context,
+                "searchRoomChatsByKeywords",
+                spaceId,
+                `Chat:${idObject.chatId}`,
+            );
 
-            const media = hitMedia
-                ? await prepareSearchEntityMediaForResult(context, spaceId, hitId, hitMedia)
-                : null;
+            assert(hitMedia?.type === "AccountPile" || hitMedia?.type === "Account");
+            const media = await prepareAccountOrAccountPileMediaForResult(
+                context,
+                spaceId,
+                hitMedia,
+            );
+
+            function getChatVersion(): number | null {
+                if (!hitTitleVersion) return null;
+                assert(hitTitleVersion.type === "Integer");
+                return hitTitleVersion.version;
+            }
 
             return new SearchEntityModel({
-                id: hitId,
-                title: prepareSearchEntityTitleForResult(
-                    context.actor.type,
-                    hitId,
-                    hitTitle,
+                type: "Chat",
+                title: prepareChatSearchEntityTitleForResult(context.actor.type, hitTitle, media),
+                chat: {
+                    id: idObject.chatId,
+                    version: getChatVersion(),
                     media,
-                ),
-                titleVersion: hitTitleVersion,
-                media,
+                },
             });
         }),
     );
@@ -4443,10 +4685,9 @@ export async function getAllSearchFavoriteEntities(
             results.push(
                 new SearchFavoriteEntityResultModel({
                     model: SearchAffinityEntityModel.new({
+                        type: "Static",
                         id: favoriteEntity.entityId,
                         title: searchStaticEntityById[favoriteEntity.entityId].title,
-                        titleVersion: null,
-                        media: null,
                     }),
                     score: 0,
                     favoriteOrderKey: assertExists(favoriteEntity.orderKey),

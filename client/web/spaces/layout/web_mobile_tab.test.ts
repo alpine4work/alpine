@@ -17,42 +17,42 @@ describe("getWebMobileTabFromLocation", () => {
     const spaceId = generateId<SpaceId>();
 
     test("returns Home for space root path", () => {
-        const location = createLocation(`/s/${spaceId}`);
+        const location = createLocation(`/home/${spaceId}`);
         expect(getWebMobileTabFromLocation(location)).toEqual("Home");
     });
 
     test("returns Search for space search path", () => {
-        const location = createLocation(`/s/${spaceId}/search`);
+        const location = createLocation(`/search/${spaceId}`);
         expect(getWebMobileTabFromLocation(location)).toEqual("Search");
     });
 
     test("returns Create for space create path", () => {
-        const location = createLocation(`/s/${spaceId}/create`);
+        const location = createLocation(`/create/${spaceId}`);
         expect(getWebMobileTabFromLocation(location)).toEqual("Create");
     });
 
     test("returns Inbox for space inbox path", () => {
-        const location = createLocation(`/s/${spaceId}/inbox`);
+        const location = createLocation(`/inbox/${spaceId}`);
         expect(getWebMobileTabFromLocation(location)).toEqual("Inbox");
     });
 
     test("returns More for space more path", () => {
-        const location = createLocation(`/s/${spaceId}/more`);
+        const location = createLocation(`/more/${spaceId}`);
         expect(getWebMobileTabFromLocation(location)).toEqual("More");
     });
 
     test("returns Inbox when inbox=show query param is present on non-matching path", () => {
-        const location = createLocation(`/s/${spaceId}/other`, "?inbox=show");
+        const location = createLocation(`/other/${spaceId}`, "?inbox=show");
         expect(getWebMobileTabFromLocation(location)).toEqual("Inbox");
     });
 
     test("returns tab when matching root path and query params are present", () => {
-        const location = createLocation(`/s/${spaceId}/search`, "?q=test");
+        const location = createLocation(`/search/${spaceId}`, "?q=test");
         expect(getWebMobileTabFromLocation(location)).toEqual("Search");
     });
 
     test("returns matching tab with trailing slash", () => {
-        const location = createLocation(`/s/${spaceId}/`);
+        const location = createLocation(`/home/${spaceId}/`);
         expect(getWebMobileTabFromLocation(location)).toEqual("Home");
     });
 
@@ -61,7 +61,7 @@ describe("getWebMobileTabFromLocation", () => {
     });
 
     test("returns null for non-matching path without query params", () => {
-        const location = createLocation(`/s/${spaceId}/other`);
+        const location = createLocation(`/other/${spaceId}`);
         expect(getWebMobileTabFromLocation(location)).toEqual(null);
     });
 
@@ -71,23 +71,23 @@ describe("getWebMobileTabFromLocation", () => {
     });
 
     test("returns null when inbox query param has value other than show", () => {
-        const location = createLocation(`/s/${spaceId}/other`, "?inbox=hide");
+        const location = createLocation(`/other/${spaceId}`, "?inbox=hide");
         expect(getWebMobileTabFromLocation(location)).toEqual(null);
     });
 
     test("returns null when query params exist but no inbox param", () => {
-        const location = createLocation(`/s/${spaceId}/other`, "?foo=bar");
+        const location = createLocation(`/other/${spaceId}`, "?foo=bar");
         expect(getWebMobileTabFromLocation(location)).toEqual(null);
     });
 
     test("returns null for path with extra segments after tab", () => {
-        const location = createLocation(`/s/${spaceId}/inbox/nested`);
+        const location = createLocation(`/inbox/${spaceId}/nested`);
         expect(getWebMobileTabFromLocation(location)).toEqual(null);
     });
 
     test("returns null for path with invalid characters in spaceId", () => {
         const invalidSpaceId = "abc-123_456";
-        const location = createLocation(`/s/${invalidSpaceId}/inbox`);
+        const location = createLocation(`/inbox/${invalidSpaceId}`);
         expect(getWebMobileTabFromLocation(location)).toEqual(null);
     });
 });

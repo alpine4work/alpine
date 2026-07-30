@@ -6,7 +6,7 @@ import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_desc
 import {MaintenanceJobQueueSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
 import {processEnqueueScheduledNotificationDigestsJob} from "~/server/notifications/data/digest/notifications_digest_jobs.js";
 import {processSendAllPendingSubtleNotificationsJob} from "~/server/notifications/data/push/notifications_push_jobs.js";
-import {retryUnprocessedTaskActionTransactions} from "~/server/tasks/data/task_table.js";
+import {retryUnprocessedTaskActionTransactions} from "~/server/tasks/data/retry_unprocessed_task_action_transactions.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 

@@ -54,9 +54,11 @@ import {
     SearchEntityIndexDefaultGrantType,
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
+import {SearchEntityTitleVersion} from "~/server/search/data/index/internal/search_entity_title_version_schema.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
 import {getSitePreview, getSitePreviewIfExists} from "~/server/sites/data/get_site_preview.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
+import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task_notes_content_without_references.js";
 import {
     getTaskCollectionFromIndex,
     getTaskCollectionFromIndexIfExists,
@@ -65,15 +67,13 @@ import {
 } from "~/server/tasks/data/task_index.js";
 import {TaskApproximateActionCountByAccountId} from "~/server/tasks/data/task_index_doc.js";
 import {
-    TaskStepCountByAccountId,
     getTaskCommentPayload,
-    getTaskNotesContentWithoutReferences,
     putTaskCommentStreamPart,
-} from "~/server/tasks/data/task_table.js";
+} from "~/server/tasks/data/task_messaging.js";
+import {TaskStepCountByAccountId} from "~/server/tasks/data/task_step_count_by_account_id.js";
 import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
@@ -153,7 +153,6 @@ import {
     parseSearchMentionEntityId,
     printSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
-import {SearchEntityTitleVersion} from "~/shared/search/search_entity_title_version.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collection_search_entity_base.js";
@@ -400,7 +399,7 @@ class SearchEntityReadState {
     public async getAccountWithSpace(accountId: AccountId): Promise<AccountModel> {
         this._recordDependencyId(`Account:${accountId}`);
 
-        return getAccount(this._context, this._context.actor.getSpaceId(), accountId, {
+        return await getAccount(this._context, this._context.actor.getSpaceId(), accountId, {
             consistency: "Strong",
         });
     }
@@ -1065,6 +1064,18 @@ function mergeMessageItemStreamIntoPayload(messageItem: MessageItem): MessagePay
     }
 }
 
+/**
+ * If the entity inherits its access policy from a site, return a tag containing
+ * the site's name so the entity is searchable by site (e.g. "tasks in Project X
+ * Wiki"). The `Site:${siteId}:Preview` dependency is already recorded by
+ * `state.getAccessPolicy()`, so renaming the site automatically reindexes the
+ * entity through the dependents fanout job.
+ */
+function getSiteTagsFromAccessPolicy(accessPolicy: AccessPolicyModel): ReadonlyArray<string> {
+    if (accessPolicy.data.type !== "Site") return emptyArray;
+    return [accessPolicy.data.site.initialData.name];
+}
+
 function getSearchEntityIndexAccessPolicy(
     accessPolicy: AccessPolicyModel,
 ): SearchEntityIndexAccessPolicy {
@@ -1160,7 +1171,7 @@ async function getSearchContentReferences(
                             {
                                 isPrivate: false,
                                 title: "[…]",
-                                getAccountMediaShortName: null,
+                                getAuthorData: null,
                             },
                         ];
                     }
@@ -1222,7 +1233,7 @@ async function getSearchContentReferences(
                         {
                             isPrivate: false,
                             title: entity.title,
-                            getAccountMediaShortName: entity.getAccountMediaShortName ?? null,
+                            getAuthorData: entity.getAuthorData ?? null,
                         },
                     ];
                 },
@@ -1271,7 +1282,7 @@ async function getSearchMentionEntityIfExists(
 ): Promise<{
     accessPolicy: AccessPolicyModel | SearchEntityIndexAccessPolicy;
     title: string | null;
-    getAccountMediaShortName?: (() => string) | null;
+    getAuthorData?: (() => Pick<AccountModelWithoutSpaceData, "name">) | null;
 } | null> {
     const entityIdObject = parseSearchMentionEntityId(entityId);
 
@@ -1374,7 +1385,7 @@ async function getSearchMentionEntityIfExists(
             return {
                 accessPolicy: post.channel.accessPolicy,
                 title,
-                getAccountMediaShortName: () => getAccountShortNameWithoutFullNameTooltip(author),
+                getAuthorData: () => author,
             };
         }
         case "Site": {
@@ -1432,29 +1443,29 @@ async function actuallyGetSearchEntity(
 ): Promise<SearchEntity> {
     switch (idObject.type) {
         case "Account":
-            return getAccountSearchEntity(state, idObject.accountId);
+            return await getAccountSearchEntity(state, idObject.accountId);
         case "Document":
-            return getDocumentSearchEntity(state, idObject.documentId);
+            return await getDocumentSearchEntity(state, idObject.documentId);
         case "DocumentComment":
-            return getDocumentCommentSearchEntity(state, idObject);
+            return await getDocumentCommentSearchEntity(state, idObject);
         case "Channel":
-            return getChannelSearchEntity(state, idObject.channelId);
+            return await getChannelSearchEntity(state, idObject.channelId);
         case "Post":
-            return getPostSearchEntity(state, idObject.postId);
+            return await getPostSearchEntity(state, idObject.postId);
         case "PostComment":
-            return getPostCommentSearchEntity(state, idObject);
+            return await getPostCommentSearchEntity(state, idObject);
         case "Chat":
-            return getChatSearchEntity(state, idObject.chatId);
+            return await getChatSearchEntity(state, idObject.chatId);
         case "ChatMessage":
-            return getChatMessageSearchEntity(state, idObject);
+            return await getChatMessageSearchEntity(state, idObject);
         case "Task":
-            return getTaskSearchEntity(state, idObject.taskId);
+            return await getTaskSearchEntity(state, idObject.taskId);
         case "TaskCollection":
-            return getTaskCollectionSearchEntity(state, idObject.collectionId);
+            return await getTaskCollectionSearchEntity(state, idObject.collectionId);
         case "TaskComment":
-            return getTaskCommentSearchEntity(state, idObject);
+            return await getTaskCommentSearchEntity(state, idObject);
         case "Site":
-            return getSiteSearchEntity(state, idObject.siteId);
+            return await getSiteSearchEntity(state, idObject.siteId);
         default:
             throw exhaustive(idObject);
     }
@@ -1516,7 +1527,10 @@ async function getSiteSearchEntity(
         titleVersion: {type: "Integer", version: site.initialData.version},
         body: null,
         tags: emptyArray,
-        media: null,
+        media: {
+            type: "Site",
+            firstEntityId: site.initialData.firstEntityId,
+        },
         embeddingChunks: emptyArray,
         creatorId: site.initialData.creatorId,
         // TODO(#sites): Implement contributor IDs for sites.
@@ -1601,7 +1615,7 @@ async function getDocumentSearchEntity(
         title,
         titleVersion: {type: "Integer", version},
         body: getFullText(),
-        tags: emptyArray,
+        tags: getSiteTagsFromAccessPolicy(documentAccessPolicy),
         media: null,
         embeddingChunks: getEmbeddingChunks(),
         creatorId: creator.id,
@@ -1812,7 +1826,7 @@ async function getChannelSearchEntity(
         title: channel.name,
         titleVersion: {type: "Integer", version: channel.version},
         body: getFullText(),
-        tags: emptyArray,
+        tags: getSiteTagsFromAccessPolicy(channel.accessPolicy),
         media: null,
         embeddingChunks: getEmbeddingChunks(),
         creatorId: channel.creatorId,
@@ -2010,7 +2024,7 @@ export function getSearchRoomChatEntityMedia(
     chatId: ChatId,
     chatCreatorId: AccountId,
     contributorIds: ReadonlyMap<AccountId, "Major" | "Minor">,
-): SearchEntityMedia {
+): SearchEntityMedia & {readonly type: "Account" | "AccountPile"} {
     const previewAccountIds = getRoomChatPreviewAccountIds(chatId, chatCreatorId, contributorIds);
 
     if (previewAccountIds.length === 1) {
@@ -2057,7 +2071,9 @@ async function getChatSearchEntity(
             },
             createdTime,
             title: null,
-            titleVersion: null,
+            // TODO(#add-chat-version-to-search-index): This value used to be null for direct
+            // chats. Run an open search migration to update the chat version if it's null.
+            titleVersion: {type: "Integer", version},
             body: null,
             tags: emptyArray,
             media: null,
@@ -2138,14 +2154,20 @@ async function getChatSearchEntity(
 
         createdTime,
         title,
-        // TODO: There's a title for direct chats, should we have a title version? We don't
-        // care too much about a title version here since clients don't need to update
-        // account names in realtime.
-        titleVersion: definition.type === "Room" ? {type: "Integer", version} : null,
+        // TODO(#add-chat-version-to-search-index): This value used to be null for direct
+        // chats. Run an open search migration to update the chat version if it's null.
+        titleVersion: {type: "Integer", version},
         body: null,
         // Used to search for exclusively chat rooms. Also useful in keyword search since
-        // queries like "Engineering chat room" will now match "room".
-        tags: definition.type === "Room" ? ["room"] : emptyArray,
+        // queries like "Engineering chat room" will now match "room". Room chats can also
+        // belong to a site, in which case we add the site's name so chats are searchable
+        // alongside other entities in that site.
+        tags:
+            definition.type === "Room"
+                ? // NOTE(ifitzsimmons, 2026-05-15): HACK - Right now we expect direct chats to never
+                  // have a room tag and this is important for searchRoomChatsByKeywords() to work.
+                  ["room", ...getSiteTagsFromAccessPolicy(definition.accessPolicy)]
+                : emptyArray,
         media,
         embeddingChunks: emptyArray,
         creatorId: definition.type === "Room" ? definition.creatorId : null,
@@ -2210,9 +2232,7 @@ function createMessageStreamTimeoutAdditionalWrite<Options extends {}>(
         const content = assertMessageContent(
             fromApiContent(
                 MessageContentProsemirrorSchema,
-                parseApiContentFromMarkdown(defaultAgentErrorDisplayMessage, {
-                    spaceId: context.actor.getSpaceId(),
-                }),
+                parseApiContentFromMarkdown(defaultAgentErrorDisplayMessage),
             ),
         );
 
@@ -2447,7 +2467,7 @@ async function getTaskSearchEntity(
         expectedAccessLevel: "View",
     });
 
-    const {title, titleVersion, media} = getTaskSearchEntityBase(task);
+    const {title, titleSnapshot, deletedTime, displayStatus} = getTaskSearchEntityBase(task);
 
     // Index no content for deleted tasks.
     if (taskResult.isDeleted) {
@@ -2456,7 +2476,11 @@ async function getTaskSearchEntity(
             accessPolicy,
             createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
             title,
-            titleVersion,
+            titleVersion: {
+                type: "TaskTitle",
+                snapshot: titleSnapshot,
+                deletedTime,
+            },
             body: null,
             tags: emptyArray,
             media: null,
@@ -2599,7 +2623,7 @@ async function getTaskSearchEntity(
     const body = notesChunkResult.getFullText();
     const dueDate = task.getDueDate();
 
-    // Build tags array from non-deleted collection names.
+    // Build tags array from non-deleted collection names and the site (if any).
     const tags: Array<string> = [];
     for (const {collectionId} of task.getCollections().getArray()) {
         const collection = referencedCollectionById.get(collectionId);
@@ -2608,16 +2632,28 @@ async function getTaskSearchEntity(
             tags.push(name);
         }
     }
+    const taskAccessPolicy = await state.getAccessPolicy(task.getAccessPolicy());
+    for (const siteTag of getSiteTagsFromAccessPolicy(taskAccessPolicy)) {
+        tags.push(siteTag);
+    }
 
     return {
         id,
         accessPolicy,
         createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
         title,
-        titleVersion,
+        titleVersion: {
+            type: "TaskTitle",
+            snapshot: titleSnapshot,
+            deletedTime,
+        },
         body: body.length > 0 ? body : null,
         tags,
-        media,
+        media: {
+            type: "TaskDisplayStatus",
+            displayStatus: displayStatus.value,
+            version: displayStatus.version,
+        },
         embeddingChunks: body.length > 0 ? notesChunkResult.getEmbeddingChunks() : emptyArray,
         creatorId: task.getCreator().accountId,
         contributorIds,
@@ -2640,7 +2676,7 @@ async function getTaskCollectionSearchEntity(
     const accessPolicyModel = await state.getAccessPolicy(collection.getAccessPolicy());
     const accessPolicy = getSearchEntityIndexAccessPolicy(accessPolicyModel);
 
-    const {title, titleVersion, media} = getTaskCollectionSearchEntityBase(collection);
+    const {title, titleVersion, color} = getTaskCollectionSearchEntityBase(collection);
 
     // Index no content for deleted collections.
     if (collection.isDeleted()) {
@@ -2649,7 +2685,10 @@ async function getTaskCollectionSearchEntity(
             accessPolicy,
             createdTime: new Date(collection.getCreatedTime()[0]),
             title,
-            titleVersion,
+            titleVersion: {
+                type: "HybridLogicalTime",
+                time: titleVersion,
+            },
             body: null,
             tags: emptyArray,
             media: null,
@@ -2727,12 +2766,19 @@ async function getTaskCollectionSearchEntity(
         accessPolicy,
         createdTime: new Date(collection.getCreatedTime()[0]),
         title,
-        titleVersion,
+        titleVersion: {
+            type: "HybridLogicalTime",
+            time: titleVersion,
+        },
         body: null,
-        tags: emptyArray,
-        media,
+        tags: getSiteTagsFromAccessPolicy(accessPolicyModel),
+        media: {
+            type: "TaskCollectionColor",
+            color: color.value,
+            version: color.version,
+        },
         embeddingChunks: getEmbeddingChunks(),
-        creatorId: collection.rawData.creatorId,
+        creatorId: collection.rawData.creator?.accountId ?? null,
         // In the future we could keep track of which accounts were adding tasks to the
         // collection to answer queries like "collections I've added tasks to".
         contributorIds: emptyMap,

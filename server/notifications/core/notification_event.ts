@@ -38,7 +38,7 @@ const ApiBotWebhookNewMessageEventPostParentSchema: Schema<ApiBotWebhookCreatedM
         }),
     });
 
-export const ApiBotWebhookNewMessageEventParentSchema: Schema<ApiBotWebhookCreatedMessageEventParent> =
+export const ApiBotWebhookCreatedMessageEventParentSchema: Schema<ApiBotWebhookCreatedMessageEventParent> =
     Schema.union({
         Message: ApiBotWebhookNewMessageEventMessageParentSchema,
         Post: ApiBotWebhookNewMessageEventPostParentSchema,
@@ -58,7 +58,7 @@ const NotificationCreateChatMessageEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
-    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
+    parent: ApiBotWebhookCreatedMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
     clerical: MessageContentPayloadClericalSchema.optional(),
@@ -79,7 +79,7 @@ const NotificationCreatePostCommentEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
-    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
+    parent: ApiBotWebhookCreatedMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
@@ -115,7 +115,7 @@ const NotificationCreateDocumentCommentEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
-    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
+    parent: ApiBotWebhookCreatedMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
@@ -134,7 +134,7 @@ const NotificationCreateTaskCommentEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
-    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
+    parent: ApiBotWebhookCreatedMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });

@@ -74,7 +74,7 @@ export async function impersonateAccountAsSystemContext<
         throw new PermissionDeniedError("Can\u2019t impersonate bot account");
     }
 
-    return context.with(
+    return await context.with(
         {
             cache: context.cache.forkForChangedActor(),
             batch: context.batch.forkForChangedActor(),

@@ -1,10 +1,10 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
 import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/data/task_index_doc.js";
-import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -107,7 +107,7 @@ async function testQuery(
     if (normalizedFiltersResult.type === "Impossible") return [];
     const {normalizedFilters} = normalizedFiltersResult;
 
-    return testQueryWithNormalizedFilters(space, normalizedFilters);
+    return await testQueryWithNormalizedFilters(space, normalizedFilters);
 }
 
 async function testQueryWithNormalizedFilters(
@@ -261,7 +261,7 @@ test("searches all tasks in a space", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -276,7 +276,7 @@ test("searches all tasks in a space", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -286,7 +286,7 @@ test("searches all tasks in a space", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -317,7 +317,7 @@ test("deleted tasks are filtered out", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -327,7 +327,7 @@ test("deleted tasks are filtered out", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -337,7 +337,7 @@ test("deleted tasks are filtered out", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -408,7 +408,7 @@ test("closed tasks are filtered out by default", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -418,7 +418,7 @@ test("closed tasks are filtered out by default", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -428,7 +428,7 @@ test("closed tasks are filtered out by default", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -481,7 +481,7 @@ test("can filter for closed tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -491,7 +491,7 @@ test("can filter for closed tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -501,7 +501,7 @@ test("can filter for closed tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -586,7 +586,7 @@ test("can filter for open tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -596,7 +596,7 @@ test("can filter for open tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -606,7 +606,7 @@ test("can filter for open tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -691,7 +691,7 @@ test("can filter for open inactive tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -701,7 +701,7 @@ test("can filter for open inactive tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -711,7 +711,7 @@ test("can filter for open inactive tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -793,7 +793,7 @@ test("can filter for open active tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -803,7 +803,7 @@ test("can filter for open active tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -813,7 +813,7 @@ test("can filter for open active tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -895,7 +895,7 @@ test("can filter for closed and open inactive tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -905,7 +905,7 @@ test("can filter for closed and open inactive tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -915,7 +915,7 @@ test("can filter for closed and open inactive tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -997,7 +997,7 @@ test("can filter for closed and open active tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1007,7 +1007,7 @@ test("can filter for closed and open active tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1017,7 +1017,7 @@ test("can filter for closed and open active tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1099,7 +1099,7 @@ test("can filter for no statuses", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1109,7 +1109,7 @@ test("can filter for no statuses", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1119,7 +1119,7 @@ test("can filter for no statuses", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1204,7 +1204,7 @@ test("can filter for all statuses", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1214,7 +1214,7 @@ test("can filter for all statuses", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1224,7 +1224,7 @@ test("can filter for all statuses", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1312,7 +1312,7 @@ test("will merge multiple status filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1322,7 +1322,7 @@ test("will merge multiple status filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1332,7 +1332,7 @@ test("will merge multiple status filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1553,7 +1553,7 @@ test("can filter by one of collections", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1563,7 +1563,7 @@ test("can filter by one of collections", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1573,7 +1573,7 @@ test("can filter by one of collections", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1583,7 +1583,7 @@ test("can filter by one of collections", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1593,7 +1593,7 @@ test("can filter by one of collections", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -1611,7 +1611,7 @@ test("can filter by one of collections", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -1629,7 +1629,7 @@ test("can filter by one of collections", async () => {
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -1647,7 +1647,7 @@ test("can filter by one of collections", async () => {
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -1795,7 +1795,7 @@ test("can filter by all of collections", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1805,7 +1805,7 @@ test("can filter by all of collections", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1815,7 +1815,7 @@ test("can filter by all of collections", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1825,7 +1825,7 @@ test("can filter by all of collections", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1835,7 +1835,7 @@ test("can filter by all of collections", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -1853,7 +1853,7 @@ test("can filter by all of collections", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -1871,7 +1871,7 @@ test("can filter by all of collections", async () => {
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -1889,7 +1889,7 @@ test("can filter by all of collections", async () => {
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2037,7 +2037,7 @@ test("can filter by excludes all of collections", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2047,7 +2047,7 @@ test("can filter by excludes all of collections", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2057,7 +2057,7 @@ test("can filter by excludes all of collections", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2067,7 +2067,7 @@ test("can filter by excludes all of collections", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2077,7 +2077,7 @@ test("can filter by excludes all of collections", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2095,7 +2095,7 @@ test("can filter by excludes all of collections", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2113,7 +2113,7 @@ test("can filter by excludes all of collections", async () => {
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2131,7 +2131,7 @@ test("can filter by excludes all of collections", async () => {
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2291,7 +2291,7 @@ test("can filter by empty collections", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2301,7 +2301,7 @@ test("can filter by empty collections", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2311,7 +2311,7 @@ test("can filter by empty collections", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2321,7 +2321,7 @@ test("can filter by empty collections", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2331,7 +2331,7 @@ test("can filter by empty collections", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2349,7 +2349,7 @@ test("can filter by empty collections", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2367,7 +2367,7 @@ test("can filter by empty collections", async () => {
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2385,7 +2385,7 @@ test("can filter by empty collections", async () => {
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2470,7 +2470,7 @@ test("can filter against collections without providing collection ids", async ()
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2480,7 +2480,7 @@ test("can filter against collections without providing collection ids", async ()
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2490,7 +2490,7 @@ test("can filter against collections without providing collection ids", async ()
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2500,7 +2500,7 @@ test("can filter against collections without providing collection ids", async ()
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2510,7 +2510,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2528,7 +2528,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2546,7 +2546,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2564,7 +2564,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2668,7 +2668,7 @@ test("can merge collection filters in various ways", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2678,7 +2678,7 @@ test("can merge collection filters in various ways", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2688,7 +2688,7 @@ test("can merge collection filters in various ways", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2698,7 +2698,7 @@ test("can merge collection filters in various ways", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2708,7 +2708,7 @@ test("can merge collection filters in various ways", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2718,7 +2718,7 @@ test("can merge collection filters in various ways", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2736,7 +2736,7 @@ test("can merge collection filters in various ways", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2754,7 +2754,7 @@ test("can merge collection filters in various ways", async () => {
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -2772,7 +2772,7 @@ test("can merge collection filters in various ways", async () => {
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -3487,7 +3487,7 @@ test("can filter for individual priorities", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3497,7 +3497,7 @@ test("can filter for individual priorities", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3507,7 +3507,7 @@ test("can filter for individual priorities", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3517,7 +3517,7 @@ test("can filter for individual priorities", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3527,7 +3527,7 @@ test("can filter for individual priorities", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3653,7 +3653,7 @@ test("can filter by layout", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3663,7 +3663,7 @@ test("can filter by layout", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3714,7 +3714,7 @@ test("can filter for three priorities at once", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3724,7 +3724,7 @@ test("can filter for three priorities at once", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3734,7 +3734,7 @@ test("can filter for three priorities at once", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3744,7 +3744,7 @@ test("can filter for three priorities at once", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3754,7 +3754,7 @@ test("can filter for three priorities at once", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3859,7 +3859,7 @@ test("can negative filter for individual priorities", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3869,7 +3869,7 @@ test("can negative filter for individual priorities", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3879,7 +3879,7 @@ test("can negative filter for individual priorities", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3889,7 +3889,7 @@ test("can negative filter for individual priorities", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3899,7 +3899,7 @@ test("can negative filter for individual priorities", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4028,7 +4028,7 @@ test("can negative filter for three priorities at once", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4038,7 +4038,7 @@ test("can negative filter for three priorities at once", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4048,7 +4048,7 @@ test("can negative filter for three priorities at once", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4058,7 +4058,7 @@ test("can negative filter for three priorities at once", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4068,7 +4068,7 @@ test("can negative filter for three priorities at once", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4173,7 +4173,7 @@ test("can filter for all priorities", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4183,7 +4183,7 @@ test("can filter for all priorities", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4193,7 +4193,7 @@ test("can filter for all priorities", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4203,7 +4203,7 @@ test("can filter for all priorities", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4213,7 +4213,7 @@ test("can filter for all priorities", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4294,7 +4294,7 @@ test("can negative filter for all priorities", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4304,7 +4304,7 @@ test("can negative filter for all priorities", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4314,7 +4314,7 @@ test("can negative filter for all priorities", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4324,7 +4324,7 @@ test("can negative filter for all priorities", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4334,7 +4334,7 @@ test("can negative filter for all priorities", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4415,7 +4415,7 @@ test("can merge priority filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4425,7 +4425,7 @@ test("can merge priority filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4435,7 +4435,7 @@ test("can merge priority filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4445,7 +4445,7 @@ test("can merge priority filters", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4455,7 +4455,7 @@ test("can merge priority filters", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4660,7 +4660,7 @@ test("can filter for a single assignee account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4670,7 +4670,7 @@ test("can filter for a single assignee account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4680,7 +4680,7 @@ test("can filter for a single assignee account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4690,7 +4690,7 @@ test("can filter for a single assignee account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4816,7 +4816,7 @@ test("can filter for multiple assignee accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4826,7 +4826,7 @@ test("can filter for multiple assignee accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4836,7 +4836,7 @@ test("can filter for multiple assignee accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4846,7 +4846,7 @@ test("can filter for multiple assignee accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4939,7 +4939,7 @@ test("can negative filter for a single assignee account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4949,7 +4949,7 @@ test("can negative filter for a single assignee account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4959,7 +4959,7 @@ test("can negative filter for a single assignee account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4969,7 +4969,7 @@ test("can negative filter for a single assignee account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5095,7 +5095,7 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5105,7 +5105,7 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5115,7 +5115,7 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5125,7 +5125,7 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5218,7 +5218,7 @@ test("can filter with empty assignee accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5228,7 +5228,7 @@ test("can filter with empty assignee accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5238,7 +5238,7 @@ test("can filter with empty assignee accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5248,7 +5248,7 @@ test("can filter with empty assignee accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5338,7 +5338,7 @@ test("can merge assignee filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5348,7 +5348,7 @@ test("can merge assignee filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5358,7 +5358,7 @@ test("can merge assignee filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5368,7 +5368,7 @@ test("can merge assignee filters", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5539,7 +5539,7 @@ test("can filter for a single creator account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5552,7 +5552,7 @@ test("can filter for a single creator account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5562,7 +5562,7 @@ test("can filter for a single creator account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5575,7 +5575,7 @@ test("can filter for a single creator account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session3.account.id,
+                creator: {accountId: session3.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5663,7 +5663,7 @@ test("can filter for multiple creator accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5676,7 +5676,7 @@ test("can filter for multiple creator accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5686,7 +5686,7 @@ test("can filter for multiple creator accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5699,7 +5699,7 @@ test("can filter for multiple creator accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session3.account.id,
+                creator: {accountId: session3.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5754,7 +5754,7 @@ test("can negative filter for a single creator account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5767,7 +5767,7 @@ test("can negative filter for a single creator account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5777,7 +5777,7 @@ test("can negative filter for a single creator account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5790,7 +5790,7 @@ test("can negative filter for a single creator account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session3.account.id,
+                creator: {accountId: session3.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5878,7 +5878,7 @@ test("can negative filter for multiple creator accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5891,7 +5891,7 @@ test("can negative filter for multiple creator accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5901,7 +5901,7 @@ test("can negative filter for multiple creator accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5914,7 +5914,7 @@ test("can negative filter for multiple creator accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session3.account.id,
+                creator: {accountId: session3.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5969,7 +5969,7 @@ test("can filter with empty creator accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5982,7 +5982,7 @@ test("can filter with empty creator accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5992,7 +5992,7 @@ test("can filter with empty creator accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6005,7 +6005,7 @@ test("can filter with empty creator accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session3.account.id,
+                creator: {accountId: session3.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6057,7 +6057,7 @@ test("can merge creator filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6070,7 +6070,7 @@ test("can merge creator filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6080,7 +6080,7 @@ test("can merge creator filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6093,7 +6093,7 @@ test("can merge creator filters", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session3.account.id,
+                creator: {accountId: session3.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6226,7 +6226,7 @@ test("can filter for a single assigner account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6236,7 +6236,7 @@ test("can filter for a single assigner account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6246,7 +6246,7 @@ test("can filter for a single assigner account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6256,7 +6256,7 @@ test("can filter for a single assigner account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6266,7 +6266,7 @@ test("can filter for a single assigner account", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -6448,7 +6448,7 @@ test("can filter for multiple assigner accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6458,7 +6458,7 @@ test("can filter for multiple assigner accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6468,7 +6468,7 @@ test("can filter for multiple assigner accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6478,7 +6478,7 @@ test("can filter for multiple assigner accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6488,7 +6488,7 @@ test("can filter for multiple assigner accounts", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -6637,7 +6637,7 @@ test("can negative filter for a single assigner account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6647,7 +6647,7 @@ test("can negative filter for a single assigner account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6657,7 +6657,7 @@ test("can negative filter for a single assigner account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6667,7 +6667,7 @@ test("can negative filter for a single assigner account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6677,7 +6677,7 @@ test("can negative filter for a single assigner account", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -6859,7 +6859,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6869,7 +6869,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6879,7 +6879,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6889,7 +6889,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6899,7 +6899,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -7048,7 +7048,7 @@ test("can filter with empty assigner accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7058,7 +7058,7 @@ test("can filter with empty assigner accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7068,7 +7068,7 @@ test("can filter with empty assigner accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7078,7 +7078,7 @@ test("can filter with empty assigner accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7088,7 +7088,7 @@ test("can filter with empty assigner accounts", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -7234,7 +7234,7 @@ test("can merge assigner filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7244,7 +7244,7 @@ test("can merge assigner filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7254,7 +7254,7 @@ test("can merge assigner filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7264,7 +7264,7 @@ test("can merge assigner filters", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7274,7 +7274,7 @@ test("can merge assigner filters", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -7513,7 +7513,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
                 taskId: task1Id,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7523,7 +7523,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
                 taskId: task2Id,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7533,7 +7533,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
                 taskId: task3Id,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7543,7 +7543,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
                 taskId: task4Id,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7553,7 +7553,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
                 taskId: task5Id,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7636,7 +7636,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task1Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7646,7 +7646,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task2Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7656,7 +7656,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task3Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7666,7 +7666,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task4Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7706,7 +7706,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task1Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7716,7 +7716,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task2Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7726,7 +7726,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task3Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7736,7 +7736,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task4Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7746,7 +7746,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task5Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7844,7 +7844,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task1Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7854,7 +7854,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task2Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7864,7 +7864,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task3Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7874,7 +7874,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task4Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7884,7 +7884,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task5Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7977,7 +7977,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task1Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7987,7 +7987,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task2Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7997,7 +7997,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task3Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -8007,7 +8007,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task4Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -8017,7 +8017,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task5Id,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -8384,7 +8384,7 @@ test("can filter by title includes", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8394,7 +8394,7 @@ test("can filter by title includes", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8404,7 +8404,7 @@ test("can filter by title includes", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8414,7 +8414,7 @@ test("can filter by title includes", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8424,7 +8424,7 @@ test("can filter by title includes", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8679,7 +8679,7 @@ test("can filter by title excludes", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8689,7 +8689,7 @@ test("can filter by title excludes", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8699,7 +8699,7 @@ test("can filter by title excludes", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8709,7 +8709,7 @@ test("can filter by title excludes", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8719,7 +8719,7 @@ test("can filter by title excludes", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8974,7 +8974,7 @@ test("can merge title filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8984,7 +8984,7 @@ test("can merge title filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8994,7 +8994,7 @@ test("can merge title filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9004,7 +9004,7 @@ test("can merge title filters", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9014,7 +9014,7 @@ test("can merge title filters", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9137,7 +9137,7 @@ test("can filter by parent task", async () => {
             taskId: parentTask1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9147,7 +9147,7 @@ test("can filter by parent task", async () => {
             taskId: parentTask2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9157,7 +9157,7 @@ test("can filter by parent task", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9167,7 +9167,7 @@ test("can filter by parent task", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9177,7 +9177,7 @@ test("can filter by parent task", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9187,7 +9187,7 @@ test("can filter by parent task", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9227,7 +9227,7 @@ test("can filter by parent task", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },

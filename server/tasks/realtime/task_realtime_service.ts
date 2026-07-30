@@ -293,7 +293,7 @@ export async function run({
                     );
                 }
 
-                return baseActionContext.with(
+                return await baseActionContext.with(
                     {
                         actor: actorContextModule,
                         fork: new ForkActionContextModule(),
@@ -308,7 +308,7 @@ export async function run({
 
                         const webSocketServer = webSocketServerBySpaceId.getOrSetDefault(spaceId);
 
-                        return webSocketServer.upgrade(context, request);
+                        return await webSocketServer.upgrade(context, request);
                     },
                 );
             }
@@ -324,7 +324,7 @@ export async function run({
                     throw new PermissionDeniedError("Only system actors can apply transactions");
                 }
 
-                return baseActionContext.with(
+                return await baseActionContext.with(
                     {actor: actorContextModule},
                     async (context: TaskRealtimeSystemActionContext) => {
                         const actionTransaction =
@@ -361,7 +361,7 @@ export async function run({
                     }
                 }
 
-                return baseActionContext.with(
+                return await baseActionContext.with(
                     {actor: actorContextModule},
                     async (context: TaskRealtimeActionContext) => {
                         const input = TaskRealtimeLoadQueriesInputSchema.deserialize(
@@ -423,7 +423,7 @@ export async function run({
                     async (
                         context: TaskRealtimeActionContext,
                     ): Promise<TaskRealtimeGetTaskWithoutDependenciesOutput> => {
-                        return getTaskWithoutDependenciesForRealtime(context, {
+                        return await getTaskWithoutDependenciesForRealtime(context, {
                             server,
                             dangerouslyEscalateToSystemContext,
                             spaceId,
@@ -466,7 +466,7 @@ export async function run({
                 const output = await baseActionContext.with(
                     {actor: actorContextModule},
                     async (originalContext): Promise<TaskRealtimeGetCollectionOutput> => {
-                        return getTaskCollectionForRealtime(originalContext, {
+                        return await getTaskCollectionForRealtime(originalContext, {
                             server,
                             dangerouslyEscalateToSystemContext,
                             spaceId,
@@ -561,7 +561,7 @@ export async function run({
         async (request, url, route, span) => {
             if (route.type === "HealthCheck") {
                 if (Date.now() - startTime < taskRealtimeServiceDiscoveryWaitMs) {
-                    return Promise.resolve(
+                    return await Promise.resolve(
                         new Response(
                             "503 Service Unavailable: Waiting to be discovered by other services",
                             {status: 503, headers: {"content-type": "text/plain"}},
@@ -569,7 +569,7 @@ export async function run({
                     );
                 }
 
-                return Promise.resolve(
+                return await Promise.resolve(
                     new Response("200 OK", {
                         status: 200,
                         headers: {"content-type": "text/plain"},

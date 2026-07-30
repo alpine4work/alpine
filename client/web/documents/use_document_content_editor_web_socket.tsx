@@ -2,11 +2,11 @@ import {StepMap} from "prosemirror-transform";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {createAccessPolicyStoreFromReferences} from "~/client/web/access/create_access_policy_store.js";
+import {getCollaborativeContentEditorStatePersistedContent} from "~/client/web/content/collaborative_content_editor_state.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {
     DocumentContentEditorState,
-    getDocumentContentEditorStatePersistedContent,
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
 } from "~/client/web/documents/internal/document_content_editor_state.js";
@@ -22,8 +22,8 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {useWebSocketErrorDialog} from "~/client/web/web_socket/use_web_socket.js";
 import {
     AccessLevel,
@@ -48,7 +48,7 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -104,9 +104,7 @@ export type SubscribeToCommentThreadEventsFunction = Memo<
 
 export type SubscribeToSpellCheckIgnoredLintEventsFunction = Memo<
     (
-        subscriber: (
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>,
-        ) => void,
+        subscriber: (events: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>) => void,
     ) => () => void
 >;
 
@@ -188,6 +186,7 @@ export function useDocumentContentEditorWebSocket(
                     type: "NotExists",
                     state: new ValueStore(
                         getInitialDocumentContentEditorState({
+                            spaceId: space.id,
                             currentAccountId: assertExists(currentAccount).id,
                             // No document yet, so no access checks apply. We pick `Manage` so the editor
                             // state's reducer doesn't strip an empty cursor selection in read-only mode (the
@@ -217,6 +216,7 @@ export function useDocumentContentEditorWebSocket(
                         documentId: initialDocument.id,
                         accessLevel,
                         initialState: getInitialDocumentContentEditorState({
+                            spaceId: space.id,
                             currentAccountId: currentAccount?.id ?? null,
                             accessLevel,
                             initialVersion: initialDocument.version,
@@ -248,6 +248,7 @@ export function useDocumentContentEditorWebSocket(
                 documentId: initialDocument.id,
                 accessLevel,
                 initialState: getInitialDocumentContentEditorState({
+                    spaceId: space.id,
                     currentAccountId: currentAccount?.id ?? null,
                     accessLevel,
                     initialVersion: initialDocument.version,
@@ -326,7 +327,7 @@ export function useDocumentContentEditorWebSocket(
 
         createDocumentPromiseRef.current = promise;
 
-        return promise;
+        return await promise;
     });
 
     useEffect(() => {
@@ -367,7 +368,7 @@ export function useDocumentContentEditorWebSocket(
 
     const content = state.editorState.getContent();
     const contentWithoutSendableSteps = state.editorState.getDocWithoutSendableSteps();
-    const persistedContent = getDocumentContentEditorStatePersistedContent(state);
+    const persistedContent = getCollaborativeContentEditorStatePersistedContent(state);
 
     const title = useMemo(() => getDocumentContentTitle(content.doc), [content.doc]);
     const persistedTitle = useMemo(
@@ -472,6 +473,7 @@ export function useDocumentContentEditorWebSocket(
                     documentId: clientState.client.documentId,
                     accessLevel,
                     initialState: getInitialDocumentContentEditorState({
+                        spaceId: space.id,
                         currentAccountId: currentAccount?.id ?? null,
                         accessLevel,
                         initialVersion: state.editorState.getVersion(),
@@ -553,6 +555,7 @@ export function useDocumentContentEditorWebSocket(
                     documentId: document.id,
                     accessLevel,
                     initialState: getInitialDocumentContentEditorState({
+                        spaceId: space.id,
                         currentAccountId: currentAccount?.id ?? null,
                         accessLevel,
                         initialVersion: document.version,
@@ -573,6 +576,7 @@ export function useDocumentContentEditorWebSocket(
         currentAccount?.id,
         setErrorState,
         shouldInitializeClientWithNewCommentAccess,
+        space.id,
     ]);
 
     // Update `SearchEntityRegistry` with the latest document title. Now as the title
@@ -594,10 +598,12 @@ export function useDocumentContentEditorWebSocket(
                 title: persistedTitle,
                 store: searchEntityRegistry.getEntityStore(
                     new SearchEntityModel({
-                        id: `Document:${documentId}`,
+                        type: "Document",
+                        document: {
+                            id: documentId,
+                            version: state.persistedVersion,
+                        },
                         title: persistedTitle,
-                        titleVersion: {type: "Integer", version: state.persistedVersion},
-                        media: null,
                     }),
                 ),
             };

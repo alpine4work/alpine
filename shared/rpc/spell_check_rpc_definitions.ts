@@ -1,8 +1,8 @@
 import {
-    createDynamoGeneralRealtimeBackfillResultSchema,
-    createDynamoGeneralRealtimeEventSchema,
-    createDynamoGeneralRealtimeQuerySchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+    createRynamoBackfillResultSchema,
+    createRynamoEventSchema,
+    createRynamoQuerySchema,
+} from "~/shared/dynamo/rynamo_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckEntityIdSchema} from "~/shared/spell_check/spell_check_entity_id.js";
@@ -16,9 +16,7 @@ export const getSpellCheckIgnoredLints = defineRpc({
         entityId: SpellCheckEntityIdSchema,
     },
     output: {
-        spellCheckIgnoredLints: createDynamoGeneralRealtimeQuerySchema(
-            SpellCheckIgnoredLintModel.schema(),
-        ),
+        spellCheckIgnoredLints: createRynamoQuerySchema(SpellCheckIgnoredLintModel.schema()),
     },
 });
 
@@ -30,9 +28,7 @@ export const backfillSpellCheckIgnoredLints = defineRpc({
         checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
-        result: createDynamoGeneralRealtimeBackfillResultSchema(
-            SpellCheckIgnoredLintModel.schema(),
-        ),
+        result: createRynamoBackfillResultSchema(SpellCheckIgnoredLintModel.schema()),
     },
 });
 
@@ -46,8 +42,6 @@ export const createSpellCheckIgnoredLint = defineRpc({
         kind: Schema.string,
     },
     output: {
-        eventTransaction: Schema.array(
-            createDynamoGeneralRealtimeEventSchema(SpellCheckIgnoredLintModel.schema()),
-        ),
+        events: Schema.array(createRynamoEventSchema(SpellCheckIgnoredLintModel.schema())),
     },
 });

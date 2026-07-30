@@ -16,8 +16,8 @@ import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {emptyContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
 import {
     ContentReferencesSearchEntity,
@@ -324,6 +324,8 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         fileIds: new Set(),
     };
 
+    const postAuthor = await sessions[49].get();
+
     const expectedReferences: MessageReferences = {
         author: await sessions[46].get(),
         contentReferences: {
@@ -334,10 +336,12 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Channel:${channel.id}`,
+                            type: "Channel",
                             title: "Test Channel",
-                            titleVersion: expect.any(Object),
-                            media: null,
+                            channel: {
+                                id: channel.id,
+                                version: expect.any(Number),
+                            },
                         }),
                     },
                 ],
@@ -346,12 +350,13 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Post:${post.id}`,
+                            type: "Post",
                             title: "in Test Channel: Test Post",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "Account",
-                                account: await sessions[49].get(),
+                            post: {
+                                id: post.id,
+                                version: expect.any(Number),
+                                channelVersion: expect.any(Number),
+                                author: postAuthor,
                             },
                         }),
                     },
@@ -361,13 +366,15 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `TaskCollection:${collection.id}`,
+                            type: "TaskCollection",
                             title: "Test Task Collection",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "TaskCollectionColor",
-                                color: null,
-                                version: expect.any(Array),
+                            collection: {
+                                id: collection.id,
+                                titleVersion: expect.any(Object),
+                                color: {
+                                    value: null,
+                                    version: expect.any(Array),
+                                },
                             },
                         }),
                     },
@@ -377,13 +384,15 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Task:${task.id}`,
+                            type: "Task",
                             title: "Test Task",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "TaskDisplayStatus",
-                                displayStatus: "OpenInactive",
-                                version: expect.any(Array),
+                            task: {
+                                id: task.id,
+                                titleSnapshot: expect.any(Uint8Array),
+                                displayStatus: {
+                                    value: "OpenInactive",
+                                    version: expect.any(Array),
+                                },
                             },
                         }),
                     },
@@ -497,6 +506,8 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         fileIds: new Set(),
     };
 
+    const postAuthor = await sessions[49].get();
+
     const expectedReferences: MessageReferences = {
         author: await sessions[46].get(),
         contentReferences: {
@@ -507,10 +518,12 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Channel:${channel.id}`,
+                            type: "Channel",
                             title: "Test Channel",
-                            titleVersion: expect.any(Object),
-                            media: null,
+                            channel: {
+                                id: channel.id,
+                                version: expect.any(Number),
+                            },
                         }),
                     },
                 ],
@@ -519,12 +532,13 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Post:${post.id}`,
+                            type: "Post",
                             title: "in Test Channel: Test Post",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "Account",
-                                account: await sessions[49].get(),
+                            post: {
+                                id: post.id,
+                                version: expect.any(Number),
+                                channelVersion: expect.any(Number),
+                                author: postAuthor,
                             },
                         }),
                     },
@@ -534,13 +548,15 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `TaskCollection:${collection.id}`,
+                            type: "TaskCollection",
                             title: "Test Task Collection",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "TaskCollectionColor",
-                                color: null,
-                                version: expect.any(Array),
+                            collection: {
+                                id: collection.id,
+                                titleVersion: expect.any(Object),
+                                color: {
+                                    value: null,
+                                    version: expect.any(Array),
+                                },
                             },
                         }),
                     },
@@ -550,13 +566,15 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Task:${task.id}`,
+                            type: "Task",
                             title: "Test Task",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "TaskDisplayStatus",
-                                displayStatus: "OpenInactive",
-                                version: expect.any(Array),
+                            task: {
+                                id: task.id,
+                                titleSnapshot: expect.any(Uint8Array),
+                                displayStatus: {
+                                    value: "OpenInactive",
+                                    version: expect.any(Array),
+                                },
                             },
                         }),
                     },

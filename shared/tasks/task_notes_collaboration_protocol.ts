@@ -3,8 +3,9 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/content/message_content_schema.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {ContentEditorClientId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
@@ -17,8 +18,9 @@ import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {
+    TaskNotesContentNodeSchema,
+    TaskNotesContentSchema,
     TaskNotesContentStepSchema,
-    TaskNotesContentWithReferencesSchema,
 } from "~/shared/tasks/task_notes_content_schema.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {
@@ -40,33 +42,27 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
          * returning the notes and the client connecting to the collaboration service there
          * may have been an update.
          *
-         * If the client is way behind, a step backfill may be unavailable and the client
-         * will need to fully reset its content. Losing any local steps in the process.
+         * If the client requests a backfill from a version in the future (which can happen
+         * if a previous durable object confirmed steps to the client but crashed before
+         * persisting them) the server throws a
+         * `taskNotesBackfillFutureVersionErrorMessage` error. The client then reverts its
+         * confirmed-but-unpersisted steps back to its persisted version and retries the
+         * backfill.
          */
         backfillNotes: {
             input: {
                 version: Schema.integer,
             },
             output: {
-                result: Schema.union({
-                    Available: Schema.object({
-                        type: Schema.value("Available"),
-                        newVersion: Schema.integer,
-                        persistedVersion: Schema.integer,
-                        steps: Schema.array(
-                            Schema.object({
-                                step: TaskNotesContentStepSchema,
-                                clientId: Schema.id<ContentEditorClientId>(),
-                            }),
-                        ),
-                        stepsContentReferences: ContentReferencesSchema,
+                newVersion: Schema.integer,
+                persistedVersion: Schema.integer,
+                steps: Schema.array(
+                    Schema.object({
+                        step: TaskNotesContentStepSchema,
+                        clientId: Schema.id<ContentEditorClientId>(),
                     }),
-                    Unavailable: Schema.object({
-                        type: Schema.value("Unavailable"),
-                        newVersion: Schema.integer,
-                        content: TaskNotesContentWithReferencesSchema,
-                    }),
-                }),
+                ),
+                stepsContentReferences: ContentReferencesSchema,
             },
         },
 
@@ -199,3 +195,21 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
         }),
     },
 });
+
+export const TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema = Schema.object({
+    version: Schema.integer,
+    content: Schema.array(TaskNotesContentNodeSchema),
+});
+
+export const TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema = Schema.result(
+    Schema.object({
+        ok: Schema.value(true),
+        spaceId: Schema.id<SpaceId>(),
+        newVersion: Schema.integer,
+        newContent: TaskNotesContentSchema,
+    }),
+    Schema.object({
+        ok: Schema.value(false),
+        error: ErrorSchema,
+    }),
+);

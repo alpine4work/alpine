@@ -1,5 +1,6 @@
 import {intoApiMessageContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {parseApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiMentionReferenceResponse,
@@ -12,8 +13,17 @@ import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 
 export async function intoApiMessageStreamPartPayload(
     context: ServerAccountActionContext,
-    spaceId: SpaceId,
-    payload: MessageStreamPartPayload,
+    {
+        spaceId,
+        payload,
+        contentKeyEncoder,
+        posOffset,
+    }: {
+        spaceId: SpaceId;
+        payload: MessageStreamPartPayload;
+        contentKeyEncoder: ApiContentKeyEncoder;
+        posOffset?: number;
+    },
 ): Promise<ApiMessageStreamPartPayloadResponse> {
     switch (payload.type) {
         case "ToolCall": {
@@ -62,19 +72,21 @@ export async function intoApiMessageStreamPartPayload(
             }
         }
         case "Content": {
-            const content = await intoApiMessageContentWithReferences(
-                context,
+            const content = await intoApiMessageContentWithReferences(context, {
                 spaceId,
-                payload.content,
-            );
+                node: payload.content,
+                encoder: contentKeyEncoder,
+                posOffset,
+            });
             return {type: "Content", content};
         }
         case "Reasoning": {
-            const content = await intoApiMessageContentWithReferences(
-                context,
+            const content = await intoApiMessageContentWithReferences(context, {
                 spaceId,
-                payload.content,
-            );
+                node: payload.content,
+                encoder: contentKeyEncoder,
+                posOffset,
+            });
             return {type: "Reasoning", content};
         }
         default:

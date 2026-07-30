@@ -138,6 +138,9 @@ def ts_project(
             extra_tags = extra_kwargs.pop("tags", default = [])
             extra_node_options = extra_kwargs.pop("node_options", default = [])
             extra_data = extra_kwargs.pop("data", default = [])
+            extra_cpu_tags = (
+                [] if _has_cpu_tag(extra_tags + tags) or not _has_dynamo_test_helpers(test_deps) else ["cpu:2"]
+            )
 
             jest_bin.jest_test(
                 name = test_name,
@@ -194,9 +197,22 @@ def ts_project(
                 # generating conflicting `test_data` copies.
                 no_copy_to_bin = test_data,
                 size = extra_kwargs.pop("size", default = "small"),
-                tags = ["jest", "dev-test"] + extra_tags + tags,
+                tags = ["jest", "dev-test"] + extra_tags + extra_cpu_tags + tags,
                 **extra_kwargs
             )
+
+def _has_dynamo_test_helpers(test_deps):
+    return (
+        "//server/dynamo/test_helpers" in test_deps or
+        "//server/dynamo/test_helpers:test_helpers" in test_deps
+    )
+
+def _has_cpu_tag(tags):
+    for tag in tags:
+        if tag.startswith("cpu:"):
+            return True
+
+    return False
 
 def _ts_test_src_js(test_src):
     if not test_src.endswith(".test.ts") and not test_src.endswith(".test.tsx"):

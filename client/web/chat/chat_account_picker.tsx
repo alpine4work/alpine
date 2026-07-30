@@ -44,7 +44,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
@@ -131,26 +131,28 @@ function createChatAccountPickerSearchUnknownChatItemStore(
 ): ChatAccountPickerItem {
     const entity = get(searchEntityRegistry.getEntityStore(entityModel));
 
+    assert(entity.type === "Chat");
+    const chat = entity.chat;
     return {
         type: "SearchUnknownChat",
-        key: entity.id as `Chat:${ChatId}`,
+        key: `Chat:${chat.id}`,
         textValue: entity.title ?? "Unknown chat",
         media: (() => {
-            if (entity.media?.type === "Account") {
-                const accountData = get(accountRegistry.getAccountStore(entity.media.account));
+            if (chat.media.type === "Account") {
+                const accountData = get(accountRegistry.getAccountStore(chat.media.account));
 
                 return {type: "Account", accountData};
             }
 
-            if (entity.media?.type === "AccountPile") {
-                const previewAccountDatas = entity.media.previewAccounts.map(account =>
+            if (chat.media.type === "AccountPile") {
+                const previewAccountDatas = chat.media.previewAccounts.map(account =>
                     get(accountRegistry.getAccountStore(account)),
                 );
 
                 return {
                     type: "AccountPile",
                     previewAccountDatas,
-                    accountCount: entity.media.accountCount,
+                    accountCount: chat.media.accountCount,
                 };
             }
 
@@ -456,8 +458,7 @@ function useChatAccountPickerItems({
                     itemsWithoutSelection.filter(
                         item =>
                             item.type !== "Account" ||
-                            item.accountData.space.state.type === "Active" ||
-                            item.accountData.space.state.type === "InvitePending",
+                            item.accountData.space.state.type !== "Removed",
                     ),
                 );
             }
@@ -1330,7 +1331,7 @@ function ChatAccountPickerSelectedItem({
                 case "Account": {
                     if (isNavigatePending) return;
                     setIsNavigatePending(true);
-                    navigate(`/s/${space.id}/chat/with/${item.accountData.id}?focus`, {
+                    navigate(`/chat/with/${item.accountData.id}/${space.id}?focus`, {
                         // Don't open in peek. Navigate the window we're in.
                         stopPropagation: true,
                     }).finally(() => setIsNavigatePending(false));
@@ -1339,7 +1340,7 @@ function ChatAccountPickerSelectedItem({
                 case "RoomChat": {
                     if (isNavigatePending) return;
                     setIsNavigatePending(true);
-                    navigate(`/s/${space.id}/chat/${item.id}?focus`, {
+                    navigate(`/chat/${item.id}?focus`, {
                         // Don't open in peek. Navigate the window we're in.
                         stopPropagation: true,
                     }).finally(() => setIsNavigatePending(false));

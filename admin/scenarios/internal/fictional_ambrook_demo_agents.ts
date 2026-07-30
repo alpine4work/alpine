@@ -6,7 +6,7 @@ import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {parseTestMessageContent} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
@@ -46,7 +46,7 @@ export async function createFictionalAmbrookDemoAgents({
                 access: "Public",
                 /* eslint-disable cyberworlds/string-quotes */
                 body: markdown`
-Today, checking a user’s current plan is hard because billing data is scattered across configs,
+Today, checking a user\u2019s current plan is hard because billing data is scattered across configs,
 database flags, and our legacy payments API. Different parts of the app each “guess” the plan, which
 makes it risky to change pricing or introduce new plans.
 
@@ -69,7 +69,7 @@ without knowing anything about the underlying payments vendor.
    vendor.
 
 2. Expose a clear, type-safe API in our backend for:
-    - Fetching a user/account’s current plan.
+    - Fetching a user/account\u2019s current plan.
 
     - Evaluating feature entitlements (e.g., “does this plan include Grants Navigator?”).
 
@@ -88,7 +88,7 @@ without knowing anything about the underlying payments vendor.
 
 # Non-Goals
 
-- Re-design public pricing or packaging (that’s a PM responsibility; this spec only supports
+- Re-design public pricing or packaging (that\u2019s a PM responsibility; this spec only supports
   implementation).
 
 - Replace all legacy subscriptions immediately. This spec covers:
@@ -174,7 +174,7 @@ post I shared this in), and create followup tasks for me.
 
             await streamMessage.putStreamPart(chatGpt.action(chat.getBotScope()), 0, {
                 type: "Reasoning",
-                content: parseTestMessageContent(space.id, "I\u2019m thinking here"),
+                content: parseTestMessageContent("I\u2019m thinking here"),
             });
 
             const [task1, task2, task3] = await tasksPromise;
@@ -198,11 +198,11 @@ Here\u2019s how the feedback clusters and what to do with it:
 
 Followup tasks:
 
-- [Define the billing domain model & API](https://alpine.inc/s/{{spaceId}}/tasks/{{task1Id}}?mention)
+- [Define the billing domain model & API](https://alpine.inc/task/{{task1Id}}?mention)
 
-- [Document billing migration risks](https://alpine.inc/s/{{spaceId}}/tasks/{{task2Id}}?mention)
+- [Document billing migration risks](https://alpine.inc/task/{{task2Id}}?mention)
 
-- [Add a business impact & analytics section](https://alpine.inc/s/{{spaceId}}/tasks/{{task3Id}}?mention)
+- [Add a business impact & analytics section](https://alpine.inc/task/{{task3Id}}?mention)
                     `,
                     {
                         spaceId: space.id,

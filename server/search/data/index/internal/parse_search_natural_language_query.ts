@@ -65,8 +65,9 @@ class SearchNaturalLanguageMatchTerm {
         );
 
         // Don't consider fuzzy matches for "chat". "Cat" and "hat" would be considered
-        // matches which are both common words in their own right.
-        if (this._text === "chat") {
+        // matches which are both common words in their own right. Same goes for "site" —
+        // "side", "size", "sits" are all within one edit and would cause false matches.
+        if (this._text === "chat" || this._text === "site") {
             return this._text === termText;
         }
 
@@ -97,6 +98,7 @@ const matchTermTexts = [
     "chats",
     "tasks",
     "collections",
+    "sites",
     "created",
     "written",
     "wrote",
@@ -108,6 +110,7 @@ const matchTermTexts = [
     "posted",
     "by",
     "me",
+    "opened",
     "about",
     "i",
     "my",
@@ -1353,6 +1356,16 @@ function advanceEntityTypeIfPossible(state: SearchNaturalLanguageParserState): {
         };
     }
 
+    // Sites
+    if (matchTerms.sites.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+        return {
+            entityTypes: ["Site"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
     // Messages or comments (standalone - could be chat or document)
     if (
         matchTerms.messages.isFuzzyMatch(state.term) ||
@@ -1791,9 +1804,16 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
         // Peek ahead to check for "not" prefix followed by openness modifier
         const hasNot = matchTerms.not.isFuzzyMatch(state.term);
         const termToCheck = hasNot ? state.peekTerm(1) : state.term;
+        const termAfterTermToCheck = hasNot ? state.peekTerm(2) : state.peekTerm(1);
+        // `opened by ...` is an alias for `created by ...`, but stemming makes `opened`
+        // fuzzy-match `open`. Guard this case so it falls through to the creator-style
+        // parser below instead of being parsed as openness.
+        const isOpenedByAlias =
+            termToCheck?.text.toLowerCase() === "opened" &&
+            matchTerms.by.isFuzzyMatch(termAfterTermToCheck);
 
         if (
-            matchTerms.open.isFuzzyMatch(termToCheck) ||
+            (matchTerms.open.isFuzzyMatch(termToCheck) && !isOpenedByAlias) ||
             matchTerms.pending.isFuzzyMatch(termToCheck) ||
             matchTerms.todo.isFuzzyMatch(termToCheck)
         ) {
@@ -1819,6 +1839,71 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
         }
 
         if (openness) {
+            // TODO: `closed by ...` currently maps to `Closed + Assignee`, but the ideal
+            // behavior is `Closed + (Assignee OR Closer)`. That requires indexing/searching a
+            // dedicated `Closer` field so closed unassigned tasks, or tasks closed by someone
+            // other than the assignee, are included too.
+            if (
+                openness.includes("Closed") &&
+                allowAccount &&
+                matchTerms.by.isFuzzyMatch(state.term)
+            ) {
+                state.advanceTerm();
+
+                if (matchTerms.me.isFuzzyMatch(state.term)) {
+                    if (!actorAccount) {
+                        return {filterStartTerm, filterEndTerm, filter};
+                    }
+                    const endTerm = state.advanceTerm();
+
+                    return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
+                        state,
+                        {
+                            filterStartTerm,
+                            filterEndTerm: endTerm,
+                            filter: {
+                                ...filter,
+                                openness,
+                                account: {
+                                    field: "Assignee",
+                                    accounts: [{id: actorAccount.id, name: actorAccount.name}],
+                                },
+                            },
+                            allowAccount: false,
+                            allowTime,
+                            field: "LastUpdated",
+                        },
+                        options,
+                    );
+                }
+
+                const accounts = parseAccountsByNameIfPossible(state, options);
+                if (accounts) {
+                    return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
+                        state,
+                        {
+                            filterStartTerm,
+                            filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                            filter: {
+                                ...filter,
+                                openness,
+                                account: {
+                                    field: "Assignee",
+                                    accounts: accounts.map(account => ({
+                                        id: account.id,
+                                        name: account.initialData.name,
+                                    })),
+                                },
+                            },
+                            allowAccount: false,
+                            allowTime,
+                            field: "LastUpdated",
+                        },
+                        options,
+                    );
+                }
+            }
+
             return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                 state,
                 {
@@ -1921,6 +2006,7 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
     // e.g. "documents created..." or "messages sent..."
     if (
         matchTerms.created.isFuzzyMatch(state.term) ||
+        matchTerms.opened.isFuzzyMatch(state.term) ||
         matchTerms.sent.isFuzzyMatch(state.term) ||
         matchTerms.posted.isFuzzyMatch(state.term)
     ) {

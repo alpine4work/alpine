@@ -41,6 +41,7 @@ export function expectInboxChannelPostsEntryModel({
         postAuthorCount: new Set(posts.map(post => post.author.id)).size,
         postIds: new Set(posts.map(post => post.id)),
         latestPost: {
+            id: latestPost.post.id,
             author: expect.objectContaining({id: latestPost.post.author.id}),
             createdTime: latestPost.post.createdTime,
             contentTextSnippet: latestPost.contentTextSnippet,

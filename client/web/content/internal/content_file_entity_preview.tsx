@@ -30,11 +30,7 @@ import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase, InternalError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
-import {
-    FileEntityId,
-    parseFileEntityId,
-    printFileEntityIdIntoPath,
-} from "~/shared/files/file_entity_id.js";
+import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {fileEntityMaxRecursionDepth} from "~/shared/files/file_entity_max_recursion_depth.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
@@ -46,6 +42,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
+import {getDynamicSearchEntityPathForFileEntity} from "~/shared/search/path/get_search_entity_path.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -93,7 +90,7 @@ export function renderContentFileEntityPreview(
         node: Node;
         fileEntityId: FileEntityId;
         fileEntityResult: Result<FileEntityModel> | undefined;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         layout: ContentFileLayout;
         getContext: () => AppContext;
         clientInfo: ClientInfo;
@@ -138,7 +135,7 @@ export function renderContentFileEntityPreview(
         // If we've hit the max depth where the backend stops loading file entities to
         // prevent infinite recursion then instead of rendering an error message, render
         // nothing.
-    } else if (!fileEntityRenderers || !fileEntityResult?.ok) {
+    } else if (!fileEntityResult?.ok) {
         const fileEntityIdObject = parseFileEntityId(fileEntityId);
         const entityNoun = getFileEntityNoun(fileEntityIdObject.type);
 
@@ -233,7 +230,7 @@ export function addContentFileEntityPreviewBehavior(
         spaceId: SpaceId;
         fileEntityId: FileEntityId;
         fileEntityResult: Result<FileEntityModel> | undefined;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         navigate: NavigateFunction;
         getReporter: () => Reporter;
         isInert?: boolean;
@@ -251,7 +248,11 @@ export function addContentFileEntityPreviewBehavior(
         onPress: event => {
             handleContentLinkClick(
                 event,
-                printFileEntityIdIntoPath(spaceId, fileEntityId),
+                getDynamicSearchEntityPathForFileEntity({
+                    spaceId,
+                    fileEntityId,
+                    fileEntityResult: fileEntityResult ?? null,
+                }),
                 navigate,
             );
         },
@@ -316,7 +317,11 @@ export function addContentFileEntityPreviewBehavior(
                     iconPlacement: "end",
                     onPress: async () => {
                         const url = new URL(
-                            printFileEntityIdIntoPath(spaceId, fileEntityId),
+                            getDynamicSearchEntityPathForFileEntity({
+                                spaceId,
+                                fileEntityId,
+                                fileEntityResult: fileEntityResult ?? null,
+                            }),
                             window.location.href,
                         );
                         await writeTextToClipboard(url.toString());
@@ -329,7 +334,7 @@ export function addContentFileEntityPreviewBehavior(
     element.addEventListener("contextmenu", handleContextMenu);
 
     let cleanupExtra: (() => void) | undefined;
-    if (fileEntityResult?.ok && fileEntityRenderers) {
+    if (fileEntityResult?.ok) {
         const fileEntity = fileEntityResult.value;
 
         cleanupExtra = fileEntityRenderers.addPreviewBehaviorByType[fileEntity.type]?.(

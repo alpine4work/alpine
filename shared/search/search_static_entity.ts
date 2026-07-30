@@ -1,14 +1,12 @@
 import _Fuse from "fuse.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {SearchStaticEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
-export type SearchStaticEntity = {
+type SearchStaticEntity = {
     readonly title: string;
-    readonly media?: SearchEntityMediaModel;
     readonly otherHitTexts?: ReadonlyArray<string>;
 };
 

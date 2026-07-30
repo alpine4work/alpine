@@ -2,10 +2,7 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/content/message_content_schema.js";
-import {
-    DynamoGeneralRealtimeEventStubSchema,
-    createDynamoGeneralRealtimeEventSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
@@ -25,13 +22,9 @@ import {
     defineWebSocketProtocol,
 } from "~/shared/web_socket/web_socket_protocol.js";
 
-export type DynamoGeneralRealtimePostEvent = SchemaType<
-    typeof DynamoGeneralRealtimePostEventSchema
->;
+export type RynamoPostEvent = SchemaType<typeof RynamoPostEventSchema>;
 
-export const DynamoGeneralRealtimePostEventSchema = createDynamoGeneralRealtimeEventSchema(
-    PostModel.schema(),
-);
+export const RynamoPostEventSchema = createRynamoEventSchema(PostModel.schema());
 
 export type PostRealtimeEvent = WebSocketProtocolEventType<typeof PostRealtimeProtocol>;
 
@@ -134,13 +127,13 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
             event: Schema.union(createMessagingRealtimeEventSchemas(PostCommentModel.schema())),
         }),
 
-        RealtimeEventTransaction: Schema.object({
-            type: Schema.value("RealtimeEventTransaction"),
-            eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
+        RealtimeEvents: Schema.object({
+            type: Schema.value("RealtimeEvents"),
+            events: Schema.array(RynamoPostEventSchema),
         }),
     },
 });
 
-export const PostBroadcastRealtimeEventTransactionSchema = Schema.object({
-    eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
+export const PostBroadcastRealtimeEventsSchema = Schema.object({
+    events: Schema.array(RynamoEventStubSchema),
 });

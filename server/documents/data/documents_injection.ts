@@ -1,5 +1,6 @@
 import {DocumentsInjection} from "~/server/context/injection_context_module.js";
 import {
+    FileDocumentAuthorizer,
     authorizeDocumentAccessIfPossible,
     getDocumentAccessPolicyForBotScope,
     getDocumentContentPreviewIfPossible,
@@ -9,4 +10,5 @@ export const documentsInjection: DocumentsInjection = {
     authorizeDocumentAccessIfPossible,
     getDocumentContentPreviewIfPossible,
     getDocumentAccessPolicyForBotScope,
+    bindFileDocumentAuthorizer: (_context, target) => FileDocumentAuthorizer.bind(target),
 };

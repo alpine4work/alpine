@@ -31,7 +31,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
             width: scalableDemoDefaultViewportWidth,
             height: scalableDemoDefaultViewportWidth,
         },
-        path: `/s/${space.id}/posts/new/${generateChronologicalId()}?channel=${channel.id}`,
+        path: `/post/new/${generateChronologicalId()}/${space.id}?channel=${channel.id}`,
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");
 

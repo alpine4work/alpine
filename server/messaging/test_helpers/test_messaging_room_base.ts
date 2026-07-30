@@ -32,7 +32,7 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadContentUpdate,
@@ -202,7 +202,7 @@ export abstract class TestMessagingRoomBase {
                         : (parent ?? null),
                 content:
                     typeof content === "string"
-                        ? parseTestMessageContent(this.space.id, content)
+                        ? parseTestMessageContent(content)
                         : content instanceof Node
                           ? assertMessageContent(content)
                           : createSimpleMessageContent(""),
@@ -292,7 +292,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
     }
 
     public async get() {
-        return this.room._getMessage(this.space.systemAction(), this.index);
+        return await this.room._getMessage(this.space.systemAction(), this.index);
     }
 
     public async updateContent(session: TestSession, content: string | Node) {
@@ -305,7 +305,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
         assert(message.payload.type === "Content");
 
-        return this.room._updateMessageContent(session.action(), {
+        return await this.room._updateMessageContent(session.action(), {
             messageIndex: this.index,
             contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
             steps: [
@@ -314,7 +314,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
                     message.payload.content.doc.content.size,
                     new Slice(
                         (typeof content === "string"
-                            ? parseTestMessageContent(this.space.id, content)
+                            ? parseTestMessageContent(content)
                             : assertMessageContent(content)
                         ).content,
                         0,
@@ -340,7 +340,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
             partIndex,
             payload:
                 typeof payload === "string"
-                    ? {type: "Content", content: parseTestMessageContent(this.space.id, payload)}
+                    ? {type: "Content", content: parseTestMessageContent(payload)}
                     : payload instanceof Node
                       ? {type: "Content", content: assertMessageContent(payload)}
                       : payload,
@@ -366,7 +366,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
         assert(message.payload.type === "Content");
 
-        return this.room._setMessageReaction(
+        return await this.room._setMessageReaction(
             session.action().clone({
                 apns: new TestApnsContextModule(),
                 webPush: new TestWebPushContextModule(),
@@ -397,7 +397,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
         assert(message.payload.type === "Content");
 
-        return this.room._deleteMessageReaction(session.action(), {
+        return await this.room._deleteMessageReaction(session.action(), {
             messageIndex: this.index,
             contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
             pos: pos ?? message.payload.content.doc.content.size,
@@ -405,7 +405,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
     }
 }
 
-export function parseTestMessageContent(spaceId: SpaceId, content: string): MessageContent {
-    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+export function parseTestMessageContent(content: string): MessageContent {
+    const apiContent = parseApiContentFromMarkdown(content);
     return assertMessageContent(fromApiContent(MessageContentProsemirrorSchema, apiContent));
 }

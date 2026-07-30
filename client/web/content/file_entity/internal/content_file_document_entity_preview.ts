@@ -4,6 +4,7 @@ import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {renderBlobsArtToHtml} from "~/client/web/blobs/blobs_art_html.js";
 import {ContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {setupContentFileEntityPreviewContainer} from "~/client/web/content/file_entity/internal/content_file_entity_preview_container.js";
+import {renderContentFileEntitySiteBreadcrumb} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/render_content_to_html.js";
 import {AppContext} from "~/client/web/context/app_context.js";
@@ -73,7 +74,7 @@ export function renderContentFileDocumentEntityPreview(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         suppressHydrationWarning: () => void;
     },
 ) {
@@ -84,6 +85,7 @@ export function renderContentFileDocumentEntityPreview(
         transformScale,
         scaledWidthPx,
         blockMaxWidthPx,
+        containerPaddingPx,
     } = setupContentFileEntityPreviewContainer(html, {
         layout,
         platform,
@@ -97,6 +99,15 @@ export function renderContentFileDocumentEntityPreview(
             "--safe-area-inset-top: 0px",
         ],
         calculateScaledContainerTransformStyle: config => {
+            if (fileEntity.site) {
+                // Don't translate the container down for breadcrumb spacing — the cover is
+                // anchored to the container's top edge, so a translateY would push the cover down
+                // and chop it off from the top of the box. The breadcrumb block carries the
+                // container-top-to-breadcrumb-top spacing as `padding-top` instead. Skip the
+                // negative `titlePaddingTop` translateY — the title's own top spacing is
+                // suppressed via `withoutTitleTopSpacingDocClassName` below.
+                return `scale(${config.transformScale})`;
+            }
             // Document-specific margin top calculation
             const marginTopPx = Math.max(
                 config.paddingPx * 1.5,
@@ -113,6 +124,33 @@ export function renderContentFileDocumentEntityPreview(
         references: emptyDocumentContentReferences,
     };
 
+    if (fileEntity.site) {
+        // Wrap the breadcrumb in a block-styled div so it lines up horizontally with the
+        // doc's title and paragraphs below (which inherit the same
+        // `max-width: blockMaxWidthVar` + centered margins via their block class). Without
+        // the wrapper, the breadcrumb hugs `scaledDocHtml`'s left edge while the title
+        // sits at the centered block's left edge — visibly out of alignment for the
+        // full-width preview.
+        const breadcrumbBlockHtml = scaledDocHtml.appendChild(new HtmlElementGenerator("div"));
+        breadcrumbBlockHtml.setAttribute("class", contentStyles.docBlockClassName);
+        // Match the container-top-to-breadcrumb-top spacing used by every other entity
+        // preview (a single container padding from the box top). This spacing lives here
+        // instead of on the scaled container's transform so the cover keeps bleeding from
+        // the box top. Divide by the transform scale since this padding is in the
+        // container's pre-scale coordinates.
+        breadcrumbBlockHtml.setAttribute(
+            "style",
+            `padding-top: ${containerPaddingPx / transformScale}px`,
+        );
+        renderContentFileEntitySiteBreadcrumb({
+            get,
+            siteRegistry,
+            parent: breadcrumbBlockHtml,
+            site: fileEntity.site,
+            platform,
+        });
+    }
+
     const cover: DocumentContentCover = content.doc.attrs.cover;
     if (cover?.type === "Blobs") {
         const canvasHtml = renderBlobsArtToHtml(cover, {suppressHydrationWarning});
@@ -126,6 +164,10 @@ export function renderContentFileDocumentEntityPreview(
             contentStyles.docClassName,
             contentStyles.narrowRouteLayoutDocClassName,
             contentStyles.withUserSelectNoneDocClassName,
+            // Strip the title's top breathing room when a site breadcrumb sits above the title
+            // — otherwise the title's `min-height` leaves a `titlePaddingTop` gap between the
+            // title text and the first body block.
+            fileEntity.site && contentStyles.withoutTitleTopSpacingDocClassName,
             isContentTitleEmpty(content.doc) && contentStyles.emptyTitleClassName,
             isContentBodyEmpty(content.doc) && contentStyles.emptyBodyClassName,
         ),

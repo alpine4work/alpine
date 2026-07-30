@@ -222,7 +222,7 @@ async function sendEventsToHoneycomb(
     dataset: HoneycombDataset,
     events: Array<TracerEvent>,
 ) {
-    return retryWithExponentialBackoff(async retry => {
+    return await retryWithExponentialBackoff(async retry => {
         try {
             let bodyString = JSON.stringify(
                 events.map(event => ({

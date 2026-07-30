@@ -9,16 +9,17 @@ import {
     SiteTopBarId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {
     SiteContainerId,
     SiteSideBarContainerId,
     SiteSideBarSectionContainerId,
     SiteTopBarContainerId,
 } from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 import {
     SiteEntityModel,
     SiteEntryModel,
+    SiteEntrySearchEntityModel,
     SitePreviewModelData,
     SiteSideBarModel,
     SiteSideBarSectionModel,
@@ -51,12 +52,14 @@ function makeEntity({
         parentId,
         spaceId,
         version: 0,
-        initialEntityData: {
-            id,
+        entity: SiteEntrySearchEntityModel.new({
+            type: "Channel",
             title: "test entity",
-            titleVersion: null,
-            media: null,
-        },
+            channel: {
+                id: channelId,
+                version: 0,
+            },
+        }),
     });
 }
 

@@ -33,8 +33,11 @@ const commentFileAttachmentTarget = markMemoIfNotRendering({
 function TestContentEditor() {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            doc: emptyDocumentWithoutTitleContent,
-            references: emptyContentReferences,
+            spaceId: null,
+            content: {
+                doc: emptyDocumentWithoutTitleContent,
+                references: emptyContentReferences,
+            },
         }),
     );
     return (
@@ -78,8 +81,11 @@ test("renders an empty document", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                doc: emptyDocumentWithoutTitleContent,
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: emptyDocumentWithoutTitleContent,
+                    references: emptyContentReferences,
+                },
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -104,7 +110,10 @@ test("renders an initial editor state", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -131,7 +140,10 @@ test("rerenders with a changed document", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: doc1, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: doc1, references: emptyContentReferences},
+            })}
             onChange={onTransaction}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -143,7 +155,10 @@ test("rerenders with a changed document", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: doc2, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: doc2, references: emptyContentReferences},
+            })}
             onChange={onTransaction}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -188,8 +203,11 @@ test("won\u2019t ever commit optimistic update if it doesn\u2019t match props", 
     function NoopContentEditor() {
         const [state] = useState(() =>
             ContentEditorState.create({
-                doc: emptyDocumentWithoutTitleContent,
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: emptyDocumentWithoutTitleContent,
+                    references: emptyContentReferences,
+                },
             }),
         );
         return (

@@ -1,9 +1,13 @@
-// TODO(#sites): Create testing framework for adding/removing from sites similar to
-// the way we have "messaging" tests
+// TODO(#sites-not-blocking): Create testing framework for adding/removing from
+// sites similar to the way we have "messaging" tests
 
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
+import {getDocumentContent} from "~/server/documents/data/documents_actions.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {handleUpdateContentWithoutOptimisticBroadcastForTest} from "~/server/documents/test_helpers/handle_update_content_without_optimistic_broadcast_for_test.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -11,13 +15,15 @@ import {getSite} from "~/server/sites/data/get_site.js";
 import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {addEntityToSite} from "~/server/sites/entity_actions/add_entity_to_site.js";
+import {buildTestSiteEntityData} from "~/server/sites/test_helpers/build_test_site_entity_data.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
@@ -25,21 +31,30 @@ import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
     SiteItemSearchEntityId,
     SiteItemSearchEntityIdObject,
-} from "~/shared/sites/site_item_search_entity_id.js";
+    isSiteItemSearchEntityId,
+} from "~/shared/search/site_item_search_entity_id.js";
+import {SiteEntrySearchEntityModel} from "~/shared/sites/site_model.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const searchInjection: Partial<SearchInjection> = {
-    getSearchMentionEntityIfPossible: async (_context, _spaceId, entityId) => ({
-        isPrivate: false as const,
-        entity: new SearchEntityModel({
-            id: entityId,
-            title: "Test Entity",
-            titleVersion: null,
-            media: null,
-        }),
-    }),
+    getSearchMentionEntityIfPossible: async (_context, _spaceId, entityId) => {
+        assert(isSiteItemSearchEntityId(entityId));
+        return {
+            isPrivate: false as const,
+            entity: new SearchEntityModel(buildTestSiteEntityData(entityId)),
+        };
+    },
 };
 
-const context = createTestContext({sitesInjection, searchInjection});
+const context = createTestContext({
+    sitesInjection,
+    searchInjection,
+    documentsInjection,
+    // Documents are added to a site by sending an access-policy update to the
+    // document's collaboration durable object, which doesn't run in the in-process
+    // test context. Reimplement that one route directly against the test database.
+    sendRequestToDurableObject: handleUpdateContentWithoutOptimisticBroadcastForTest,
+});
 
 describe("addEntityToSite", () => {
     // The `Record<SiteItemSearchEntityIdObject["type"], …>` makes TypeScript fail if a
@@ -89,12 +104,16 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: {
-                            id: entityId,
-                            title: "Test Entity",
-                            titleVersion: null,
-                            media: null,
-                        },
+                        entity: expect.objectContaining(
+                            SiteEntrySearchEntityModel.new({
+                                type: "Channel",
+                                title: "Test Entity",
+                                channel: {
+                                    id: channel.id,
+                                    version: 0,
+                                },
+                            }),
+                        ),
                         version: 1,
                     }),
                 ]);
@@ -155,12 +174,21 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: {
-                            id: entityId,
-                            title: "Test Entity",
-                            titleVersion: null,
-                            media: null,
-                        },
+                        entity: expect.objectContaining(
+                            SiteEntrySearchEntityModel.new({
+                                type: "Chat",
+                                title: "Test Entity",
+                                chat: {
+                                    id: chat.id,
+                                    version: 0,
+                                    media: {
+                                        type: "AccountPile",
+                                        previewAccounts: expect.any(Array<AccountModel>),
+                                        accountCount: null,
+                                    },
+                                },
+                            }),
+                        ),
                         type: "Entity",
                         version: 1,
                     }),
@@ -211,12 +239,20 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: {
-                            id: entityId,
-                            title: "Test Entity",
-                            titleVersion: null,
-                            media: null,
-                        },
+                        entity: expect.objectContaining(
+                            SiteEntrySearchEntityModel.new({
+                                type: "Task",
+                                title: "Test Entity",
+                                task: {
+                                    id: task.id,
+                                    titleSnapshot: expect.any(Uint8Array),
+                                    displayStatus: {
+                                        value: "OpenActive",
+                                        version: expect.any(Array),
+                                    },
+                                },
+                            }),
+                        ),
                         type: "Entity",
                         version: 1,
                     }),
@@ -269,12 +305,20 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: {
-                            id: entityId,
-                            title: "Test Entity",
-                            titleVersion: null,
-                            media: null,
-                        },
+                        entity: expect.objectContaining(
+                            SiteEntrySearchEntityModel.new({
+                                type: "TaskCollection",
+                                title: "Test Entity",
+                                collection: {
+                                    id: collection.id,
+                                    titleVersion: expect.any(Array),
+                                    color: {
+                                        value: null,
+                                        version: expect.any(Array),
+                                    },
+                                },
+                            }),
+                        ),
                         type: "Entity",
                         version: 1,
                     }),
@@ -282,11 +326,59 @@ describe("addEntityToSite", () => {
             });
         },
         Document: () => {
-            // TODO(#sites): Documents are added via
-            // `context.edge.sendRequestToDurableObject(...)` to the document's collaboration
-            // durable object, which isn't wired up in this test context. Either move this case
-            // into `document_collaboration_durable_object.test.ts` or add edge wiring here.
-            test.todo("adds a Document to a site");
+            test("adds a Document to a site", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession();
+                const site = await TestSite.create(session, {name: "Test Site"});
+                const siteId = site.id;
+                const document = await TestDocument.create(session, {title: "Test Document"});
+                const entityId: SiteItemSearchEntityId = `Document:${document.id}`;
+
+                await addEntityToSite(session.action(), {
+                    siteId,
+                    spaceId: space.id,
+                    entityId,
+                    parentId: site.initialRootContainerId,
+                    orderKey: assertOrderKey("a0"),
+                });
+
+                const [siteItems, sitePreview, documentContent] = await runAllPromises([
+                    getSite(session.action(), {siteId}),
+                    getSitePreview(session.action(), siteId),
+                    getDocumentContent(session.action(), document.id),
+                ]);
+
+                expect(sitePreview.initialData).toEqual(
+                    expect.objectContaining({
+                        id: siteId,
+                        version: 1,
+                        firstEntityId: entityId,
+                        rootContainerId: site.initialRootContainerId,
+                    }),
+                );
+                expect(documentContent.content.attrs.accessPolicy).toEqual({
+                    type: "Site",
+                    siteId,
+                });
+                expect(siteItems.items.map(item => item.model)).toEqual([
+                    sitePreview,
+                    expect.objectContaining({
+                        id: site.initialRootContainerId,
+                        parentId: null,
+                        type: "SideBar",
+                        label: "Test Site",
+                        version: 1,
+                    }),
+                    expect.objectContaining({
+                        id: entityId,
+                        parentId: site.initialRootContainerId,
+                        entity: SiteEntrySearchEntityModel.new(
+                            expect.objectContaining({type: "Document"}),
+                        ),
+                        version: 1,
+                    }),
+                ]);
+            });
         },
     };
     for (const setup of Object.values(entityTypeTests)) setup();

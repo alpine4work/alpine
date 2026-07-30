@@ -76,7 +76,6 @@ export function useContentEditorDebugTools(viewRef: RefObject<EditorView | null>
                 delete: (from: number, to: number) => {
                     view.dispatch(view.state.tr.delete(from, to));
                 },
-
                 // Playwright tests use this method to select text. Removing it will break those
                 // tests.
                 setTextSelection: (from: number, to?: number) => {

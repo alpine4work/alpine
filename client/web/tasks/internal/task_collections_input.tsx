@@ -36,7 +36,7 @@ import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     inputPlaceholderStyles,
     spinAnimationClassName,
@@ -114,7 +114,6 @@ function TaskCollectionChipWithNavigation({
     tabIndex?: number;
     onRemove?: () => void;
 }) {
-    const {space} = useSpaceContext();
     const navigate = useNavigate();
     const [isPendingNavigation, setIsPendingNavigation] = useState(false);
 
@@ -128,7 +127,7 @@ function TaskCollectionChipWithNavigation({
 
                 setIsPendingNavigation(true);
 
-                navigate(`/s/${space.id}/tasks/collections/${collection.id}`).finally(() => {
+                navigate(`/task-collection/${collection.id}`).finally(() => {
                     setIsPendingNavigation(false);
                 });
             }}
@@ -414,7 +413,7 @@ function TaskCollectionsInput(
                                 collectionId,
                                 collectionAction: {
                                     type: "Create",
-                                    creatorId: currentAccount.id,
+                                    creator: {accountId: currentAccount.id, from: null},
                                     name: inputState.value,
                                     accessPolicy: {
                                         type: "Local",
@@ -1115,7 +1114,7 @@ function TaskCollectionsInput(
                                     collectionId,
                                     collectionAction: {
                                         type: "Create",
-                                        creatorId: currentAccount.id,
+                                        creator: {accountId: currentAccount.id, from: null},
                                         name: inputValue,
                                         accessPolicy: {
                                             type: "Local",

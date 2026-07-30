@@ -223,6 +223,7 @@ export function ContentEditorPointerToolbar({
         // the pointer toolbar until your selection moves.
         if (
             previousState !== null &&
+            "range" in previousState &&
             (previousState.range.from !== selection.$from.pos ||
                 previousState.range.to !== selection.$to.pos)
         ) {

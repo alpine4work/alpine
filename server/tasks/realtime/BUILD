@@ -10,7 +10,7 @@ ts_project(
         "//server/sites/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/realtime/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//shared/tasks/test_helpers",
         "//shared/tracer/dev",
         "//shared/test_helpers",

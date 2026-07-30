@@ -1,7 +1,7 @@
 import classNames from "classnames";
-import {useContext, useMemo, useRef} from "react";
+import {useMemo, useRef} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
-import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {useContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {useFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/web/content/internal/content_base_schema_with_files.js";
 import {
@@ -21,7 +21,7 @@ import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hou
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
@@ -59,7 +59,7 @@ export function ContentFileEntityPreview({
     const fileRegistry = useFileRegistry();
     const siteRegistry = useSiteRegistry();
     const currentDate = useCurrentDate();
-    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const fileEntityRenderers = useContentFileEntityRenderers();
 
     const containerRef = useRef<HTMLDivElement>(null);
 

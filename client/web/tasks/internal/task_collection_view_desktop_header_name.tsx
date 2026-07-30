@@ -62,6 +62,7 @@ function TaskCollectionViewDesktopHeaderName(
         collection,
         createCollection,
         affinityManager,
+        isSiteBreadcrumbRendered = false,
     }: {
         accessLevel: AccessLevel | null;
         store: TaskClientStore;
@@ -71,6 +72,7 @@ function TaskCollectionViewDesktopHeaderName(
         collection: TaskCollectionModel | null;
         createCollection: (name: string) => Promise<void>;
         affinityManager: TaskClientStoreSearchAffinityManager;
+        isSiteBreadcrumbRendered?: boolean;
     },
     ref: Ref<TaskCollectionViewDesktopHeaderNameRef>,
 ) {
@@ -129,7 +131,7 @@ function TaskCollectionViewDesktopHeaderName(
 
     return (
         <Box
-            overflow="hidden"
+            minWidth="flex-fit"
             // The `paddingLeft`/`marginLeft` does nothing but is there so the color hover
             // overlay isn't clipped by `overflow="hidden"`.
             paddingLeft="1"
@@ -171,7 +173,10 @@ function TaskCollectionViewDesktopHeaderName(
             {!editingNameState ? (
                 <h1
                     className={sprinkles({
-                        padding: "1",
+                        // The space between the breadcrumb and the title should be entirely handled by the
+                        // breadcrumb
+                        paddingY: isSiteBreadcrumbRendered ? "0" : "1",
+                        paddingX: "1",
                         fontSize: "200",
                         fontStyle: "truncate-semi-bold",
                         userSelect: "text",
@@ -209,55 +214,54 @@ function TaskCollectionViewDesktopHeaderName(
                     {inputWithAutoGrowingWidthSafeSpacerElement}
                 </h1>
             ) : (
-                <Box overflow="hidden">
-                    <TaskCollectionViewDesktopHeaderNameEditor
-                        isCreatingCollection={isCreatingCollection}
-                        shouldInitiallyFocus={editingNameState.shouldInitiallyFocusEditableName}
-                        initialName={name}
-                        onCancel={() => {
-                            // If we cancel editing an optimistic collection with no name then return to the
-                            // route we came from.
-                            if (isCreatingCollection) {
-                                return navigate(-1);
-                            } else {
-                                setEditingNameState(null);
-                            }
-                        }}
-                        onSave={name => {
-                            // If you try to save an empty name, it cancels editing. Unless the collection has
-                            // not been created yet. Then it does nothing. Your collection needs a name!
-                            if (name.length === 0) {
-                                if (!isCreatingCollection) setEditingNameState(null);
-                                return;
-                            }
+                <TaskCollectionViewDesktopHeaderNameEditor
+                    isCreatingCollection={isCreatingCollection}
+                    shouldInitiallyFocus={editingNameState.shouldInitiallyFocusEditableName}
+                    initialName={name}
+                    isSiteBreadcrumbRendered={isSiteBreadcrumbRendered}
+                    onCancel={() => {
+                        // If we cancel editing an optimistic collection with no name then return to the
+                        // route we came from.
+                        if (isCreatingCollection) {
+                            return navigate(-1);
+                        } else {
+                            setEditingNameState(null);
+                        }
+                    }}
+                    onSave={name => {
+                        // If you try to save an empty name, it cancels editing. Unless the collection has
+                        // not been created yet. Then it does nothing. Your collection needs a name!
+                        if (name.length === 0) {
+                            if (!isCreatingCollection) setEditingNameState(null);
+                            return;
+                        }
 
-                            if (isCreatingCollection) {
-                                return createCollection(name).then(() => {
-                                    setEditingNameState(null);
-                                });
-                            } else {
-                                store.commitTaskActionTransaction(
-                                    context,
-                                    [
-                                        {
-                                            type: "UpdateCollection",
-                                            time: store.clock.now(),
-                                            collectionId,
-                                            collectionAction: {
-                                                type: "UpdateName",
-                                                name,
-                                            },
+                        if (isCreatingCollection) {
+                            return createCollection(name).then(() => {
+                                setEditingNameState(null);
+                            });
+                        } else {
+                            store.commitTaskActionTransaction(
+                                context,
+                                [
+                                    {
+                                        type: "UpdateCollection",
+                                        time: store.clock.now(),
+                                        collectionId,
+                                        collectionAction: {
+                                            type: "UpdateName",
+                                            name,
                                         },
-                                    ],
-                                    // Collection changes can't be undone.
-                                    {undoManager: null, affinityManager},
-                                );
+                                    },
+                                ],
+                                // Collection changes can't be undone.
+                                {undoManager: null, affinityManager},
+                            );
 
-                                setEditingNameState(null);
-                            }
-                        }}
-                    />
-                </Box>
+                            setEditingNameState(null);
+                        }
+                    }}
+                />
             )}
         </Box>
     );
@@ -269,12 +273,14 @@ function TaskCollectionViewDesktopHeaderNameEditor({
     initialName,
     onCancel,
     onSave,
+    isSiteBreadcrumbRendered = false,
 }: {
     isCreatingCollection: boolean;
     shouldInitiallyFocus: boolean;
     initialName: string;
     onCancel: () => MaybePromise<void>;
     onSave: (name: string) => MaybePromise<void>;
+    isSiteBreadcrumbRendered?: boolean;
 }) {
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
@@ -300,7 +306,12 @@ function TaskCollectionViewDesktopHeaderNameEditor({
 
     return (
         <>
-            <Box maxWidth="full" height="8">
+            <Box
+                maxWidth="full"
+                height="8"
+                // don't move the breadcrumb up. \
+                marginY={isSiteBreadcrumbRendered ? "-0.5" : undefined}
+            >
                 <FocusRing offset="border" isVisibleFromAnyFocus={true}>
                     <InputWithAutoGrowingWidth
                         ref={useMergedRefs(

@@ -6,7 +6,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {MessagingView, MessagingViewRef} from "~/client/web/messaging/messaging_view.js";
 import {useCurrentlyViewingSearchEntityId} from "~/client/web/remix/use_currently_viewing_search_entity_id.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
@@ -42,7 +42,7 @@ function NewChatMessagingView(
 ) {
     const context = useAppContext();
     const spaceContext = useSpaceContext();
-    let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId(spaceContext.space.id);
+    let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId();
 
     // We only send the currently viewed entity for 1:1 chats with a bot. We do some
     // validation here and on the server.
@@ -157,7 +157,7 @@ function NewChatMessagingView(
                     // May be called when we don't have a selected chat.
                     if (!selectedChat) return {};
 
-                    return procedures.startTypingInMessageInput(input);
+                    return await procedures.startTypingInMessageInput(input);
                 },
                 [procedures, selectedChat],
             )}
@@ -166,7 +166,7 @@ function NewChatMessagingView(
                     // May be called when we don't have a selected chat.
                     if (!selectedChat) return {};
 
-                    return procedures.stopTypingInMessageInput(input);
+                    return await procedures.stopTypingInMessageInput(input);
                 },
                 [procedures, selectedChat],
             )}
@@ -201,7 +201,7 @@ function NewChatMessagingView(
                         );
                     }
                     return new URL(
-                        `/s/${selectedChat.chat.spaceId}/chat/${selectedChat.chat.id}?message=${messageIndex}`,
+                        `/chat/${selectedChat.chat.id}?message=${messageIndex}`,
                         window.location.href,
                     );
                 },

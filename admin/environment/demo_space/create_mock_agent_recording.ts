@@ -10,10 +10,8 @@ import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export function createMockAgentRecording(
-    spaceId: SpaceId,
     paragraphs: Array<string | number>,
     {waitMillisecondsBetweenTokens = 0}: {waitMillisecondsBetweenTokens?: number} = {},
 ): MockAgentRecording {
@@ -62,7 +60,6 @@ export function createMockAgentRecording(
                             allowLabelWithoutClose: true,
                             allowResourceWithoutClose: true,
                         }),
-                        {spaceId},
                     ),
                 },
             });

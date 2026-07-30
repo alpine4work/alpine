@@ -105,6 +105,7 @@ export async function addSpaceAccountForTest(
             spaceId,
             accountId,
             role,
+            inviterAccountId: null,
             overrideCurrentTimeForTest: overrideCurrentTime,
             withoutInviteForTest: true,
         },
@@ -121,5 +122,5 @@ export async function getSpaceAccountForTest(
 ): Promise<SpaceAccountItem | null> {
     assert(process.env.NODE_ENV === "test");
 
-    return getSpaceAccountItemIfExists(context, spaceId, accountId);
+    return await getSpaceAccountItemIfExists(context, spaceId, accountId);
 }

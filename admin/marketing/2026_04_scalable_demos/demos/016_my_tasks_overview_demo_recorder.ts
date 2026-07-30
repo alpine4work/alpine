@@ -2,7 +2,7 @@ import {today} from "@internationalized/date";
 import {createDemoSpace} from "~/admin/environment/demo_space/create_demo_space.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
 import {scalableDemoWideViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
@@ -190,7 +190,7 @@ the other is scheduled for the end of the week.
    the \u201CActive\u201D section header so the loop point is clean.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/tasks`,
+        path: `/my-tasks/${space.id}`,
         viewport: scalableDemoWideViewport,
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

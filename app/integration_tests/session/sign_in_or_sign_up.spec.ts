@@ -1,9 +1,11 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {generateId} from "~/shared/id/id.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
-const {services} = createTestServices();
+const {context, services} = createTestServices();
 
 async function startSignUp(page: Page, emailAddress: string) {
     await page.getByPlaceholder("name@company.com").click();
@@ -55,6 +57,17 @@ async function waitForInviteUrl(index: number) {
     });
 }
 
+async function createDocumentForNewSpace() {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const ownerSession = await space.createSession({role: "Owner"});
+    const document = await TestDocument.create(ownerSession, {
+        title: "Test Document",
+        access: "Public",
+    });
+
+    return {document, ownerSession, space};
+}
+
 async function submitSignUpOneTimePassword({
     page,
     isMobile,
@@ -97,6 +110,30 @@ async function signUpWithSkippedInvites({
     await submitSignUpOneTimePassword({page, isMobile, oneTimePasswordIndex});
 }
 
+async function signInWithOneTimePassword({
+    page,
+    emailAddress,
+    oneTimePasswordIndex,
+}: {
+    page: Page;
+    emailAddress: string;
+    oneTimePasswordIndex: number;
+}) {
+    await page.getByPlaceholder("name@company.com").click();
+    await page.getByPlaceholder("name@company.com").fill(emailAddress);
+    await page.getByRole("button", {name: "Sign in"}).click();
+
+    const {oneTimePassword} = await waitForOneTimePassword(oneTimePasswordIndex);
+
+    await page.getByLabel("Passcode").click();
+    await page.getByLabel("Passcode").fill(oneTimePassword);
+}
+
+async function expectDocumentToBeVisible(page: Page, documentId: string) {
+    await page.waitForURL(`**/doc/${documentId}`);
+    await expect(page.getByRole("textbox", {name: "Document"})).toBeVisible();
+}
+
 async function goToPeopleSettings(page: Page, isMobile: boolean) {
     if (isMobile) {
         await page.getByLabel("More").click();
@@ -109,9 +146,14 @@ async function goToPeopleSettings(page: Page, isMobile: boolean) {
 }
 
 function getCurrentSpaceId(page: Page): string {
-    const match = page.url().match(/\/s\/([^/?#]+)/);
+    const match = page.url().match(/\/home\/([^/?#]+)/);
     expect(match).not.toBeNull();
     return match![1]!;
+}
+
+async function expectInvitePage(page: Page, spaceId: string) {
+    await expect(page).toHaveURL(new RegExp(`/invite/${spaceId}(?:\\?|$)`));
+    await expect(page.getByRole("button", {name: /^Join /})).toBeVisible();
 }
 
 test("can switch between sign in and sign up page", async ({page}) => {
@@ -315,7 +357,7 @@ test("invited account chat shows pending invite message", async ({page, isMobile
 
     if (isMobile) {
         const spaceId = getCurrentSpaceId(page);
-        await page.goto(`/s/${spaceId}/chat/new`);
+        await page.goto(`/chat/new/${spaceId}`);
 
         await page.getByRole("combobox", {name: "To"}).click();
         await page.getByRole("option", {name: invitedAccountName, exact: true}).click();
@@ -467,6 +509,8 @@ test("can sign up from invite link from settings", async ({browser, page: page1,
     await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page1.getByText("Test 1")).toBeHidden();
 
+    const inviteSpaceId = getCurrentSpaceId(page1);
+
     if (isMobile) {
         await page1.getByLabel("More").click();
         await page1.getByText("Settings").click();
@@ -494,6 +538,50 @@ test("can sign up from invite link from settings", async ({browser, page: page1,
     await submitSignUpProfile(page2, "Test 2");
     await skipSignUpInvites(page2);
     await submitSignUpOneTimePassword({page: page2, isMobile, oneTimePasswordIndex: 1});
+
+    await expect(page2).toHaveURL(new RegExp(`/home/${inviteSpaceId}(?:\\?|$)`));
+    await expect(page2.getByText("Welcome to Alpine")).toBeVisible();
+    await expect(page2.getByText("Test 1")).toBeVisible();
+
+    await page2.close();
+});
+
+test("sign up with pending invite opens invite page", async ({browser, page: page1, isMobile}) => {
+    await page1.goto("/auth/sign-up");
+
+    const emailId1 = generateId();
+    const emailId2 = generateId();
+    const invitedEmailAddress = `test.${emailId2}@gmail.com`;
+
+    await startSignUp(page1, `test.${emailId1}@gmail.com`);
+    await submitSignUpProfile(page1, "Test 1");
+    await skipSignUpInvites(page1);
+    await submitSignUpOneTimePassword({page: page1, isMobile, oneTimePasswordIndex: 0});
+
+    await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
+
+    const inviteSpaceId = getCurrentSpaceId(page1);
+
+    await goToPeopleSettings(page1, isMobile);
+    await page1.getByRole("button", {name: "Invite"}).click();
+    await page1.getByPlaceholder("jane@company.com").click();
+    await page1.getByPlaceholder("jane@company.com").fill(invitedEmailAddress);
+    await page1.getByRole("button", {name: "Send"}).click();
+
+    const {emailAddress: inviteEmailAddress} = await waitForInviteUrl(0);
+    expect(inviteEmailAddress).toBe(invitedEmailAddress);
+
+    const browserContext2 = await browser.newContext();
+    const page2 = await browserContext2.newPage();
+    await page2.goto("/auth/sign-up");
+
+    await startSignUp(page2, invitedEmailAddress);
+    await submitSignUpProfile(page2, "Test 2");
+    await skipSignUpInvites(page2);
+    await submitSignUpOneTimePassword({page: page2, isMobile, oneTimePasswordIndex: 1});
+
+    await expectInvitePage(page2, inviteSpaceId);
+    await page2.getByRole("button", {name: /^Join /}).click();
 
     await expect(page2.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page2.getByText("Test 1")).toBeVisible();
@@ -533,6 +621,55 @@ test("can sign in", async ({browser, page: page1, isMobile}) => {
     await page2.close();
 });
 
+test("sign up with document `to` search param redirects to document after accepting invite", async ({
+    page,
+    isMobile,
+}) => {
+    const {document, ownerSession, space} = await createDocumentForNewSpace();
+    const emailAddress = `test.${generateId()}@gmail.com`;
+    const documentPath = `/doc/${document.id}`;
+
+    await ownerSession.inviteEmailAddress(emailAddress);
+    await page.goto(`/auth/sign-up?to=${encodeURIComponent(documentPath)}`);
+
+    await startSignUp(page, emailAddress);
+    await submitSignUpProfile(page, "Test Testerson");
+    await skipSignUpInvites(page);
+    await submitSignUpOneTimePassword({page, isMobile, oneTimePasswordIndex: 0});
+
+    await page.waitForURL(`/invite/${space.id}?to=${encodeURIComponent(documentPath)}`);
+    await page.getByRole("button", {name: "Join Test Space"}).click();
+
+    await expectDocumentToBeVisible(page, document.id);
+});
+
+test("sign in with document `to` search param redirects to document", async ({page}) => {
+    const {document, ownerSession} = await createDocumentForNewSpace();
+    const emailAddress = await ownerSession.account.createEmailAddress(
+        `test.${generateId()}@gmail.com`,
+    );
+
+    await page.goto(`/auth/sign-in?to=${encodeURIComponent(`/doc/${document.id}`)}`);
+    await signInWithOneTimePassword({page, emailAddress, oneTimePasswordIndex: 0});
+
+    await expectDocumentToBeVisible(page, document.id);
+});
+
+test("signed out document error sign in link preserves document `to` search param", async ({
+    page,
+}) => {
+    const {document} = await createDocumentForNewSpace();
+    const documentPath = `/doc/${document.id}`;
+
+    await page.goto(documentPath);
+
+    await expect(page.getByText("You aren\u2019t signed in")).toBeVisible();
+    await expect(page.getByRole("link", {name: /sign in/i})).toHaveAttribute(
+        "href",
+        `/auth/sign-in?to=${encodeURIComponent(documentPath)}`,
+    );
+});
+
 test("can sign in from invite link", async ({browser, page: page1, isMobile}) => {
     await page1.goto("/auth/sign-up");
 
@@ -546,6 +683,8 @@ test("can sign in from invite link", async ({browser, page: page1, isMobile}) =>
 
     await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page1.getByText("Test 1")).toBeHidden();
+
+    const inviteSpaceId = getCurrentSpaceId(page1);
 
     await goToPeopleSettings(page1, isMobile);
     await page1.getByRole("button", {name: "Invite"}).click();
@@ -567,8 +706,7 @@ test("can sign in from invite link", async ({browser, page: page1, isMobile}) =>
     await skipSignUpInvites(page2);
     await submitSignUpOneTimePassword({page: page2, isMobile, oneTimePasswordIndex: 1});
 
-    await expect(page2.getByText("Welcome to Alpine")).toBeVisible();
-    await expect(page2.getByText("Test 1")).toBeHidden();
+    await expectInvitePage(page2, inviteSpaceId);
 
     await page2.close();
 

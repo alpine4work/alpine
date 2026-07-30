@@ -16,8 +16,8 @@ export function mergeTaskCollectionModelData(
     if (collection1.spaceId !== collection2.spaceId)
         throw new InternalError("Incompatible task `spaceId` when merging");
 
-    if (collection1.creatorId !== collection2.creatorId)
-        throw new InternalError("Incompatible task `creatorId` when merging");
+    if (!isDeepEqualForUnknownValues(collection1.creator, collection2.creator))
+        throw new InternalError("Incompatible task `creator` when merging");
 
     if (compareHybridLogicalTimes(collection1.createdTime, collection2.createdTime) !== 0)
         throw new InternalError("Incompatible task `createdTime` when merging");
@@ -26,7 +26,7 @@ export function mergeTaskCollectionModelData(
         id: collection1.id,
         spaceId: collection1.spaceId,
 
-        creatorId: collection1.creatorId,
+        creator: collection1.creator,
         createdTime: collection1.createdTime,
         deletedTime:
             collection1.deletedTime !== null && collection2.deletedTime !== null
@@ -40,6 +40,7 @@ export function mergeTaskCollectionModelData(
         name: collection1.name.merge(collection2.name),
         color: collection1.color.merge(collection2.color),
         accessPolicy: collection1.accessPolicy.merge(collection2.accessPolicy),
+        defaults: collection1.defaults.merge(collection2.defaults),
     };
 
     // Optimization: If nothing changed between `collection1` and the merged collection

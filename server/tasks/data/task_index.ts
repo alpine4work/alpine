@@ -52,9 +52,9 @@ import {
 } from "~/server/tasks/data/task_index_doc.js";
 import {
     TaskRealtimeActionContext,
-    TaskRealtimeSessionActionContext,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
@@ -417,13 +417,13 @@ export async function getTaskFromIndexIfExists(
         actor: context.actor,
         // We've already authorized our system actor has access to the space.
         isSpaceAccessAuthorized: true,
-        // System actors have access to all task collections. So we don't need to evaluate
-        // the collection access policy.
+        // System actors have access to all task collections and sites. So we don't need to
+        // evaluate the collection or site access policy.
         isCollectionAccessAuthorized: async () => true,
+        isSiteAccessAuthorized: async () => true,
     };
 
     const taskModel = await prepareTaskForClient(task, prepareContext);
-
     const promiseWaiter = new PromiseWaiter();
     const loadingTaskIds = new Set<TaskId>();
     const loadingCollectionIds = new Set<TaskCollectionId>();
@@ -788,7 +788,7 @@ class TaskActionTransactionIndexState {
 
         let hasAlreadyAttempted = false;
 
-        return retryWithExponentialBackoff(run, {maxAttemptCount: maxRetryAttemptCount});
+        return await retryWithExponentialBackoff(run, {maxAttemptCount: maxRetryAttemptCount});
 
         async function run(_retry: (error?: unknown) => never) {
             const isInitialAttempt = !hasAlreadyAttempted;
@@ -1107,6 +1107,11 @@ class TaskActionTransactionIndexState {
                                                 accountId: actorId,
                                                 entityId: `TaskCollection:${collectionId}`,
                                                 interaction: {type: "LowIntentUpdate"},
+                                                // We don't have the collection's access policy in scope here. Skipping the cascade
+                                                // is a small inaccuracy: if a user adds a task to a collection that lives in a
+                                                // site, the site won't get the cascade points from _this_ interaction. The site
+                                                // will still accrue points from the task's own update.
+                                                siteId: null,
                                             },
                                         );
                                     });
@@ -1206,6 +1211,9 @@ class TaskActionTransactionIndexState {
                                 accountId: actorId,
                                 entityId: `TaskCollection:${newCollection.id}`,
                                 interaction: {type: "HighIntentUpdate"},
+                                siteId: getSiteIdFromAccessPolicyIfExists(
+                                    newCollection.accessPolicy.value,
+                                ),
                             });
                         });
                     }
@@ -1499,9 +1507,12 @@ async function actuallyIndexTaskAction(
                     : await state.getTaskIndexDocIfExists(action.taskId);
 
             if (!oldTask && action.taskAction.type === "Create") {
-                const creator = state.getActionReferencedSortableAccount(
-                    action.taskAction.creatorId,
-                );
+                const creator = {
+                    ...state.getActionReferencedSortableAccount(
+                        action.taskAction.creator.accountId,
+                    ),
+                    from: action.taskAction.creator?.from ?? null,
+                };
 
                 state.putTaskIndexDoc(
                     action.taskId,
@@ -1851,7 +1862,7 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
                                         action.accountNameVersion
                                 ) {
                                     hasChanged = true;
-                                    newDoc.creator = newAccount;
+                                    newDoc.creator = {...newAccount, from: newDoc.creator.from};
                                 }
 
                                 if (
@@ -2005,14 +2016,14 @@ export async function queryTaskIndex(
  * whenever the task changes.
  */
 export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
-    context: TaskRealtimeSessionActionContext,
+    context: TaskRealtimeActionContext,
     {spaceId, taskId}: {spaceId: SpaceId; taskId: TaskId},
     action: () => Promise<Value>,
 ): Promise<Value> {
     // If this is a test where OpenSearch is disabled then don't bother trying to
     // schedule a search entity indexing job.
     if (process.env.NODE_ENV === "test" && context.opensearch.isDisabledForTest()) {
-        return action();
+        return await action();
     }
 
     const [value, initialTask] = await runAllPromises([

@@ -27,7 +27,7 @@ import {
     useCurrentTimeRoundedToHour,
 } from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     channelCreatorDescriptionFieldMinHeightPx,
     channelCreatorDescriptionFieldPaddingX,
@@ -80,7 +80,11 @@ export function ChannelCreator({
     }));
 
     const [{descriptionState, hasDescriptionChanged}, setDescriptionState] = useState(() => ({
-        descriptionState: ContentEditorState.create(initialDescription, {selection: "start"}),
+        descriptionState: ContentEditorState.create({
+            spaceId: space.id,
+            content: initialDescription,
+            selection: "start",
+        }),
         hasDescriptionChanged: false,
     }));
 
@@ -139,9 +143,7 @@ export function ChannelCreator({
                     onPress={async () => {
                         if (isContentEmpty(descriptionState.getDoc()) && isPublic) {
                             await navigate(
-                                `/s/${
-                                    space.id
-                                }/channels/${generateId()}?create=${encodeURIComponent(name)}`,
+                                `/channel/${generateId()}?create=${space.id}+${encodeURIComponent(name)}`,
                                 {
                                     replace: true,
                                     // In our native mobile app, we want to call
@@ -172,8 +174,6 @@ export function ChannelCreator({
                                 description: descriptionState.getDoc(),
                                 accessPolicy: !isPublic
                                     ? {
-                                          // TODO(#sites): We probably want to add a prop if the channel is being directly
-                                          // added to a site (create within site).
                                           type: "Local",
                                           accountGrantById: new Map([
                                               [currentAccount.id, {level: "Manage", generation: 0}],
@@ -184,18 +184,13 @@ export function ChannelCreator({
                                     : undefined,
                             });
 
-                            await navigate(
-                                `/s/${space.id}/channels/${channel.channelId}?consistency=strong`,
-                                {
-                                    replace: true,
-                                    // In our native mobile app, we want to call
-                                    // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
-                                    // push animation while replacing in the history stack.
-                                    state: NativeMobileBridge
-                                        ? {withPushAnimation: true}
-                                        : undefined,
-                                },
-                            );
+                            await navigate(`/channel/${channel.channelId}?consistency=strong`, {
+                                replace: true,
+                                // In our native mobile app, we want to call
+                                // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
+                                // push animation while replacing in the history stack.
+                                state: NativeMobileBridge ? {withPushAnimation: true} : undefined,
+                            });
                         }
                     }}
                 >
@@ -203,6 +198,7 @@ export function ChannelCreator({
                 </Button>
             </Box>
         ),
+        defaultPreviousRoute: `/create/${space.id}`,
     });
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(containerRef, {

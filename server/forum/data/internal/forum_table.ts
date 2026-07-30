@@ -22,6 +22,14 @@ export const ForumTable = DynamoTableSchema.new({
                 channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
             },
             sortRanges: [
+                {
+                    name: "Posts",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        lastPostCreatedTime: Schema.date,
+                    }),
+                },
+
                 /**
                  * Accounts who are subscribed to get notifications in their inbox whenever a post
                  * is created in this channel.
@@ -83,7 +91,7 @@ export const ForumTable = DynamoTableSchema.new({
                  * During backfill we load the new version of the item.
                  *
                  * This sort range has a similar design to the `Events` sort range in
-                 * `DynamoGeneralRealtimeTableSchema`.
+                 * `RynamoTableSchema`.
                  *
                  * IMPORTANT: This does not include realtime events for streaming messages!
                  * Streaming messages are updated with a different realtime system that's more

@@ -13,7 +13,7 @@ import {LocalNotionImportItem} from "~/client/web/importers/notion/notion_import
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {fontSizes} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
@@ -223,6 +223,11 @@ export function NotionImportItemCard({
             flexDirection="column"
             gap="5"
             userSelect="text"
+            data-testid={
+                process.env.NODE_ENV === "production"
+                    ? undefined
+                    : `NotionImportItemCard:${item.status.type}`
+            }
         >
             {/* Header row - always visible */}
             <Box
@@ -319,7 +324,16 @@ export function NotionImportItemCard({
             {importedTeamspaces.length > 0 && (
                 <Box display="flex" flexDirection="column" gap="2.5">
                     {importedTeamspaces.map(ts => (
-                        <Box key={ts.teamspaceId} fontSize="75" color="grey-80">
+                        <Box
+                            key={ts.teamspaceId}
+                            fontSize="75"
+                            color="grey-80"
+                            data-testid={
+                                process.env.NODE_ENV === "production"
+                                    ? undefined
+                                    : "NotionImportTeamspaceSummary"
+                            }
+                        >
                             <NotionImportTeamspaceSummary
                                 name={hideTeamspaceNames ? undefined : ts.teamspaceName}
                                 isPrivate={ts.option.type === "Private"}

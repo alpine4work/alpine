@@ -2805,7 +2805,7 @@ test("streams link formatting correctly (without mentionable reference)", async 
                                     marks: [
                                         {
                                             type: "Link",
-                                            url: `https://alpine.inc/s/${spaceId}/posts/${postId}?comment=1`,
+                                            url: `https://alpine.inc/post/${postId}?comment=1`,
                                         },
                                     ],
                                 },
@@ -2839,7 +2839,7 @@ test("streams link formatting correctly (without mentionable reference)", async 
                                     marks: [
                                         {
                                             type: "Link",
-                                            url: `https://alpine.inc/s/${spaceId}/posts/${postId}?comment=1`,
+                                            url: `https://alpine.inc/post/${postId}?comment=1`,
                                         },
                                     ],
                                 },

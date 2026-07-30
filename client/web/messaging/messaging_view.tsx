@@ -43,7 +43,7 @@ import {useMessagingRealtime} from "~/client/web/messaging/use_messaging_realtim
 import {useScrollToNewMessages} from "~/client/web/messaging/use_scroll_to_new_messages.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     VirtualizedScrollView,

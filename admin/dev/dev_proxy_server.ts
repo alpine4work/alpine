@@ -1,6 +1,10 @@
 import http from "http";
 import net from "net";
 import {Artifact} from "~/admin/dev/dev_main.js";
+import {
+    bridgeProxiedSockets,
+    handleProxiedSocketError,
+} from "~/server/helpers/node/bridge_proxied_sockets.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -168,12 +172,10 @@ export async function createDevProxyServer(
         });
 
         proxySocket.on("error", error => {
-            // Thrown when the other side of the socket closes. This is normal. Ignore the
-            // error.
-            // https://stackoverflow.com/questions/2974021/what-does-econnreset-mean-in-the-context-of-an-af-local-socket
-            if ("code" in error && (error.code === "ECONNRESET" || error.code === "EPIPE")) return;
-
-            scheduleUncaughtError(error);
+            handleProxiedSocketError({
+                error,
+                logUnexpectedError: scheduleUncaughtError,
+            });
         });
 
         let requestAttemptCount = 0;
@@ -194,6 +196,8 @@ export async function createDevProxyServer(
             .then(request, request);
 
         function request() {
+            if (proxySocket.destroyed) return;
+
             // If the server failed to build then return a 500 and tell the developer to look
             // at the terminal.
             const server = artifact.server.getWithoutLock();
@@ -239,7 +243,15 @@ export async function createDevProxyServer(
                 headers: proxyReq.headers,
             });
 
+            // Cancel the upstream request if the client disconnects before it resolves. See
+            // the matching comment in `task_realtime_service_gateway.ts`.
+            const destroyReq = () => req.destroy();
+            proxySocket.on("close", destroyReq);
+
             req.on("error", error => {
+                proxySocket.off("close", destroyReq);
+                if (proxySocket.destroyed) return;
+
                 // If we get an `ECONNREFUSED` error then the server may not have started yet. Try
                 // again for a bit. If we still can't connect write an error.
                 if (
@@ -263,6 +275,12 @@ export async function createDevProxyServer(
             });
 
             req.on("response", res => {
+                proxySocket.off("close", destroyReq);
+                if (proxySocket.destroyed) {
+                    res.destroy();
+                    return;
+                }
+
                 res.on("error", error => {
                     logError("Exception in response from proxied server", error);
                 });
@@ -283,8 +301,23 @@ export async function createDevProxyServer(
             });
 
             req.on("upgrade", (res, socket, head) => {
+                assert(socket instanceof net.Socket);
+
+                proxySocket.off("close", destroyReq);
+                if (proxySocket.destroyed) {
+                    socket.destroy();
+                    return;
+                }
+
                 res.on("error", error => {
                     logError("Exception in (upgraded) response from proxied server", error);
+                });
+
+                socket.on("error", error => {
+                    handleProxiedSocketError({
+                        error,
+                        logUnexpectedError: scheduleUncaughtError,
+                    });
                 });
 
                 const headers = [];
@@ -302,8 +335,7 @@ export async function createDevProxyServer(
 
                 proxySocket.write(head);
                 socket.write(proxyHead);
-                proxySocket.pipe(socket, {end: true});
-                socket.pipe(proxySocket, {end: true});
+                bridgeProxiedSockets({socket1: proxySocket, socket2: socket});
             });
 
             // If we're retrying a request then we need to replay writing any chunks from our

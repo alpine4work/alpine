@@ -2,40 +2,53 @@
 import {useMatches} from "@remix-run/react";
 import {Memo, ReactNode, createContext, useCallback, useContext, useMemo, useRef} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
-import {useDynamoGeneralRealtimeQuery} from "~/client/web/dynamo/use_dynamo_general_realtime_query.js";
-import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
+import {MenuAction} from "~/client/web/design/menu.js";
+import {useRynamoQuery} from "~/client/web/dynamo/use_rynamo_query.js";
+import {
+    useStateWithDependencies,
+    useStateWithDependenciesWithoutDispatch,
+} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
+import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_schema.js";
+import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
+import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {
+    CollapsedSectionsState,
+    isSectionCollapsed,
+} from "~/client/web/sites/helpers/site_side_bar_collapsed_section_state.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {siteLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {SiteLoaderData, SiteLoaderDataSchema} from "~/shared/remix/site_loader_data.js";
 import {backfillSite, getSite} from "~/shared/rpc/sites_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
-import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
+import {SiteContainerId, SiteSideBarSectionContainerId} from "~/shared/sites/site_entry_id.js";
 import {
     SiteEntryModel,
     SiteOrSiteEntryModel,
     SitePreviewModel,
     SitePreviewModelData,
     SiteSideBarModel,
+    SiteSideBarSectionModel,
     SiteTopBarModel,
 } from "~/shared/sites/site_model.js";
 import {SiteRealtimeProtocol} from "~/shared/sites/site_realtime_protocol.js";
@@ -75,16 +88,15 @@ export type SiteActiveState = {
 // produced by `ActiveSiteDataProvider`, which in turn owns:
 //
 // - a WebSocket connection to the site's realtime durable object
-// - the `useDynamoGeneralRealtimeQuery` hook tracking server state
+// - the `useRynamoQuery` hook tracking server state
 // - the `useStateWithOptimisticUpdates` state tracking pending-RPC overlays
 //
-// If we mounted `ActiveSiteDataProvider` _inside_ the entity route (e.g. from
-// `useSiteChromeContainer`), navigating from one entity to another in the same
-// site would unmount and remount it. That would: tear down and reopen the
-// WebSocket, reset the realtime query state, and, worst of all, drop any in-flight
-// optimistic updates. A user who just added an entity from the modal and navigated
-// to it would see the site tree briefly revert until the server round-trip
-// completes and the fresh state streams back.
+// If we mounted `ActiveSiteDataProvider` _inside_ the entity route, navigating
+// from one entity to another in the same site would unmount and remount it. That
+// would: tear down and reopen the WebSocket, reset the realtime query state, and,
+// worst of all, drop any in-flight optimistic updates. A user who just added an
+// entity from the modal and navigated to it would see the site tree briefly revert
+// until the server round-trip completes and the fresh state streams back.
 //
 // Keeping the provider above the entity routes means the same provider instance
 // services every entity within a site. Navigation just re-renders the child
@@ -110,14 +122,14 @@ export type SiteActiveState = {
 //    happens during the child's render, after the parent already rendered with
 //    `activation: null`. Still flickers.
 //
-// 3. Have `useSiteChromeContainer` build a fallback tree from the loader's
+// 3. Have `SiteChromeContainer` build a fallback tree from the loader's
 //    `initialQueryResult` for the first render, then switch to the provider's tree
 //    once it activates. Fails because chrome components need the full
 //    `SiteDataContext` (not just a tree) - they call `useSite`,
 //    `useCanManageSite`, `useSiteChildren`, etc., which throw when the context
 //    isn't provided.
 //
-// 4. Mount `ActiveSiteDataProvider` inside `useSiteChromeContainer` or the entity
+// 4. Mount `ActiveSiteDataProvider` inside `SiteChromeContainer` or the entity
 //    route. Renders chrome on first paint, but loses cross-navigation persistence
 //    as described above.
 //
@@ -138,33 +150,27 @@ export type SiteActiveState = {
 //   `useCanManageSite`, etc. all work in those children without extra wiring.
 //
 // - **Site chrome rendering** (actually wrapping content in sidebars/topbars) is
-//   opt-in: a route explicitly calls `useSiteChromeContainer` to render chrome.
+//   handled once by `<SiteChromeContainer>` in the space layout, which wraps the
+//   `<Outlet>` (and the loading-indicator shimmer). It reads the active entity
+//   from this context and renders the chrome around it, so the chrome — and its
+//   local state, like the sidebar's scroll position — stays mounted as you
+//   navigate between entities in the same site. Individual entity routes don't
+//   render their own chrome.
 //
-// This split is intentional. If you introduce a parent layout route (say
-// `s.$spaceId.documents.$documentId.tsx` with child routes for the document view,
-// comments, a print view, etc.) the layout author picks one of two patterns:
-//
-// 1. Wrap `<Outlet />` in `useSiteChromeContainer` inside the layout. Every child
-//    renders inside the chrome. Children _cannot_ escape. Good when chrome should
-//    be consistent across all child views of an entity (usual case).
-//
-// 2. Render `<Outlet />` raw. Each child route calls `useSiteChromeContainer`
-//    itself, or not. Good when some children (e.g. a full-screen print/present
-//    view) should render without chrome.
-//
-// In either case, child routes are inside an active site context, but they choose
-// whether to render the site chrome or not. That decoupling is a feature: a
-// presentation mode can still read the site tree for navigation without forcing
-// the chrome frame onto the screen.
+// This split is intentional. Activation rides on the loader data (any nested route
+// inherits it), while the chrome frame is owned by the layout, above the
+// `<Outlet>`. The tradeoff: a route can no longer opt out of chrome just by not
+// calling a hook. If we ever need a full-screen view of a site entity without the
+// frame (e.g. a present/print mode), it'll need an explicit signal — e.g. omitting
+// `activeEntityId` from its loader data, or a nested layout route that renders its
+// `<Outlet>` outside `<SiteChromeContainer>`.
 //
 // ## Downsides we accept
 //
-// - **Coupling of routes to the activation list.** Every entity route that should
-//   mount inside site chrome must return `siteLoaderDataKey` in its loader, and
-//   must be listed in `siteActivationRouteIds` below. This is decoupled from
-//   `useSiteChromeContainer` \u2014 a new route author has to remember to update
-//   both places. We mitigate this by keeping the list short and co-located with
-//   the provider.
+// - **Coupling of routes to the activation mechanism.** Every entity route that
+//   should mount inside site chrome must return `siteLoaderDataKey` in its loader
+//   (via `jsonWithSchema`'s `siteLoaderData` option) with the entity's
+//   `activeEntityId`.
 //
 // - **O(n) scan of matches on every `SiteProvider` render.** In practice n is ~3
 //   (root, space layout, leaf route), so this is cheap. If the list grows or a hot
@@ -181,7 +187,7 @@ export type SiteActiveState = {
 type SiteActivationState = {
     readonly site: {
         readonly siteId: SiteId;
-        readonly initialQueryResult: DynamoGeneralRealtimeQueryResult<SiteOrSiteEntryModel>;
+        readonly initialQueryResult: RynamoQueryResult<SiteOrSiteEntryModel>;
     };
     readonly activeEntityId: SiteItemSearchEntityId | null;
 };
@@ -201,19 +207,67 @@ export function useSiteActivation(): SiteActivationContextValue {
     return context;
 }
 
-function findSiteLoaderDataInMatches(
+type SiteLoaderDataSource = {
+    /**
+     * The `siteLoaderData` available synchronously. Derived from a matched route's
+     * deserialized loader data. While navigating within a site, we compute an
+     * "optimistic" `siteLoaderData` based on the in-site navigation header and the
+     * currently-loading entity id.
+     */
+    readonly immediate: SiteLoaderData | null;
+    /**
+     * Set when the matched route's data is a still-pending
+     * `LoadingIndicatorLoaderData` wrapper. Subscribe to it to re-derive the real
+     * `siteLoaderData` once it settles.
+     */
+    readonly pendingPromise: PromiseImmediate<unknown> | null;
+};
+
+/**
+ * Scans the matched routes for the one that carries `siteLoaderData`, returning
+ * the data available now plus (if that route is mid-navigation) the promise to
+ * await for its real data.
+ */
+function findSiteLoaderDataSourceInMatches(
     matches: ReadonlyArray<{readonly id: string; readonly data: unknown}>,
-): SiteLoaderData | null {
+): SiteLoaderDataSource {
     for (const match of matches) {
-        const loaderData = match.data as SchemaSerializedValue;
-        if (!isPlainObject(loaderData)) continue;
+        const loaderData = match.data;
 
-        const siteLoaderDataSerializedValue = loaderData[siteLoaderDataKey];
-        if (!siteLoaderDataSerializedValue) continue;
+        // A navigation slower than the loading-indicator delay completes with
+        // `LoadingIndicatorLoaderData` while the real loader data is still pending. Hand
+        // back its promise (so the caller re-derives once it settles) and, meanwhile, its
+        // synthesized `siteLoaderData` fallback (present for within-site navigations) so
+        // the site stays active — destination entity highlighted — under the route
+        // shimmer.
+        if (isLoadingIndicatorLoaderData(loaderData)) {
+            return {
+                immediate: loaderData.siteLoaderData ?? null,
+                pendingPromise: loaderData.promise,
+            };
+        }
 
-        return getLoaderDataWithSchema(SiteLoaderDataSchema, siteLoaderDataSerializedValue);
+        const siteLoaderData = parseSiteLoaderDataIfPossible(loaderData);
+        if (siteLoaderData) return {immediate: siteLoaderData, pendingPromise: null};
     }
-    return null;
+    return {immediate: null, pendingPromise: null};
+}
+
+/**
+ * Reads and deserializes a route's `siteLoaderData`, or `null` if the loader data
+ * isn't a plain object carrying the `siteLoaderDataKey`.
+ */
+function parseSiteLoaderDataIfPossible(loaderData: unknown): SiteLoaderData | null {
+    // Cast first, then narrow with `isPlainObject` — narrowing the
+    // `SchemaSerializedValue` union down to its object members is what makes indexing
+    // by `siteLoaderDataKey` typecheck.
+    const serializedValue = loaderData as SchemaSerializedValue;
+    if (!isPlainObject(serializedValue)) return null;
+
+    const siteLoaderDataSerializedValue = serializedValue[siteLoaderDataKey];
+    if (!siteLoaderDataSerializedValue) return null;
+
+    return getLoaderDataWithSchema(SiteLoaderDataSchema, siteLoaderDataSerializedValue);
 }
 
 /**
@@ -224,11 +278,13 @@ function findSiteLoaderDataInMatches(
  * - `UseNewSite`: server returned a query result; adopt it. If we already have an
  *   activation for the same site we keep the existing reference so
  *   `ActiveSiteDataProvider` doesn't reset its WebSocket / optimistic state.
- * - `UseActiveSite`: client signaled (via `?siteFromCache=...`) that it already
- *   has the site cached, so the loader skipped the fetch. Keep current activation
- *   when siteIds match. If they don't match (or there is no current activation)
- *   throw — the cache hint is only emitted by within-app navigation that already
- *   has the site loaded, so a mismatch indicates a programming error.
+ * - `UseActiveSite`: client signaled (via the `cyberworlds-active-site-id` header)
+ *   that it already has the site cached, so the loader skipped the fetch. This is
+ *   also the variant synthesized on the client for a pending within-site
+ *   navigation (see `getSiteLoaderDataForPendingNavigation`). Keep current
+ *   activation when siteIds match. If they don't match (or there is no current
+ *   activation) throw — the cache hint is only emitted by within-app navigation
+ *   that already has the site loaded, so a mismatch indicates a programming error.
  */
 function computeNextActivation(
     siteData: SiteLoaderData | null,
@@ -239,11 +295,11 @@ function computeNextActivation(
     switch (siteData.type) {
         case "UseNewSite":
             if (current?.site.siteId === siteData.siteId) {
-                if (current.activeEntityId === siteData.activeEntityId) return current;
+                if (current.activeEntityId === (siteData.activeEntityId ?? null)) return current;
 
                 return {
                     site: current.site,
-                    activeEntityId: siteData.activeEntityId,
+                    activeEntityId: siteData.activeEntityId ?? null,
                 };
             }
 
@@ -252,7 +308,7 @@ function computeNextActivation(
                     siteId: siteData.siteId,
                     initialQueryResult: siteData.initialQueryResult,
                 },
-                activeEntityId: siteData.activeEntityId,
+                activeEntityId: siteData.activeEntityId ?? null,
             };
         case "UseActiveSite":
             if (current?.site.siteId !== siteData.siteId) {
@@ -263,21 +319,48 @@ function computeNextActivation(
 
             return {
                 site: current.site,
-                activeEntityId: siteData.activeEntityId,
+                activeEntityId: siteData.activeEntityId ?? null,
             };
         default:
             throw exhaustive(siteData);
     }
 }
 
-type SiteTreeForClient = SiteTreeBase<SiteEntryModel>;
+export type SiteTreeForClient = SiteTreeBase<SiteEntryModel>;
+
+type SectionRow = {readonly depth: number; readonly entry: SiteSideBarSectionModel};
+
+/**
+ * Site-scoped sidebar UI state — what's collapsed, where to scroll on first paint.
+ * Lives on the site context so it survives cross-leaf navigation within a site;
+ * re-initializes when the active site changes via `useStateWithDependencies`.
+ */
+export type SiteSideBarState = {
+    readonly collapsedSections: CollapsedSectionsState;
+    readonly toggleSection: (row: SectionRow) => void;
+    readonly expandSection: (row: SectionRow) => void;
+    /**
+     * Entity to scroll the sidebar to on first paint after activation. `null` once the
+     * row has consumed it via `clearInitialScrollTarget`, or when there is no pending
+     * scroll.
+     */
+    readonly initialScrollTargetEntityId: SiteItemSearchEntityId | null;
+    readonly clearInitialScrollTarget: () => void;
+};
 
 type SiteDataContextValue = {
     readonly siteId: SiteId;
     readonly tree: SiteTreeForClient;
     readonly activeState: SiteActiveState;
+    readonly sideBarState: SiteSideBarState;
+    /**
+     * Menu action to favorite/unfavorite the site. Sourced from the site loader data
+     * (the prefetcher fires `fetchIsFavorite` in parallel with `fetchSite`) so this is
+     * available on the first paint of any entity route inside the site.
+     */
+    readonly favoriteSiteMenuAction: Memo<MenuAction> | null;
     readonly handleEventForSite: Memo<
-        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SiteOrSiteEntryModel>>) => void
+        (events: ReadonlyArray<RynamoEvent<SiteOrSiteEntryModel>>) => void
     >;
 
     readonly updateTreeOptimistically: Memo<
@@ -321,7 +404,27 @@ const SiteDataContext = createContext<SiteDataContextValue | null>(null);
  */
 export function SiteProvider({children}: {readonly children: ReactNode}) {
     const matches = useMatches();
-    const siteLoaderData = useMemo(() => findSiteLoaderDataInMatches(matches), [matches]);
+
+    const {immediate: immediateSiteLoaderData, pendingPromise} = useMemo(
+        () => findSiteLoaderDataSourceInMatches(matches),
+        [matches],
+    );
+
+    // A navigation slower than the loading-indicator delay resolves its real loader
+    // data after the router state has already settled. We subscribe to the wrapper's
+    // promise here so that we can re-render and read the real `siteLoaderData` once it
+    // arrives.
+    const pendingLoaderDataState = usePromise(pendingPromise);
+
+    const siteLoaderData = useMemo(
+        () =>
+            pendingPromise !== null && !pendingLoaderDataState.isPending
+                ? parseSiteLoaderDataIfPossible(pendingLoaderDataState.value)
+                : // If there is no pending promise, or if there is a pending promise that hasn't
+                  // settled yet, we use the immediately available `siteLoaderData`.
+                  immediateSiteLoaderData,
+        [pendingPromise, pendingLoaderDataState, immediateSiteLoaderData],
+    );
 
     const activation = useStateWithDependenciesWithoutDispatch<
         SiteActivationState | null,
@@ -329,6 +432,24 @@ export function SiteProvider({children}: {readonly children: ReactNode}) {
     >(
         ([siteLoaderData], previousActivation) =>
             computeNextActivation(siteLoaderData, previousActivation ?? null),
+        [siteLoaderData],
+    );
+
+    const isFavoriteOnInitialLoad = useStateWithDependenciesWithoutDispatch<
+        boolean,
+        [SiteLoaderData | null]
+    >(
+        (isFavoriteOnInitialLoadFromProps, previousIsFavoriteOnInitialLoad) => {
+            if (siteLoaderData === null) return false;
+
+            // Set the initial value when we load the site for the first time.
+            if (siteLoaderData.type === "UseNewSite") return siteLoaderData.isFavorite;
+
+            // After the initial load, the value should never be undefined. Assert that is true
+            // here.
+            assert(previousIsFavoriteOnInitialLoad !== undefined);
+            return previousIsFavoriteOnInitialLoad;
+        },
         [siteLoaderData],
     );
 
@@ -343,9 +464,12 @@ export function SiteProvider({children}: {readonly children: ReactNode}) {
         <SiteActivationContext.Provider value={activationContextValue}>
             {activation ? (
                 <ActiveSiteDataProvider
+                    // Force remount on site change to reset the realtime subscription.
+                    key={activation.site.siteId}
                     siteId={activation.site.siteId}
                     initialQueryResult={activation.site.initialQueryResult}
                     activeEntityId={activation.activeEntityId}
+                    isFavoriteOnInitialLoad={isFavoriteOnInitialLoad}
                 >
                     {children}
                 </ActiveSiteDataProvider>
@@ -363,16 +487,19 @@ function ActiveSiteDataProvider({
     siteId,
     initialQueryResult,
     activeEntityId,
+    isFavoriteOnInitialLoad,
     children,
 }: {
     readonly siteId: SiteId;
-    readonly initialQueryResult: DynamoGeneralRealtimeQueryResult<SiteOrSiteEntryModel>;
+    readonly initialQueryResult: RynamoQueryResult<SiteOrSiteEntryModel>;
     readonly activeEntityId: SiteItemSearchEntityId | null;
+    readonly isFavoriteOnInitialLoad: boolean;
     readonly children: ReactNode;
 }) {
     const context = useAppContext();
     const {currentAccount} = useSpaceContext();
     const siteRegistry = useSiteRegistry();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     const shouldConnectToRealtime = currentAccount !== null;
 
@@ -382,6 +509,11 @@ function ActiveSiteDataProvider({
         shouldConnectToRealtime ? `/api/durable-objects/sites/${siteId}` : null,
     );
 
+    const favoriteSiteMenuAction = useSearchFavoriteEntityMenuAction(
+        `Site:${siteId}`,
+        isFavoriteOnInitialLoad,
+    );
+
     // Counter (not boolean) so concurrent pauses compose. The queue holds raw
     // event-transactions whose delivery to the realtime query was deferred while
     // paused; they're replayed in arrival order on resume once the counter hits zero.
@@ -389,41 +521,38 @@ function ActiveSiteDataProvider({
     // during a pause) doesn't pay for an array.
     const pauseCountRef = useRef(0);
     const pausedEventQueueRef = useRef<Array<
-        ReadonlyArray<DynamoGeneralRealtimeEvent<SiteOrSiteEntryModel>>
+        ReadonlyArray<RynamoEvent<SiteOrSiteEntryModel>>
     > | null>(null);
 
-    const {query, handleEvent: handleEventForSite} = useDynamoGeneralRealtimeQuery(
-        initialQueryResult,
-        {
-            isConnected,
-            subscribeToPongs,
-            subscribeToEvents: useCallback(
-                subscriber =>
-                    subscribeToEvents(event => {
-                        if (pauseCountRef.current > 0) {
-                            (pausedEventQueueRef.current ??= []).push(event.eventTransaction);
-                            return;
-                        }
-                        subscriber(event.eventTransaction);
-                    }),
-                [subscribeToEvents],
-            ),
-            backfillQuery: useCallback(
-                async checkpoint => {
-                    const {backfillResult} = await backfillSite(context, {
-                        siteId,
-                        checkpoint,
-                    });
-                    return backfillResult;
-                },
-                [context, siteId],
-            ),
-            reloadQuery: useCallback(async () => {
-                const {siteResult} = await getSite(context, {siteId});
-                return siteResult;
-            }, [context, siteId]),
-        },
-    );
+    const {query, handleEvent: handleEventForSite} = useRynamoQuery(initialQueryResult, {
+        isConnected,
+        subscribeToPongs,
+        subscribeToEvents: useCallback(
+            subscriber =>
+                subscribeToEvents(event => {
+                    if (pauseCountRef.current > 0) {
+                        (pausedEventQueueRef.current ??= []).push(event.events);
+                        return;
+                    }
+                    subscriber(event.events);
+                }),
+            [subscribeToEvents],
+        ),
+        backfillQuery: useCallback(
+            async checkpoint => {
+                const {backfillResult} = await backfillSite(context, {
+                    siteId,
+                    checkpoint,
+                });
+                return backfillResult;
+            },
+            [context, siteId],
+        ),
+        reloadQuery: useCallback(async () => {
+            const {siteResult} = await getSite(context, {siteId});
+            return siteResult;
+        }, [context, siteId]),
+    });
 
     // Derive server-authoritative site + entries from the realtime query
     const queryDerived = useMemo(() => {
@@ -514,6 +643,8 @@ function ActiveSiteDataProvider({
         return {activeEntityId, activeSideBarId};
     }, [activeEntityId, tree]);
 
+    const sideBarState = useSideBarState({siteId, tree, activeEntityId});
+
     const withPausedRealtimeEvents = useCallback(
         async function <Value>(action: () => Promise<Value>): Promise<Value> {
             pauseCountRef.current += 1;
@@ -527,8 +658,8 @@ function ActiveSiteDataProvider({
                     const queued = pausedEventQueueRef.current;
                     pausedEventQueueRef.current = null;
                     if (queued) {
-                        for (const eventTransaction of queued) {
-                            handleEventForSite(eventTransaction);
+                        for (const events of queued) {
+                            handleEventForSite(events);
                         }
                     }
                 }
@@ -537,11 +668,30 @@ function ActiveSiteDataProvider({
         [handleEventForSite],
     );
 
+    // Update `SearchEntityRegistry` with the latest data. Now as the name or first
+    // entity change in realtime, any `SearchEntityModel`s rendered elsewhere in the
+    // product will also update.
+    useMemo(() => {
+        return searchEntityRegistry.getEntityStore(
+            new SearchEntityModel({
+                type: "Site",
+                site: {
+                    id: site.id,
+                    firstEntityId: site.firstEntityId,
+                    version: site.version,
+                },
+                title: site.name,
+            }),
+        );
+    }, [site.id, site.firstEntityId, site.version, site.name, searchEntityRegistry]);
+
     const contextValue = useMemo(
         (): SiteDataContextValue => ({
             siteId,
             tree,
             activeState,
+            sideBarState,
+            favoriteSiteMenuAction,
             updateTreeOptimistically,
             handleEventForSite,
             withPausedRealtimeEvents,
@@ -550,6 +700,8 @@ function ActiveSiteDataProvider({
             siteId,
             tree,
             activeState,
+            sideBarState,
+            favoriteSiteMenuAction,
             updateTreeOptimistically,
             handleEventForSite,
             withPausedRealtimeEvents,
@@ -577,7 +729,7 @@ export function useSiteContextIfExists(): SiteDataContextValue | null {
     return useContext(SiteDataContext);
 }
 
-export function useSite(): SitePreviewModelData | null {
+export function useSite(): SitePreviewModelData {
     const {tree} = useSiteContext();
 
     // The tree always contains the site value from the store, so we can return it
@@ -590,23 +742,19 @@ export function useSiteActiveState(): SiteActiveState {
     return activeState;
 }
 
+export function useSiteSideBarState(): SiteSideBarState {
+    const {sideBarState} = useSiteContext();
+    return sideBarState;
+}
+
+export function useFavoriteSiteMenuAction(): Memo<MenuAction> | null {
+    const {favoriteSiteMenuAction} = useSiteContext();
+    return favoriteSiteMenuAction;
+}
+
 export function useSiteTree(): SiteTreeForClient {
     const {tree} = useSiteContext();
     return tree;
-}
-
-export function useSiteChrome(entityId: SiteItemSearchEntityId | null): {
-    readonly sidebar: SiteSideBarModel | null;
-    readonly topbar: SiteTopBarModel | null;
-} {
-    const {tree} = useSiteContext();
-
-    return useMemo(() => {
-        if (!entityId) {
-            return {sidebar: null, topbar: null};
-        }
-        return findSiteChrome(tree, entityId);
-    }, [tree, entityId]);
 }
 
 /**
@@ -677,4 +825,123 @@ function findSiteChrome(
     }
 
     return {sidebar: null, topbar: null};
+}
+
+/**
+ * Initializes and exposes the sidebar UI state for the active site. Both pieces of
+ * state — the collapsed-sections map and the one-shot scroll target — are keyed on
+ * `siteId` via `useStateWithDependencies`, so navigating between sites resets back
+ * to the "first paint" state (ancestors of the new active entity expanded, scroll
+ * target armed). Within a single site the state survives cross-leaf navigation
+ * because the surrounding `ActiveSiteDataProvider` doesn't re-mount.
+ */
+function useSideBarState({
+    siteId,
+    tree,
+    activeEntityId,
+}: {
+    readonly siteId: SiteId;
+    readonly tree: SiteTreeForClient;
+    readonly activeEntityId: SiteItemSearchEntityId | null;
+}): SiteSideBarState {
+    const [collapsedSections, setCollapsedSections] = useStateWithDependencies<
+        CollapsedSectionsState,
+        readonly [SiteId]
+    >(() => computeInitialCollapsedMap(tree, activeEntityId), [siteId]);
+
+    const [scrollTargetState, setScrollTargetState] = useStateWithDependencies<
+        {readonly entityId: SiteItemSearchEntityId | null},
+        readonly [SiteId]
+    >(() => ({entityId: activeEntityId}), [siteId]);
+
+    const toggleSection = useCallback(
+        (row: SectionRow) => {
+            setCollapsedSections(current => {
+                const next = new Map(current);
+                next.set(row.entry.id, !isSectionCollapsed(current, row));
+                return next;
+            });
+        },
+        [setCollapsedSections],
+    );
+
+    const expandSection = useCallback(
+        (row: SectionRow) => {
+            setCollapsedSections(current => {
+                if (!isSectionCollapsed(current, row)) return current;
+                const next = new Map(current);
+                next.set(row.entry.id, false);
+                return next;
+            });
+        },
+        [setCollapsedSections],
+    );
+
+    const clearInitialScrollTarget = useCallback(() => {
+        setScrollTargetState(current => (current.entityId === null ? current : {entityId: null}));
+    }, [setScrollTargetState]);
+
+    return useMemo<SiteSideBarState>(
+        () => ({
+            collapsedSections,
+            toggleSection,
+            expandSection,
+            initialScrollTargetEntityId: scrollTargetState.entityId,
+            clearInitialScrollTarget,
+        }),
+        [
+            collapsedSections,
+            toggleSection,
+            expandSection,
+            scrollTargetState.entityId,
+            clearInitialScrollTarget,
+        ],
+    );
+}
+
+/**
+ * Builds the initial collapsed-sections map for a freshly-activated site. Every
+ * section on the path from the sidebar root down to `activeEntityId` gets an
+ * explicit `false` so the active row is visible without overriding the depth-based
+ * defaults for other branches.
+ */
+function computeInitialCollapsedMap(
+    tree: SiteTreeForClient,
+    activeEntityId: SiteItemSearchEntityId | null,
+): CollapsedSectionsState {
+    if (activeEntityId === null) return emptyMap;
+
+    const ancestorIds = getAncestorSectionIds(tree, activeEntityId);
+    if (ancestorIds.length === 0) return emptyMap;
+
+    const map = new Map<SiteSideBarSectionContainerId, true | false | undefined>();
+
+    // We skip over the root section (depth 0) because it's always expanded by default.
+    for (const id of ancestorIds.slice(1)) {
+        map.set(id, false);
+    }
+    return map;
+}
+
+function getAncestorSectionIds(
+    tree: SiteTreeForClient,
+    entityId: SiteItemSearchEntityId,
+): ReadonlyArray<SiteSideBarSectionContainerId> {
+    const entry = tree.entryById.get(entityId);
+    if (!entry) return [];
+
+    const chain: Array<SiteSideBarSectionContainerId> = [];
+    let currentParentId = entry.parentId;
+    while (currentParentId !== null) {
+        const parent = tree.getEntry(currentParentId);
+        if (parent.type !== "SideBarSection") break;
+
+        chain.push(parent.id);
+        currentParentId = parent.parentId;
+    }
+
+    // We reverse the array here to communicate the depth of each parent in the chain.
+    // Sections at depth 0 are collapsed by default, so we don't need to explicitly
+    // expand them.
+    return chain.toReversed();
 }

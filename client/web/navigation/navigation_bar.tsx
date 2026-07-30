@@ -4,6 +4,7 @@ import {
     dispatchNavigationBarPrepareSmoothScrollToEventEmitter,
     flushNavigationBarScrollEventEmitter,
     navigationBarHeight,
+    navigationBarHeightWithTitleBreadcrumb,
 } from "~/client/web/design/navigation_bar_helpers.js";
 import {useLifecycleRef} from "~/client/web/helpers/refs/use_lifecycle_ref.js";
 import {
@@ -46,13 +47,15 @@ export function useNavigationBar({
     isDisabled = false,
     withScrollAway,
     title = null,
+    titleBreadcrumb,
     getTitleBoundaryElement,
     titleBoundaryMarginTop,
     withoutDisappearingTitle = false,
     subtitle,
     menuActions = emptyArray,
+    menuButtonIcon,
     menuOffset,
-    contextMenuExtraBottom,
+    menuExtraBottom,
     contextMenuActions = emptyArray,
     shareButton,
     withWideRouteLayoutShareMenuItem = false,
@@ -75,6 +78,13 @@ export function useNavigationBar({
     const platform = usePlatform();
 
     withScrollAway ??= platform === "mobile";
+    const effectiveNavigationBarHeight = useMemo(
+        () =>
+            titleBreadcrumb !== undefined
+                ? navigationBarHeightWithTitleBreadcrumb[platform]
+                : spacing[navigationBarHeight],
+        [titleBreadcrumb, platform],
+    );
 
     const navigationBarRef = useRef<{
         initialize: (element: HTMLElement) => void;
@@ -175,13 +185,15 @@ export function useNavigationBar({
             navigationBarRef={ref}
             withScrollAway={withScrollAway}
             title={title}
+            titleBreadcrumb={titleBreadcrumb}
             getTitleBoundaryElement={getTitleBoundaryElement}
             titleBoundaryMarginTop={titleBoundaryMarginTop}
             withoutDisappearingTitle={withoutDisappearingTitle}
             subtitle={subtitle}
             menuActions={menuActions}
+            menuButtonIcon={menuButtonIcon}
             menuOffset={menuOffset}
-            contextMenuExtraBottom={contextMenuExtraBottom}
+            menuExtraBottom={menuExtraBottom}
             contextMenuActions={contextMenuActions}
             shareButton={shareButton}
             withWideRouteLayoutShareMenuItem={withWideRouteLayoutShareMenuItem}
@@ -206,9 +218,10 @@ export function useNavigationBar({
     return {
         scrollViewRef,
         navigationBar,
+        effectiveNavigationBarHeight,
         scrollbarInsetTop: useMemo(
-            () => (!isDisabled ? [spacing[navigationBarHeight], {withSafeArea: true}] : undefined),
-            [isDisabled],
+            () => (!isDisabled ? [effectiveNavigationBarHeight, {withSafeArea: true}] : undefined),
+            [effectiveNavigationBarHeight, isDisabled],
         ),
     };
 }

@@ -840,7 +840,7 @@ Resources:
                 Fn::GetAtt:
                     - OpensearchDeployScriptProviderframeworkonEvent8257EBC2
                     - Arn
-            indexesHash: 60dd39de206517bde528fa4b36550af0236763d93f0d2ab46d9a56ad8135da31
+            indexesHash: b017a1a2ebc5bea0ec0de8af9d4e44ee794188bed0fb4f8c237cdcbf2e337e0a
         DependsOn:
             - OpensearchDomainAppLogs191CCADD
             - OpensearchDomainESLogGroupPolicyc8109b02a9a97266b1b183d2e5b83f2e69fabfd33eCustomResourcePolicy5F7B356F
@@ -2415,7 +2415,7 @@ Resources:
                             - TaskRealtimeServiceLaunchTemplateProfile73C60351
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: m6g.large
                 SecurityGroupIds:
                     - Fn::GetAtt:
@@ -2905,7 +2905,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionContainerLogGroup64BE4AA7
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 7686
+                  MemoryReservation: 7546
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4001
@@ -3027,7 +3027,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionGatewayContainerLogGroupC33881DF
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 156
+                  MemoryReservation: 154
                   Name: GatewayContainer
                   PortMappings:
                       - ContainerPort: 80
@@ -3937,7 +3937,7 @@ Resources:
                             - AppServiceLaunchTemplateProfile42DDF9C1
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
                 Monitoring:
                     Enabled: true
@@ -4545,7 +4545,7 @@ Resources:
                               Ref: AppServiceTaskDefinitionContainerLogGroup1060112F
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 3906
+                  Memory: 3800
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -5159,7 +5159,7 @@ Resources:
                             - ApiServiceLaunchTemplateProfile943D531F
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
                 Monitoring:
                     Enabled: true
@@ -5666,7 +5666,7 @@ Resources:
                               Ref: ApiServiceTaskDefinitionContainerLogGroup7F4869A8
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 3906
+                  Memory: 3800
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -6216,7 +6216,7 @@ Resources:
                             - JobQueueServiceLaunchTemplateProfileBBFF57CB
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
                 SecurityGroupIds:
                     - Fn::GetAtt:
@@ -6788,7 +6788,7 @@ Resources:
                               Ref: JobQueueServiceTaskDefinitionContainerLogGroup4CA57652
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 3906
+                  Memory: 3800
                   Name: Container
                   Secrets:
                       - Name: APP_SERVICE_PUBLIC_KEY
@@ -8771,7 +8771,7 @@ Resources:
             IamInstanceProfile:
                 Ref: FileProcessorServiceAutoScalingGroupInstanceProfileE1605C8E
             ImageId:
-                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
             InstanceType: r7g.large
             SecurityGroups:
                 - Fn::GetAtt:
@@ -8962,7 +8962,7 @@ Resources:
                               Ref: FileProcessorServiceTaskDefinitionContainerLogGroupB6A75F9D
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 15810
+                  Memory: 15675
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -10285,9 +10285,9 @@ Parameters:
     SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter:
         Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
         Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
-    SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
+    SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
         Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-        Default: /aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id
+        Default: /aws/service/ecs/optimized-ami/amazon-linux-2023/arm64/recommended/image_id
     FileProcessorServiceResizeFileServiceLambdaWeight8C995723:
         Type: Number
         Default: 100

@@ -47,7 +47,7 @@ export async function processSendTryOnDesktopEmail(
 
     const urlPath = new UrlPath("/auth/sign-in");
     urlPath.searchParams.set("email", emailAddress);
-    if (openSpaceId) urlPath.searchParams.set("to", `/s/${openSpaceId}`);
+    if (openSpaceId) urlPath.searchParams.set("to", `/home/${openSpaceId}`);
 
     await context.email.sendImmediately({
         // We use the `Invites` alias since similarly we're prompting people to log into

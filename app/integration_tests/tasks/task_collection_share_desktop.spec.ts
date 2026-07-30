@@ -1,11 +1,15 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {
+    ShareSwitchInSiteScenario,
+    expectShareSwitchInSiteToggle,
+} from "~/app/integration_tests/helpers/expect_share_switch_in_site_toggle.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -41,12 +45,12 @@ test("can toggle task collection sharing on/off with switch", async ({
     await task3.addCollection(session1, collection);
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page2.goto(`/task-collection/${collection.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page1.goto(`/task-collection/${collection.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Collection"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -135,12 +139,12 @@ test("can toggle task collection sharing on/off with share dialog default grant"
     await task3.addCollection(session1, collection);
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page2.goto(`/task-collection/${collection.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page1.goto(`/task-collection/${collection.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Collection"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -250,12 +254,12 @@ test("can toggle task collection sharing on/off with share dialog url grant", as
     await task3.addCollection(session1, collection);
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page2.goto(`/task-collection/${collection.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page1.goto(`/task-collection/${collection.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Collection"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -362,12 +366,12 @@ test("can toggle task collection sharing on/off with share dialog account grant"
     await task3.addCollection(session1, collection);
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page2.goto(`/task-collection/${collection.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page1.goto(`/task-collection/${collection.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Collection"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -472,7 +476,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
         await collection.access.grant(session1, session2, accessLevel);
 
         await services.signIn(browserContext, session2);
-        await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+        await page.goto(`/task-collection/${collection.id}`);
 
         await expect(page.getByRole("heading", {name: "Test Collection"})).toBeVisible();
         await expect(
@@ -671,7 +675,7 @@ test("can comment on task with comment only access", async ({
     await collection.access.grant(session1, session2, "Comment");
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expect(page.getByRole("heading", {name: "Test Collection"})).toBeVisible();
 
@@ -726,17 +730,17 @@ test("can switch other account access level between comment and view in realtime
     await collection.access.grant(session2, session1, "Comment");
 
     await services.signIn(browserContext2a, session2);
-    await page2a.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page2a.goto(`/task/${task.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page1.goto(`/task/${task.id}`);
 
     const browserContext2b = await browser.newContext();
     await services.signIn(browserContext2b, session2);
     const page2b = await browserContext2b.newPage();
-    await page2b.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page2b.goto(`/task-collection/${collection.id}`);
 
     await expect(page1.getByTestId("TaskDetailViewMain").getByLabel("Title")).toBeVisible();
     await expect(page2a.getByTestId("TaskDetailViewMain").getByLabel("Title")).toBeVisible();
@@ -830,11 +834,11 @@ test("anonymous accounts can see task collection shared with url grant", async (
     await task1.attachFile(session, file);
 
     await services.signIn(browserContext2, session);
-    await page2.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page2.goto(`/task-collection/${collection.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/tasks/${task1.id}`);
+    await page1.goto(`/task/${task1.id}`);
 
     await expect(page2.getByRole("heading", {name: "Test Collection"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -996,12 +1000,12 @@ test("accounts from another space can see task collection shared with url grant"
     await task1.attachFile(session, file);
 
     await services.signIn(browserContext2, session);
-    await page2.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page2.goto(`/task-collection/${collection.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
     await services.signIn(browserContext1, otherSession);
-    await page1.goto(`/s/${space.id}/tasks/${task1.id}`);
+    await page1.goto(`/task/${task1.id}`);
 
     await expect(page2.getByRole("heading", {name: "Test Collection"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -1161,12 +1165,12 @@ test("accounts from same space can see task collection shared with url grant", a
     await task1.attachFile(session, file);
 
     await services.signIn(browserContext2, session);
-    await page2.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page2.goto(`/task-collection/${collection.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
     await services.signIn(browserContext1, otherSession);
-    await page1.goto(`/s/${space.id}/tasks/${task1.id}`);
+    await page1.goto(`/task/${task1.id}`);
 
     await expect(page2.getByRole("heading", {name: "Test Collection"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -1328,12 +1332,12 @@ test("account that used to be a member of space but was removed can see task col
     await task1.attachFile(session, file);
 
     await services.signIn(browserContext2, session);
-    await page2.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page2.goto(`/task-collection/${collection.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
     await services.signIn(browserContext1, otherSession);
-    await page1.goto(`/s/${space.id}/tasks/${task1.id}`);
+    await page1.goto(`/task/${task1.id}`);
 
     await expect(page2.getByRole("heading", {name: "Test Collection"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -1471,7 +1475,7 @@ test("can\u2019t change permission level of account who invited you", async ({
     await collection.access.grant(session1, session2);
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await page.getByRole("button", {name: "Share"}).click();
 
@@ -1553,7 +1557,7 @@ test("can\u2019t change permission level of account who invited the account who 
     await collection.access.grant(session2, session3);
 
     await services.signIn(browserContext, session3);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await page.getByRole("button", {name: "Share"}).click();
 
@@ -1634,7 +1638,7 @@ test("will be warned before lowering your own permission level", async ({
     await collection.access.grant(session1, session2);
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await page.getByRole("button", {name: "Share"}).click();
 
@@ -1717,7 +1721,7 @@ test("will be prevented from lowering your own permission level if you\u2019re t
     await collection.access.grant(session1, session2, "Edit");
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await page.getByRole("button", {name: "Share"}).click();
 
@@ -1863,7 +1867,7 @@ test("as anonymous actor can filter by assignee, filter by collection, scroll to
         childTask3.updateParentTask(session1, tasks[tasks.length - 2]!),
     ]);
 
-    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page.goto(`/task-collection/${collection.id}`);
 
     await expect(page.getByRole("heading", {name: collection.initialName})).toBeVisible();
     await expect(page.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
@@ -1998,12 +2002,12 @@ test("may lose access to task in realtime", async ({
     await task.addCollection(session1, collection);
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page2.goto(`/task-collection/${collection.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page1.goto(`/task-collection/${collection.id}`);
 
     await page2
         .getByTestId(`TaskRowView:${task.id}`)
@@ -2061,12 +2065,12 @@ test("may lose access to task collection in realtime", async ({
     await task.addCollection(session1, collection1);
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/tasks/collections/${collection1.id}`);
+    await page2.goto(`/task-collection/${collection1.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/tasks/collections/${collection1.id}`);
+    await page1.goto(`/task-collection/${collection1.id}`);
 
     await page2
         .getByTestId(`TaskRowView:${task.id}`)
@@ -2200,7 +2204,7 @@ test("task view with mixed readonly and editable tasks", async ({
 
     await services.signIn(browserContext, session2);
     await page.goto(
-        `/s/${space.id}/tasks/view?filter=${serializeTaskQueryFiltersSearchParam([
+        `/task-view/new/${space.id}?filter=${serializeTaskQueryFiltersSearchParam([
             {
                 type: "Collections",
                 operation: {
@@ -2374,12 +2378,12 @@ test("will send a notification when sharing with account", async ({
     await task3.addCollection(session1, collection);
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/inbox`);
+    await page2.goto(`/inbox/${space.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+    await page1.goto(`/task-collection/${collection.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Collection"})).toBeVisible();
     await expect(page1.getByText("Couldn\u2019t open task collection")).toBeHidden();
@@ -2404,3 +2408,46 @@ test("will send a notification when sharing with account", async ({
 
     await browserContext1.close();
 });
+
+/**
+ * The share switch shows a different confirmation modal when the resolved access
+ * policy is of type `"Site"`, because pressing the toggle affects every entity in
+ * the site rather than just the current entity. Run the shared helper across every
+ * branch of `getNextAccessPolicyAction` so we exercise the full Site-policy flow
+ * against a task collection.
+ */
+for (const scenario of [
+    "PrivateToPublic",
+    "DefaultGrantToPrivate",
+    "UrlGrantToPrivate",
+    "DefaultAndUrlGrantToPrivate",
+] as const satisfies ReadonlyArray<ShareSwitchInSiteScenario>) {
+    test(`can toggle task collection sharing in a site (${scenario})`, async ({
+        context: browserContext,
+        page,
+    }) => {
+        await expectShareSwitchInSiteToggle({
+            page,
+            browserContext,
+            context,
+            services,
+            entityNoun: "task collection",
+            createEntity: async session => {
+                const collection = await TestTaskCollection.create(session, {
+                    name: "Test Collection",
+                });
+
+                return {
+                    entityId: `TaskCollection:${collection.id}`,
+                    path: `/task-collection/${collection.id}`,
+                    expectLoaded: async page => {
+                        await expect(
+                            page.getByRole("heading", {name: "Test Collection"}),
+                        ).toBeVisible();
+                    },
+                };
+            },
+            scenario,
+        });
+    });
+}

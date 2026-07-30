@@ -48,7 +48,7 @@ export function deserializeTaskQueryFiltersSearchParam(
     filters: string,
 ): ReadonlyArray<TaskQueryFilter> {
     const bytes = decodeBase64(filters, "Rfc4648Url");
-    return deserializeTaskQueryFilters(bytes.buffer);
+    return deserializeTaskQueryFilters(bytes);
 }
 
 /**
@@ -94,10 +94,10 @@ export function serializeTaskQueryFilters(filters: ReadonlyArray<TaskQueryFilter
 /**
  * Deserialize a list of task query filters from binary data.
  */
-export function deserializeTaskQueryFilters(buffer: ArrayBuffer): ReadonlyArray<TaskQueryFilter> {
-    const filtersLengthByte = new DataView(buffer).getUint8(0);
+export function deserializeTaskQueryFilters(bytes: Uint8Array): ReadonlyArray<TaskQueryFilter> {
+    const filtersLengthByte = bytes[0];
 
-    if (!(filtersLengthByte & 0b10000000))
+    if (filtersLengthByte === undefined || !(filtersLengthByte & 0b10000000))
         throw new InvalidArgumentError("Unrecognized filters binary encoding");
 
     const filtersLength = filtersLengthByte & 0b01111111;
@@ -105,7 +105,13 @@ export function deserializeTaskQueryFilters(buffer: ArrayBuffer): ReadonlyArray<
     let byteOffset = 1;
 
     for (let i = 0; i < filtersLength; i++) {
-        const {filter, byteLength} = deserializeTaskQueryFilter(new DataView(buffer, byteOffset));
+        const {filter, byteLength} = deserializeTaskQueryFilter(
+            new DataView(
+                bytes.buffer,
+                bytes.byteOffset + byteOffset,
+                bytes.byteLength - byteOffset,
+            ),
+        );
         assert(getTaskQueryFilterByteLength(filter) === byteLength);
         filters.push(filter);
         byteOffset += byteLength;

@@ -26,6 +26,7 @@ import {ChannelBrandIcon} from "~/client/web/icons/brand/channel_brand_icon.js";
 import {ChatBrandIcon} from "~/client/web/icons/brand/chat_brand_icon.js";
 import {DocumentBrandIcon} from "~/client/web/icons/brand/document_brand_icon.js";
 import {PostBrandIcon} from "~/client/web/icons/brand/post_brand_icon.js";
+import {SiteBrandIcon} from "~/client/web/icons/brand/site_brand_icon.js";
 import {TaskBrandIcon} from "~/client/web/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/web/icons/brand/task_collection_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/web/icons/brand/task_query_brand_icon.js";
@@ -37,6 +38,7 @@ import {
 } from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {preloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     CreateWidgetExampleContentRoleSchema,
     allCreateWidgetExampleContentRoles,
@@ -56,7 +58,6 @@ import {
     CreateWidgetTaskQueryExample,
     createWidgetExampleHeight,
 } from "~/client/web/spaces/layout/internal/create_widget_examples.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {
     accentThemeBackgroundColor,
     accentThemeForegroundColor,
@@ -78,6 +79,7 @@ import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js"
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 
 export type CreateWidgetSecondaryMenuBarRef = {
@@ -115,6 +117,9 @@ export function CreateWidgetSecondaryMenuBar({
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
+    const canRenderSiteButton =
+        process.env.NODE_ENV !== "production" || space.id === alpineCompanyKnownSpaceId;
+    const siteButtonRef = useRef<HTMLElement & {press(): void}>(null);
     const menuItemRefs = [
         useRef<HTMLElement & {press(): void}>(null),
         useRef<HTMLElement & {press(): void}>(null),
@@ -125,6 +130,7 @@ export function CreateWidgetSecondaryMenuBar({
         useRef<HTMLElement & {press(): void}>(null),
         useRef<HTMLElement & {press(): void}>(null),
         useRef<HTMLElement & {press(): void}>(null),
+        ...(canRenderSiteButton ? [siteButtonRef] : []),
     ] as const;
 
     const firstMenuItemRef = menuItemRefs[0];
@@ -199,9 +205,9 @@ export function CreateWidgetSecondaryMenuBar({
                 const documentId = generateId();
 
                 if (withRootNavigateToCreatedDocument) {
-                    await rootNavigate(`/s/${space.id}/documents/${documentId}?create&focus`);
+                    await rootNavigate(`/doc/${documentId}?create=${space.id}&focus`);
                 } else {
-                    await navigate(`/s/${space.id}/documents/${documentId}?create&focus`);
+                    await navigate(`/doc/${documentId}?create=${space.id}&focus`);
                 }
             },
         },
@@ -216,7 +222,7 @@ export function CreateWidgetSecondaryMenuBar({
             pressErrorTitle: "Couldn\u2019t create task",
             onPress: async () => {
                 const taskId = generateId();
-                await navigate(`/s/${space.id}/tasks/${taskId}?create&focus`);
+                await navigate(`/task/${taskId}?create=${space.id}&focus`);
             },
         },
         {
@@ -249,9 +255,7 @@ export function CreateWidgetSecondaryMenuBar({
                     },
                 ]);
 
-                await rootNavigate(
-                    `/s/${space.id}/tasks/${taskId}?create=${createSearchParam}&focus`,
-                );
+                await rootNavigate(`/task/${taskId}?create=${space.id}+${createSearchParam}&focus`);
             },
         },
         {
@@ -265,7 +269,7 @@ export function CreateWidgetSecondaryMenuBar({
             pressErrorTitle: "Couldn\u2019t create task collection",
             onPress: async () => {
                 const collectionId = generateId();
-                await navigate(`/s/${space.id}/tasks/collections/${collectionId}?create`);
+                await navigate(`/task-collection/${collectionId}?create=${space.id}`);
             },
         },
         {
@@ -278,7 +282,7 @@ export function CreateWidgetSecondaryMenuBar({
             createVerb: "Create",
             pressErrorTitle: "Couldn\u2019t create task view",
             onPress: async () => {
-                await navigate(`/s/${space.id}/tasks/view`);
+                await navigate(`/task-view/new/${space.id}`);
             },
         },
         {
@@ -292,7 +296,7 @@ export function CreateWidgetSecondaryMenuBar({
             pressErrorTitle: "Couldn\u2019t create post",
             onPress: async () => {
                 const draftId = generateChronologicalId();
-                await navigate(`/s/${space.id}/posts/new/${draftId}?focus=content`);
+                await navigate(`/post/new/${draftId}/${space.id}?focus=content`);
             },
         },
         {
@@ -305,7 +309,7 @@ export function CreateWidgetSecondaryMenuBar({
             createVerb: "Create",
             pressErrorTitle: "Couldn\u2019t create channel",
             onPress: async () => {
-                await navigate(`/s/${space.id}/channels/new?focus=name`);
+                await navigate(`/channel/new/${space.id}?focus=name`);
             },
         },
         {
@@ -323,7 +327,7 @@ export function CreateWidgetSecondaryMenuBar({
                 // all space accounts before.
                 preloadRpc(context, expensivelyGetAllSpaceAccounts, {spaceId: space.id});
 
-                await navigate(`/s/${space.id}/chat/new?focus=picker`);
+                await navigate(`/chat/new/${space.id}?focus=picker`);
             },
         },
         {
@@ -336,9 +340,27 @@ export function CreateWidgetSecondaryMenuBar({
             createVerb: "Create",
             pressErrorTitle: "Couldn\u2019t create chat room",
             onPress: async () => {
-                await navigate(`/s/${space.id}/chat/room/new?focus=name`);
+                await navigate(`/chat/room/new/${space.id}?focus=name`);
             },
         },
+        ...(canRenderSiteButton
+            ? [
+                  {
+                      ref: menuItemRefs[9]!,
+                      name: "site",
+                      icon: <SiteBrandIcon />,
+                      description:
+                          "Organize documents, channels, and tasks into a navigable site with a sidebar or top bar.",
+                      example: <CreateWidgetDocumentExample content={exampleContent} />,
+                      createVerb: "Create",
+                      pressErrorTitle: "Couldn\u2019t create site",
+                      onPress: async () => {
+                          const siteId = generateId();
+                          await rootNavigate(`/site/${siteId}?create=${space.id}&focus=name`);
+                      },
+                  },
+              ]
+            : []),
     ];
 
     assert(menuItemRefs.length === items.length);

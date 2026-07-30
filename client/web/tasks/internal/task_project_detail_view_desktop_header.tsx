@@ -20,6 +20,7 @@ import {
 import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQueryViewCustomizationBar} from "~/client/web/tasks/internal/task_query_view_customization_bar.js";
 import {TaskStatusButton} from "~/client/web/tasks/internal/task_status_button.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -41,7 +42,7 @@ function TaskProjectDetailViewDesktopHeader(
         store,
         taskSubscription,
         initialFields,
-        isReadOnly,
+        accessLevel,
         onTitleChange,
         statusButtonRef,
         commitActionTransaction,
@@ -58,7 +59,7 @@ function TaskProjectDetailViewDesktopHeader(
         store: TaskClientStore;
         taskSubscription: TaskClientTaskSubscription | null;
         initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
-        isReadOnly: boolean;
+        accessLevel: AccessLevel | null;
         onTitleChange: (titleUpdate: TaskTitleUpdateModel) => void;
         statusButtonRef: RefObject<HTMLElement | null>;
         commitActionTransaction: (
@@ -81,6 +82,8 @@ function TaskProjectDetailViewDesktopHeader(
 ) {
     const titleRef = useRef<TaskProjectDetailViewNavigationBarTitleRef>(null);
     const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task ?? null;
+
+    const isReadOnly = !hasAccessLevel(accessLevel, "Edit");
 
     useImperativeHandle(
         ref,

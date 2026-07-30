@@ -404,8 +404,7 @@ export type ValidateAccessPolicyUpdateResult =
               | "Can\u2019t revoke manage access from an account with a manage generation less than our actor"
               | "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation"
               | "Can\u2019t update access policy so that no one has manage access"
-              | "Can\u2019t reorder manage grant generations"
-              | "Can\u2019t change site without manage access";
+              | "Can\u2019t reorder manage grant generations";
       };
 
 /**
@@ -431,13 +430,19 @@ export function validateAccessPolicyUpdate(
     actorAccountId: AccountId,
     oldAccessPolicy: ResolvedAccessPolicyWithGenerations,
     newAccessPolicy: ResolvedAccessPolicyWithGenerations,
-    // TODO(#sites): when comparing new manage accounts to old manage accounts, we
-    // ensure that An actor can only reorder managers who are more junior than
-    // themselves. We do this by sorting all manage accounts by generation before the
-    // actor's manage generation in the old and new policy and make sure that the order
-    // is maintained. However, we should first filter out removed space accounts so
-    // that we're only comparing the accounts that can actually manage the entity.
-    isAccountRemovedFromSpace?: (accountId: AccountId) => boolean,
+    {
+        isAccountRemovedFromSpace,
+    }: {
+        // Accounts that were removed from the space can't manage the entity anymore, so
+        // their stale manage generations shouldn't constrain the update. For example, when
+        // moving an entity into a site whose policy doesn't include a removed senior
+        // manager, dropping that manager shouldn't read as an illegal escalation.
+        //
+        // IMPORTANT: This callback is only consulted for accounts with a `Manage` grant in
+        // either the old or new policy. Callers only need to provide space membership for
+        // managers.
+        isAccountRemovedFromSpace?: (accountId: AccountId) => boolean;
+    } = {},
 ): ValidateAccessPolicyUpdateResult {
     const actorManageGenerationInOldPolicy = getAccountAccessPolicyManageGeneration(
         actorAccountId,

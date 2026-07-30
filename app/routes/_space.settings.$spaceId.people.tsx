@@ -1,0 +1,621 @@
+import {compareAsc, compareDesc} from "date-fns";
+import {CaretDown, ClipboardText} from "phosphor-react";
+import {useMemo, useRef, useState} from "react";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
+import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
+import {
+    useAccountModel,
+    useAccountRegistry,
+} from "~/client/web/accounts/account_registry_context.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
+import {Box} from "~/client/web/design/box.js";
+import {Button} from "~/client/web/design/button.js";
+import {IconButton} from "~/client/web/design/icon_button.js";
+import {Link} from "~/client/web/design/link.js";
+import {MenuButton} from "~/client/web/design/menu_button.js";
+import {ModalDialog} from "~/client/web/design/modal_dialog.js";
+import {TooltipRef} from "~/client/web/design/tooltip.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
+import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
+import {InviteAccountsModal} from "~/client/web/navigation/invite_accounts_modal.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
+import {getSpaceAutoAddAccountsFromEmailDomains} from "~/server/spaces/get_space_auto_add_accounts_from_email_domains.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {
+    moveSpaceOwner,
+    removeSpaceAccount,
+    updateSpaceAccountRole,
+} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {
+    AccountModel,
+    AccountModelData,
+    AccountModelDataWithActiveState,
+    AccountModelDataWithInvitePendingState,
+    AccountModelDataWithRemovedState,
+} from "~/shared/spaces/account_model.js";
+import {SpaceRole, hasSpaceRole} from "~/shared/spaces/space_model.js";
+import {Store} from "~/shared/store/store.js";
+
+const LoaderSchema = Schema.object({
+    allAccounts: Schema.array(AccountModel.schema),
+    autoAddAccountsFromEmailDomains: Schema.array(
+        Schema.object({
+            emailDomain: Schema.string,
+            isEnabled: Schema.boolean,
+        }),
+    ),
+});
+
+export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+
+    const [allAccounts, autoAddAccountsFromEmailDomains] = await runAllPromises([
+        expensivelyGetAllSpaceAccounts(context, spaceId, {consistency: "Strong"}),
+        getSpaceAutoAddAccountsFromEmailDomains(context, spaceId, {consistency: "Strong"}),
+    ]);
+
+    return jsonWithSchema(LoaderSchema, {
+        allAccounts,
+        autoAddAccountsFromEmailDomains,
+    });
+}
+
+export default function SpacePeopleSettingsRoute() {
+    const {allAccounts, autoAddAccountsFromEmailDomains} = useLoaderDataWithSchema(LoaderSchema);
+
+    const enabledAutoAddAccountsFromEmailDomains = filterMapArray(
+        autoAddAccountsFromEmailDomains,
+        ({isEnabled, emailDomain}) => {
+            if (!isEnabled) return;
+            return emailDomain;
+        },
+    );
+
+    return (
+        <Box display="flex" flexDirection="column" gap="10">
+            {enabledAutoAddAccountsFromEmailDomains.length > 0 && (
+                <Box display="flex" flexDirection="column" gap="1">
+                    <Box fontSize="200" fontStyle="bold" userSelect="text">
+                        Linked email{" "}
+                        {enabledAutoAddAccountsFromEmailDomains.length > 1 ? "domains" : "domain"}
+                    </Box>
+                    {enabledAutoAddAccountsFromEmailDomains.map(emailDomain => (
+                        <Box key={emailDomain} fontSize="75" color="grey-60" userSelect="text">
+                            We&#x2019;ll automatically add anyone who signs up with{" "}
+                            {/^[aeiou]/i.test(emailDomain) ? "an" : "a"}{" "}
+                            <strong
+                                className={sprinkles({fontStyle: "bold", color: "grey-100"})}
+                                style={{wordBreak: "break-word"}}
+                            >
+                                @{emailDomain}
+                            </strong>{" "}
+                            email address to this space. To change this, reach out to{" "}
+                            <Link url="mailto:support@alpine.inc">support@alpine.inc</Link>
+                        </Box>
+                    ))}
+                </Box>
+            )}
+            <SpacePeopleSettingsRouteAccounts
+                allAccounts={allAccounts}
+                enabledAutoAddAccountsFromEmailDomains={enabledAutoAddAccountsFromEmailDomains}
+            />
+        </Box>
+    );
+}
+
+function SpacePeopleSettingsRouteAccounts({
+    allAccounts,
+    enabledAutoAddAccountsFromEmailDomains,
+}: {
+    allAccounts: ReadonlyArray<AccountModel>;
+    enabledAutoAddAccountsFromEmailDomains: ReadonlyArray<string>;
+}) {
+    const {currentAccount, space} = useSpaceContextAndRequireSpaceAccess();
+    const currentAccountData = useAccountModel(currentAccount);
+    const appContext = useAppContext();
+    const accountRegistry = useAccountRegistry();
+
+    const [modalState, setModalState] = useState<
+        | {
+              type: "ConfirmOwner";
+              accountData: AccountModelData;
+          }
+        | {
+              type: "ConfirmDelete";
+              accountData: AccountModelData;
+          }
+        | {
+              type: "SendInvites";
+          }
+        | null
+    >(null);
+
+    const [newAccountsFromInviteModal, setNewAccountsFromInviteModal] =
+        useState<ReadonlyArray<AccountModel>>(emptyArray);
+
+    // Make sure we sync our fetched accounts data with accountStore to get the latest
+    // and consistent data across the application.
+    const allAccountsDatas = useStore(
+        useMemo(() => {
+            const accountById = new Map<AccountId, AccountModel>();
+
+            if (allAccounts)
+                for (const account of allAccounts) accountById.set(account.id, account);
+            for (const account of newAccountsFromInviteModal) accountById.set(account.id, account);
+
+            return Store.many(
+                Array.from(accountById.values(), account =>
+                    accountRegistry.getAccountStore(account),
+                ),
+            );
+        }, [accountRegistry, allAccounts, newAccountsFromInviteModal]),
+    );
+
+    // check "Admin" access for currently logged in account.
+    const hasAdminAccess = hasSpaceRole(currentAccountData.space.role, "Admin");
+
+    const {
+        activeAccounts,
+        removedAccounts,
+        inviteRejectedAsSpamAccounts,
+        ownerAccount,
+        invitedAccounts,
+    } = useMemo(() => {
+        const activeAccounts: Array<AccountModelDataWithActiveState> = [];
+        const removedAccounts: Array<AccountModelDataWithRemovedState> = [];
+        const inviteRejectedAsSpamAccounts: Array<AccountModelDataWithRemovedState> = [];
+        const invitedAccounts: Array<AccountModelDataWithInvitePendingState> = [];
+
+        let ownerAccount: AccountModelData | undefined;
+
+        for (const account of allAccountsDatas) {
+            // Don't render bots in the people settings page. They'll be managed in the bots
+            // settings page.
+            if (account.botId) continue;
+
+            if (account.space.state.type === "Removed") {
+                if (account.space.state.reason === "InviteRejectedAsSpam") {
+                    inviteRejectedAsSpamAccounts.push(account as AccountModelDataWithRemovedState);
+                } else {
+                    removedAccounts.push(account as AccountModelDataWithRemovedState);
+                }
+            } else if (account.space.state.type === "InvitePending") {
+                invitedAccounts.push(account as AccountModelDataWithInvitePendingState);
+            } else if (account.space.state.type === "Active") {
+                activeAccounts.push(account as AccountModelDataWithActiveState);
+            }
+
+            // We only allow one owner per space
+            if (account.space.role === "Owner") {
+                ownerAccount = account;
+            }
+        }
+
+        activeAccounts.sort((account1, account2) => {
+            return compareAsc(account1.space.addedTime, account2.space.addedTime);
+        });
+
+        invitedAccounts.sort((account1, account2) => {
+            return compareAsc(account1.space.state.invitedTime, account2.space.state.invitedTime);
+        });
+
+        removedAccounts.sort((account1, account2) =>
+            compareDesc(account1.space.state.removedTime, account2.space.state.removedTime),
+        );
+
+        return {
+            activeAccounts,
+            removedAccounts,
+            inviteRejectedAsSpamAccounts,
+            ownerAccount,
+            invitedAccounts,
+        };
+    }, [allAccountsDatas]);
+
+    const handleConfirmMoveOwner = async () => {
+        assert(modalState?.type === "ConfirmOwner");
+
+        const {newOwnerAccount, oldOwnerAccount} = await moveSpaceOwner(appContext, {
+            spaceId: space.id,
+            newOwnerAccountId: modalState.accountData.id,
+        });
+
+        accountRegistry.immediatelyUpdateAccountStoreIfExists(newOwnerAccount);
+        accountRegistry.immediatelyUpdateAccountStoreIfExists(oldOwnerAccount);
+        setModalState(null);
+    };
+
+    const handleConfirmRemoveAccount = async () => {
+        assert(modalState?.type === "ConfirmDelete");
+
+        const removedAccount = await removeSpaceAccount(appContext, {
+            spaceId: space.id,
+            accountId: modalState.accountData.id,
+        });
+        accountRegistry.immediatelyUpdateAccountStoreIfExists(removedAccount.account);
+
+        setModalState(null);
+    };
+
+    const roleOptions: Array<SpaceRole> = ["Member", "Admin"];
+
+    if (currentAccountData.space.role === "Owner") {
+        roleOptions.push("Owner");
+    }
+
+    const handleRoleChange = async (account: AccountModelData, newRole: SpaceRole) => {
+        assert(hasAdminAccess, "Only the space owner and admins can update roles");
+
+        // handle move owner case
+        if (newRole === "Owner") {
+            // if the current account is not the owner, then we can't change the owner.
+            assert(currentAccountData.space.role === "Owner");
+            setModalState({type: "ConfirmOwner", accountData: account});
+        } else {
+            const updatedAccount = await updateSpaceAccountRole(appContext, {
+                spaceId: space.id,
+                accountId: account.id,
+                role: newRole,
+            });
+            accountRegistry.immediatelyUpdateAccountStoreIfExists(updatedAccount.account);
+        }
+    };
+
+    const handleRemoveAccount = async (accountData: AccountModelData) => {
+        // Can't remove the owner
+        assert(!ownerAccount || accountData.id !== ownerAccount.id, "Can\u2019t remove owner");
+        // Only owner and admins can remove members
+        assert(hasAdminAccess, "Only the space owner and admins can remove members");
+
+        setModalState({type: "ConfirmDelete", accountData: accountData});
+    };
+
+    const handleCopyInviteLink = async (accountData: AccountModelData) => {
+        // HACK: We don't currently share an account's email address with other accounts in
+        // the space for privacy reasons. However, for an invite pending account we, as of
+        // 2026-03-13, always set the invited email address as the account name. So we use
+        // the account's name to prefill the email input on the sign in page.
+        //
+        // If the name is `maxLabelStringLength` characters then the email may have been
+        // truncated. Since account names have a max length of 50 characters whereas emails
+        // can be much longer. Assume a 50 character account name is a truncated email. We
+        // also check `isEmailAddressValid()` to defend against invited accounts who don't
+        // have their name set to their email address.
+        const inviteUrl =
+            accountData.name.length < maxLabelStringLength && isEmailAddressValid(accountData.name)
+                ? `${window.location.origin}/auth/sign-in?email=${encodeURIComponent(accountData.name)}&invite=${space.id}`
+                : `${window.location.origin}/auth/sign-in?invite=${space.id}`;
+
+        await writeTextToClipboard(inviteUrl);
+    };
+
+    return (
+        <Box display="flex" flexDirection="column" gap="10">
+            <Box display="flex" flexDirection="column" gap="6">
+                <Box
+                    display="flex"
+                    flexDirection="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
+                    gap="10"
+                >
+                    <Box display="flex" flexDirection="column" gap="1">
+                        <Box fontSize="200" fontStyle="bold" userSelect="text">
+                            Members
+                        </Box>
+                        <Box fontSize="75" color="grey-60" userSelect="text">
+                            Everyone with access to your space. Only admins can invite people
+                            {enabledAutoAddAccountsFromEmailDomains.length > 0
+                                ? " who don\u2019t have a linked email domain"
+                                : ""}
+                            .
+                        </Box>
+                    </Box>
+                    {(hasAdminAccess || enabledAutoAddAccountsFromEmailDomains.length > 0) && (
+                        // Members are allowed to invite people with the auto-add email domain but no one
+                        // else.
+                        <Button
+                            variant="accent"
+                            onPress={() => setModalState({type: "SendInvites"})}
+                        >
+                            Invite
+                        </Button>
+                    )}
+                </Box>
+                <Box>
+                    {activeAccounts.map((account, index) => (
+                        <Box
+                            key={account.id}
+                            height="14"
+                            borderTop={index === 0 ? "grey-5" : undefined}
+                            borderBottom="grey-5"
+                            display="flex"
+                            alignItems="center"
+                            gap="3"
+                        >
+                            <AccountAvatar account={account} size="8" />
+                            <Box fontStyle="semi-bold" fontSize="100" userSelect="text">
+                                {account.name}
+                            </Box>
+                            <Box flexGrow="1" />
+                            {account.space.role === "Owner" || !hasAdminAccess ? (
+                                <Box flexShrink="0">{account.space.role}</Box>
+                            ) : (
+                                <Box flexShrink="0" marginRight="-2">
+                                    <MenuButton
+                                        placement="bottom-end"
+                                        actions={[
+                                            ...roleOptions.map(roleOption => ({
+                                                isSelected: roleOption === account.space.role,
+                                                label: roleOption,
+                                                onPress: async () =>
+                                                    await handleRoleChange(account, roleOption),
+                                                pressErrorTitle: "Can\u2019t change role",
+                                            })),
+                                            [
+                                                {
+                                                    label: "Remove from space",
+                                                    onPress: () => handleRemoveAccount(account),
+                                                    pressErrorTitle: "Can\u2019t remove member",
+                                                },
+                                            ],
+                                        ]}
+                                    >
+                                        <Button
+                                            height="6"
+                                            paddingX="2"
+                                            icon={<CaretDown />}
+                                            iconPlacement="start"
+                                        >
+                                            {account.space.role}
+                                        </Button>
+                                    </MenuButton>
+                                </Box>
+                            )}
+                        </Box>
+                    ))}
+                    {invitedAccounts.map(account => (
+                        <Box
+                            key={account.id}
+                            height="14"
+                            borderBottom="grey-5"
+                            display="flex"
+                            alignItems="center"
+                            gap="3"
+                        >
+                            <AccountAvatar account={account} size="8" />
+                            <Box
+                                fontStyle="truncate-semi-bold"
+                                fontSize="100"
+                                userSelect="text"
+                                data-testid={
+                                    process.env.NODE_ENV === "production"
+                                        ? undefined
+                                        : "InviteAccountName"
+                                }
+                            >
+                                {account.name}
+                            </Box>
+                            <Box flexGrow="1" />
+                            <Box
+                                flexShrink="0"
+                                display="flex"
+                                alignItems="center"
+                                marginRight="-1.5"
+                            >
+                                <MenuButton
+                                    placement="bottom-end"
+                                    actions={[
+                                        [
+                                            {
+                                                label: "Copy invite link",
+                                                onPress: () => handleCopyInviteLink(account),
+                                                pressErrorTitle: "Couldn\u2019t copy invite link",
+                                            },
+                                        ],
+                                        ...(hasAdminAccess
+                                            ? [
+                                                  [
+                                                      {
+                                                          label: "Cancel invite",
+                                                          onPress: () =>
+                                                              handleRemoveAccount(account),
+                                                          pressErrorTitle:
+                                                              "Couldn\u2019t cancel invite",
+                                                      },
+                                                  ],
+                                              ]
+                                            : []),
+                                    ]}
+                                >
+                                    <Button
+                                        height="6"
+                                        paddingX="2"
+                                        icon={<CaretDown />}
+                                        iconPlacement="start"
+                                    >
+                                        Invited
+                                    </Button>
+                                </MenuButton>
+                                <SpacePeopleSettingsCopyInviteLinkButton
+                                    onPress={() => handleCopyInviteLink(account)}
+                                />
+                            </Box>
+                        </Box>
+                    ))}
+                </Box>
+            </Box>
+            {removedAccounts.length > 0 && (
+                <Box>
+                    <Box display="flex" flexDirection="column" gap="6">
+                        <Box display="flex" flexDirection="column" gap="1">
+                            <Box fontSize="200" fontStyle="bold" userSelect="text">
+                                Removed members
+                            </Box>
+                            <Box fontSize="75" color="grey-60" userSelect="text">
+                                People who were members of this space but no longer have access.
+                            </Box>
+                        </Box>
+                        <Box>
+                            {removedAccounts.map((account, index) => {
+                                return (
+                                    <Box
+                                        key={account.id}
+                                        height="14"
+                                        borderTop={index === 0 ? "grey-5" : undefined}
+                                        borderBottom="grey-5"
+                                        display="flex"
+                                        alignItems="center"
+                                        gap="3"
+                                    >
+                                        <AccountAvatar account={account} size="8" />
+                                        <Box fontStyle="semi-bold" fontSize="100" userSelect="text">
+                                            {account.name}
+                                        </Box>
+                                        <Box flexGrow="1" />
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                    </Box>
+                </Box>
+            )}
+            {inviteRejectedAsSpamAccounts.length > 0 && (
+                <Box>
+                    <Box display="flex" flexDirection="column" gap="6">
+                        <Box display="flex" flexDirection="column" gap="1">
+                            <Box fontSize="200" fontStyle="bold" userSelect="text">
+                                Rejected invites
+                            </Box>
+                            <Box fontSize="75" color="grey-60" userSelect="text">
+                                People who were invited to this space but rejected the invite as
+                                spam.
+                            </Box>
+                        </Box>
+                        <Box>
+                            {inviteRejectedAsSpamAccounts.map((account, index) => {
+                                return (
+                                    <Box
+                                        key={account.id}
+                                        height="14"
+                                        borderTop={index === 0 ? "grey-5" : undefined}
+                                        borderBottom="grey-5"
+                                        display="flex"
+                                        alignItems="center"
+                                        gap="3"
+                                    >
+                                        <Box opacity="60">
+                                            <AccountAvatar account={account} size="8" />
+                                        </Box>
+                                        <Box fontStyle="semi-bold" fontSize="100" userSelect="text">
+                                            {account.name}
+                                        </Box>
+                                        <Box flexGrow="1" />
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                    </Box>
+                </Box>
+            )}
+            {modalState?.type === "ConfirmOwner" && (
+                <ModalDialog
+                    title="Change owner"
+                    description={`Are you sure you want to make ${
+                        modalState.accountData.name
+                    } the new owner of this space?
+                    You won\u2019t be the owner anymore and you won\u2019t be allowed to change who\u2019s the owner again.
+                    Only ${getAccountShortNameWithoutFullNameTooltip(
+                        modalState.accountData,
+                    )} will be allowed
+                    to change the owner. You\u2019ll still be an admin so you\u2019ll be able to invite people.`}
+                    onClose={() => {
+                        setModalState(null);
+                    }}
+                    primaryButtonLabel="I understand, downgrade me from owner to admin"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t confirm owner change"
+                    onPrimaryButtonPress={handleConfirmMoveOwner}
+                    cancelButtonLabel="Cancel"
+                    onCancelButtonPress={() => {
+                        setModalState(null);
+                    }}
+                    initiallyFocus="Cancel"
+                />
+            )}
+            {modalState?.type === "ConfirmDelete" && (
+                <ModalDialog
+                    title="Remove member"
+                    description={`Are you sure you want to remove ${modalState.accountData.name} from this space?`}
+                    onClose={() => {
+                        setModalState(null);
+                    }}
+                    primaryButtonLabel="Remove"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t remove member"
+                    onPrimaryButtonPress={handleConfirmRemoveAccount}
+                    cancelButtonLabel="Cancel"
+                    onCancelButtonPress={() => {
+                        setModalState(null);
+                    }}
+                />
+            )}
+            {/* We use a custom invite dialog */}
+            {modalState?.type === "SendInvites" && (
+                <InviteAccountsModal
+                    onClose={() => setModalState(null)}
+                    onNewAccounts={newAccounts => {
+                        setNewAccountsFromInviteModal(newAccountsFromInviteModal => [
+                            ...newAccountsFromInviteModal,
+                            ...mapIterable(newAccounts, ({account}) => account),
+                        ]);
+                    }}
+                />
+            )}
+        </Box>
+    );
+}
+
+function SpacePeopleSettingsCopyInviteLinkButton({onPress}: {onPress: () => Promise<void>}) {
+    const tooltipRef = useRef<TooltipRef>(null);
+
+    const [isCopied, setIsCopied] = useState(false);
+
+    return (
+        <IconButton
+            description="Copy invite link"
+            size="md"
+            tooltipRef={tooltipRef}
+            tooltipPlacement="bottom"
+            tooltipContentOverride={isCopied ? "Copied" : undefined}
+            isTooltipVisibleAfterPress={true}
+            onHoverStart={() => setIsCopied(false)}
+            onPress={() => {
+                // We can't use `await` here since while the button is pending the tooltip will be
+                // disabled and `skipTooltipHoverDelayAndAnimation()` won't be able to skip the
+                // animation. So assume the copy works.
+                void onPress();
+
+                setIsCopied(true);
+                assertExists(tooltipRef.current).skipTooltipHoverDelayAndAnimation();
+            }}
+        >
+            <ClipboardText />
+        </IconButton>
+    );
+}
