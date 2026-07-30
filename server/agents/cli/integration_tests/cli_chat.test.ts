@@ -764,14 +764,10 @@ test("rejects updating a deleted bot message", async () => {
 
     expect(
         await cli.run(`\
-alpine update /chat/deleted-update-room --old ' deleted></message>' --new ' deleted>
-
-Replacement content
-
-</message>'
+alpine update /chat/deleted-update-room --old ' deleted' --new ' deleted time="1 minute later"'
 `),
     ).toEqual(`\
-Error: Couldn’t update \`/chat/deleted-update-room\`. You can’t update the deleted \`<message id="0">\`. Try again without changing a deleted message.
+Error: Couldn’t update \`/chat/deleted-update-room\`. You can’t update the deleted \`<message id="0">\`. Try again without changing the deleted message.
 `);
 });
 
@@ -798,7 +794,7 @@ test("rejects removing the deleted attribute from a deleted bot message", async 
 alpine update /chat/deleted-attribute-room --old ' deleted' --new ''
 `),
     ).toEqual(`\
-Error: Couldn’t update \`/chat/deleted-attribute-room\`. You can’t update the deleted \`<message id="0">\`. Try again without changing a deleted message.
+Error: Couldn’t update \`/chat/deleted-attribute-room\`. You can’t update the deleted \`<message id="0">\`. Try again without changing the deleted message.
 `);
 });
 

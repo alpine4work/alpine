@@ -4268,7 +4268,7 @@ test("bot can\u2019t send messages in a chat if it\u2019s not a member even if i
             fileIds: [],
             createdTimeZone: defaultTimeZone,
         }),
-    ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
+    ).rejects.toThrow("Bot can only view messages in direct chat it\u2019s not a member of");
 });
 
 test("bot can send messages in a chat if it\u2019s a member", async () => {

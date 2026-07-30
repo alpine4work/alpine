@@ -156,7 +156,7 @@ export async function authorizeChatAccessAndReturnItemIfPossible(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "Bot can only view messages in chat it\u2019s not a member of",
+                        "Bot can only view messages in direct chat it\u2019s not a member of",
                         {
                             displayMessage: errorDisplayMessage`Can\u2019t create messages in chat the bot isn\u2019t a member of. Try creating a new chat that includes the bot and send a message to that chat.`,
                         },

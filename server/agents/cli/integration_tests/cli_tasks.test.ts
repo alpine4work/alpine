@@ -10,7 +10,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
-const cli = setupCliForTest();
+const cli = setupCliForTest({agentWebTaskQueryCursorHash: "000000"});
 
 test("create an active task assigned to another account", async () => {
     await cli.session.space.createSession({name: "Alice"});

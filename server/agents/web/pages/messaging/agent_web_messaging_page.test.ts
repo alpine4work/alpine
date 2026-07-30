@@ -344,7 +344,7 @@ Deleted messages must not contain content.
 `,
             parseError: markdown`
 Error: Deleted \`<message>\` on line 1 can’t contain content. Remove everything between the open and
-close tags and try again.
+close tags and try again (e.g. \`<message></message>\`).
             `,
         },
         {
