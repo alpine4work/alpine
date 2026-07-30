@@ -136,7 +136,7 @@ export async function commitTaskPatchesFromApi(
                     throw new InvalidArgumentError(
                         "The creator ID for new tasks must match the actor ID",
                         {
-                            displayMessage: errorDisplayMessage`Can't create a task with a \`creator\` that's different from the \`actor\` for the request. Try again but make sure the new task's \`creator\` is equal to whatever you set for the request's \`actor\`.`,
+                            displayMessage: errorDisplayMessage`Can\u2019t create a task with a \`creator\` that\u2019s different from the \`actor\` for the request. Try again but make sure the new task\u2019s \`creator\` is equal to whatever you set for the request\u2019s \`actor\`.`,
                         },
                     );
                 }

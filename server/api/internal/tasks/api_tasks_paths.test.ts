@@ -3295,7 +3295,7 @@ describe("PATCH /tasks", () => {
         });
     });
 
-    test("batch create with creator records bot provenance", async () => {
+    test("batch create with custom creator records bot provenance", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -3307,6 +3307,7 @@ describe("PATCH /tasks", () => {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 spaceId: space.id,
+                actor: {id: session.account.id},
                 patches: [
                     {
                         type: "Create",
@@ -3333,6 +3334,42 @@ describe("PATCH /tasks", () => {
         });
     });
 
+    test("batch create rejects a custom creator different from the actor", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const otherSession = await space.createSession({name: "Bob Johnson"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        expect(
+            await server.PATCH("/tasks", {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    spaceId: space.id,
+                    actor: {id: session.account.id},
+                    patches: [
+                        {
+                            type: "Create",
+                            task: {
+                                title: "Task with mismatched creator",
+                                creator: {id: otherSession.account.id},
+                            },
+                        },
+                    ],
+                },
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message:
+                        "Can\u2019t create a task with a `creator` that\u2019s different from the `actor` for the request. Try again but make sure the new task\u2019s `creator` is equal to whatever you set for the request\u2019s `actor`.",
+                }),
+            },
+        });
+    });
+
     test("each batch create uses the transaction actor as creator", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -3345,6 +3382,7 @@ describe("PATCH /tasks", () => {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 spaceId: space.id,
+                actor: {id: session.account.id},
                 patches: [
                     {
                         type: "Create",

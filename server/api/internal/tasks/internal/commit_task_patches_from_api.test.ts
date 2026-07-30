@@ -39,6 +39,7 @@ async function updateTaskForTest(
 ): Promise<TaskModel> {
     const {tasks} = await commitTaskPatchesFromApi(botContext, {
         spaceId,
+        actorId: null,
         patches: patches.map(patch => ({type: "Update", id: taskId, patch})),
     });
 
@@ -472,6 +473,7 @@ test("creates a task from a create patch\u2019s derived field patches", async ()
         context.getTaskRealtimeServer().botAction(bot, session),
         {
             spaceId: space.id,
+            actorId: null,
             patches: [
                 {
                     type: "Create",
@@ -515,6 +517,7 @@ test("creates and updates tasks in one commit with results in patch order", asyn
         context.getTaskRealtimeServer().botAction(bot, session),
         {
             spaceId: space.id,
+            actorId: null,
             patches: [
                 {
                     type: "Update",
