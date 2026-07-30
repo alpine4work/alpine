@@ -133,14 +133,6 @@ The full code style ruleset can be found in `admin/docs/code_style.md`, if neede
 - Prefer `switch`/`case` when checking values of enums or discriminated object unions instead of
   `if`/`else`, with `default: throw exhaustive(enumVariable)` to ensure exhaustiveness.
 
-### Commit blockers
-
-`cyberworlds/no-commit-blockers` lint failures are TODO markers for the developer to update
-something, not build failures. Agents must not remove any `cyberworlds/no-commit-blockers` rule
-failures without asking the user first. Permission for one removal applies only to that single
-instance; every other `cyberworlds/no-commit-blockers` rule failure requires its own separate user
-approval.
-
 ### Testing
 
 - Write focused tests using the Arrange, Act, Assert pattern.
