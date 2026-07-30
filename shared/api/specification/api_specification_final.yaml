@@ -1446,6 +1446,14 @@ paths:
                             properties:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
+                                actor:
+                                    type: object
+                                    required:
+                                        - id
+                                    additionalProperties: false
+                                    properties:
+                                        id:
+                                            $ref: "#/components/schemas/AccountId"
                                 patches:
                                     type: array
                                     minItems: 1

@@ -2142,6 +2142,9 @@ export namespace ApiSpecification {
                     readonly content: {
                         readonly "application/json": {
                             readonly spaceId: components["schemas"]["SpaceId"];
+                            readonly actor?: {
+                                readonly id: components["schemas"]["AccountId"];
+                            };
                             readonly patches: readonly components["schemas"]["TaskBatchPatch"][];
                         };
                     };
