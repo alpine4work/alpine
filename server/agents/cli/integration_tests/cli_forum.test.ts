@@ -284,12 +284,8 @@ test("add a post comment", async () => {
         overrideCreatedTime: new Date("2026-05-14T15:05:00.000Z"),
     });
 
-    // NOCOMMIT: Yikes! This double post content is not good. We may need to do
-    // something special for posts which repeat their title and body.
     expect(await cli.run("alpine search 'YouTube evidence review'")).toEqual(`\
 1. [Alice in Launch Updates: **YouTube evidence review**](/post/alice-in-launch-updates-youtube-evidence-review)
-
-   in Launch Updates: **YouTube evidence review**
 
 2. [Alice: The initial **review** is ready.](/post-comment/alice-the-initial-review-is-ready)
 `);

@@ -3158,22 +3158,27 @@ describe("bot task creation authorization", () => {
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
         const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
 
-        await commitTaskActionTransaction(botContext, space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creator: {
-                        accountId: session.account.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+        await commitTaskActionTransaction(
+            botContext,
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "Create",
+                        creator: {
+                            accountId: session.account.id,
+                            from: {type: "Bot", accountId: botAccount.id},
+                        },
+                        creatorTimeZone: defaultTimeZone,
+                        accessPolicy,
                     },
-                    creatorTimeZone: defaultTimeZone,
-                    accessPolicy,
                 },
-            },
-        ]);
+            ],
+            {actorId: session.account.id},
+        );
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -3243,7 +3248,9 @@ describe("bot task creation authorization", () => {
                 },
             ]),
         ).rejects.toThrow(
-            new PermissionDeniedError("Only bots can create tasks on behalf of other accounts"),
+            new PermissionDeniedError(
+                "Task creator must exactly match the task action transaction actor",
+            ),
         );
     });
 
@@ -3256,21 +3263,26 @@ describe("bot task creation authorization", () => {
         const taskId = generateId<TaskId>();
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-        await commitTaskActionTransaction(botAccount.action(), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creator: {
-                        accountId: otherSession.account.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+        await commitTaskActionTransaction(
+            botAccount.action(),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "Create",
+                        creator: {
+                            accountId: otherSession.account.id,
+                            from: {type: "Bot", accountId: botAccount.id},
+                        },
+                        creatorTimeZone: defaultTimeZone,
                     },
-                    creatorTimeZone: defaultTimeZone,
                 },
-            },
-        ]);
+            ],
+            {actorId: otherSession.account.id},
+        );
 
         expect(await getTaskItemForTest(context, taskId)).toMatchObject({
             creatorId: otherSession.account.id,
@@ -3298,7 +3310,7 @@ describe("bot task creation authorization", () => {
                     type: "Create",
                     creator: {
                         accountId: botAccount.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+                        from: null,
                     },
                     creatorTimeZone: defaultTimeZone,
                     accessPolicy,
@@ -3328,7 +3340,7 @@ describe("bot task creation authorization", () => {
                     type: "Create",
                     creator: {
                         accountId: botAccount.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+                        from: null,
                     },
                     creatorTimeZone: defaultTimeZone,
                     accessPolicy,
@@ -3366,7 +3378,7 @@ describe("bot task creation authorization", () => {
                     type: "Create",
                     creator: {
                         accountId: botAccount.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+                        from: null,
                     },
                     creatorTimeZone: defaultTimeZone,
                     accessPolicy,
@@ -3424,7 +3436,7 @@ describe("bot task creation authorization", () => {
                     type: "Create",
                     creator: {
                         accountId: botAccount.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+                        from: null,
                     },
                     creatorTimeZone: defaultTimeZone,
                     accessPolicy,
@@ -3457,7 +3469,7 @@ describe("bot task creation authorization", () => {
                     type: "Create",
                     creator: {
                         accountId: botAccount.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+                        from: null,
                     },
                     creatorTimeZone: defaultTimeZone,
                     accessPolicy,
@@ -3692,7 +3704,7 @@ describe("bot task collection creation authorization", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Only bots can create task collections on behalf of other accounts",
+                "Task collection creator must exactly match the task action transaction actor",
             ),
         );
     });
@@ -3708,22 +3720,27 @@ describe("bot task collection creation authorization", () => {
         const botContext = botAccount.action();
         const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
 
-        await commitTaskActionTransaction(botContext, space.id, [
-            {
-                type: "UpdateCollection",
-                time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "Create",
-                    creator: {
-                        accountId: otherSession.account.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+        await commitTaskActionTransaction(
+            botContext,
+            space.id,
+            [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "Create",
+                        creator: {
+                            accountId: otherSession.account.id,
+                            from: {type: "Bot", accountId: botAccount.id},
+                        },
+                        name: "Test Collection",
+                        accessPolicy,
                     },
-                    name: "Test Collection",
-                    accessPolicy,
                 },
-            },
-        ]);
+            ],
+            {actorId: otherSession.account.id},
+        );
 
         expect(await getTaskCollectionItemForTest(context, collectionId)).toMatchObject({
             creatorId: otherSession.account.id,

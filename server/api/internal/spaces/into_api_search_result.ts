@@ -151,6 +151,51 @@ export function intoApiSearchResult(
                     ? `${getAccountShortNameWithoutFullNameTooltip(entity.post.author.initialData)} ${model.initialData.title}`
                     : getMissingSearchEntityTitle(entity);
 
+            // HACK: Posts uniquely generate the post title from the post's body. This leads to
+            // an awkward situation for our search API where if left alone `title` and
+            // `bodySnippet` will have the same content. This then looks weird for anyone
+            // processing API results (like our MCP search tool) because you'll see the same
+            // content repeated twice if you're printing both the body snippet and title.
+            //
+            // So try to detect when we've matched some part of the body that's also present in
+            // the title and drop that part of the body from the `bodySnippet`. Sometimes
+            // dropping the fully body if the body is fully contained by the title!
+            //
+            // The title string and body string should be character-for-character identical in
+            // most cases.
+            //
+            // - We write the title + body atomically when indexing a post for search so they
+            //   should be based on the same data. Including the referenced channel which is
+            //   also loaded and inlined by the search indexer atomically across both the title
+            //   and body.
+            //
+            // - To print a title `createPostSearchEntityTitle()` we take a snippet of the body
+            //   content (`getContentSnippet()`) and then use
+            //   `printContentSingleLineTextSnippet()` to print it to a string.
+            //
+            // - To print the body to a string is more complicated. We use
+            //   `chunkSearchContent()` to generate the markdown we index in OpenSearch for
+            //   search content. Then we use `parseSearchContent()` to convert the markdown
+            //   from OpenSearch back into a string. We try hard to make sure all content
+            //   printed by `chunkSearchContent()` can be exactly parsed to the same thing by
+            //   `parseSearchContent()` minus some meaningless details for the purpose of
+            //   rendering to a string like mention or link URLs (see
+            //   `chunk_search_content.test.ts`). Then after `parseSearchContent()` on the
+            //   highlighted text from OpenSearch we use `printContentSingleLineTextSnippet()`
+            //   to print our content back into a string.
+            //
+            //     So if all goes well, we end up calling `printContentSingleLineTextSnippet()`
+            //     on identical content as we had when printing the title and so we should get
+            //     identical strings.
+            //
+            //     One possible problem is that we call `parseSearchContent()` on text selected
+            //     by OpenSearch using the "highlight" feature. The highlight feature truncates
+            //     the body at some point before and after the matched text. This means
+            //     OpenSearch might truncate essential markdown we need for
+            //     `parseSearchContent()` to return identical content as what we had when
+            //     printing the title. We accept this hack not working in that case, the body
+            //     match will already be shifted forward a bit so it won't start at the same
+            //     place as the post title anyway. _shrug_
             if (model.initialData.title !== null && bodySnippet !== null) {
                 let dropLength = 0;
 

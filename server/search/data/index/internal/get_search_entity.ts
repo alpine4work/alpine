@@ -1913,6 +1913,19 @@ async function getPostSearchEntity(
             getFileIfExists: contentReferences.getFileIfExists,
         }),
         titleVersion: {type: "Integers", versions: [post.version, post.channel.version]},
+        // TODO: We should probably index:
+        //
+        // ```
+        // body: getFullText(),
+        // tags: [post.channel.name],
+        // ```
+        //
+        // ...instead. And then on the client, always render a prefix like "Rachel in
+        // Product: ...". Right now there's a bug where if the body match is not in the
+        // start of a post you'll see a search result on the client that looks like "Rachel
+        // but we do need to do ..." (where "but we do need to do" is the body match and
+        // "Rachel " was added because we assumed the body would start with " in Product:"
+        // but the body doesn't start with " in Product:" if the match is near the end).
         body: `in ${post.channel.name}: ${getFullText()}`,
         tags: emptyArray,
         media: {type: "Account", accountId: post.authorId},
