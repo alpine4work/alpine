@@ -1,4 +1,3 @@
-import {findSpans} from "unicode-default-word-boundary";
 import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";

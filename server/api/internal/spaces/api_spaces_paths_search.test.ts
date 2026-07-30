@@ -188,28 +188,33 @@ describe("space search removes post title overlap from body snippets", () => {
         ],
         [
             "unordered list",
-            "- Unorderedyak title item\n" + "- A second unordered item contains unorderedyak.",
+            `- Unorderedyak title item
+- A second unordered item contains unorderedyak.`,
         ],
         [
             "unordered list with only a title match",
-            "- Unorderedkoala title item\n" + "- A second unordered item has no match.",
+            `- Unorderedkoala title item
+- A second unordered item has no match.`,
         ],
         [
             "ordered list",
-            "1. Orderedlynx title item\n" + "2. A second ordered item contains orderedlynx.",
+            `1. Orderedlynx title item
+2. A second ordered item contains orderedlynx.`,
         ],
         [
             "ordered list with only a title match",
-            "1. Orderedpanda title item\n" + "2. A second ordered item has no match.",
+            `1. Orderedpanda title item
+2. A second ordered item has no match.`,
         ],
         [
             "check list",
-            "- [ ] Checklistibis title item\n" +
-                "- [x] A second checklist item contains checklistibis.",
+            `- [ ] Checklistibis title item
+- [x] A second checklist item contains checklistibis.`,
         ],
         [
             "check list with only a title match",
-            "- [ ] Checklisttern title item\n" + "- [x] A second checklist item has no match.",
+            `- [ ] Checklisttern title item
+- [x] A second checklist item has no match.`,
         ],
         [
             "table",
