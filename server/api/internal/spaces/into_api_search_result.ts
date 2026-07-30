@@ -362,7 +362,8 @@ function mergeApiSearchResultMatchesSeparatedByWhitespace(
 ): Array<ApiSearchResultMatch> {
     const mergedMatches: Array<ApiSearchResultMatch> = [];
 
-    for (const match of matches) {
+    const sortedMatches = matches.toSorted((match1, match2) => match1.index - match2.index);
+    for (const match of sortedMatches) {
         const previousMatch = mergedMatches.at(-1);
         if (previousMatch === undefined) {
             mergedMatches.push(match);
@@ -370,12 +371,16 @@ function mergeApiSearchResultMatchesSeparatedByWhitespace(
         }
 
         const previousMatchEndIndex = previousMatch.index + previousMatch.length;
+        const matchEndIndex = match.index + match.length;
         const textBetweenMatches = text.slice(previousMatchEndIndex, match.index);
 
-        if (/^\p{White_Space}*$/u.test(textBetweenMatches)) {
+        if (
+            match.index <= previousMatchEndIndex ||
+            /^\p{White_Space}*$/u.test(textBetweenMatches)
+        ) {
             mergedMatches[mergedMatches.length - 1] = {
                 index: previousMatch.index,
-                length: match.index + match.length - previousMatch.index,
+                length: Math.max(previousMatchEndIndex, matchEndIndex) - previousMatch.index,
             };
         } else {
             mergedMatches.push(match);
