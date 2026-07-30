@@ -631,7 +631,7 @@ test("can\u2019t send message to chat bot isn\u2019t a member of even when scope
                     "Can\u2019t create messages in chat the bot isn\u2019t a member of. " +
                     "Try creating a new chat that includes the bot and send a message to that chat.",
                 stack: expect.stringMatching(
-                    /^PermissionDeniedError: Bot can only view messages in chat it\u2019s not a member of\n/,
+                    /^PermissionDeniedError: Bot can only view messages in direct chat it\u2019s not a member of\n/,
                 ),
                 retry: {
                     able: false,
