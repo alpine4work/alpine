@@ -1386,10 +1386,7 @@ async function actuallyCommitTaskActionTransaction(
 
                 switch (taskAction.type) {
                     case "Create": {
-                        if (
-                            !taskAction.creator ||
-                            !isDeepEqual(taskAction.creator, state.getCreator())
-                        ) {
+                        if (!isDeepEqual(taskAction.creator, state.getCreator())) {
                             throw new PermissionDeniedError(
                                 "Task creator must exactly match the task action transaction actor",
                             );
@@ -2351,7 +2348,13 @@ async function actuallyCommitTaskActionTransaction(
                     case "Create": {
                         const {creator} = collectionAction;
 
-                        if (!creator || !isDeepEqual(creator, state.getCreator())) {
+                        if (!creator) {
+                            throw new PermissionDeniedError(
+                                "Task collection creator is required for new task collections",
+                            );
+                        }
+
+                        if (!isDeepEqual(creator, state.getCreator())) {
                             throw new PermissionDeniedError(
                                 "Task collection creator must exactly match the task action transaction actor",
                             );
