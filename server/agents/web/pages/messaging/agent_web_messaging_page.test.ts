@@ -343,8 +343,8 @@ Deleted messages must not contain content.
 </message>
 `,
             parseError: markdown`
-Error: Deleted \`<message>\` on line 1 can’t contain content. Remove everything between the open and
-close tags and try again (e.g. \`<message></message>\`).
+Error: Deleted \`<message>\` on line 1 can\u2019t contain content. Remove everything between the
+open and close tags and try again (e.g. \`<message></message>\`).
             `,
         },
         {
@@ -362,8 +362,8 @@ close tags and try again (e.g. \`<message></message>\`).
 </message>
 `,
             parseError: markdown`
-Error: Deleted \`<message>\` on line 1 can’t contain a \`<blockquote>\`. Remove the \`<blockquote>\`
-and try again.
+Error: Deleted \`<message>\` on line 1 can\u2019t contain a \`<blockquote>\`. Remove the
+\`<blockquote>\` and try again.
             `,
         },
         {
