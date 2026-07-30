@@ -210,6 +210,7 @@ export function intoApiSearchResult(
                     : postTitle;
 
                 let dropLength = 0;
+                let titleDropIndex = 0;
 
                 for (let i1 = 0; i1 < postTitleForBodyOverlap.length; i1++) {
                     const c1 = postTitleForBodyOverlap[i1]!;
@@ -219,6 +220,7 @@ export function intoApiSearchResult(
                     const c2 = bodySnippet.text[dropLength]!;
 
                     if (c1 === c2) {
+                        if (dropLength === 0) titleDropIndex = i1;
                         dropLength++;
                     } else if (dropLength > 0) {
                         // If there's a character mismatch then this is an invalid drop. Cancel the loop.
@@ -228,6 +230,23 @@ export function intoApiSearchResult(
                 }
 
                 if (dropLength > 0) {
+                    const titleIndexOffset = title.length - postTitle.length + titleDropIndex;
+                    const bodyTitleMatches = filterMapArray(bodySnippet.matches, match => {
+                        const length = Math.min(match.length, dropLength - match.index);
+                        if (length <= 0) return;
+
+                        return {
+                            index: titleIndexOffset + match.index,
+                            length,
+                        };
+                    });
+                    if (bodyTitleMatches.length > 0) {
+                        titleMatches = mergeApiSearchResultMatchesSeparatedByWhitespace(title, [
+                            ...titleMatches,
+                            ...bodyTitleMatches,
+                        ]);
+                    }
+
                     if (!(dropLength < bodySnippet.text.length)) {
                         bodySnippet = null;
                     } else {
