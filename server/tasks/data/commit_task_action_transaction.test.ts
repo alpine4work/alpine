@@ -37,7 +37,6 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {
-    AccountId,
     ContentEditorClientId,
     TaskActionTransactionLeaseId,
     TaskCollectionId,
