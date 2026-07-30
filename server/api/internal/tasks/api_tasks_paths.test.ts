@@ -907,7 +907,6 @@ test("can create a task with all fields", async () => {
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
-            actor,
             actions: [
                 expect.objectContaining({
                     type: "UpdateTask",
@@ -1216,10 +1215,6 @@ test("can update a task title", async () => {
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
-            actor: {
-                accountId: session.account.id,
-                from: {type: "Bot", accountId: bot.id},
-            },
             actions: [
                 expect.objectContaining({
                     type: "UpdateTask",
@@ -1586,17 +1581,11 @@ test("can update multiple task fields at once", async () => {
         }),
     });
 
-    const actor = {
-        accountId: session1.account.id,
-        from: {type: "Bot", accountId: bot.id},
-    };
-
     // Actions are generated one-by-one from the patches in request order.
     expect(
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
-            actor,
             actions: [
                 expect.objectContaining({
                     type: "UpdateTask",
@@ -3344,7 +3333,7 @@ describe("PATCH /tasks", () => {
         });
     });
 
-    test("each batch create keeps its own creator", async () => {
+    test("each batch create uses the transaction actor as creator", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -3371,7 +3360,7 @@ describe("PATCH /tasks", () => {
 
         expect(response.body.tasks.map((task: {creator: {id: string}}) => task.creator)).toEqual([
             {id: session.account.id},
-            {id: bot.id},
+            {id: session.account.id},
         ]);
     });
 
@@ -5366,10 +5355,6 @@ test("can create a task collection", async () => {
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
-            actor: {
-                accountId: bot.id,
-                from: null,
-            },
             actions: [
                 expect.objectContaining({
                     type: "UpdateCollection",
@@ -5466,10 +5451,6 @@ test("can update a task collection name", async () => {
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
-            actor: {
-                accountId: session.account.id,
-                from: {type: "Bot", accountId: bot.id},
-            },
             actions: [
                 expect.objectContaining({
                     type: "UpdateCollection",
@@ -5554,16 +5535,10 @@ test("can update multiple task collection fields at once", async () => {
         }),
     });
 
-    const actor = {
-        accountId: session.account.id,
-        from: {type: "Bot", accountId: bot.id},
-    };
-
     expect(
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
         expect.objectContaining({
-            actor,
             actions: [
                 expect.objectContaining({
                     type: "UpdateCollection",
