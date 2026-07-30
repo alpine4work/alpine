@@ -24,6 +24,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//admin/experimental/calebmer:calebmer",
     "//admin/experimental/ifitzsimmons:ifitzsimmons",
     "//admin/helpers:helpers",
+    "//admin/lambda/fathom_meeting_notes:fathom_meeting_notes",
     "//admin/lambda/local:local",
     "//admin/lambda/schedule_deploy:schedule_deploy",
     "//admin/lambda/send_alert:send_alert",

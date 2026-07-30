@@ -40,6 +40,7 @@ filegroup(
     data = [
         ":aws",
         "//:cdk_files",
+        "//admin/lambda/fathom_meeting_notes:fathom_meeting_notes_lambda_production",
         "//admin/lambda/schedule_deploy:schedule_deploy_lambda_production",
         "//admin/lambda/send_alert:send_alert_lambda_production",
         "//admin/opensearch/deploy_script:deploy_script_production",
@@ -132,6 +133,7 @@ production_transition(
 js_run_binary(
     name = "aws_app_templates_json",
     outs = [
+        "output_lite/CyberworldsInternalToolsStack.template.json",
         "output_lite/CyberworldsLifecycleStack.template.json",
         "output_lite/CyberworldsObservabilityStack.template.json",
         "output_lite/CyberworldsStack.template.json",
@@ -154,16 +156,19 @@ js_binary(
 js_run_binary(
     name = "aws_app_templates",
     srcs = [
+        "output_lite/CyberworldsInternalToolsStack.template.json",
         "output_lite/CyberworldsLifecycleStack.template.json",
         "output_lite/CyberworldsObservabilityStack.template.json",
         "output_lite/CyberworldsStack.template.json",
     ],
     outs = [
+        "output_lite/CyberworldsInternalToolsStack.template.yaml",
         "output_lite/CyberworldsLifecycleStack.template.yaml",
         "output_lite/CyberworldsObservabilityStack.template.yaml",
         "output_lite/CyberworldsStack.template.yaml",
     ],
     args = [
+        "output_lite/CyberworldsInternalToolsStack.template.json",
         "output_lite/CyberworldsLifecycleStack.template.json",
         "output_lite/CyberworldsStack.template.json",
         "output_lite/CyberworldsObservabilityStack.template.json",
@@ -186,6 +191,7 @@ js_run_binary(
 write_source_files(
     name = "write_aws_app_templates",
     files = {
+        "templates/cyberworlds_internal_tools_stack.yaml": "output_lite/CyberworldsInternalToolsStack.template.yaml",
         "templates/cyberworlds_lifecycle_stack.yaml": "output_lite/CyberworldsLifecycleStack.template.yaml",
         "templates/cyberworlds_stack.yaml": "output_lite/CyberworldsStack.template.yaml",
         "templates/cyberworlds_observability_stack.yaml": "output_lite/CyberworldsObservabilityStack.template.yaml",

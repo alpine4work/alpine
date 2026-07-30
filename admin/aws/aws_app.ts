@@ -54,6 +54,16 @@ export async function createAwsApp() {
         observability,
     });
 
+    // Resources for internal tools that support Alpine operations live in this stack.
+    const internalToolsStack = new Stack(app, "CyberworldsInternalToolsStack", {
+        env: {region: "us-east-1"},
+    });
+    addAwsInternalToolsResources(internalToolsStack, {
+        cloudflareAccountId,
+        importSqs,
+        observability,
+    });
+
     return app;
 }
 
@@ -299,4 +309,70 @@ function addAwsLifecycleResources(
             ],
         },
     });
+}
+
+function addAwsInternalToolsResources(
+    stack: Stack,
+    {
+        cloudflareAccountId,
+        importSqs,
+        observability,
+    }: {
+        cloudflareAccountId: string;
+        importSqs: (stack: Stack) => AwsSqs;
+        observability: AwsObservability;
+    },
+) {
+    const sqs = importSqs(stack);
+
+    // Create the Fathom meeting-notes Lambda. Keep the stack and construct ids stable
+    // after deployment because changing either changes the Function URL registered
+    // with Fathom.
+    const fathomMeetingNotesSecrets = Secret.fromSecretNameV2(
+        stack,
+        "FathomMeetingNotesSecretsImport",
+        "FathomMeetingNotesSecrets",
+    );
+    const fathomMeetingNotesLambda = new AwsLambda(stack, "FathomMeetingNotes", {
+        bazelConfiguration: {
+            bazelTarget: "//admin/lambda/fathom_meeting_notes:fathom_meeting_notes_lambda",
+            handlerFilePath: "lambda/fathom_meeting_notes_lambda",
+        },
+        sqs,
+        cloudflareAccountId,
+        vpc: null,
+        timeout: Duration.seconds(60),
+        // Meeting-notes writes are serialized so two meetings entering a new month cannot
+        // independently add duplicate month headings.
+        reservedConcurrentExecutions: 1,
+        honeycombApiKey: null,
+        environment: {
+            FATHOM_WEBHOOK_SECRET: fathomMeetingNotesSecrets
+                .secretValueFromJson("fathomWebhookSecret")
+                .unsafeUnwrap(),
+            // Use a Josh-account-scoped key as the safe default until the API can set an
+            // explicit access policy for each new document.
+            ALPINE_API_KEY: fathomMeetingNotesSecrets
+                .secretValueFromJson("alpineAPIKey")
+                .unsafeUnwrap(),
+        },
+        observability,
+    });
+
+    fathomMeetingNotesLambda.lambdaFunction.addFunctionUrl({
+        authType: aws_lambda.FunctionUrlAuthType.NONE,
+    });
+
+    // CDK 2.189.1 predates the second permission required for function URLs created
+    // after October 2025. Restrict it to invocations through the URL.
+    const invokeViaFunctionUrlPermission = new aws_lambda.CfnPermission(
+        fathomMeetingNotesLambda.lambdaFunction,
+        "InvokeViaFunctionUrl",
+        {
+            action: "lambda:InvokeFunction",
+            functionName: fathomMeetingNotesLambda.lambdaFunction.functionArn,
+            principal: "*",
+        },
+    );
+    invokeViaFunctionUrlPermission.addPropertyOverride("InvokedViaFunctionUrl", true);
 }
