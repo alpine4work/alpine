@@ -1,0 +1,38 @@
+---
+title: Authentication
+description: Alpine authenticates every request with a bearer token. There are no unauthenticated endpoints.
+tags: [api, auth, token, bearer, api key]
+---
+
+## API keys
+
+Create a key from Space settings, then Bots, then Integrations. A key is scoped
+to one space and inherits the bot account's permissions. Treat it like a
+password: it grants full access to that space.
+
+## Making requests
+
+Send the key in the Authorization header on every request:
+
+```header
+Authorization: Bearer $ALPINE_API_KEY
+```
+
+```bash
+curl https://api.alpine.inc/spaces/2k7pqz3m8rwvd1ac6yn0xhs4tb \
+  -H "Authorization: Bearer $ALPINE_API_KEY"
+```
+
+<Callout type="warning" title="Keep keys server-side">
+    Never ship an API key in client-side code or a public repo. If a key leaks,
+    revoke it in Space settings and issue a new one.
+</Callout>
+
+<CardGrid>
+    <Card title="Errors" url="/docs/api/errors">
+        The error envelope every endpoint returns.
+    </Card>
+    <Card title="Webhooks" url="/docs/api/webhooks">
+        Receive bot events as they happen.
+    </Card>
+</CardGrid>

@@ -15,11 +15,16 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenPayloadSchema} from "~/server/tokens/token_payload.js";
+import {
+    botWebhookSignatureHeader,
+    verifyBotWebhookRequestSignature,
+} from "~/shared/api/specification/sign_bot_webhook_request.js";
 import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
@@ -103,6 +108,15 @@ async function createTestServer(
     return {
         baseUrl: `http://localhost:${port}`,
     };
+}
+
+async function readRequestBody(req: IncomingMessage): Promise<string> {
+    req.setEncoding("utf8");
+
+    let body = "";
+    for await (const chunk of req) body += chunk;
+
+    return body;
 }
 
 test("if webhook is successful it\u2019s only called once", async () => {
@@ -193,6 +207,138 @@ test("if webhook is successful it\u2019s only called once", async () => {
 
     // Make sure there are no pending timers at the end of the test
     expect(import.meta.jest.getTimerCount()).toEqual(0);
+});
+
+test("webhook requests are signed when the bot has a webhook secret", async () => {
+    let requestBody: string | null = null;
+    let requestSignature: string | null = null;
+
+    const server = await createTestServer((req, res) => {
+        readRequestBody(req)
+            .then(body => {
+                requestBody = body;
+                // Node.js lowercases incoming header names.
+                requestSignature =
+                    (req.headers[botWebhookSignatureHeader.toLowerCase()] as string | undefined) ??
+                    null;
+                res.statusCode = 200;
+                res.setHeader("content-type", "text/plain");
+                res.end("200 OK");
+            })
+            .catch(() => {
+                res.statusCode = 500;
+                res.setHeader("content-type", "text/plain");
+                res.end("500 Internal Server Error");
+            });
+    });
+
+    const bot = await TestBot.create(context, {
+        name: "Test Bot",
+        webhookUrl: server.baseUrl,
+        webhookSecret: "test-secret",
+    });
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Owner"});
+
+    const botAccount = await bot.instantiate(session);
+
+    const eventId = generateChronologicalId<BotWebhookEventId>();
+
+    const event: ApiBotWebhookEvent = {
+        type: "NewMessage",
+        authorId: generateId<AccountId>(),
+        room: {type: "Chat", id: generateId<ChatId>()},
+        index: 0,
+        createdTimeZone: defaultTimeZone,
+    };
+
+    await testProcessCallBotWebhookJob(space, {
+        type: "CallBotWebhook",
+        spaceId: space.id,
+        botId: bot.id,
+        botAccountId: botAccount.id,
+        eventId,
+        event,
+    });
+
+    const signedRequestBody = assertExists<string>(requestBody);
+    const signature = assertExists<string>(requestSignature);
+
+    // Throws if the signature doesn't match the request body.
+    await verifyBotWebhookRequestSignature({
+        requestBodyString: signedRequestBody,
+        signature,
+        secret: "test-secret",
+    });
+
+    expect(signature).toMatch(/^sha256=/);
+});
+
+test("webhook requests are not signed when the bot has no webhook secret", async () => {
+    let requestBody: string | null = null;
+    let requestSignature: string | null = null;
+
+    const server = await createTestServer((req, res) => {
+        readRequestBody(req)
+            .then(body => {
+                requestBody = body;
+                // Node.js lowercases incoming header names.
+                requestSignature =
+                    (req.headers[botWebhookSignatureHeader.toLowerCase()] as string | undefined) ??
+                    null;
+                res.statusCode = 200;
+                res.setHeader("content-type", "text/plain");
+                res.end("200 OK");
+            })
+            .catch(() => {
+                res.statusCode = 500;
+                res.setHeader("content-type", "text/plain");
+                res.end("500 Internal Server Error");
+            });
+    });
+
+    const bot = await TestBot.create(context, {
+        name: "Test Bot",
+        webhookUrl: server.baseUrl,
+        webhookSecret: null,
+    });
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Owner"});
+
+    const botAccount = await bot.instantiate(session);
+
+    const eventId = generateChronologicalId<BotWebhookEventId>();
+
+    const event: ApiBotWebhookEvent = {
+        type: "NewMessage",
+        authorId: generateId<AccountId>(),
+        room: {type: "Chat", id: generateId<ChatId>()},
+        index: 0,
+        createdTimeZone: defaultTimeZone,
+    };
+
+    await testProcessCallBotWebhookJob(space, {
+        type: "CallBotWebhook",
+        spaceId: space.id,
+        botId: bot.id,
+        botAccountId: botAccount.id,
+        eventId,
+        event,
+    });
+
+    const unsignedRequestBody = assertExists<string>(requestBody);
+
+    // Unsigned requests pass verification. Just because we are able to verify signed
+    // requests doesn't mean that every request _must_ be signed.
+    await verifyBotWebhookRequestSignature({
+        requestBodyString: unsignedRequestBody,
+        signature: requestSignature,
+        secret: "test-secret",
+    });
+
+    expect(requestSignature).toBeNull();
 });
 
 test("if webhook is successful it\u2019s only called once even if job is run multiple times in parallel", async () => {

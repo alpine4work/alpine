@@ -14,6 +14,7 @@ import {
     GetMessageAtVersionFunction,
     GetMessageReferencesFunction,
     MessagingRealtimeConnection,
+    PutMessageApprovalDecisionsFunction,
     SetMessageReactionFunction,
     UpdateMessageContentFunction,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
@@ -59,6 +60,7 @@ import {
     getTaskCommentReferences,
     getTaskNotesContent,
     getTaskNotesContentReferences,
+    putTaskCommentMessageApprovalDecisions,
     setTaskCommentReaction,
     updateTaskCommentContent,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
@@ -146,6 +148,7 @@ export class TaskNotesCollaborationConnection {
             deleteMessage,
             setMessageReaction,
             deleteMessageReaction,
+            putMessageApprovalDecisions,
             backfillMessages,
             getMessageAtVersion,
             getMessageReferences,
@@ -292,6 +295,12 @@ export class TaskNotesCollaborationConnection {
                 messageIndex,
                 contentVersion,
                 pos,
+            }),
+
+        putCommentApprovalDecisions: (context, {commentIndex: messageIndex, payload}) =>
+            this._messagingConnection.putMessageApprovalDecisions(context, {
+                messageIndex,
+                payload,
             }),
 
         startTypingInCommentInput: (context, input) =>
@@ -441,6 +450,13 @@ const deleteMessageReaction: DeleteMessageReactionFunction<TaskId> = (
     {roomKey: taskId, messageIndex: commentIndex, contentVersion, pos},
 ) => {
     return deleteTaskCommentReaction(context, {taskId, commentIndex, contentVersion, pos});
+};
+
+const putMessageApprovalDecisions: PutMessageApprovalDecisionsFunction<TaskId> = (
+    context,
+    {roomKey: taskId, messageIndex: commentIndex, payload},
+) => {
+    return putTaskCommentMessageApprovalDecisions(context, {taskId, commentIndex, payload});
 };
 
 const backfillMessages: BackfillMessagesFunction<TaskId, TaskCommentModel> = async (

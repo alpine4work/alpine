@@ -2,6 +2,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
+import {BotWebhookSchema} from "~/shared/bots/bot_schema.js";
 import {BotSettingsSchemaSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContentSchema} from "~/shared/content/simple_content_schema.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -37,11 +38,18 @@ export const BotsTable = DynamoTableSchema.new({
                         /**
                          * When the bot is mentioned, send an event to this webhook.
                          *
-                         * Bot webhooks should be null when the bot is "uni-directional". A good example of
-                         * a uni-directional bot is our "Alerts" bot, whose sole function is to send alerts
-                         * into Alpine - it should never listen to Alpine events.
+                         * Bot webhook URLs should be null when the bot is "uni-directional". A good
+                         * example of a uni-directional bot is our "Alerts" bot, whose sole function is to
+                         * send alerts into Alpine - it should never listen to Alpine events.
+                         *
+                         * `secret` is a shared secret used to sign outbound webhook payloads. It is
+                         * nullable for bots that do not need request signing.
                          */
-                        webhookUrl: Schema.string.nullable(),
+                        webhook: BotWebhookSchema.wrapOriginalPropertyInObject("url", {
+                            secret: null,
+                        })
+                            .originalPropertyKey("webhookUrl")
+                            .nullable(),
                     }),
                 },
 

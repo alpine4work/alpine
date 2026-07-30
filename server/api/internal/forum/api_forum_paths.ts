@@ -10,6 +10,7 @@ import {
     intoApiMessageContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
 import {getContentReferencesForServerPrintSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {createPost} from "~/server/forum/data/create_post.js";
@@ -18,12 +19,15 @@ import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_chann
 import {getChannelPostContents} from "~/server/forum/data/get_channel_posts.js";
 import {getPostContentWithCustomReferencesAndChannelPreview} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
 import {
+    broadcastPutPostCommentStreamPart,
     completePostCommentStream,
     createPostComment,
+    getPostCommentMessageApprovals,
     getPostCommentPayload,
     getPostCommentPayloadsFromEnd,
     getPostCommentPayloadsFromStart,
     pingPostCommentStream,
+    putPostCommentMessageApprovalDecisions,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
@@ -696,6 +700,71 @@ export const apiForumPaths: Pick<
             });
 
             return {content: {spaceId}};
+        },
+    },
+
+    "/posts/{id}/messages/{index}/experimental-approvals": {
+        get: async (context, {pathParameters}) => {
+            const {spaceId, approvals} = await getPostCommentMessageApprovals(context, {
+                postId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
+
+            const referenceContext = context.dynamo.unexpectStrongReadConsistency();
+            return {
+                content: {
+                    spaceId,
+                    approvals: await runAllPromises(
+                        approvals.map(approval =>
+                            intoApiMessageExperimentalApproval(referenceContext, {
+                                spaceId,
+                                approval,
+                            }),
+                        ),
+                    ),
+                },
+            };
+        },
+        patch: async (context, {pathParameters, requestBody}) => {
+            const {spaceId, approvals, partIndex, version, createdTime, completedTime} =
+                await putPostCommentMessageApprovalDecisions(context, {
+                    postId: pathParameters.id,
+                    commentIndex: pathParameters.index,
+                    payload: {
+                        type: "ExperimentalDecisions",
+                        decisions: requestBody.patches.map(patch => ({
+                            index: patch.index,
+                            value: patch.decision.value,
+                        })),
+                    },
+                    consistency: "StrongWithinCache",
+                });
+
+            broadcastPutPostCommentStreamPart(context, {
+                postId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                partIndex,
+                version,
+                payload: {type: "ExperimentalApprovals", approvals},
+                createdTime,
+                completedTime,
+            });
+
+            const referenceContext = context.dynamo.unexpectStrongReadConsistency();
+            return {
+                content: {
+                    spaceId,
+                    approvals: await runAllPromises(
+                        approvals.map(approval =>
+                            intoApiMessageExperimentalApproval(referenceContext, {
+                                spaceId,
+                                approval,
+                            }),
+                        ),
+                    ),
+                },
+            };
         },
     },
 };

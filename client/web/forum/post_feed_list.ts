@@ -152,6 +152,14 @@ export class PostFeedList implements PostListInterface {
         return this._entries.openPostCommentsCount > 0;
     }
 
+    public *iteratePostIds(): IterableIterator<PostId> {
+        for (const node of this._entries.iterateNodes()) {
+            if (node.type === "Post") {
+                yield node.post.model.id;
+            }
+        }
+    }
+
     public loadMoreEntries({
         endCursor,
         hasMoreEntries,

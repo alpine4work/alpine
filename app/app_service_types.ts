@@ -33,8 +33,11 @@ export type AppServiceConstants = {
             readonly agentServiceLocalPort?: string;
             readonly chatGptLocalUnscopedApiKey?: string;
             readonly chatGptLocalScopedApiKey?: string;
+            readonly chatGptWebhookSecret?: string;
             readonly cursorLocalUnscopedApiKey?: string;
+            readonly cursorWebhookSecret?: string;
             readonly mockChatGptLocalUnscopedApiKey?: string;
+            readonly mockChatGptWebhookSecret?: string;
             readonly slackClientId?: string;
             readonly slackClientSecret?: string;
             readonly slackAuthRedirectOrigin?: string;

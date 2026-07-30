@@ -942,6 +942,23 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "webhook": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "secret": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "String"
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -3414,6 +3431,229 @@ export const dynamoGeneratedSchemaDescription: {
                                                                         "reuseReferenceId": "05d7837f"
                                                                     },
                                                                     "optional": false
+                                                                }
+                                                            }
+                                                        },
+                                                        "ExperimentalApprovals": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "type": {
+                                                                    "valueSchema": {
+                                                                        "type": "Value",
+                                                                        "value": "ExperimentalApprovals"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "approvals": {
+                                                                    "valueSchema": {
+                                                                        "type": "Array",
+                                                                        "itemSchema": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "summary": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "05d7837f"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "decision": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "schema": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Object",
+                                                                                                    "propertySchemaByKey": {
+                                                                                                        "options": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Array",
+                                                                                                                "itemSchema": {
+                                                                                                                    "type": "Union",
+                                                                                                                    "typeKey": "type",
+                                                                                                                    "variantSchemaByTypeValue": {
+                                                                                                                        "Approved": {
+                                                                                                                            "type": "Object",
+                                                                                                                            "propertySchemaByKey": {
+                                                                                                                                "type": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Value",
+                                                                                                                                        "value": "Approved"
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                }
+                                                                                                                            }
+                                                                                                                        },
+                                                                                                                        "Rejected": {
+                                                                                                                            "type": "Object",
+                                                                                                                            "propertySchemaByKey": {
+                                                                                                                                "type": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Value",
+                                                                                                                                        "value": "Rejected"
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                }
+                                                                                                                            }
+                                                                                                                        },
+                                                                                                                        "ApprovedForSession": {
+                                                                                                                            "type": "Object",
+                                                                                                                            "propertySchemaByKey": {
+                                                                                                                                "type": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Value",
+                                                                                                                                        "value": "ApprovedForSession"
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                },
+                                                                                                                                "scope": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Object",
+                                                                                                                                        "propertySchemaByKey": {
+                                                                                                                                            "value": {
+                                                                                                                                                "valueSchema": {
+                                                                                                                                                    "type": "String"
+                                                                                                                                                },
+                                                                                                                                                "optional": false
+                                                                                                                                            }
+                                                                                                                                        },
+                                                                                                                                        "referenceId": "9d5da40a"
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                },
+                                                                                                                                "summary": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Reference",
+                                                                                                                                        "reuseReferenceId": "05d7837f"
+                                                                                                                                    },
+                                                                                                                                    "optional": true
+                                                                                                                                },
+                                                                                                                                "durationMinutes": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Nullable",
+                                                                                                                                        "schema": {
+                                                                                                                                            "type": "Integer"
+                                                                                                                                        }
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                }
+                                                                                                                            }
+                                                                                                                        }
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            },
+                                                                                                            "optional": true
+                                                                                                        }
+                                                                                                    }
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "value": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Union",
+                                                                                                    "typeKey": "type",
+                                                                                                    "variantSchemaByTypeValue": {
+                                                                                                        "Approved": {
+                                                                                                            "type": "Object",
+                                                                                                            "propertySchemaByKey": {
+                                                                                                                "type": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Value",
+                                                                                                                        "value": "Approved"
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                },
+                                                                                                                "decider": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Object",
+                                                                                                                        "propertySchemaByKey": {
+                                                                                                                            "account": {
+                                                                                                                                "valueSchema": {
+                                                                                                                                    "type": "Object",
+                                                                                                                                    "propertySchemaByKey": {
+                                                                                                                                        "id": {
+                                                                                                                                            "valueSchema": {
+                                                                                                                                                "type": "Id"
+                                                                                                                                            },
+                                                                                                                                            "optional": false
+                                                                                                                                        }
+                                                                                                                                    }
+                                                                                                                                },
+                                                                                                                                "optional": false
+                                                                                                                            }
+                                                                                                                        },
+                                                                                                                        "referenceId": "43bb5527"
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                }
+                                                                                                            }
+                                                                                                        },
+                                                                                                        "Rejected": {
+                                                                                                            "type": "Object",
+                                                                                                            "propertySchemaByKey": {
+                                                                                                                "type": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Value",
+                                                                                                                        "value": "Rejected"
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                },
+                                                                                                                "decider": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Reference",
+                                                                                                                        "reuseReferenceId": "43bb5527"
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                }
+                                                                                                            }
+                                                                                                        },
+                                                                                                        "ApprovedForSession": {
+                                                                                                            "type": "Object",
+                                                                                                            "propertySchemaByKey": {
+                                                                                                                "type": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Value",
+                                                                                                                        "value": "ApprovedForSession"
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                },
+                                                                                                                "decider": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Reference",
+                                                                                                                        "reuseReferenceId": "43bb5527"
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                },
+                                                                                                                "scope": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Reference",
+                                                                                                                        "reuseReferenceId": "9d5da40a"
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                },
+                                                                                                                "durationMinutes": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Nullable",
+                                                                                                                        "schema": {
+                                                                                                                            "type": "Integer"
+                                                                                                                        }
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                    }
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "optional": true
                                                                 }
                                                             }
                                                         }
@@ -11804,6 +12044,182 @@ export const dynamoGeneratedSchemaDescription: {
                                     "connectedTime": {
                                         "valueSchema": {
                                             "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                }
+            },
+            "indexes": []
+        },
+        "MessageDrafts": {
+            "name": "MessageDrafts",
+            "partitionByType": {
+                "SpaceAccount": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "accountId": {
+                            "type": "Id"
+                        },
+                        "spaceId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Draft": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "surfaceKey": {
+                                    "type": "LabelString"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "content": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "05d7837f"
+                                        },
+                                        "optional": false
+                                    },
+                                    "parent": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Union",
+                                                "typeKey": "type",
+                                                "variantSchemaByTypeValue": {
+                                                    "Message": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "Message"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "index": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "MessagesRange": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "MessagesRange"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "startIndex": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "endIndex": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "startVersion": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "endVersion": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "startPos": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "endPos": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "PostRange": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "PostRange"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "version": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "startPos": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "endPos": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "fileIds": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "version": {
+                                        "valueSchema": {
+                                            "type": "Uint64"
                                         },
                                         "optional": false
                                     },

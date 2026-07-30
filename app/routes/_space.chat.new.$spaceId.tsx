@@ -34,6 +34,7 @@ import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/get_chat_and_initial_messages.js";
 import {selectChatForAccounts} from "~/server/chat/data/select_chat_for_accounts.js";
+import {getMessageDraft} from "~/server/messaging/drafts/get_message_draft.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/get_account.js";
@@ -45,6 +46,10 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
+import {
+    MessageDraftWithFilesSchema,
+    emptyMessageDraftWithFiles,
+} from "~/shared/messaging/message_draft_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
@@ -60,6 +65,7 @@ const LoaderSchema = Schema.object({
         initialMessages: Schema.array(ChatMessageModel.schema()),
         initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
     }).nullable(),
+    messageDraft: MessageDraftWithFilesSchema,
     suggestedChats: Schema.array(ChatModel.schema()),
 });
 
@@ -83,11 +89,18 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
     const checkpoint = generateServerSynchronizationCheckpoint();
 
     if (selectedRoomChatId) {
-        const {chat, initialMessages, initialOtherReferencedMessages} =
-            await getChatAndInitialMessages(context, {
-                chatId: selectedRoomChatId,
-                messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-            });
+        const [{chat, initialMessages, initialOtherReferencedMessages}, messageDraft] =
+            await runAllPromises([
+                getChatAndInitialMessages(context, {
+                    chatId: selectedRoomChatId,
+                    messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+                }),
+                getMessageDraft(context.actor.authorizeSession(), {
+                    spaceId,
+                    surface: {type: "Chat", chatId: selectedRoomChatId},
+                    withAttachFileBeforeCreateMessage: true,
+                }),
+            ]);
 
         if (chat.definition.type !== "Room") {
             throw new FailedPreconditionError("Expected `chat` search param to be a room chat");
@@ -104,6 +117,7 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
                     initialOtherReferencedMessages,
                 },
                 suggestedChats: [],
+                messageDraft,
             },
             {
                 propagateEventData: {
@@ -130,6 +144,14 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
             : null,
     ]);
 
+    const messageDraft = selectedChatResult
+        ? await getMessageDraft(context.actor.authorizeSession(), {
+              spaceId,
+              surface: {type: "Chat", chatId: selectedChatResult.selectedChat.chat.id},
+              withAttachFileBeforeCreateMessage: true,
+          })
+        : emptyMessageDraftWithFiles;
+
     return jsonWithSchema(
         LoaderSchema,
         {
@@ -137,6 +159,7 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
             selectedAccounts,
             selectedChat: selectedChatResult?.selectedChat ?? null,
             suggestedChats: selectedChatResult?.suggestedChats ?? [],
+            messageDraft,
         },
         {
             propagateEventData: {
@@ -437,6 +460,7 @@ export default function NewChatRoute() {
                 ref={messagingViewRef}
                 initialCheckpoint={loaderData.checkpoint}
                 selectedChat={loaderData.selectedChat}
+                messageDraft={loaderData.messageDraft}
                 onUpdateSelectedChat={handleUpdateSelectedChat}
             />
         </Box>

@@ -91,6 +91,7 @@ import {
     getDocumentPreviewIfExists,
     getOptimisticDocumentCommentReferences,
     getResolvedDocumentCommentThreadRanges,
+    putDocumentCommentMessageApprovalDecisions,
     setDocumentCommentReaction,
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
@@ -593,6 +594,19 @@ export class DocumentCollaborationConnection {
                 messageIndex,
                 contentVersion,
                 pos,
+            });
+        },
+
+        putCommentApprovalDecisions: async (
+            context,
+            {commentThreadId, commentIndex: messageIndex, payload},
+        ) => {
+            this._authorizeCommentAccess();
+
+            const connection = await this._getCommentThreadConnection(commentThreadId);
+            return await connection.putMessageApprovalDecisions(context, {
+                messageIndex,
+                payload,
             });
         },
 
@@ -1125,6 +1139,30 @@ export class DocumentCollaborationConnection {
                     commentIndex,
                     contentVersion,
                     pos,
+                });
+            },
+            putMessageApprovalDecisions: async (
+                context,
+                {roomKey, messageIndex: commentIndex, payload},
+            ) => {
+                const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+                // Wait for our optimistic comment thread to persist before talking to the
+                // database.
+                const optimisticCommentThread =
+                    this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
+                if (optimisticCommentThread) {
+                    await context.tracer.withSpan(
+                        "Waiting for comment thread to persist",
+                        () => optimisticCommentThread.persistedPromise,
+                    );
+                }
+
+                return await putDocumentCommentMessageApprovalDecisions(context, {
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    payload,
                 });
             },
             backfillMessages: async (

@@ -5,9 +5,16 @@ const path = require("path");
 const {ESLint} = require("eslint");
 const typescriptEslint = require("@typescript-eslint/eslint-plugin");
 
-const workspacePath = process.cwd();
+const workspacePath = process.env.BUILD_WORKING_DIRECTORY ?? process.cwd();
 
 const runfilesPath = process.env.RUNFILES || workspacePath;
+const runfilesWorkspacePath = path.join(runfilesPath, "cyberworlds");
+// When Bazel launches ESLint, prefer the config in runfiles so shareable configs
+// and plugins resolve against Bazel's `node_modules`. Direct Node callers still
+// use the workspace config for slim non-Bazel environments.
+const eslintConfigFilePath = process.env.RUNFILES
+    ? path.join(runfilesWorkspacePath, ".eslintrc.cjs")
+    : path.join(workspacePath, ".eslintrc.cjs");
 
 const eslintTypeCheckingRuleIds = new Set(
     Object.keys(typescriptEslint.configs["disable-type-checked"].rules),
@@ -61,7 +68,7 @@ async function main() {
         globInputPaths: false,
         fix: false,
         useEslintrc: false,
-        overrideConfigFile: path.join(workspacePath, ".eslintrc.cjs"),
+        overrideConfigFile: eslintConfigFilePath,
     });
 
     // Configure rules to run based on fix mode
@@ -85,7 +92,7 @@ async function main() {
         globInputPaths: false,
         fix: fixMode || fixAllMode,
         useEslintrc: false,
-        overrideConfigFile: path.join(workspacePath, ".eslintrc.cjs"),
+        overrideConfigFile: eslintConfigFilePath,
         overrideConfig: Object.keys(ruleOverrides).length > 0 ? {rules: ruleOverrides} : {},
         // In fix mode, disable the removal of eslint-disable directives to prevent
         // accidental removal of intentional disable comments
@@ -110,7 +117,7 @@ async function main() {
             // Use a nice, short, relative path instead of a long, obscure, path into a Bazel
             // test sandbox.
             filePath: process.env.RUNFILES
-                ? path.relative(path.join(runfilesPath, "cyberworlds"), result.filePath)
+                ? path.relative(runfilesWorkspacePath, result.filePath)
                 : path.relative(workspacePath, result.filePath),
         });
     }

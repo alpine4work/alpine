@@ -52,7 +52,7 @@ const Box = null;
 function renderMessageStreamNonContentPart(
     get: <Value>(store: Store<Value>) => Value,
     references: ContentReferences,
-    part: Exclude<MessageStreamPartPayload, {type: "Content"}>,
+    part: Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>,
     {
         accountRegistry,
         searchEntityRegistry,
@@ -214,7 +214,7 @@ export function MessageStreamViewNonContentPart({
     part,
 }: {
     references: ContentReferences;
-    part: Exclude<MessageStreamPartPayload, {type: "Content"}>;
+    part: Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>;
 }) {
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();

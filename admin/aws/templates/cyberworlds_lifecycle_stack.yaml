@@ -322,10 +322,6 @@ Resources:
         Type: AWS::S3::Bucket
         Properties:
             BucketName: cyberworlds-bazel-remote
-            LifecycleConfiguration:
-                Rules:
-                    - ExpirationInDays: 14
-                      Status: Enabled
             PublicAccessBlockConfiguration:
                 BlockPublicAcls: true
                 BlockPublicPolicy: true
@@ -1435,6 +1431,39 @@ Resources:
         DeletionPolicy: Delete
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider/AMI Root Device/Default
+    GithubRunnersTestRunnerProviderCloudWatchAgentConfigParamF071BDBE:
+        Type: AWS::SSM::Parameter
+        Properties:
+            Name: /cyberworlds/github-runners/TestRunnerProvider/cloudwatch-agent-config
+            Tier: Standard
+            Type: String
+            Value:
+                Fn::Join:
+                    - ""
+                    - - '{"agent":{"metrics_collection_interval":10},"metrics":{"append_dimensions":{"AutoScalingGroupName":"${aws:AutoScalingGroupName}","InstanceId":"${aws:InstanceId}"},"aggregation_dimensions":[["AutoScalingGroupName"]],"metrics_collected":{"mem":{"measurement":["total","used","used_percent"],"metrics_collection_interval":5},"disk":{"measurement":["used_percent","inodes_free"],"metrics_collection_interval":20,"resources":["/"]},"swap":{"measurement":["used_percent"]}}},"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/var/log/messages","log_group_name":"/ec2/instance/messages","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/syslog","log_group_name":"/ec2/instance/syslog","timezone":"UTC","retention_in_days":14},{"file_path":"/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log","log_group_name":"/ec2/instance/amazon-cloudwatch-agent","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/ecs/ecs-init.log","log_group_name":"/ec2/instance/ecs-agent","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/runner.log","log_group_name":"'
+                      - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
+                      - '","timezone":"UTC","retention_in_days":30}]}}}}'
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerProviderCloudWatchAgentConfigParam/Resource
+    GithubRunnersTestRunnerProviderInstallAndManageCloudWatchAgent1575AA04:
+        Type: AWS::SSM::Association
+        Properties:
+            Name: AWSQuickSetupType-InstallAndManageCloudWatchAgent
+            Parameters:
+                isInstall:
+                    - "false"
+                isConfigure:
+                    - "true"
+                optionalConfigurationSource:
+                    - ssm
+                optionalConfigurationLocation:
+                    - Ref: GithubRunnersTestRunnerProviderCloudWatchAgentConfigParamF071BDBE
+            Targets:
+                - Key: tag:GitHubRunners:Provider
+                  Values:
+                      - CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerProviderInstallAndManageCloudWatchAgent
     GithubRunnersTestRunnerAsgProviderRunnerRole2319DCD2:
         Type: AWS::IAM::Role
         Properties:
@@ -2718,6 +2747,39 @@ Resources:
                 - Ref: GithubRunnersTestRunnerAsgProviderRunnerRole2319DCD2
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider/RunnerInstanceProfile
+    GithubRunnersTestRunnerAsgProviderCloudWatchAgentConfigParam009C9933:
+        Type: AWS::SSM::Parameter
+        Properties:
+            Name: /cyberworlds/github-runners/TestRunnerAsgProvider/cloudwatch-agent-config
+            Tier: Standard
+            Type: String
+            Value:
+                Fn::Join:
+                    - ""
+                    - - '{"agent":{"metrics_collection_interval":10},"metrics":{"append_dimensions":{"AutoScalingGroupName":"${aws:AutoScalingGroupName}","InstanceId":"${aws:InstanceId}"},"aggregation_dimensions":[["AutoScalingGroupName"]],"metrics_collected":{"mem":{"measurement":["total","used","used_percent"],"metrics_collection_interval":5},"disk":{"measurement":["used_percent","inodes_free"],"metrics_collection_interval":20,"resources":["/"]},"swap":{"measurement":["used_percent"]}}},"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/var/log/messages","log_group_name":"/ec2/instance/messages","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/syslog","log_group_name":"/ec2/instance/syslog","timezone":"UTC","retention_in_days":14},{"file_path":"/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log","log_group_name":"/ec2/instance/amazon-cloudwatch-agent","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/ecs/ecs-init.log","log_group_name":"/ec2/instance/ecs-agent","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/runner.log","log_group_name":"'
+                      - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
+                      - '","timezone":"UTC","retention_in_days":30}]}}}}'
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProviderCloudWatchAgentConfigParam/Resource
+    GithubRunnersTestRunnerAsgProviderInstallAndManageCloudWatchAgentC74587DF:
+        Type: AWS::SSM::Association
+        Properties:
+            Name: AWSQuickSetupType-InstallAndManageCloudWatchAgent
+            Parameters:
+                isInstall:
+                    - "false"
+                isConfigure:
+                    - "true"
+                optionalConfigurationSource:
+                    - ssm
+                optionalConfigurationLocation:
+                    - Ref: GithubRunnersTestRunnerAsgProviderCloudWatchAgentConfigParam009C9933
+            Targets:
+                - Key: tag:GitHubRunners:Provider
+                  Values:
+                      - CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProviderInstallAndManageCloudWatchAgent
     GithubRunnersAmiBuilderRunnerImageBuilderSGCACFF36C:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -3734,6 +3796,39 @@ Resources:
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider/AMI Root
                 Device/Default
+    GithubRunnersAmiBuilderRunnerProviderCloudWatchAgentConfigParamF4591C6B:
+        Type: AWS::SSM::Parameter
+        Properties:
+            Name: /cyberworlds/github-runners/AmiBuilderRunnerProvider/cloudwatch-agent-config
+            Tier: Standard
+            Type: String
+            Value:
+                Fn::Join:
+                    - ""
+                    - - '{"agent":{"metrics_collection_interval":10},"metrics":{"append_dimensions":{"AutoScalingGroupName":"${aws:AutoScalingGroupName}","InstanceId":"${aws:InstanceId}"},"aggregation_dimensions":[["AutoScalingGroupName"]],"metrics_collected":{"mem":{"measurement":["total","used","used_percent"],"metrics_collection_interval":5},"disk":{"measurement":["used_percent","inodes_free"],"metrics_collection_interval":20,"resources":["/"]},"swap":{"measurement":["used_percent"]}}},"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/var/log/messages","log_group_name":"/ec2/instance/messages","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/syslog","log_group_name":"/ec2/instance/syslog","timezone":"UTC","retention_in_days":14},{"file_path":"/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log","log_group_name":"/ec2/instance/amazon-cloudwatch-agent","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/ecs/ecs-init.log","log_group_name":"/ec2/instance/ecs-agent","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/runner.log","log_group_name":"'
+                      - Ref: GithubRunnersAmiBuilderRunnerProviderLogsAB79D377
+                      - '","timezone":"UTC","retention_in_days":30}]}}}}'
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProviderCloudWatchAgentConfigParam/Resource
+    GithubRunnersAmiBuilderRunnerProviderInstallAndManageCloudWatchAgentC991A59C:
+        Type: AWS::SSM::Association
+        Properties:
+            Name: AWSQuickSetupType-InstallAndManageCloudWatchAgent
+            Parameters:
+                isInstall:
+                    - "false"
+                isConfigure:
+                    - "true"
+                optionalConfigurationSource:
+                    - ssm
+                optionalConfigurationLocation:
+                    - Ref: GithubRunnersAmiBuilderRunnerProviderCloudWatchAgentConfigParamF4591C6B
+            Targets:
+                - Key: tag:GitHubRunners:Provider
+                  Values:
+                      - CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProviderInstallAndManageCloudWatchAgent
     GithubRunnersDeployRunnerImageBuilderSG3AB6887F:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -4775,6 +4870,39 @@ Resources:
         DeletionPolicy: Delete
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider/AMI Root Device/Default
+    GithubRunnersDeployRunnerProviderCloudWatchAgentConfigParam71E48EA0:
+        Type: AWS::SSM::Parameter
+        Properties:
+            Name: /cyberworlds/github-runners/DeployRunnerProvider/cloudwatch-agent-config
+            Tier: Standard
+            Type: String
+            Value:
+                Fn::Join:
+                    - ""
+                    - - '{"agent":{"metrics_collection_interval":10},"metrics":{"append_dimensions":{"AutoScalingGroupName":"${aws:AutoScalingGroupName}","InstanceId":"${aws:InstanceId}"},"aggregation_dimensions":[["AutoScalingGroupName"]],"metrics_collected":{"mem":{"measurement":["total","used","used_percent"],"metrics_collection_interval":5},"disk":{"measurement":["used_percent","inodes_free"],"metrics_collection_interval":20,"resources":["/"]},"swap":{"measurement":["used_percent"]}}},"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/var/log/messages","log_group_name":"/ec2/instance/messages","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/syslog","log_group_name":"/ec2/instance/syslog","timezone":"UTC","retention_in_days":14},{"file_path":"/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log","log_group_name":"/ec2/instance/amazon-cloudwatch-agent","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/ecs/ecs-init.log","log_group_name":"/ec2/instance/ecs-agent","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/runner.log","log_group_name":"'
+                      - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
+                      - '","timezone":"UTC","retention_in_days":30}]}}}}'
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProviderCloudWatchAgentConfigParam/Resource
+    GithubRunnersDeployRunnerProviderInstallAndManageCloudWatchAgentF63A5278:
+        Type: AWS::SSM::Association
+        Properties:
+            Name: AWSQuickSetupType-InstallAndManageCloudWatchAgent
+            Parameters:
+                isInstall:
+                    - "false"
+                isConfigure:
+                    - "true"
+                optionalConfigurationSource:
+                    - ssm
+                optionalConfigurationLocation:
+                    - Ref: GithubRunnersDeployRunnerProviderCloudWatchAgentConfigParam71E48EA0
+            Targets:
+                - Key: tag:GitHubRunners:Provider
+                  Values:
+                      - CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProviderInstallAndManageCloudWatchAgent
     GithubRunnersSecretsWebhook8D50A82F:
         Type: AWS::SecretsManager::Secret
         Properties:
@@ -5231,17 +5359,26 @@ Resources:
                         oy data\"}],\"Default\":\"Unknown label\"},\"Unknown
                         label\":{\"Type\":\"Succeed\"},\"aws-test
                         data\":{\"Type\":\"Pass\",\"ResultPath\":\"$.ec2\",\"Parameters\":{\"userda\
-                        taTemplate\":\"#!/bin/bash
-                        -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
-                        \\\"\\ngithubDomainPath=\\\"{}\\\"\\nownerPath=\\\"{}\\\"\\nrepoPath=\\\"{}\
-                        \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nlabels=\\\"{}\\\"\\nregistrationURL=\\\
-                        \"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
+                        taTemplate\":\"#!/bin/bash -x\\nset -o
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
+                        \\\"{}\\\"\\ngithubDomainPath=\\\"{}\\\"\\nownerPath=\\\"{}\\\"\\nrepoPath=\
+                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nlabels=\\\"{}\\\"\\nregistrationU\
+                        RL=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
                         --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$(node -e
-                        \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA).alpineRun\
-                        nerTag || ''))\\\")\\\"\\n\\nheartbeat () \\\\{\\n  while true; do\\n    aws
-                        stepfunctions send-task-heartbeat --task-token
-                        \\\"$TASK_TOKEN\\\"\\n    sleep 60\\n  done\\n\\\\}\\nsetup_logs ()
-                        \\\\{\\n  cat <<EOF > /tmp/log.conf || exit 1\\n  \\\\{\\n    \\\"logs\\\":
+                        \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
+                        'null')?.alpineRunnerTag || ''))\\\")\\\"\\nexport
+                        ALPINE_CLOUDWATCH_AGENT_LOG_SETUP=\\\"$(node -e
+                        \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
+                        'null')?.cloudWatchAgentLogSetup || ''))\\\")\\\"\\n\\nheartbeat ()
+                        \\\\{\\n  while true; do\\n    aws stepfunctions send-task-heartbeat
+                        --task-token \\\"$TASK_TOKEN\\\"\\n    sleep
+                        60\\n  done\\n\\\\}\\nsetup_logs () \\\\{\\n  if [
+                        \\\"$ALPINE_CLOUDWATCH_AGENT_LOG_SETUP\\\" = \\\"ssm\\\" ]; then\\n    #
+                        PATCH(imjoshin): Alpine runner instances get their CloudWatch Agent\\n    #
+                        config from a provider-specific SSM association. Avoid a second\\n    #
+                        bootstrap-time fetch-config because the agent merges those files and\\n    #
+                        fails when they both configure metrics.\\n    return 0\\n  fi\\n\\n  cat
+                        <<EOF > /tmp/log.conf || exit 1\\n  \\\\{\\n    \\\"logs\\\":
                         \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
@@ -5261,18 +5398,18 @@ Resources:
                         \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
                         _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
                         \\\"$runnerNamePath\\\" || exit 1\\n\\n  # Execute the run command\\n  sudo
-                        --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG -Hu runner
-                        /home/runner/run.sh || exit 2\\n\\n  # Retrieve the status\\n  STATUS=$(grep
-                        -Phors \\\"finish job request for job [0-9a-f\\\\-]+ with result: K.*\\\"
-                        /home/runner/_diag/ | tail -n1)\\n\\n  # Check and print the job
-                        status\\n  [ -n \\\"$STATUS\\\" ] && echo CDKGHA JOB DONE \\\"$labels\\\"
-                        \\\"$STATUS\\\"\\n\\\\}\\nheartbeat &\\nif setup_logs && action | tee
-                        /var/log/runner.log 2>&1; then\\n  aws stepfunctions send-task-success
-                        --task-token \\\"$TASK_TOKEN\\\" --task-output '\\\\{\\\"ok\\\":
-                        true\\\\}'\\nelse\\n  aws stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give cloudwatch agent its default 5
-                        seconds buffer duration to upload logs\\npoweroff\\n\"},\"Next\":\"aws-test
-                        subnet1\"},\"aws-test
+                        --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_CLOUDWAT\
+                        CH_AGENT_LOG_SETUP -Hu runner /home/runner/run.sh || exit 2\\n\\n  #
+                        Retrieve the status\\n  STATUS=$(grep -Phors \\\"finish job request for job
+                        [0-9a-f\\\\-]+ with result: K.*\\\" /home/runner/_diag/ | tail -n1)\\n\\n  #
+                        Check and print the job status\\n  [ -n \\\"$STATUS\\\" ] && echo CDKGHA JOB
+                        DONE \\\"$labels\\\" \\\"$STATUS\\\"\\n\\\\}\\nheartbeat &\\nif setup_logs
+                        && action 2>&1 | tee /var/log/runner.log; then\\n  aws stepfunctions
+                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
+                        '\\\\{\\\"ok\\\": true\\\\}'\\nelse\\n  aws stepfunctions send-task-failure
+                        --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give cloudwatch agent
+                        its default 5 seconds buffer duration to upload
+                        logs\\npoweroff\\n\"},\"Next\":\"aws-test subnet1\"},\"aws-test
                         subnet1\":{\"End\":true,\"Catch\":[{\"ErrorEquals\":[\"Ec2.Ec2Exception\",\
                         \"States.Timeout\"],\"ResultPath\":\"$.lastSubnetError\",\"Next\":\"aws-test
                         subnet2\"}],\"Type\":\"Task\",\"Comment\":\""
@@ -5287,8 +5424,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"jobQueue\
-                        Url\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"cloudWat\
+                        chAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -5320,7 +5457,7 @@ Resources:
                       - Ref: VpcPublicSubnet1Subnet5C2D37C4
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet2":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet3"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -5334,8 +5471,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"jobQueue\
-                        Url\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"cloudWat\
+                        chAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -5367,7 +5504,7 @@ Resources:
                       - Ref: VpcPublicSubnet2Subnet691E08A3
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet3":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet4"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
@@ -5381,8 +5518,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"jobQueue\
-                        Url\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"cloudWat\
+                        chAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -5414,7 +5551,7 @@ Resources:
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet4":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet5"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
@@ -5428,8 +5565,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"jobQueue\
-                        Url\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"cloudWat\
+                        chAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -5461,7 +5598,7 @@ Resources:
                       - Ref: VpcPublicSubnet4SubnetD274F391
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet5":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet6"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet5Subnet9D29380E
@@ -5475,8 +5612,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"jobQueue\
-                        Url\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"cloudWat\
+                        chAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -5508,7 +5645,7 @@ Resources:
                       - Ref: VpcPublicSubnet5Subnet9D29380E
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet6":{"End":true,"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","HeartbeatSeconds":600,"Resource":"arn:'
@@ -5521,8 +5658,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"jobQueue\
-                        Url\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-test\\\",\\\"cloudWat\
+                        chAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -5554,7 +5691,7 @@ Resources:
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"RunRunnerInSubnet1":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"RunRunnerInSubnet2"}],"Type":"Task","Comment":"'
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":80}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"RunRunnerInSubnet1":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"RunRunnerInSubnet2"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet1Subnet5C2D37C4
                       - '","TimeoutSeconds":21600,"HeartbeatSeconds":600,"Resource":"arn:'
                       - Ref: AWS::Partition
@@ -5562,40 +5699,15 @@ Resources:
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
-                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
-                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
-                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
-                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
-                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\\\"\\nrunnerTokenP\
+                        ath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"{}\\\"\\nrequestedL\
+                        abels=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
+                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
-                        \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
-                        CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
-                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
-                        \\\"unknown\\\",\\n      \\\"logs_collected\\\":
-                        \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
-                        [\\n            \\\\{\\n              \\\"file_path\\\":
-                        \\\"/var/log/runner.log\\\",\\n              \\\"log_group_name\\\":
-                        \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
-                        \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
-                        \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
-                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
-                        association that installs the CloudWatch Agent may also configure it\\n  #
-                        on first boot. Retry through that startup race so transient log setup\\n  #
-                        failures do not make runner startup less reliable than the test
-                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
-                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
-                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
-                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
-                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
-                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
-                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
-                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
-                        Resolve the region from IMDS so the bootstrap can use the instance role
-                        for\\n  # both Step Functions callbacks and the Bazel remote cache
-                        proxy.\\n  metadata_token=$(curl -sS -X PUT
-                        http://169.254.169.254/latest/api/token     -H
+                        \\\"\\n\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from IMDS so
+                        the bootstrap can use the instance role for\\n  # both Step Functions
+                        callbacks and the Bazel remote cache proxy.\\n  metadata_token=$(curl -sS -X
+                        PUT http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
                         AWS_REGION=$(curl -sS -H \\\"x-aws-ec2-metadata-token:
                         $metadata_token\\\"     http://169.254.169.254/latest/dynamic/instance-iden\
@@ -5639,20 +5751,14 @@ Resources:
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
-                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
-                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
-                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
-                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
-                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
-                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
-                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
-                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
-                        stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
-                      - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
-                      - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', $.labels, '"
+                        setup_runtime_env; then\\n  if action 2>&1 | tee /var/log/runner.log;
+                        then\\n    aws stepfunctions send-task-success --task-token
+                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
+                        true\\\\}\\\\'\\n  else\\n    aws stepfunctions send-task-failure
+                        --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep
+                        10\\npoweroff\\n', $$.Task.Token, $$.Execution.Name, $.runner.token,
+                        $.runner.registrationUrl, 'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -5688,7 +5794,7 @@ Resources:
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet1Subnet5C2D37C4
-                      - '","BlockDeviceMappings":[{"DeviceName":"/dev/sda1","Ebs":{"DeleteOnTermination":true,"VolumeSize":80,"VolumeType":"gp3"}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"CloudWatchAgent","Value":"true"},{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]}]}},"RunRunnerInSubnet2":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"RunRunnerInSubnet3"}],"Type":"Task","Comment":"'
+                      - '","BlockDeviceMappings":[{"DeviceName":"/dev/sda1","Ebs":{"DeleteOnTermination":true,"VolumeSize":80,"VolumeType":"gp3"}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]}]}},"RunRunnerInSubnet2":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"RunRunnerInSubnet3"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet2Subnet691E08A3
                       - '","TimeoutSeconds":21600,"HeartbeatSeconds":600,"Resource":"arn:'
                       - Ref: AWS::Partition
@@ -5696,40 +5802,15 @@ Resources:
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
-                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
-                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
-                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
-                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
-                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\\\"\\nrunnerTokenP\
+                        ath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"{}\\\"\\nrequestedL\
+                        abels=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
+                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
-                        \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
-                        CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
-                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
-                        \\\"unknown\\\",\\n      \\\"logs_collected\\\":
-                        \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
-                        [\\n            \\\\{\\n              \\\"file_path\\\":
-                        \\\"/var/log/runner.log\\\",\\n              \\\"log_group_name\\\":
-                        \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
-                        \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
-                        \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
-                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
-                        association that installs the CloudWatch Agent may also configure it\\n  #
-                        on first boot. Retry through that startup race so transient log setup\\n  #
-                        failures do not make runner startup less reliable than the test
-                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
-                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
-                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
-                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
-                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
-                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
-                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
-                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
-                        Resolve the region from IMDS so the bootstrap can use the instance role
-                        for\\n  # both Step Functions callbacks and the Bazel remote cache
-                        proxy.\\n  metadata_token=$(curl -sS -X PUT
-                        http://169.254.169.254/latest/api/token     -H
+                        \\\"\\n\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from IMDS so
+                        the bootstrap can use the instance role for\\n  # both Step Functions
+                        callbacks and the Bazel remote cache proxy.\\n  metadata_token=$(curl -sS -X
+                        PUT http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
                         AWS_REGION=$(curl -sS -H \\\"x-aws-ec2-metadata-token:
                         $metadata_token\\\"     http://169.254.169.254/latest/dynamic/instance-iden\
@@ -5773,20 +5854,14 @@ Resources:
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
-                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
-                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
-                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
-                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
-                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
-                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
-                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
-                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
-                        stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
-                      - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
-                      - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', $.labels, '"
+                        setup_runtime_env; then\\n  if action 2>&1 | tee /var/log/runner.log;
+                        then\\n    aws stepfunctions send-task-success --task-token
+                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
+                        true\\\\}\\\\'\\n  else\\n    aws stepfunctions send-task-failure
+                        --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep
+                        10\\npoweroff\\n', $$.Task.Token, $$.Execution.Name, $.runner.token,
+                        $.runner.registrationUrl, 'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -5822,7 +5897,7 @@ Resources:
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet2Subnet691E08A3
-                      - '","BlockDeviceMappings":[{"DeviceName":"/dev/sda1","Ebs":{"DeleteOnTermination":true,"VolumeSize":80,"VolumeType":"gp3"}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"CloudWatchAgent","Value":"true"},{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]}]}},"RunRunnerInSubnet3":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"RunRunnerInSubnet4"}],"Type":"Task","Comment":"'
+                      - '","BlockDeviceMappings":[{"DeviceName":"/dev/sda1","Ebs":{"DeleteOnTermination":true,"VolumeSize":80,"VolumeType":"gp3"}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]}]}},"RunRunnerInSubnet3":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"RunRunnerInSubnet4"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
                       - '","TimeoutSeconds":21600,"HeartbeatSeconds":600,"Resource":"arn:'
                       - Ref: AWS::Partition
@@ -5830,40 +5905,15 @@ Resources:
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
-                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
-                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
-                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
-                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
-                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\\\"\\nrunnerTokenP\
+                        ath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"{}\\\"\\nrequestedL\
+                        abels=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
+                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
-                        \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
-                        CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
-                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
-                        \\\"unknown\\\",\\n      \\\"logs_collected\\\":
-                        \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
-                        [\\n            \\\\{\\n              \\\"file_path\\\":
-                        \\\"/var/log/runner.log\\\",\\n              \\\"log_group_name\\\":
-                        \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
-                        \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
-                        \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
-                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
-                        association that installs the CloudWatch Agent may also configure it\\n  #
-                        on first boot. Retry through that startup race so transient log setup\\n  #
-                        failures do not make runner startup less reliable than the test
-                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
-                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
-                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
-                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
-                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
-                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
-                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
-                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
-                        Resolve the region from IMDS so the bootstrap can use the instance role
-                        for\\n  # both Step Functions callbacks and the Bazel remote cache
-                        proxy.\\n  metadata_token=$(curl -sS -X PUT
-                        http://169.254.169.254/latest/api/token     -H
+                        \\\"\\n\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from IMDS so
+                        the bootstrap can use the instance role for\\n  # both Step Functions
+                        callbacks and the Bazel remote cache proxy.\\n  metadata_token=$(curl -sS -X
+                        PUT http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
                         AWS_REGION=$(curl -sS -H \\\"x-aws-ec2-metadata-token:
                         $metadata_token\\\"     http://169.254.169.254/latest/dynamic/instance-iden\
@@ -5907,20 +5957,14 @@ Resources:
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
-                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
-                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
-                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
-                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
-                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
-                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
-                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
-                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
-                        stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
-                      - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
-                      - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', $.labels, '"
+                        setup_runtime_env; then\\n  if action 2>&1 | tee /var/log/runner.log;
+                        then\\n    aws stepfunctions send-task-success --task-token
+                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
+                        true\\\\}\\\\'\\n  else\\n    aws stepfunctions send-task-failure
+                        --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep
+                        10\\npoweroff\\n', $$.Task.Token, $$.Execution.Name, $.runner.token,
+                        $.runner.registrationUrl, 'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -5956,7 +6000,7 @@ Resources:
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
-                      - '","BlockDeviceMappings":[{"DeviceName":"/dev/sda1","Ebs":{"DeleteOnTermination":true,"VolumeSize":80,"VolumeType":"gp3"}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"CloudWatchAgent","Value":"true"},{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]}]}},"RunRunnerInSubnet4":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"RunRunnerInSubnet5"}],"Type":"Task","Comment":"'
+                      - '","BlockDeviceMappings":[{"DeviceName":"/dev/sda1","Ebs":{"DeleteOnTermination":true,"VolumeSize":80,"VolumeType":"gp3"}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]}]}},"RunRunnerInSubnet4":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"RunRunnerInSubnet5"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
                       - '","TimeoutSeconds":21600,"HeartbeatSeconds":600,"Resource":"arn:'
                       - Ref: AWS::Partition
@@ -5964,40 +6008,15 @@ Resources:
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
-                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
-                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
-                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
-                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
-                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\\\"\\nrunnerTokenP\
+                        ath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"{}\\\"\\nrequestedL\
+                        abels=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
+                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
-                        \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
-                        CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
-                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
-                        \\\"unknown\\\",\\n      \\\"logs_collected\\\":
-                        \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
-                        [\\n            \\\\{\\n              \\\"file_path\\\":
-                        \\\"/var/log/runner.log\\\",\\n              \\\"log_group_name\\\":
-                        \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
-                        \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
-                        \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
-                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
-                        association that installs the CloudWatch Agent may also configure it\\n  #
-                        on first boot. Retry through that startup race so transient log setup\\n  #
-                        failures do not make runner startup less reliable than the test
-                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
-                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
-                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
-                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
-                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
-                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
-                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
-                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
-                        Resolve the region from IMDS so the bootstrap can use the instance role
-                        for\\n  # both Step Functions callbacks and the Bazel remote cache
-                        proxy.\\n  metadata_token=$(curl -sS -X PUT
-                        http://169.254.169.254/latest/api/token     -H
+                        \\\"\\n\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from IMDS so
+                        the bootstrap can use the instance role for\\n  # both Step Functions
+                        callbacks and the Bazel remote cache proxy.\\n  metadata_token=$(curl -sS -X
+                        PUT http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
                         AWS_REGION=$(curl -sS -H \\\"x-aws-ec2-metadata-token:
                         $metadata_token\\\"     http://169.254.169.254/latest/dynamic/instance-iden\
@@ -6041,20 +6060,14 @@ Resources:
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
-                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
-                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
-                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
-                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
-                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
-                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
-                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
-                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
-                        stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
-                      - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
-                      - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', $.labels, '"
+                        setup_runtime_env; then\\n  if action 2>&1 | tee /var/log/runner.log;
+                        then\\n    aws stepfunctions send-task-success --task-token
+                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
+                        true\\\\}\\\\'\\n  else\\n    aws stepfunctions send-task-failure
+                        --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep
+                        10\\npoweroff\\n', $$.Task.Token, $$.Execution.Name, $.runner.token,
+                        $.runner.registrationUrl, 'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -6090,7 +6103,7 @@ Resources:
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
-                      - '","BlockDeviceMappings":[{"DeviceName":"/dev/sda1","Ebs":{"DeleteOnTermination":true,"VolumeSize":80,"VolumeType":"gp3"}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"CloudWatchAgent","Value":"true"},{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]}]}},"RunRunnerInSubnet5":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"RunRunnerInSubnet6"}],"Type":"Task","Comment":"'
+                      - '","BlockDeviceMappings":[{"DeviceName":"/dev/sda1","Ebs":{"DeleteOnTermination":true,"VolumeSize":80,"VolumeType":"gp3"}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]}]}},"RunRunnerInSubnet5":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"RunRunnerInSubnet6"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet5Subnet9D29380E
                       - '","TimeoutSeconds":21600,"HeartbeatSeconds":600,"Resource":"arn:'
                       - Ref: AWS::Partition
@@ -6098,40 +6111,15 @@ Resources:
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
-                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
-                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
-                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
-                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
-                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\\\"\\nrunnerTokenP\
+                        ath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"{}\\\"\\nrequestedL\
+                        abels=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
+                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
-                        \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
-                        CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
-                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
-                        \\\"unknown\\\",\\n      \\\"logs_collected\\\":
-                        \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
-                        [\\n            \\\\{\\n              \\\"file_path\\\":
-                        \\\"/var/log/runner.log\\\",\\n              \\\"log_group_name\\\":
-                        \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
-                        \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
-                        \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
-                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
-                        association that installs the CloudWatch Agent may also configure it\\n  #
-                        on first boot. Retry through that startup race so transient log setup\\n  #
-                        failures do not make runner startup less reliable than the test
-                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
-                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
-                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
-                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
-                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
-                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
-                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
-                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
-                        Resolve the region from IMDS so the bootstrap can use the instance role
-                        for\\n  # both Step Functions callbacks and the Bazel remote cache
-                        proxy.\\n  metadata_token=$(curl -sS -X PUT
-                        http://169.254.169.254/latest/api/token     -H
+                        \\\"\\n\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from IMDS so
+                        the bootstrap can use the instance role for\\n  # both Step Functions
+                        callbacks and the Bazel remote cache proxy.\\n  metadata_token=$(curl -sS -X
+                        PUT http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
                         AWS_REGION=$(curl -sS -H \\\"x-aws-ec2-metadata-token:
                         $metadata_token\\\"     http://169.254.169.254/latest/dynamic/instance-iden\
@@ -6175,20 +6163,14 @@ Resources:
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
-                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
-                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
-                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
-                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
-                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
-                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
-                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
-                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
-                        stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
-                      - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
-                      - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', $.labels, '"
+                        setup_runtime_env; then\\n  if action 2>&1 | tee /var/log/runner.log;
+                        then\\n    aws stepfunctions send-task-success --task-token
+                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
+                        true\\\\}\\\\'\\n  else\\n    aws stepfunctions send-task-failure
+                        --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep
+                        10\\npoweroff\\n', $$.Task.Token, $$.Execution.Name, $.runner.token,
+                        $.runner.registrationUrl, 'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -6224,7 +6206,7 @@ Resources:
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet5Subnet9D29380E
-                      - '","BlockDeviceMappings":[{"DeviceName":"/dev/sda1","Ebs":{"DeleteOnTermination":true,"VolumeSize":80,"VolumeType":"gp3"}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"CloudWatchAgent","Value":"true"},{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]}]}},"RunRunnerInSubnet6":{"End":true,"Type":"Task","Comment":"'
+                      - '","BlockDeviceMappings":[{"DeviceName":"/dev/sda1","Ebs":{"DeleteOnTermination":true,"VolumeSize":80,"VolumeType":"gp3"}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider"}]}]}},"RunRunnerInSubnet6":{"End":true,"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","TimeoutSeconds":21600,"HeartbeatSeconds":600,"Resource":"arn:'
                       - Ref: AWS::Partition
@@ -6232,40 +6214,15 @@ Resources:
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
-                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
-                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
-                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
-                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
-                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\\\"\\nrunnerTokenP\
+                        ath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"{}\\\"\\nrequestedL\
+                        abels=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
+                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
-                        \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
-                        CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
-                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
-                        \\\"unknown\\\",\\n      \\\"logs_collected\\\":
-                        \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
-                        [\\n            \\\\{\\n              \\\"file_path\\\":
-                        \\\"/var/log/runner.log\\\",\\n              \\\"log_group_name\\\":
-                        \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
-                        \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
-                        \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
-                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
-                        association that installs the CloudWatch Agent may also configure it\\n  #
-                        on first boot. Retry through that startup race so transient log setup\\n  #
-                        failures do not make runner startup less reliable than the test
-                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
-                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
-                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
-                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
-                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
-                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
-                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
-                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
-                        Resolve the region from IMDS so the bootstrap can use the instance role
-                        for\\n  # both Step Functions callbacks and the Bazel remote cache
-                        proxy.\\n  metadata_token=$(curl -sS -X PUT
-                        http://169.254.169.254/latest/api/token     -H
+                        \\\"\\n\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from IMDS so
+                        the bootstrap can use the instance role for\\n  # both Step Functions
+                        callbacks and the Bazel remote cache proxy.\\n  metadata_token=$(curl -sS -X
+                        PUT http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
                         AWS_REGION=$(curl -sS -H \\\"x-aws-ec2-metadata-token:
                         $metadata_token\\\"     http://169.254.169.254/latest/dynamic/instance-iden\
@@ -6309,20 +6266,14 @@ Resources:
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
-                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
-                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
-                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
-                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
-                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
-                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
-                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
-                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
-                        stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
-                      - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
-                      - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', $.labels, '"
+                        setup_runtime_env; then\\n  if action 2>&1 | tee /var/log/runner.log;
+                        then\\n    aws stepfunctions send-task-success --task-token
+                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
+                        true\\\\}\\\\'\\n  else\\n    aws stepfunctions send-task-failure
+                        --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep
+                        10\\npoweroff\\n', $$.Task.Token, $$.Execution.Name, $.runner.token,
+                        $.runner.registrationUrl, 'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -6360,24 +6311,32 @@ Resources:
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - "\",\"BlockDeviceMappings\":[{\"DeviceName\":\"/dev/sda1\",\"Ebs\":{\"Delet\
                         eOnTermination\":true,\"VolumeSize\":80,\"VolumeType\":\"gp3\"}}],\"TagSpec\
-                        ifications\":[{\"ResourceType\":\"instance\",\"Tags\":[{\"Key\":\"CloudWatc\
-                        hAgent\",\"Value\":\"true\"},{\"Key\":\"GitHubRunners:Provider\",\"Value\":\
-                        \"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider\"}]},{\"Res\
-                        ourceType\":\"volume\",\"Tags\":[{\"Key\":\"GitHubRunners:Provider\",\"Value\
-                        \":\"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider\"}]}]}},\
-                        \"aws-ami-builder
+                        ifications\":[{\"ResourceType\":\"instance\",\"Tags\":[{\"Key\":\"GitHubRun\
+                        ners:Provider\",\"Value\":\"CyberworldsLifecycleStack/GithubRunners/TestRun\
+                        nerAsgProvider\"}]},{\"ResourceType\":\"volume\",\"Tags\":[{\"Key\":\"GitHu\
+                        bRunners:Provider\",\"Value\":\"CyberworldsLifecycleStack/GithubRunners/Tes\
+                        tRunnerAsgProvider\"}]}]}},\"aws-ami-builder
                         data\":{\"Type\":\"Pass\",\"ResultPath\":\"$.ec2\",\"Parameters\":{\"userda\
-                        taTemplate\":\"#!/bin/bash
-                        -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
-                        \\\"\\ngithubDomainPath=\\\"{}\\\"\\nownerPath=\\\"{}\\\"\\nrepoPath=\\\"{}\
-                        \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nlabels=\\\"{}\\\"\\nregistrationURL=\\\
-                        \"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
+                        taTemplate\":\"#!/bin/bash -x\\nset -o
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
+                        \\\"{}\\\"\\ngithubDomainPath=\\\"{}\\\"\\nownerPath=\\\"{}\\\"\\nrepoPath=\
+                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nlabels=\\\"{}\\\"\\nregistrationU\
+                        RL=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
                         --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$(node -e
-                        \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA).alpineRun\
-                        nerTag || ''))\\\")\\\"\\n\\nheartbeat () \\\\{\\n  while true; do\\n    aws
-                        stepfunctions send-task-heartbeat --task-token
-                        \\\"$TASK_TOKEN\\\"\\n    sleep 60\\n  done\\n\\\\}\\nsetup_logs ()
-                        \\\\{\\n  cat <<EOF > /tmp/log.conf || exit 1\\n  \\\\{\\n    \\\"logs\\\":
+                        \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
+                        'null')?.alpineRunnerTag || ''))\\\")\\\"\\nexport
+                        ALPINE_CLOUDWATCH_AGENT_LOG_SETUP=\\\"$(node -e
+                        \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
+                        'null')?.cloudWatchAgentLogSetup || ''))\\\")\\\"\\n\\nheartbeat ()
+                        \\\\{\\n  while true; do\\n    aws stepfunctions send-task-heartbeat
+                        --task-token \\\"$TASK_TOKEN\\\"\\n    sleep
+                        60\\n  done\\n\\\\}\\nsetup_logs () \\\\{\\n  if [
+                        \\\"$ALPINE_CLOUDWATCH_AGENT_LOG_SETUP\\\" = \\\"ssm\\\" ]; then\\n    #
+                        PATCH(imjoshin): Alpine runner instances get their CloudWatch Agent\\n    #
+                        config from a provider-specific SSM association. Avoid a second\\n    #
+                        bootstrap-time fetch-config because the agent merges those files and\\n    #
+                        fails when they both configure metrics.\\n    return 0\\n  fi\\n\\n  cat
+                        <<EOF > /tmp/log.conf || exit 1\\n  \\\\{\\n    \\\"logs\\\":
                         \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
@@ -6397,17 +6356,17 @@ Resources:
                         \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
                         _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
                         \\\"$runnerNamePath\\\" || exit 1\\n\\n  # Execute the run command\\n  sudo
-                        --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG -Hu runner
-                        /home/runner/run.sh || exit 2\\n\\n  # Retrieve the status\\n  STATUS=$(grep
-                        -Phors \\\"finish job request for job [0-9a-f\\\\-]+ with result: K.*\\\"
-                        /home/runner/_diag/ | tail -n1)\\n\\n  # Check and print the job
-                        status\\n  [ -n \\\"$STATUS\\\" ] && echo CDKGHA JOB DONE \\\"$labels\\\"
-                        \\\"$STATUS\\\"\\n\\\\}\\nheartbeat &\\nif setup_logs && action | tee
-                        /var/log/runner.log 2>&1; then\\n  aws stepfunctions send-task-success
-                        --task-token \\\"$TASK_TOKEN\\\" --task-output '\\\\{\\\"ok\\\":
-                        true\\\\}'\\nelse\\n  aws stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give cloudwatch agent its default 5
-                        seconds buffer duration to upload
+                        --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_CLOUDWAT\
+                        CH_AGENT_LOG_SETUP -Hu runner /home/runner/run.sh || exit 2\\n\\n  #
+                        Retrieve the status\\n  STATUS=$(grep -Phors \\\"finish job request for job
+                        [0-9a-f\\\\-]+ with result: K.*\\\" /home/runner/_diag/ | tail -n1)\\n\\n  #
+                        Check and print the job status\\n  [ -n \\\"$STATUS\\\" ] && echo CDKGHA JOB
+                        DONE \\\"$labels\\\" \\\"$STATUS\\\"\\n\\\\}\\nheartbeat &\\nif setup_logs
+                        && action 2>&1 | tee /var/log/runner.log; then\\n  aws stepfunctions
+                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
+                        '\\\\{\\\"ok\\\": true\\\\}'\\nelse\\n  aws stepfunctions send-task-failure
+                        --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give cloudwatch agent
+                        its default 5 seconds buffer duration to upload
                         logs\\npoweroff\\n\"},\"Next\":\"aws-ami-builder
                         subnet1\"},\"aws-ami-builder
                         subnet1\":{\"End\":true,\"Catch\":[{\"ErrorEquals\":[\"Ec2.Ec2Exception\",\
@@ -6424,8 +6383,8 @@ Resources:
                       - Ref: GithubRunnersAmiBuilderRunnerProviderLogsAB79D377
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-ami-builder', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"j\
-                        obQueueUrl\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"c\
+                        loudWatchAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -6471,8 +6430,8 @@ Resources:
                       - Ref: GithubRunnersAmiBuilderRunnerProviderLogsAB79D377
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-ami-builder', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"j\
-                        obQueueUrl\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"c\
+                        loudWatchAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -6518,8 +6477,8 @@ Resources:
                       - Ref: GithubRunnersAmiBuilderRunnerProviderLogsAB79D377
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-ami-builder', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"j\
-                        obQueueUrl\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"c\
+                        loudWatchAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -6565,8 +6524,8 @@ Resources:
                       - Ref: GithubRunnersAmiBuilderRunnerProviderLogsAB79D377
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-ami-builder', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"j\
-                        obQueueUrl\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"c\
+                        loudWatchAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -6612,8 +6571,8 @@ Resources:
                       - Ref: GithubRunnersAmiBuilderRunnerProviderLogsAB79D377
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-ami-builder', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"j\
-                        obQueueUrl\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"c\
+                        loudWatchAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -6658,8 +6617,8 @@ Resources:
                       - Ref: GithubRunnersAmiBuilderRunnerProviderLogsAB79D377
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-ami-builder', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"j\
-                        obQueueUrl\\\":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-ami-builder\\\",\\\"c\
+                        loudWatchAgentLogSetup\\\":\\\"ssm\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -6698,17 +6657,26 @@ Resources:
                         bRunners:Provider\",\"Value\":\"CyberworldsLifecycleStack/GithubRunners/Ami\
                         BuilderRunnerProvider\"}]}]}},\"aws-deploy
                         data\":{\"Type\":\"Pass\",\"ResultPath\":\"$.ec2\",\"Parameters\":{\"userda\
-                        taTemplate\":\"#!/bin/bash
-                        -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
-                        \\\"\\ngithubDomainPath=\\\"{}\\\"\\nownerPath=\\\"{}\\\"\\nrepoPath=\\\"{}\
-                        \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nlabels=\\\"{}\\\"\\nregistrationURL=\\\
-                        \"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
+                        taTemplate\":\"#!/bin/bash -x\\nset -o
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
+                        \\\"{}\\\"\\ngithubDomainPath=\\\"{}\\\"\\nownerPath=\\\"{}\\\"\\nrepoPath=\
+                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nlabels=\\\"{}\\\"\\nregistrationU\
+                        RL=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
                         --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$(node -e
-                        \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA).alpineRun\
-                        nerTag || ''))\\\")\\\"\\n\\nheartbeat () \\\\{\\n  while true; do\\n    aws
-                        stepfunctions send-task-heartbeat --task-token
-                        \\\"$TASK_TOKEN\\\"\\n    sleep 60\\n  done\\n\\\\}\\nsetup_logs ()
-                        \\\\{\\n  cat <<EOF > /tmp/log.conf || exit 1\\n  \\\\{\\n    \\\"logs\\\":
+                        \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
+                        'null')?.alpineRunnerTag || ''))\\\")\\\"\\nexport
+                        ALPINE_CLOUDWATCH_AGENT_LOG_SETUP=\\\"$(node -e
+                        \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
+                        'null')?.cloudWatchAgentLogSetup || ''))\\\")\\\"\\n\\nheartbeat ()
+                        \\\\{\\n  while true; do\\n    aws stepfunctions send-task-heartbeat
+                        --task-token \\\"$TASK_TOKEN\\\"\\n    sleep
+                        60\\n  done\\n\\\\}\\nsetup_logs () \\\\{\\n  if [
+                        \\\"$ALPINE_CLOUDWATCH_AGENT_LOG_SETUP\\\" = \\\"ssm\\\" ]; then\\n    #
+                        PATCH(imjoshin): Alpine runner instances get their CloudWatch Agent\\n    #
+                        config from a provider-specific SSM association. Avoid a second\\n    #
+                        bootstrap-time fetch-config because the agent merges those files and\\n    #
+                        fails when they both configure metrics.\\n    return 0\\n  fi\\n\\n  cat
+                        <<EOF > /tmp/log.conf || exit 1\\n  \\\\{\\n    \\\"logs\\\":
                         \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
@@ -6728,17 +6696,17 @@ Resources:
                         \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
                         _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
                         \\\"$runnerNamePath\\\" || exit 1\\n\\n  # Execute the run command\\n  sudo
-                        --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG -Hu runner
-                        /home/runner/run.sh || exit 2\\n\\n  # Retrieve the status\\n  STATUS=$(grep
-                        -Phors \\\"finish job request for job [0-9a-f\\\\-]+ with result: K.*\\\"
-                        /home/runner/_diag/ | tail -n1)\\n\\n  # Check and print the job
-                        status\\n  [ -n \\\"$STATUS\\\" ] && echo CDKGHA JOB DONE \\\"$labels\\\"
-                        \\\"$STATUS\\\"\\n\\\\}\\nheartbeat &\\nif setup_logs && action | tee
-                        /var/log/runner.log 2>&1; then\\n  aws stepfunctions send-task-success
-                        --task-token \\\"$TASK_TOKEN\\\" --task-output '\\\\{\\\"ok\\\":
-                        true\\\\}'\\nelse\\n  aws stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give cloudwatch agent its default 5
-                        seconds buffer duration to upload
+                        --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_CLOUDWAT\
+                        CH_AGENT_LOG_SETUP -Hu runner /home/runner/run.sh || exit 2\\n\\n  #
+                        Retrieve the status\\n  STATUS=$(grep -Phors \\\"finish job request for job
+                        [0-9a-f\\\\-]+ with result: K.*\\\" /home/runner/_diag/ | tail -n1)\\n\\n  #
+                        Check and print the job status\\n  [ -n \\\"$STATUS\\\" ] && echo CDKGHA JOB
+                        DONE \\\"$labels\\\" \\\"$STATUS\\\"\\n\\\\}\\nheartbeat &\\nif setup_logs
+                        && action 2>&1 | tee /var/log/runner.log; then\\n  aws stepfunctions
+                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
+                        '\\\\{\\\"ok\\\": true\\\\}'\\nelse\\n  aws stepfunctions send-task-failure
+                        --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give cloudwatch agent
+                        its default 5 seconds buffer duration to upload
                         logs\\npoweroff\\n\"},\"Next\":\"aws-deploy subnet1\"},\"aws-deploy
                         subnet1\":{\"End\":true,\"Catch\":[{\"ErrorEquals\":[\"Ec2.Ec2Exception\",\
                         \"States.Timeout\"],\"ResultPath\":\"$.lastSubnetError\",\"Next\":\"aws-dep\
@@ -6754,9 +6722,9 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudf\
-                        lareAccountId\\\":\\\"d496846050bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\
-                        \":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudW\
+                        atchAgentLogSetup\\\":\\\"ssm\\\",\\\"cloudflareAccountId\\\":\\\"d49684605\
+                        0bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -6848,7 +6816,7 @@ Resources:
                       - Ref: VpcPublicSubnet1Subnet5C2D37C4
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
                         subnet2":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-deploy
                         subnet3"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -6862,9 +6830,9 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudf\
-                        lareAccountId\\\":\\\"d496846050bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\
-                        \":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudW\
+                        atchAgentLogSetup\\\":\\\"ssm\\\",\\\"cloudflareAccountId\\\":\\\"d49684605\
+                        0bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -6956,7 +6924,7 @@ Resources:
                       - Ref: VpcPublicSubnet2Subnet691E08A3
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
                         subnet3":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-deploy
                         subnet4"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
@@ -6970,9 +6938,9 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudf\
-                        lareAccountId\\\":\\\"d496846050bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\
-                        \":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudW\
+                        atchAgentLogSetup\\\":\\\"ssm\\\",\\\"cloudflareAccountId\\\":\\\"d49684605\
+                        0bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -7064,7 +7032,7 @@ Resources:
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
                         subnet4":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-deploy
                         subnet5"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
@@ -7078,9 +7046,9 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudf\
-                        lareAccountId\\\":\\\"d496846050bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\
-                        \":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudW\
+                        atchAgentLogSetup\\\":\\\"ssm\\\",\\\"cloudflareAccountId\\\":\\\"d49684605\
+                        0bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -7172,7 +7140,7 @@ Resources:
                       - Ref: VpcPublicSubnet4SubnetD274F391
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
                         subnet5":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-deploy
                         subnet6"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet5Subnet9D29380E
@@ -7186,9 +7154,9 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudf\
-                        lareAccountId\\\":\\\"d496846050bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\
-                        \":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudW\
+                        atchAgentLogSetup\\\":\\\"ssm\\\",\\\"cloudflareAccountId\\\":\\\"d49684605\
+                        0bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -7280,7 +7248,7 @@ Resources:
                       - Ref: VpcPublicSubnet5Subnet9D29380E
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
                         subnet6":{"End":true,"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","HeartbeatSeconds":600,"Resource":"arn:'
@@ -7293,9 +7261,9 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudf\
-                        lareAccountId\\\":\\\"d496846050bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\
-                        \":\\\"https://sqs."
+                        States.Base64Encode('{\\\"alpineRunnerTag\\\":\\\"aws-deploy\\\",\\\"cloudW\
+                        atchAgentLogSetup\\\":\\\"ssm\\\",\\\"cloudflareAccountId\\\":\\\"d49684605\
+                        0bfc973d24617456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -7387,7 +7355,7 @@ Resources:
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}}}}]},"Delete
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}}}}]},"Delete
                         Failed
                         Runner":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["RunnerBusy"],"IntervalSeconds":60,"MaxAttempts":60,"BackoffRate":1}],"Type":"Task","ResultPath":"$.delete","Resource":"'
                       - Fn::GetAtt:

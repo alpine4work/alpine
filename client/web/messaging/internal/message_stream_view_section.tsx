@@ -30,7 +30,9 @@ const Box = null;
 export type MessageStreamSection = {
     readonly posAttributeOffset: number;
     readonly startTime: Date;
-    readonly nonContentParts: ReadonlyArray<Exclude<MessageStreamPartPayload, {type: "Content"}>>;
+    readonly nonContentParts: ReadonlyArray<
+        Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>
+    >;
     readonly contentStartTime: Date | null;
     readonly contentParts: ReadonlyArray<MessageStreamContentPartPayload>;
 };

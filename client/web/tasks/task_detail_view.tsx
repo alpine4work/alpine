@@ -56,6 +56,7 @@ import {useMessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/web/messaging/message_view.js";
 import {MessagingViewPointerToolbar} from "~/client/web/messaging/messaging_view_pointer_toolbar.js";
+import {OnPutMessageApprovalDecisionsFunction} from "~/client/web/messaging/on_put_message_approval_decisions_function.js";
 import {
     getMessageListItemKey,
     renderMessageListItem,
@@ -206,6 +207,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
@@ -287,6 +289,7 @@ export function TaskDetailView({
     affinityManager,
     shouldInitiallyFocus,
     initialComments,
+    initialMessageDraft,
     initialScrollToCommentIndex,
     commitActionTransactionAndCreateIfNeeded,
     shareActivationHint,
@@ -317,6 +320,7 @@ export function TaskDetailView({
         comments: ReadonlyArray<TaskCommentModel>;
         otherReferencedComments: ReadonlyArray<TaskCommentModel>;
     };
+    initialMessageDraft: MessageDraftWithFiles;
     initialScrollToCommentIndex: number | null;
     commitActionTransactionAndCreateIfNeeded: Memo<
         (
@@ -1556,6 +1560,17 @@ export function TaskDetailView({
         [setCommentsOptimistically],
     );
 
+    const handlePutCommentApprovalDecisions: Memo<OnPutMessageApprovalDecisionsFunction<TaskId>> =
+        useCallback(
+            async (taskId, input) => {
+                await procedures.putCommentApprovalDecisions({
+                    commentIndex: input.messageIndex,
+                    payload: input.payload,
+                });
+            },
+            [procedures],
+        );
+
     const commentsPointerToolbar = (
         <MessagingViewPointerToolbar<TaskId, TaskCommentModel>
             viewRef={viewRef}
@@ -2443,6 +2458,8 @@ export function TaskDetailView({
                     onSetMessageReaction: handleSetCommentReaction,
                     onDeleteMessageReaction: handleDeleteCommentReaction,
                     onUpdateMessagesOptimistically: handleUpdateCommentsOptimistically,
+                    onPutMessageApprovalDecisions: handlePutCommentApprovalDecisions,
+                    approvalSessionNoun: "task",
                     shouldAddMarginTop: index === 0 ? postContentViewCommentMargin : false,
                     shouldAddMarginBottom: index === commentsItemCount - 1,
                     render: node => (
@@ -2483,6 +2500,7 @@ export function TaskDetailView({
                 const inputNode = (
                     <TaskCommentInput
                         isGhostTask={!taskSubscription}
+                        taskId={possiblyGhostTaskId}
                         inputRef={commentInputRef}
                         procedures={procedures}
                         fileAttachmentTarget={commentsFileAttachmentTarget}
@@ -2491,8 +2509,10 @@ export function TaskDetailView({
                         commentEditing={commentEditing}
                         parent={commentInputParent}
                         onParentClear={() => setCommentInputParent(null)}
+                        onParentChange={setCommentInputParent}
                         onJumpToCommentRange={jumpToCommentRange}
                         ensureCreateTask={ensureCreateTask}
+                        messageDraft={initialMessageDraft}
                     />
                 );
 
@@ -2582,6 +2602,7 @@ export function TaskDetailView({
             store,
             taskSubscription,
             initialFields,
+            initialMessageDraft,
             hasEditAccessLevel,
             isCreatedCollectionPrivate,
             focusChildrenGridViewStart,
@@ -2611,6 +2632,7 @@ export function TaskDetailView({
             handleSetCommentReaction,
             handleDeleteCommentReaction,
             handleUpdateCommentsOptimistically,
+            handlePutCommentApprovalDecisions,
             procedures,
             setComments,
         ],

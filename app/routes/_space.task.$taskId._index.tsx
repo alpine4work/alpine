@@ -42,6 +42,7 @@ import {normalizeTaskDetailViewQuery} from "~/client/web/tasks/normalize_task_de
 import {TaskDetailView} from "~/client/web/tasks/task_detail_view.js";
 import {taskDetailViewLoadMoreChildTasksLimit} from "~/client/web/tasks/task_detail_view_load_more_child_tasks_limit.js";
 import {TaskGridViewDndContext} from "~/client/web/tasks/task_grid_view_dnd_context.js";
+import {getMessageDraft} from "~/server/messaging/drafts/get_message_draft.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -72,6 +73,10 @@ import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {AccountId, BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    MessageDraftWithFilesSchema,
+    emptyMessageDraftWithFiles,
+} from "~/shared/messaging/message_draft_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -132,6 +137,7 @@ const LoaderSchema = Schema.object({
     }),
     inboxEntry: createRynamoItemSchema(InboxEntryModelSchema).nullable(),
     isFavorite: Schema.boolean,
+    messageDraft: MessageDraftWithFilesSchema,
     initialFieldsAssignee: AccountModel.schema.nullable(),
     filterReferences: TaskQueryFilterReferencesSchema,
 });
@@ -266,6 +272,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             loadQueriesOutputResult,
             inboxEntry,
             isFavorite,
+            messageDraft,
             initialFieldsAssignee,
             initialFieldsLoadQueriesOutput,
             filterReferences,
@@ -336,6 +343,14 @@ export async function loader({params, context: unauthenticatedContext, request}:
                     spaceId,
                     entityId: `Task:${taskId}`,
                 }),
+                // Ghost tasks (`?create=`) don't persist comment drafts on the client, so skip
+                // loading a draft from the server.
+                !isCreatingTask && isSpaceAccessAuthorized
+                    ? getMessageDraft(context.actor.authorizeSession(), {
+                          spaceId,
+                          surface: {type: "TaskComment", taskId},
+                      })
+                    : emptyMessageDraftWithFiles,
 
                 // Load data needed for initial fields.
                 initialFields?.assigneeId
@@ -431,6 +446,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             },
             inboxEntry,
             isFavorite,
+            messageDraft,
             initialFieldsAssignee,
             filterReferences,
         },
@@ -524,6 +540,7 @@ function TaskRouteInner() {
         initialComments,
         inboxEntry,
         isFavorite: initialIsFavorite,
+        messageDraft,
         initialFieldsAssignee,
         filterReferences: initialFilterReferences,
     } = useLoaderDataWithSchema(LoaderSchema);
@@ -1063,6 +1080,7 @@ function TaskRouteInner() {
                 affinityManager={affinityManager}
                 shouldInitiallyFocus={shouldInitiallyFocus}
                 initialComments={initialComments}
+                initialMessageDraft={messageDraft}
                 initialScrollToCommentIndex={initialScrollToCommentIndex}
                 shareActivationHint={
                     // If we're going to show the share activation hint after some editing we need to

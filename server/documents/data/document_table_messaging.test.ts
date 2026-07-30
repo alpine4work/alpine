@@ -19,6 +19,7 @@ import {
     getDocumentWithOptionalComments,
     getDocumentsTableForTest,
     pingDocumentCommentStream,
+    putDocumentCommentMessageApprovalDecisions,
     putDocumentCommentStreamPart,
     setDocumentCommentReaction,
     updateDocumentCommentContent,
@@ -267,7 +268,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     },
     async pingMessageStream(context, {roomKey, messageIndex}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-        return pingDocumentCommentStream(context, {
+        return await pingDocumentCommentStream(context, {
             documentId,
             commentThreadId,
             commentIndex: messageIndex,
@@ -288,10 +289,21 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             isTimeoutErrorCompletion,
         });
     },
+    async putMessageApprovalDecisions(context, {roomKey, messageIndex: commentIndex, payload}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+        const {approvals} = await putDocumentCommentMessageApprovalDecisions(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+            payload,
+        });
+
+        return {approvals};
+    },
     async completeMessageStream(context, {roomKey, messageIndex: commentIndex}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return completeDocumentCommentStream(context, {
+        return await completeDocumentCommentStream(context, {
             documentId,
             commentThreadId,
             commentIndex,
@@ -300,12 +312,12 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     async getMessage(context, {roomKey, messageIndex: commentIndex}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return getDocumentComment(context, {documentId, commentThreadId, commentIndex});
+        return await getDocumentComment(context, {documentId, commentThreadId, commentIndex});
     },
     async getMessagePayload(context, {roomKey, messageIndex: commentIndex}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return getDocumentCommentPayload(context, {
+        return await getDocumentCommentPayload(context, {
             documentId,
             commentThreadId,
             commentIndex,
@@ -314,7 +326,9 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     async getMessageParentContent(context, {roomKey, parent}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return getDocumentCommentParentContent(context, documentId, commentThreadId, {parent});
+        return await getDocumentCommentParentContent(context, documentId, commentThreadId, {
+            parent,
+        });
     },
     async updateMessageContent(
         context,
@@ -322,7 +336,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     ) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return updateDocumentCommentContent(context, {
+        return await updateDocumentCommentContent(context, {
             documentId,
             commentThreadId,
             commentIndex,
@@ -333,7 +347,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     async deleteMessage(context, {roomKey, messageIndex: commentIndex}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
+        return await deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
     },
     async setMessageReaction(
         context,
@@ -341,7 +355,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     ) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return setDocumentCommentReaction(context, {
+        return await setDocumentCommentReaction(context, {
             documentId,
             commentThreadId,
             commentIndex,
@@ -356,7 +370,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     ) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return deleteDocumentCommentReaction(context, {
+        return await deleteDocumentCommentReaction(context, {
             documentId,
             commentThreadId,
             commentIndex,

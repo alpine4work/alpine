@@ -14,7 +14,13 @@ import {
     ApiMentionReferenceResponse,
     ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentResponse,
+<<<<<<< HEAD
+    ApiMessageExperimentalApprovalDecisionOption,
+    ApiMessageExperimentalApprovalDecisionValue,
+    ApiMessageStreamToolCallPartCreateCallTarget,
+=======
     ApiMessageStreamToolCallPartCreateCallReference,
+>>>>>>> c7692bea3 (Agent web)
     ApiSearchResult,
     ApiSearchResultBodyMatch,
     ApiSearchResultParsedFilter,
@@ -138,5 +144,12 @@ test("`ApiContentPreviewBlockElementResponseWithoutKeys` is assignable to messag
     assertAssignableTypes<
         ApiContentPreviewBlockElementResponseWithoutKeys,
         ApiMessageContentPayloadFileResponse["element"]
+    >();
+});
+
+test("`ApiMessageExperimentalApprovalDecisionValue` is assignable to `ApiMessageExperimentalApprovalDecisionOption`", () => {
+    assertAssignableTypes<
+        ApiMessageExperimentalApprovalDecisionValue,
+        ApiMessageExperimentalApprovalDecisionOption
     >();
 });

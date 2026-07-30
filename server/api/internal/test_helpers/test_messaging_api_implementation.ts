@@ -13,11 +13,17 @@ import {
     ApiMessageRoomPath,
     parseApiMessageRoomPath,
 } from "~/shared/api/specification/parse_api_path.js";
+import {
+    ApiMessageExperimentalApprovalDecisionOption,
+    ApiMessageExperimentalApprovalDecisionValue,
+    ApiMessageStreamApprovalsPartPayload,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -3742,6 +3748,533 @@ export function testMessagingApiImplementation(
                             }),
                         }),
                     }),
+                });
+            });
+
+            describe("approvals", () => {
+                const defaultApprovalDecisionOptions: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOption> =
+                    [{type: "Approved"}, {type: "Rejected"}];
+
+                function createApiPendingApprovalsPayload(
+                    approvalCount: number,
+                    options: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOption> = defaultApprovalDecisionOptions,
+                ): ApiMessageStreamApprovalsPartPayload {
+                    return {
+                        type: "ExperimentalApprovals",
+                        approvals: createArrayWithLength(approvalCount, approvalIndex => ({
+                            summary: {
+                                elements: [
+                                    {
+                                        type: "Text",
+                                        text: `Approval request ${approvalIndex + 1}`,
+                                    },
+                                ],
+                            },
+                            decision: {schema: {options}},
+                        })),
+                    };
+                }
+
+                function createApiPendingApprovalPayload(
+                    options: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOption> = defaultApprovalDecisionOptions,
+                ): ApiMessageStreamApprovalsPartPayload {
+                    return createApiPendingApprovalsPayload(1, options);
+                }
+
+                async function createApiStreamMessageWithFinalApprovalPart(
+                    approvalPayload: ApiMessageStreamApprovalsPartPayload = createApiPendingApprovalPayload(),
+                ) {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+                    const {roomPath, room} = await createPrivateRoom(session, botAccount);
+                    const apiKey = await botAccount.createApiKey(room.getBotScope());
+
+                    const messageResponse = await server.POST(`${roomPath}/messages`, {
+                        headers: {authorization: `bearer ${apiKey}`},
+                        body: {isStream: true, content: {elements: []}},
+                    });
+
+                    expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                    const partResponse = await server.PUT(
+                        `${roomPath}/messages/${messageResponse.body.message.index}/stream/parts/0`,
+                        {
+                            headers: {authorization: `bearer ${apiKey}`},
+                            body: {payload: approvalPayload},
+                        },
+                    );
+
+                    expect(partResponse).toEqual(expect.objectContaining({status: 200}));
+
+                    return {
+                        session,
+                        botAccount,
+                        apiKey,
+                        roomPath,
+                        messageIndex: messageResponse.body.message.index as number,
+                        approvalPayload,
+                    };
+                }
+
+                function createApiApprovalPatch(
+                    index: number,
+                    decisionValue: ApiMessageExperimentalApprovalDecisionValue,
+                ) {
+                    return {
+                        patches: [
+                            {
+                                type: "SetDecisionValue" as const,
+                                index,
+                                decision: {value: decisionValue},
+                            },
+                        ],
+                    };
+                }
+
+                test("can decide a final approval request", async () => {
+                    const {botAccount, apiKey, roomPath, messageIndex} =
+                        await createApiStreamMessageWithFinalApprovalPart();
+
+                    expect(
+                        await server.PATCH(
+                            `${roomPath}/messages/${messageIndex}/experimental-approvals`,
+                            {
+                                headers: {authorization: `bearer ${apiKey}`},
+                                body: createApiApprovalPatch(0, {type: "Approved"}),
+                            },
+                        ),
+                    ).toEqual({
+                        status: 200,
+                        headers: expect.objectContaining({"content-type": "application/json"}),
+                        body: expect.objectContaining({
+                            approvals: [
+                                expect.objectContaining({
+                                    decision: expect.objectContaining({
+                                        value: {
+                                            type: "Approved",
+                                            decider: {account: {id: botAccount.id}},
+                                        },
+                                    }),
+                                }),
+                            ],
+                        }),
+                    });
+                });
+
+                test("can\u2019t decide a final approval request that is already decided", async () => {
+                    const {apiKey, roomPath, messageIndex} =
+                        await createApiStreamMessageWithFinalApprovalPart();
+
+                    expect(
+                        await server.PATCH(
+                            `${roomPath}/messages/${messageIndex}/experimental-approvals`,
+                            {
+                                headers: {authorization: `bearer ${apiKey}`},
+                                body: createApiApprovalPatch(0, {type: "Approved"}),
+                            },
+                        ),
+                    ).toEqual(expect.objectContaining({status: 200}));
+
+                    expect(
+                        await server.PATCH(
+                            `${roomPath}/messages/${messageIndex}/experimental-approvals`,
+                            {
+                                headers: {authorization: `bearer ${apiKey}`},
+                                body: createApiApprovalPatch(0, {type: "Rejected"}),
+                            },
+                        ),
+                    ).toEqual({
+                        status: 400,
+                        headers: expect.objectContaining({"content-type": "application/json"}),
+                        body: {
+                            error: expect.objectContaining({
+                                message: "Approval request has already been decided.",
+                            }),
+                        },
+                    });
+                });
+
+                test("can\u2019t decide approval request with a decision value that isn\u2019t an option", async () => {
+                    const {apiKey, roomPath, messageIndex} =
+                        await createApiStreamMessageWithFinalApprovalPart(
+                            createApiPendingApprovalPayload([{type: "Approved"}]),
+                        );
+
+                    expect(
+                        await server.PATCH(
+                            `${roomPath}/messages/${messageIndex}/experimental-approvals`,
+                            {
+                                headers: {authorization: `bearer ${apiKey}`},
+                                body: createApiApprovalPatch(0, {type: "Rejected"}),
+                            },
+                        ),
+                    ).toEqual({
+                        status: 400,
+                        headers: expect.objectContaining({"content-type": "application/json"}),
+                        body: {
+                            error: expect.objectContaining({
+                                message: "Approval decision isn\u2019t a valid option.",
+                            }),
+                        },
+                    });
+                });
+
+                test("can\u2019t decide approval request if the last stream part is not an approval", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+                    const {roomPath, room} = await createPrivateRoom(session, botAccount);
+                    const apiKey = await botAccount.createApiKey(room.getBotScope());
+
+                    const messageResponse = await server.POST(`${roomPath}/messages`, {
+                        headers: {authorization: `bearer ${apiKey}`},
+                        body: {isStream: true, content: {elements: []}},
+                    });
+
+                    expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                    expect(
+                        await server.PUT(
+                            `${roomPath}/messages/${messageResponse.body.message.index}/stream/parts/0`,
+                            {
+                                headers: {authorization: `bearer ${apiKey}`},
+                                body: {
+                                    payload: {
+                                        type: "Content",
+                                        content: {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [{type: "Text", text: "Test part 1"}],
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                            },
+                        ),
+                    ).toEqual(expect.objectContaining({status: 200}));
+
+                    expect(
+                        await server.PATCH(
+                            `${roomPath}/messages/${messageResponse.body.message.index}/experimental-approvals`,
+                            {
+                                headers: {authorization: `bearer ${apiKey}`},
+                                body: createApiApprovalPatch(0, {type: "Approved"}),
+                            },
+                        ),
+                    ).toEqual({
+                        status: 404,
+                        headers: expect.objectContaining({"content-type": "application/json"}),
+                        body: {
+                            error: expect.objectContaining({
+                                message: "Approval request not found.",
+                            }),
+                        },
+                    });
+                });
+
+                test("can\u2019t decide approval request if the message is not a stream", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+                    const {roomPath, room} = await createPrivateRoom(session, botAccount);
+                    const apiKey = await botAccount.createApiKey(room.getBotScope());
+
+                    const messageResponse = await server.POST(`${roomPath}/messages`, {
+                        headers: {authorization: `bearer ${apiKey}`},
+                        body: {content: {elements: []}},
+                    });
+
+                    expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                    expect(
+                        await server.PATCH(
+                            `${roomPath}/messages/${messageResponse.body.message.index}/experimental-approvals`,
+                            {
+                                headers: {authorization: `bearer ${apiKey}`},
+                                body: createApiApprovalPatch(0, {type: "Approved"}),
+                            },
+                        ),
+                    ).toEqual({
+                        status: 400,
+                        headers: expect.objectContaining({"content-type": "application/json"}),
+                        body: {
+                            error: expect.objectContaining({
+                                message: "Message approvals can only be sent with message streams.",
+                            }),
+                        },
+                    });
+                });
+
+                test("can\u2019t decide approval request if the message doesn\u2019t exist", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+                    const {roomPath, room} = await createPrivateRoom(session, botAccount);
+                    const apiKey = await botAccount.createApiKey(room.getBotScope());
+
+                    expect(
+                        await server.PATCH(`${roomPath}/messages/42/experimental-approvals`, {
+                            headers: {authorization: `bearer ${apiKey}`},
+                            body: createApiApprovalPatch(0, {type: "Approved"}),
+                        }),
+                    ).toEqual({
+                        status: 404,
+                        headers: expect.objectContaining({"content-type": "application/json"}),
+                        body: {
+                            error: expect.objectContaining({
+                                message: expect.stringContaining("doesn\u2019t exist"),
+                            }),
+                        },
+                    });
+                });
+
+                describe("batch", () => {
+                    test("can decide multiple final approval requests at once", async () => {
+                        const {botAccount, apiKey, roomPath, messageIndex} =
+                            await createApiStreamMessageWithFinalApprovalPart(
+                                createApiPendingApprovalsPayload(2),
+                            );
+                        const approvedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
+                            type: "Approved",
+                        };
+                        const rejectedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
+                            type: "Rejected",
+                        };
+
+                        expect(
+                            await server.PATCH(
+                                `${roomPath}/messages/${messageIndex}/experimental-approvals`,
+                                {
+                                    headers: {authorization: `bearer ${apiKey}`},
+                                    body: {
+                                        patches: [
+                                            {
+                                                type: "SetDecisionValue",
+                                                index: 0,
+                                                decision: {value: approvedDecisionValue},
+                                            },
+                                            {
+                                                type: "SetDecisionValue",
+                                                index: 1,
+                                                decision: {value: rejectedDecisionValue},
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                        ).toEqual({
+                            status: 200,
+                            headers: expect.objectContaining({"content-type": "application/json"}),
+                            body: expect.objectContaining({
+                                approvals: [
+                                    expect.objectContaining({
+                                        decision: expect.objectContaining({
+                                            value: {
+                                                ...approvedDecisionValue,
+                                                decider: {account: {id: botAccount.id}},
+                                            },
+                                        }),
+                                    }),
+                                    expect.objectContaining({
+                                        decision: expect.objectContaining({
+                                            value: {
+                                                ...rejectedDecisionValue,
+                                                decider: {account: {id: botAccount.id}},
+                                            },
+                                        }),
+                                    }),
+                                ],
+                            }),
+                        });
+                    });
+
+                    test("can\u2019t decide multiple approval requests if one decision value isn\u2019t an option", async () => {
+                        const {botAccount, apiKey, roomPath, messageIndex} =
+                            await createApiStreamMessageWithFinalApprovalPart(
+                                createApiPendingApprovalsPayload(2, [{type: "Approved"}]),
+                            );
+                        const approvedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
+                            type: "Approved",
+                        };
+                        const rejectedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
+                            type: "Rejected",
+                        };
+
+                        expect(
+                            await server.PATCH(
+                                `${roomPath}/messages/${messageIndex}/experimental-approvals`,
+                                {
+                                    headers: {authorization: `bearer ${apiKey}`},
+                                    body: {
+                                        patches: [
+                                            {
+                                                type: "SetDecisionValue",
+                                                index: 0,
+                                                decision: {value: approvedDecisionValue},
+                                            },
+                                            {
+                                                type: "SetDecisionValue",
+                                                index: 1,
+                                                decision: {value: rejectedDecisionValue},
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                        ).toEqual({
+                            status: 400,
+                            headers: expect.objectContaining({"content-type": "application/json"}),
+                            body: {
+                                error: expect.objectContaining({
+                                    message: "Approval decision isn\u2019t a valid option.",
+                                }),
+                            },
+                        });
+
+                        expect(
+                            await server.PATCH(
+                                `${roomPath}/messages/${messageIndex}/experimental-approvals`,
+                                {
+                                    headers: {authorization: `bearer ${apiKey}`},
+                                    body: {
+                                        patches: [
+                                            {
+                                                type: "SetDecisionValue",
+                                                index: 0,
+                                                decision: {value: approvedDecisionValue},
+                                            },
+                                            {
+                                                type: "SetDecisionValue",
+                                                index: 1,
+                                                decision: {value: approvedDecisionValue},
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                        ).toEqual({
+                            status: 200,
+                            headers: expect.objectContaining({"content-type": "application/json"}),
+                            body: expect.objectContaining({
+                                approvals: [
+                                    expect.objectContaining({
+                                        decision: expect.objectContaining({
+                                            value: {
+                                                ...approvedDecisionValue,
+                                                decider: {account: {id: botAccount.id}},
+                                            },
+                                        }),
+                                    }),
+                                    expect.objectContaining({
+                                        decision: expect.objectContaining({
+                                            value: {
+                                                ...approvedDecisionValue,
+                                                decider: {account: {id: botAccount.id}},
+                                            },
+                                        }),
+                                    }),
+                                ],
+                            }),
+                        });
+                    });
+
+                    test("can\u2019t decide multiple approval requests if one approval is already decided", async () => {
+                        const {botAccount, apiKey, roomPath, messageIndex} =
+                            await createApiStreamMessageWithFinalApprovalPart(
+                                createApiPendingApprovalsPayload(2),
+                            );
+                        const approvedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
+                            type: "Approved",
+                        };
+                        const rejectedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
+                            type: "Rejected",
+                        };
+
+                        expect(
+                            await server.PATCH(
+                                `${roomPath}/messages/${messageIndex}/experimental-approvals`,
+                                {
+                                    headers: {authorization: `bearer ${apiKey}`},
+                                    body: createApiApprovalPatch(0, approvedDecisionValue),
+                                },
+                            ),
+                        ).toEqual(expect.objectContaining({status: 200}));
+
+                        expect(
+                            await server.PATCH(
+                                `${roomPath}/messages/${messageIndex}/experimental-approvals`,
+                                {
+                                    headers: {authorization: `bearer ${apiKey}`},
+                                    body: {
+                                        patches: [
+                                            {
+                                                type: "SetDecisionValue",
+                                                index: 1,
+                                                decision: {value: rejectedDecisionValue},
+                                            },
+                                            {
+                                                type: "SetDecisionValue",
+                                                index: 0,
+                                                decision: {value: rejectedDecisionValue},
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                        ).toEqual({
+                            status: 400,
+                            headers: expect.objectContaining({"content-type": "application/json"}),
+                            body: {
+                                error: expect.objectContaining({
+                                    message: "Approval request has already been decided.",
+                                }),
+                            },
+                        });
+
+                        expect(
+                            await server.PATCH(
+                                `${roomPath}/messages/${messageIndex}/experimental-approvals`,
+                                {
+                                    headers: {authorization: `bearer ${apiKey}`},
+                                    body: {
+                                        patches: [
+                                            {
+                                                type: "SetDecisionValue",
+                                                index: 1,
+                                                decision: {value: rejectedDecisionValue},
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                        ).toEqual({
+                            status: 200,
+                            headers: expect.objectContaining({"content-type": "application/json"}),
+                            body: expect.objectContaining({
+                                approvals: [
+                                    expect.objectContaining({
+                                        decision: expect.objectContaining({
+                                            value: {
+                                                ...approvedDecisionValue,
+                                                decider: {account: {id: botAccount.id}},
+                                            },
+                                        }),
+                                    }),
+                                    expect.objectContaining({
+                                        decision: expect.objectContaining({
+                                            value: {
+                                                ...rejectedDecisionValue,
+                                                decider: {account: {id: botAccount.id}},
+                                            },
+                                        }),
+                                    }),
+                                ],
+                            }),
+                        });
+                    });
                 });
             });
 

@@ -32,7 +32,7 @@ jobs:
               run: |
                   # Pull out PR title
                   set -euo pipefail
-                  new_ci=false
+                  new_ci=true
                   skip_ci=false
                   write_outputs() {
                       echo "new_ci=$new_ci" >> "$GITHUB_OUTPUT"
@@ -77,9 +77,10 @@ jobs:
                       skip_ci=true
                   fi
 
-                  if [[ "$pr_title" == *\[NEW\ CI\]* ]]; then
-                      echo "PR title contains [NEW CI], enabling new CI."
-                      new_ci=true
+                  # TODO: Delete the [OLD CI] flag and legacy branches after the rollout.
+                  if [[ "$pr_title" == *\[OLD\ CI\]* ]]; then
+                      echo "PR title contains [OLD CI], enabling old CI."
+                      new_ci=false
                   fi
 
                   write_outputs
@@ -206,7 +207,6 @@ jobs:
                       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
                       --config=github-runner \
                       --nofetch \
-                      --test_env=ALPINE_JEST_COVERAGE=1 \
                       $bazel_test_flags \
                       $targets
 
@@ -315,7 +315,7 @@ jobs:
             # are flaky. We run them after all other tests have passed and break them into
             # deterministic buckets to run in parallel.
             #
-            # In `[NEW CI]`, keep running after failures so the aggregate check
+            # In the new CI, keep running after failures so the aggregate check
             # can report every target status and all available failure logs.
             - name: Integration tests
               run: |
@@ -486,9 +486,12 @@ jobs:
               name: Install coverage report dependencies
               run: |
                   # Keep this aggregate job light. The unit shards already paid
-                  # for Bazel and uploaded the coverage outputs, so initializing
-                  # the full Bazel cache here would add minutes just to run a
-                  # small Node.js report collector.
+                  # for Bazel and uploaded the coverage outputs. This is
+                  # intentionally not hermetic and breaks Bazel's rules: there is
+                  # nothing Bazel-specific about statically merging uploaded JSON
+                  # and zip files, and initializing the full Bazel cache here
+                  # would add minutes just to run a small Node.js report
+                  # collector.
                   npm install \
                       --prefix "$RUNNER_TEMP/analysis-node" \
                       --no-audit \
@@ -505,9 +508,6 @@ jobs:
             - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result == 'success'
               name: Collect unit coverage reports
               run: |
-                  # Use system Node with the tiny dependency install above
-                  # instead of `bazel run`, which would force this GitHub-hosted
-                  # aggregate job to initialize the full Bazel cache.
                   NODE_PATH="$RUNNER_TEMP/analysis-node/node_modules" \
                       node admin/analysis/collect_ci_jest_coverage.cjs \
                       --artifacts "$RUNNER_TEMP/unit-coverage-artifacts" \

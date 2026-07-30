@@ -61,6 +61,7 @@ import {
 import {MessageStreamAttributes} from "~/server/messaging/helpers/message_stream_schema.js";
 import {hasMessageStreamDefinitelyTimedOut} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {putMessageApprovalDecisions} from "~/server/messaging/helpers/put_message_approval_decisions.js";
 import {
     messagingEventExpirationDays,
     runBackfillMessageUpdates,
@@ -193,8 +194,14 @@ import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
 import {
+    createMessageApprovalNotFoundError,
+    createMessageApprovalRequiresMessageStreamError,
+} from "~/shared/messaging/message_approval_error_messages.js";
+import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,
+    MessageExperimentalApproval,
+    MessageStreamExperimentalApprovalsPartPayload,
     MessageStreamPartPayload,
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
@@ -203,6 +210,7 @@ import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayload} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {
     visitProsemirrorNode,
     visitProsemirrorStep,
@@ -5296,7 +5304,9 @@ export function putDocumentCommentStreamPart(
             displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
         });
 
-        if (item.completedTime !== null) {
+        let completedTime = item.completedTime;
+
+        if (completedTime !== null) {
             // If the stream is already completed then noop.
             if (isTimeoutErrorCompletion) return {spaceId, createdTime: new Date()};
 
@@ -5315,6 +5325,11 @@ export function putDocumentCommentStreamPart(
 
         // Use `Date.now()` so tests can mock the `Date.now()` function.
         const currentTime = new Date(Date.now());
+
+        completedTime ??=
+            isTimeoutErrorCompletion || payload.type === "ExperimentalApprovals"
+                ? currentTime
+                : null;
 
         const lastPingTime =
             item.lastPingTime && currentTime <= item.lastPingTime
@@ -5376,7 +5391,7 @@ export function putDocumentCommentStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 DocumentsTable.transactionDirectlyUpdateItem({
                     ...item,
-                    completedTime: isTimeoutErrorCompletion ? currentTime : null,
+                    completedTime,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
@@ -5414,9 +5429,18 @@ export function putDocumentCommentStreamPart(
                 );
             }
 
+            // NOTE(ifitzsimmons): Adding an approval part "completes" the stream, and we can't
+            // update a completed stream (we throw earlier in this routine). It should not be
+            // possible to reach this line of code. If this assertion fails, it means we never
+            // completed the stream when adding the approval part, and we'll need to figure out
+            // how/why that happened.
+            assert(payload.type !== "ExperimentalApprovals");
+
             assert(item.lastPartUpdateLockVersion !== null);
             assert(item.lastPartCreatedTime !== null);
             createdTime = item.lastPartCreatedTime;
+
+            const nextPartUpdateLockVersion = item.lastPartUpdateLockVersion + 1;
 
             const updatePartTransactionEntry = DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "DocumentCommentThread",
@@ -5427,7 +5451,7 @@ export function putDocumentCommentStreamPart(
                 partIndex,
                 payload,
                 createdTime,
-                updateLockVersion: item.lastPartUpdateLockVersion + 1,
+                updateLockVersion: nextPartUpdateLockVersion,
             });
 
             version = updatePartTransactionEntry.newItem.updateLockVersion ?? 0;
@@ -5436,7 +5460,7 @@ export function putDocumentCommentStreamPart(
                 DocumentsTable.transactionDirectlyUpdateItem({
                     ...item,
                     lastPingTime,
-                    lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
+                    lastPartUpdateLockVersion: nextPartUpdateLockVersion,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -5461,31 +5485,72 @@ export function putDocumentCommentStreamPart(
             );
         }
 
-        // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their message in
-        // realtime.
-        //
-        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
-        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
-        // other processing that needs to reliably run after an updates to DynamoDB
-        // Streams.
-        context.process.waitUntil(
-            context.edge.broadcastToDurableObject(
-                `/api/durable-objects/documents/${documentId}/broadcast-put-message-stream-part/${commentThreadId}`,
-                {
-                    serviceName: "DocumentCollaborationService",
-                    route: "/api/durable-objects/documents/:documentId/broadcast-put-message-stream-part/:commentThreadId",
-                    body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize({
-                        index: commentIndex,
-                        partIndex,
-                        part: {version, payload, createdTime},
-                    }),
-                },
-            ),
-        );
+        broadcastPutDocumentCommentStreamPart(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+            partIndex,
+            version,
+            payload,
+            createdTime,
+            completedTime,
+        });
 
         return {spaceId, createdTime};
     });
+}
+
+/**
+ * Broadcast an updated comment stream part to all clients connected to the
+ * document's collaboration durable object. Called by writers that don't have their
+ * own realtime connection to emit events from (e.g. bots writing through the HTTP
+ * API).
+ */
+export function broadcastPutDocumentCommentStreamPart(
+    context: ServerActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+        partIndex,
+        version,
+        payload,
+        createdTime,
+        completedTime,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+        partIndex: number;
+        version: number;
+        payload: MessageStreamPartPayload;
+        createdTime: Date;
+        completedTime: Date | null;
+    },
+) {
+    // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+    // sending this realtime event the user might not see an update to their message in
+    // realtime.
+    //
+    // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+    // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+    // other processing that needs to reliably run after an updates to DynamoDB
+    // Streams.
+    context.process.waitUntil(
+        context.edge.broadcastToDurableObject(
+            `/api/durable-objects/documents/${documentId}/broadcast-put-message-stream-part/${commentThreadId}`,
+            {
+                serviceName: "DocumentCollaborationService",
+                route: "/api/durable-objects/documents/:documentId/broadcast-put-message-stream-part/:commentThreadId",
+                body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize({
+                    index: commentIndex,
+                    partIndex,
+                    part: {version, payload, createdTime},
+                    completedTime,
+                }),
+            },
+        ),
+    );
 }
 
 /**
@@ -5964,6 +6029,135 @@ export async function getDocumentCommentPayload(
         documentAccessPolicy,
         ...commentItem,
     };
+}
+
+export async function getDocumentCommentMessageApprovals(
+    context: ServerActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+        consistency,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    approvals: ReadonlyArray<MessageExperimentalApproval>;
+}> {
+    // NOTE(ifitzsimmons, 2026-07-06): We decided to fetch the entire message item (a
+    // single query) because the entire message (including all parts) will almost
+    // always fit within 4kb and will thus cost 0.5 RCUs (from an Eventually Consistent
+    // read). There are times when the message content will exceed 4kb, but this will
+    // still almost always be more efficient than
+    //
+    // 1. getItem(Comments#Stream) - 0.5 RCU
+    // 2. query(Comments#StreamPart, limit=1, descending=true) - 0.5 RCU
+    //
+    // ... which makes 2 roundtrips to DynamoDB.
+    const {spaceId, commentItem} = await getDocumentCommentItem(context, {
+        documentId,
+        commentThreadId,
+        commentIndex,
+        consistency,
+    });
+
+    if (!commentItem.stream) throw createMessageApprovalRequiresMessageStreamError();
+
+    const lastStreamPart = assertExists(
+        commentItem.stream.parts[commentItem.stream.parts.length - 1],
+    );
+
+    if (lastStreamPart.payload.type !== "ExperimentalApprovals") {
+        throw createMessageApprovalNotFoundError();
+    }
+
+    return {
+        spaceId,
+        approvals: lastStreamPart.payload.approvals,
+    };
+}
+
+export async function putDocumentCommentMessageApprovalDecisions(
+    context: ServerActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+        payload,
+        consistency,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+        payload: PutMessageApprovalDecisionsPayload;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    approvals: ReadonlyArray<MessageExperimentalApproval>;
+    partIndex: number;
+    version: number;
+    createdTime: Date;
+    completedTime: Date | null;
+}> {
+    return await putMessageApprovalDecisions(context, {
+        room: {type: "DocumentCommentThread", id: documentId, threadId: commentThreadId},
+        messageIndex: commentIndex,
+        payload,
+        consistency,
+        readApprovalStreamPart: async context => {
+            // NOTE(ifitzsimmons, 2026-07-06): We decided to fetch the entire message item (a
+            // single query) because the entire message (including all parts) will almost
+            // always fit within 4kb and will thus cost 0.5 RCUs (from an Eventually Consistent
+            // read). There are times when the message content will exceed 4kb, but this will
+            // still almost always be more efficient than
+            //
+            // 1. getItem(Comments#Stream) - 0.5 RCU
+            // 2. query(Comments#StreamPart, limit=1, descending=true) - 0.5 RCU
+            //
+            // ... which makes 2 roundtrips to DynamoDB.
+            const comment = await getDocumentCommentItem(context, {
+                documentId,
+                commentThreadId,
+                commentIndex,
+                consistency,
+            });
+
+            return {
+                spaceId: comment.spaceId,
+                message: comment.commentItem,
+                putMessageApprovalPartPayloadWithDecisionValues: async ({
+                    partIndex,
+                    createdTime,
+                    version,
+                    nextPayload,
+                }: {
+                    partIndex: number;
+                    createdTime: Date;
+                    version: number;
+                    nextPayload: MessageStreamExperimentalApprovalsPartPayload;
+                }) => {
+                    const updatedPart = await DocumentsTable.directlyUpdateItem(context, {
+                        partitionType: "DocumentCommentThread",
+                        sortRangeType: "Comments#StreamPart",
+                        documentId,
+                        commentThreadId,
+                        commentIndex,
+                        partIndex,
+                        payload: nextPayload,
+                        createdTime,
+                        updateLockVersion: version,
+                    });
+
+                    return {version: updatedPart.updateLockVersion};
+                },
+            };
+        },
+    });
 }
 
 /**

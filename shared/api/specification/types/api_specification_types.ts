@@ -771,6 +771,55 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/chats/{id}/messages/{index}/experimental-approvals": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["ChatId"];
+                    readonly index: number;
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["ChatId"];
+                        readonly index: number;
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessageExperimentalApprovals"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["ChatId"];
+                        readonly index: number;
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: components["requestBodies"]["PatchMessageExperimentalApprovals"];
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessageExperimentalApprovals"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly trace?: never;
+        };
         readonly "/documents": {
             readonly parameters: {
                 readonly query?: never;
@@ -1232,6 +1281,58 @@ export namespace ApiSpecification {
             readonly options?: never;
             readonly head?: never;
             readonly patch?: never;
+            readonly trace?: never;
+        };
+        readonly "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["DocumentId"];
+                    readonly threadId: components["schemas"]["DocumentThreadId"];
+                    readonly index: number;
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["DocumentId"];
+                        readonly threadId: components["schemas"]["DocumentThreadId"];
+                        readonly index: number;
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessageExperimentalApprovals"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["DocumentId"];
+                        readonly threadId: components["schemas"]["DocumentThreadId"];
+                        readonly index: number;
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: components["requestBodies"]["PatchMessageExperimentalApprovals"];
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessageExperimentalApprovals"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly trace?: never;
         };
         readonly "/channels/{id}": {
@@ -1742,6 +1843,55 @@ export namespace ApiSpecification {
             readonly options?: never;
             readonly head?: never;
             readonly patch?: never;
+            readonly trace?: never;
+        };
+        readonly "/posts/{id}/messages/{index}/experimental-approvals": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["PostId"];
+                    readonly index: number;
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["PostId"];
+                        readonly index: number;
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessageExperimentalApprovals"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["PostId"];
+                        readonly index: number;
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: components["requestBodies"]["PatchMessageExperimentalApprovals"];
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessageExperimentalApprovals"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly trace?: never;
         };
         readonly "/spaces/{id}/search": {
@@ -2379,6 +2529,55 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/tasks/{id}/messages/{index}/experimental-approvals": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["TaskId"];
+                    readonly index: number;
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["TaskId"];
+                        readonly index: number;
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessageExperimentalApprovals"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["TaskId"];
+                        readonly index: number;
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: components["requestBodies"]["PatchMessageExperimentalApprovals"];
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessageExperimentalApprovals"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly trace?: never;
+        };
         readonly "/task-collections": {
             readonly parameters: {
                 readonly query?: never;
@@ -2723,7 +2922,14 @@ export namespace ApiSpecification {
             readonly post: {
                 readonly parameters: {
                     readonly query?: never;
-                    readonly header?: never;
+                    readonly header?: {
+                        /**
+                         * @description Signature of the raw request body formatted as `sha256=<hex>` where
+                         * `<hex>` is the hex-encoded HMAC SHA-256 of the raw request body keyed with the
+                         * bot's webhook secret. Only sent when the bot has a webhook secret configured.
+                         */
+                        readonly "Alpine-Signature"?: string;
+                    };
                     readonly path?: never;
                     readonly cookie?: never;
                 };
@@ -3489,6 +3695,34 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentLinkMark"]
                 | components["schemas"]["ContentHighlightMark"]
                 | components["schemas"]["ContentCommentMark"];
+            readonly LabelContent: {
+                readonly elements: readonly components["schemas"]["LabelContentInlineElement"][];
+            };
+            readonly LabelContentInlineElement:
+                | components["schemas"]["LabelContentTextInlineElement"]
+                | components["schemas"]["LabelContentMentionInlineElement"];
+            readonly LabelContentInlineElementMark:
+                | components["schemas"]["ContentItalicMark"]
+                | components["schemas"]["ContentCodeMark"];
+            readonly LabelContentTextInlineElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Text";
+                readonly text: string;
+                readonly marks?: readonly components["schemas"]["LabelContentInlineElementMark"][];
+            };
+            readonly LabelContentMentionInlineElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Mention";
+                readonly reference: components["schemas"]["MentionReference"];
+                readonly isAccountShortName?: boolean;
+                readonly marks?: readonly components["schemas"]["LabelContentInlineElementMark"][];
+            };
             readonly AccountWithoutSpace: {
                 readonly id: components["schemas"]["AccountId"];
                 readonly title?: string;
@@ -4794,7 +5028,126 @@ export namespace ApiSpecification {
             readonly MessageStreamPartPayload:
                 | components["schemas"]["MessageStreamContentPartPayload"]
                 | components["schemas"]["MessageStreamToolCallPartPayload"]
-                | components["schemas"]["MessageStreamReasoningPartPayload"];
+                | components["schemas"]["MessageStreamReasoningPartPayload"]
+                | components["schemas"]["MessageStreamExperimentalApprovalsPartPayload"];
+            readonly MessageStreamExperimentalApprovalsPartPayload: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ExperimentalApprovals";
+                readonly approvals: readonly components["schemas"]["MessageExperimentalApproval"][];
+            };
+            readonly MessageExperimentalApproval: {
+                readonly summary: components["schemas"]["LabelContent"];
+                readonly decision: components["schemas"]["MessageExperimentalApprovalDecision"];
+            };
+            readonly MessageExperimentalApprovalDecision: {
+                readonly schema: components["schemas"]["MessageExperimentalApprovalDecisionSchema"];
+                readonly value?: components["schemas"]["MessageExperimentalApprovalDecisionValue"];
+            };
+            readonly MessageExperimentalApprovalDecisionSchema: {
+                readonly options: readonly components["schemas"]["MessageExperimentalApprovalDecisionOption"][];
+            };
+            readonly MessageExperimentalApprovalDecisionOption:
+                | components["schemas"]["MessageExperimentalApprovalDecisionApprovedOption"]
+                | components["schemas"]["MessageExperimentalApprovalDecisionRejectedOption"]
+                | components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionOption"];
+            readonly MessageExperimentalApprovalDecisionApprovedOption: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Approved";
+            };
+            readonly MessageExperimentalApprovalDecisionRejectedOption: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Rejected";
+            };
+            readonly MessageExperimentalApprovalDecisionApprovedForSessionOption: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ApprovedForSession";
+                readonly scope: components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValueScope"];
+                readonly summary?: components["schemas"]["LabelContent"];
+                readonly durationMinutes: number | null;
+            };
+            readonly MessageExperimentalApprovalDecisionValue:
+                | components["schemas"]["MessageExperimentalApprovalDecisionApprovedValue"]
+                | components["schemas"]["MessageExperimentalApprovalDecisionRejectedValue"]
+                | components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValue"];
+            readonly MessageExperimentalApprovalDecisionApprovedValue: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Approved";
+                readonly decider?: components["schemas"]["Actor"];
+            };
+            readonly MessageExperimentalApprovalDecisionApprovedValue_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Approved";
+                readonly decider: components["schemas"]["Actor_Response"];
+            };
+            readonly MessageExperimentalApprovalDecisionRejectedValue: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Rejected";
+                readonly decider?: components["schemas"]["Actor"];
+            };
+            readonly MessageExperimentalApprovalDecisionRejectedValue_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Rejected";
+                readonly decider: components["schemas"]["Actor_Response"];
+            };
+            readonly MessageExperimentalApprovalDecisionApprovedForSessionValue: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ApprovedForSession";
+                readonly scope: components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValueScope"];
+                readonly durationMinutes: number | null;
+                readonly decider?: components["schemas"]["Actor"];
+            };
+            readonly MessageExperimentalApprovalDecisionApprovedForSessionValue_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ApprovedForSession";
+                readonly decider: components["schemas"]["Actor_Response"];
+                readonly scope: components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValueScope"];
+                readonly durationMinutes: number | null;
+            };
+            readonly MessageExperimentalApprovalDecisionApprovedForSessionValueScope: {
+                /**
+                 * @description Groups equivalent approval options so that one selected approval
+                 * can approve the same pending scope elsewhere in the same message. For example,
+                 * let's say an agent is asking for approval to make 3 tool calls: `Write` to
+                 * Document, `WebFetch` to Website, and `Write` to Task, and each approval has an
+                 * `ApprovedForSession` option with summary `Approve all writes` and
+                 * `Approve all web fetches`respectively. If the user selects `Approve all writes`
+                 * on the document approval, the `Write` task approval should also be approved.
+                 * Agents can also use this key to decide its own tool permissions. This will only
+                 * work if the rest of the approval option is the same (e.g. `durationInMinutes` is
+                 * the same value for the other options with the same `scope` key).
+                 */
+                readonly value: string;
+            };
             readonly MessageStreamContentPartPayload: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -4854,7 +5207,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskCollectionReference"];
             readonly BotWebhookEvent:
                 | components["schemas"]["BotWebhookCreatedMessageEvent"]
-                | components["schemas"]["BotWebhookCreatedPostEvent"];
+                | components["schemas"]["BotWebhookCreatedPostEvent"]
+                | components["schemas"]["BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent"];
             readonly BotWebhookCreatedMessageEvent: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -4911,6 +5265,20 @@ export namespace ApiSpecification {
                 };
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly wasMentioned?: boolean;
+            };
+            readonly BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "UpdatedMessageStreamExperimentalApprovalsPart";
+                readonly room: components["schemas"]["MessageRoomReference"];
+                readonly messageIndex: number;
+                readonly approvals: readonly {
+                    readonly decision: {
+                        readonly value?: components["schemas"]["MessageExperimentalApprovalDecisionValue_Response"];
+                    };
+                }[];
             };
             readonly MessageContentPayloadParentContentSnippet: {
                 readonly elements: readonly components["schemas"]["MessageContentPayloadParentContentSnippetTextInlineElement"][];
@@ -5139,6 +5507,25 @@ export namespace ApiSpecification {
             readonly SearchResultParsedFilter: {
                 readonly summary: string;
             };
+            readonly Actor: {
+                readonly account: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly from?: components["schemas"]["ActorBotFrom"];
+            };
+            readonly Actor_Response: {
+                readonly account: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly from?: components["schemas"]["ActorBotFrom"];
+            };
+            readonly ActorBotFrom: {
+                /** @constant */
+                readonly type?: "Bot";
+                readonly account: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+            };
             readonly DocumentThread_Response: {
                 readonly id: components["schemas"]["DocumentThreadId"];
                 readonly isResolved: boolean;
@@ -5198,6 +5585,10 @@ export namespace ApiSpecification {
             readonly MessageContentPayloadParent_Response:
                 | components["schemas"]["MessageContentPayloadMessageParent_Response"]
                 | components["schemas"]["MessageContentPayloadPostParent_Response"];
+            readonly MessageExperimentalApprovalDecisionValue_Response:
+                | components["schemas"]["MessageExperimentalApprovalDecisionApprovedValue_Response"]
+                | components["schemas"]["MessageExperimentalApprovalDecisionRejectedValue_Response"]
+                | components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValue_Response"];
             readonly Message_Response: {
                 readonly index: number;
                 readonly author: components["schemas"]["Account_Response"];
@@ -5824,6 +6215,10 @@ export namespace ApiSpecification {
                     readonly reference: components["schemas"]["MentionReference_Response"];
                 };
             };
+            readonly MessageExperimentalApprovalDecision_Response: {
+                readonly schema: components["schemas"]["MessageExperimentalApprovalDecisionSchema_Response"];
+                readonly value?: components["schemas"]["MessageExperimentalApprovalDecisionValue_Response"];
+            };
             readonly ContentMentionInlineElement_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -5900,6 +6295,16 @@ export namespace ApiSpecification {
                 readonly type: "Create";
                 readonly reference: components["schemas"]["MessageStreamToolCallPartCreateCallReference_Response"];
             };
+            readonly LabelContentMentionInlineElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Mention";
+                readonly reference: components["schemas"]["MentionReference_Response"];
+                readonly isAccountShortName?: boolean;
+                readonly marks?: readonly components["schemas"]["LabelContentInlineElementMark"][];
+            };
             readonly ContentTableBlockElementCell_Response: {
                 readonly elements: readonly components["schemas"]["ContentTableBlockElementCellBlockElement_Response"][];
             };
@@ -5968,10 +6373,15 @@ export namespace ApiSpecification {
             };
             readonly BotWebhookEvent_Response:
                 | components["schemas"]["BotWebhookCreatedMessageEvent_Response"]
-                | components["schemas"]["BotWebhookCreatedPostEvent"];
+                | components["schemas"]["BotWebhookCreatedPostEvent"]
+                | components["schemas"]["BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent"];
             readonly TaskNotes_Response: {
                 readonly version: number;
                 readonly content: components["schemas"]["Content_Response"];
+            };
+            readonly MessageExperimentalApproval_Response: {
+                readonly summary: components["schemas"]["LabelContent_Response"];
+                readonly decision: components["schemas"]["MessageExperimentalApprovalDecision_Response"];
             };
             readonly ContentInlineElement_Response:
                 | components["schemas"]["ContentTextInlineElement"]
@@ -6005,6 +6415,9 @@ export namespace ApiSpecification {
                 | components["schemas"]["MessageStreamToolCallPartPayloadReadCall_Response"]
                 | components["schemas"]["MessageStreamToolCallPartPayloadSearchCall"]
                 | components["schemas"]["MessageStreamToolCallPartPayloadCreateCall_Response"];
+            readonly LabelContentInlineElement_Response:
+                | components["schemas"]["LabelContentTextInlineElement"]
+                | components["schemas"]["LabelContentMentionInlineElement_Response"];
             readonly ContentTableBlockElementRow_Response: {
                 readonly cells: readonly components["schemas"]["ContentTableBlockElementCell_Response"][];
             };
@@ -6077,7 +6490,8 @@ export namespace ApiSpecification {
             readonly MessageStreamPartPayload_Response:
                 | components["schemas"]["MessageStreamContentPartPayload_Response"]
                 | components["schemas"]["MessageStreamToolCallPartPayload_Response"]
-                | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
+                | components["schemas"]["MessageStreamReasoningPartPayload_Response"]
+                | components["schemas"]["MessageStreamExperimentalApprovalsPartPayload_Response"];
             readonly MessageStreamToolCallPartPayload_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -6085,6 +6499,17 @@ export namespace ApiSpecification {
                  */
                 readonly type: "ToolCall";
                 readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
+            };
+            readonly MessageStreamExperimentalApprovalsPartPayload_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ExperimentalApprovals";
+                readonly approvals: readonly components["schemas"]["MessageExperimentalApproval_Response"][];
+            };
+            readonly LabelContent_Response: {
+                readonly elements: readonly components["schemas"]["LabelContentInlineElement_Response"][];
             };
             readonly ContentTableBlockElement_Response: {
                 /**
@@ -6143,6 +6568,23 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Assigner";
                 readonly operation: components["schemas"]["TaskQueryAccountFilterOperation_Response"];
+            };
+            readonly MessageExperimentalApprovalDecisionApprovedForSessionOption_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ApprovedForSession";
+                readonly scope: components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValueScope"];
+                readonly summary?: components["schemas"]["LabelContent_Response"];
+                readonly durationMinutes: number | null;
+            };
+            readonly MessageExperimentalApprovalDecisionOption_Response:
+                | components["schemas"]["MessageExperimentalApprovalDecisionApprovedOption"]
+                | components["schemas"]["MessageExperimentalApprovalDecisionRejectedOption"]
+                | components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionOption_Response"];
+            readonly MessageExperimentalApprovalDecisionSchema_Response: {
+                readonly options: readonly components["schemas"]["MessageExperimentalApprovalDecisionOption_Response"][];
             };
         };
         responses: {
@@ -6275,6 +6717,17 @@ export namespace ApiSpecification {
                     };
                 };
             };
+            readonly GetMessageExperimentalApprovals: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId: components["schemas"]["SpaceId"];
+                        readonly approvals: readonly components["schemas"]["MessageExperimentalApproval_Response"][];
+                    };
+                };
+            };
             readonly GetMessageStreamCompletion: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -6333,6 +6786,29 @@ export namespace ApiSpecification {
                         readonly parent?: components["schemas"]["MessageContentPayloadParent"];
                         readonly content: components["schemas"]["Content"];
                         readonly files?: readonly components["schemas"]["MessageContentPayloadFile"][];
+                    };
+                };
+            };
+            readonly PutMessageExperimentalApprovalsPendingDecision: {
+                readonly content: {
+                    readonly "application/json": {
+                        readonly decision: {
+                            readonly value: components["schemas"]["MessageExperimentalApprovalDecisionValue"];
+                        };
+                    };
+                };
+            };
+            readonly PatchMessageExperimentalApprovals: {
+                readonly content: {
+                    readonly "application/json": {
+                        readonly patches: readonly {
+                            /** @constant */
+                            readonly type: "SetDecisionValue";
+                            readonly index: number;
+                            readonly decision: {
+                                readonly value: components["schemas"]["MessageExperimentalApprovalDecisionValue"];
+                            };
+                        }[];
                     };
                 };
             };

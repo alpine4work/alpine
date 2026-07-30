@@ -5452,7 +5452,8 @@ Additional info
 <tr>
 <th>
 
-\\_<span></span><br/><span></span>\\_
+\\_\\
+\\_
 
 </th>
 <th>
@@ -5550,7 +5551,8 @@ Value
 <tr>
 <th>
 
-\\*\\*<span></span><br/><span></span>\\*
+\\*\\*\\
+\\*
 
 </th>
 <th>
@@ -5576,6 +5578,56 @@ Value
 </td>
 </tr>
 </tbody>
+</table>
+`,
+                },
+                {
+                    description:
+                        "HTML table which otherwise qualifies as a GFM table with underscores around break",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                hasHeaderRow: true,
+                                hasHeaderColumn: false,
+                                columns: [],
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "_", marks: []},
+                                                            {type: "Break", marks: []},
+                                                            {type: "Text", text: "_", marks: []},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table>
+<thead>
+<tr>
+<th>
+
+\\_\\
+\\_
+
+</th>
+<th>
+
+</th>
+</tr>
+</thead>
 </table>
 `,
                 },
@@ -5863,9 +5915,37 @@ Value
                         ],
                     },
                     expectedMarkdown: `\
-| Col A | Col B |
-| - | - |
-| Line 1<br />Line 2 | Single line |
+<table>
+<thead>
+<tr>
+<th>
+
+Col A
+
+</th>
+<th>
+
+Col B
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+Line 1\\
+Line 2
+
+</td>
+<td>
+
+Single line
+
+</td>
+</tr>
+</tbody>
+</table>
 `,
                 },
                 {

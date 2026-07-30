@@ -5,10 +5,11 @@ import {
     LambdaAccess,
     Os,
 } from "@cloudsnorkel/cdk-github-runners";
-import {Duration, Fn, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
+import {Fn, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
 import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
+import {CfnAssociation, ParameterTier, StringParameter} from "aws-cdk-lib/aws-ssm";
 import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsGithubRunnerAsgProvider} from "~/admin/aws/internal/aws_github_runner_asg_provider.js";
@@ -17,7 +18,49 @@ import {awsGithubTestRunnerImageBuilderComponents} from "~/admin/aws/internal/aw
 import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
+import {createCloudWatchAgentConfig} from "~/admin/aws/internal/cloudwatch_agent_config.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+
+function configureRunnerCloudWatchAgent(
+    scope: Construct,
+    id: string,
+    {
+        provider,
+        runnerLogGroupName,
+    }: {
+        provider: Construct;
+        runnerLogGroupName: string;
+    },
+) {
+    const cloudwatchAgentConfigParameter = new StringParameter(
+        scope,
+        `${id}CloudWatchAgentConfigParam`,
+        {
+            parameterName: `/cyberworlds/github-runners/${id}/cloudwatch-agent-config`,
+            stringValue: createCloudWatchAgentConfig({runnerLogGroupName}),
+            tier: ParameterTier.STANDARD,
+        },
+    );
+
+    // Runner instances are launched dynamically by Step Functions, so configure the
+    // baked-in CloudWatch Agent using the provider tag applied at launch instead of
+    // tagging the provider construct itself.
+    new CfnAssociation(scope, `${id}InstallAndManageCloudWatchAgent`, {
+        name: "AWSQuickSetupType-InstallAndManageCloudWatchAgent",
+        targets: [
+            {
+                key: "tag:GitHubRunners:Provider",
+                values: [provider.node.path],
+            },
+        ],
+        parameters: {
+            isInstall: ["false"],
+            isConfigure: ["true"],
+            optionalConfigurationSource: ["ssm"],
+            optionalConfigurationLocation: [cloudwatchAgentConfigParameter.parameterName],
+        },
+    });
+}
 
 export class AwsGithubRunners extends Construct {
     constructor(
@@ -54,10 +97,6 @@ export class AwsGithubRunners extends Construct {
             // If this bucket is deleted from a stack, we can delete the objects within.
             // They're cache artifacts which can easily be rebuilt.
             autoDeleteObjects: true,
-            // Delete artifacts after 14 days (two weeks) if they haven't been used.
-            // `bazel-remote` is configured to update the modification time when there's a
-            // cache hit.
-            lifecycleRules: [{expiration: Duration.days(14)}],
         });
 
         // 8 vCPU, 32 GiB memory, Gravitron (ARM) processor
@@ -130,17 +169,15 @@ export class AwsGithubRunners extends Construct {
             // through a patch.
             /* eslint-disable cyberworlds/string-quotes */
             userDataExtra: Fn.join("", [
-                '{"alpineRunnerTag":"aws-test","jobQueueUrl":"',
+                '{"alpineRunnerTag":"aws-test","cloudWatchAgentLogSetup":"ssm","jobQueueUrl":"',
                 sqs.getJobQueueUrl(),
                 '"}',
             ]),
             /* eslint-enable cyberworlds/string-quotes */
-
-            // Tag EC2 instances so the SSM State Manager association in AwsObservability
-            // installs and configures the CloudWatch Agent on them. We pass tags here (rather
-            // than using `observability.installCloudWatchAgent`) because instances are
-            // launched at runtime via `ec2:RunInstances`, not as CloudFormation resources.
-            extraTags: [{key: "CloudWatchAgent", value: "true"}],
+        });
+        configureRunnerCloudWatchAgent(this, "TestRunnerProvider", {
+            provider: testRunnerProvider,
+            runnerLogGroupName: testRunnerProvider.logGroup.logGroupName,
         });
 
         const testRunnerProviderRole: unknown = (testRunnerProvider as any).role;
@@ -188,6 +225,10 @@ export class AwsGithubRunners extends Construct {
         bucket.grantReadWrite(testRunnerAsgProvider);
         sqs.grantSendJobQueueMessages(testRunnerAsgProvider);
         observability.grantPutToTracerEventStream(testRunnerAsgProvider);
+        configureRunnerCloudWatchAgent(this, "TestRunnerAsgProvider", {
+            provider: testRunnerAsgProvider,
+            runnerLogGroupName: testRunnerAsgProvider.logGroup.logGroupName,
+        });
 
         const amiBuilderRunnerImageBuilder = Ec2RunnerProvider.imageBuilder(
             this,
@@ -222,23 +263,15 @@ export class AwsGithubRunners extends Construct {
             imageBuilder: amiBuilderRunnerImageBuilder,
             /* eslint-disable cyberworlds/string-quotes */
             userDataExtra: Fn.join("", [
-                '{"alpineRunnerTag":"aws-ami-builder","jobQueueUrl":"',
+                '{"alpineRunnerTag":"aws-ami-builder","cloudWatchAgentLogSetup":"ssm","jobQueueUrl":"',
                 sqs.getJobQueueUrl(),
                 '"}',
             ]),
             /* eslint-enable cyberworlds/string-quotes */
-
-            // The stock EC2 runner bootstrap calls
-            // `amazon-cloudwatch-agent-ctl -a fetch-config` for `/var/log/runner.log`. When
-            // the global CloudWatch Agent SSM association also configures the instance, the
-            // agent tries to merge the runner log config with `AmazonCloudWatch-linux-config`,
-            // fails on conflicting metrics settings, and cloud-init exits before the runner
-            // registers with GitHub.
-            //
-            // TODO: Re-enable managed CloudWatch Agent config for AMI builder runners once the
-            // runner bootstrap appends its log config instead of fetching/replacing the agent
-            // config. \
-            // extraTags: [{key: "CloudWatchAgent", value: "true"}],
+        });
+        configureRunnerCloudWatchAgent(this, "AmiBuilderRunnerProvider", {
+            provider: amiBuilderRunnerProvider,
+            runnerLogGroupName: amiBuilderRunnerProvider.logGroup.logGroupName,
         });
 
         const amiBuilderRunnerProviderRole: unknown = (amiBuilderRunnerProvider as any).role;
@@ -320,7 +353,7 @@ export class AwsGithubRunners extends Construct {
             // environment variable. We add this option to `@cloudsnorkel/cdk-github-runners`
             // through a patch.
             userDataExtra: Fn.join("", [
-                `{"alpineRunnerTag":"aws-deploy","cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"jobQueueUrl":"`,
+                `{"alpineRunnerTag":"aws-deploy","cloudWatchAgentLogSetup":"ssm","cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"jobQueueUrl":"`,
                 sqs.getJobQueueUrl(),
                 '","fileProcessorJobQueueUrl":"',
                 sqs.getFileProcessorJobQueueUrl(),
@@ -330,12 +363,10 @@ export class AwsGithubRunners extends Construct {
                 sqs.getFileProcessorLightJobQueueUrl(),
                 '"}',
             ]),
-
-            // Tag EC2 instances so the SSM State Manager association in AwsObservability
-            // installs and configures the CloudWatch Agent on them. We pass tags here (rather
-            // than using `observability.installCloudWatchAgent`) because instances are
-            // launched at runtime via ec2:RunInstances, not as CloudFormation resources.
-            extraTags: [{key: "CloudWatchAgent", value: "true"}],
+        });
+        configureRunnerCloudWatchAgent(this, "DeployRunnerProvider", {
+            provider: deployRunnerProvider,
+            runnerLogGroupName: deployRunnerProvider.logGroup.logGroupName,
         });
 
         const deployRunnerProviderRole: unknown = (deployRunnerProvider as any).role;

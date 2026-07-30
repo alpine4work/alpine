@@ -1,0 +1,38 @@
+---
+title: Introduction
+description: A REST interface to everything in your workspace, from documents and tasks to chat, posts, files, and search. Same primitives as the app, over HTTP.
+tags: [api, overview, getting started]
+---
+
+<ApiStats />
+
+## Base URL
+
+All requests are made to a single server. Every path in this reference is
+relative to it.
+
+<BaseUrl />
+
+## Conventions
+
+- Identifiers are 26-character lowercase base32 strings, e.g. <ExampleId />. Each
+  resource has its own typed id (<TypeLink name="DocumentId" />,
+  <TypeLink name="TaskId" />, and so on).
+- Timestamps are ISO 8601 strings, the <TypeLink name="DateTime" /> type.
+- Rich text everywhere (documents, messages, posts, task notes) uses the
+  recursive <TypeLink name="Content" /> model.
+- List endpoints are cursor-paginated via `cursor` and `nextCursor`.
+
+<Callout type="tip" title="Authenticated in seconds">
+    Generate an API key in Space settings, then Bots, then jump to
+    Authentication.
+</Callout>
+
+<CardGrid>
+    <Card title="Authentication" url="/docs/api/authentication">
+        Authorize requests with a bearer API key.
+    </Card>
+    <Card title="Errors" url="/docs/api/errors">
+        The error envelope every endpoint returns.
+    </Card>
+</CardGrid>

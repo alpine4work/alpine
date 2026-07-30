@@ -12,6 +12,7 @@ import {contentStyles} from "~/client/web/styles/styles.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -24,6 +25,7 @@ export function PostView({
     initialPost,
     initialPostComments,
     initialOtherReferencedPostComments,
+    initialMessageDraft,
     initialScroll,
     initialParent,
 }: {
@@ -31,6 +33,7 @@ export function PostView({
     initialPost: RynamoItem<PostModel>;
     initialPostComments: ReadonlyArray<PostCommentModel>;
     initialOtherReferencedPostComments: ReadonlyArray<PostCommentModel>;
+    initialMessageDraft: MessageDraft | MessageDraftWithFiles;
     initialScroll: Memo<PostViewInitialScroll> | null;
     initialParent?: MessageContentPayloadParent | null;
 }) {
@@ -187,6 +190,10 @@ export function PostView({
                 if (!initialParent) return;
                 return new Map([[postId, initialParent]]);
             }, [initialParent, postId])}
+            initialPostCommentDraftByPostId={useMemo(
+                () => new Map([[postId, initialMessageDraft]]),
+                [initialMessageDraft, postId],
+            )}
         />
     );
 }

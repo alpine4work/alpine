@@ -149,18 +149,28 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
     } else if (inviteEmailAddressesToAutoAddToEmailDomainSpace.length > 0) {
         invitedAutoAddToEmailDomainAccountIdsPromise = context.tracer.withSpan(
             "Invite email addresses after sign up to auto add accounts from email domain space",
-            (context, span) => {
+            async (context, span) => {
                 span.addData({
                     common: {
                         count: inviteEmailAddressesToAutoAddToEmailDomainSpace.length,
                     },
                 });
 
-                return invite(
-                    context,
-                    autoAddToEmailDomainSpaceResult.spaceId,
-                    inviteEmailAddressesToAutoAddToEmailDomainSpace,
-                );
+                try {
+                    return await invite(
+                        context,
+                        autoAddToEmailDomainSpaceResult.spaceId,
+                        inviteEmailAddressesToAutoAddToEmailDomainSpace,
+                    );
+                } catch (error) {
+                    // If we failed to invite for some reason, escalate to a `DataLossError` and return
+                    // an empty array. We should let the user get through sign up even if invites
+                    // failed. (Many errors thrown by `invite()` are already `DataLossError`s.)
+                    span.addException(
+                        error instanceof DataLossError ? error : DataLossError.from(error),
+                    );
+                    return [];
+                }
             },
         );
     }
@@ -175,11 +185,21 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                     },
                 });
 
-                return await invite(
-                    context,
-                    personalSpaceResult.spaceId,
-                    inviteEmailAddressesToPersonalSpace,
-                );
+                try {
+                    return await invite(
+                        context,
+                        personalSpaceResult.spaceId,
+                        inviteEmailAddressesToPersonalSpace,
+                    );
+                } catch (error) {
+                    // If we failed to invite for some reason, escalate to a `DataLossError` and return
+                    // an empty array. We should let the user get through sign up even if invites
+                    // failed. (Many errors thrown by `invite()` are already `DataLossError`s.)
+                    span.addException(
+                        error instanceof DataLossError ? error : DataLossError.from(error),
+                    );
+                    return [];
+                }
             },
         );
     }
@@ -739,6 +759,10 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         // ignore as either the UI should have handled them (invalid email address) or
         // since the user truly shouldn't be getting a new email (rejected as spam, already
         // member).
+        //
+        // We escalate to `DataLossError` because we ignore this error and let the user
+        // finish signing up but we don't invite anyone. So we've lost the invites the user
+        // gave us.
         if (
             result.requiresAdminAccessEmailAddresses.size > 0 ||
             result.unexpectedFailureEmailAddresses.size > 0

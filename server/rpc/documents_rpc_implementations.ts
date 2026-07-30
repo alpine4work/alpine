@@ -19,6 +19,7 @@ import {
     getDocumentContentSteps,
     getDocumentPreviewIfExists,
     getResolvedDocumentCommentThreadRanges,
+    putDocumentCommentMessageApprovalDecisions,
     setDocumentCommentReaction,
     updateDocumentCommentContent,
     updateDocumentContentIdempotently,
@@ -270,6 +271,21 @@ export default implementRpcs(definitions, {
         visibility: ["DocumentCollaborationService"],
         execute: (context, input) => {
             return deleteDocumentCommentReaction(context.actor.authorizeSession(), input);
+        },
+    },
+
+    putDocumentCommentMessageApprovalDecisions: {
+        visibility: ["DocumentCollaborationService"],
+        execute: async (context, input) => {
+            const sessionContext = context.actor.authorizeSession();
+            const {approvals, partIndex, version, createdTime, completedTime} =
+                await putDocumentCommentMessageApprovalDecisions(sessionContext, {
+                    documentId: input.documentId,
+                    commentThreadId: input.commentThreadId,
+                    commentIndex: input.commentIndex,
+                    payload: input.payload,
+                });
+            return {approvals, partIndex, version, createdTime, completedTime};
         },
     },
 

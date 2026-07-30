@@ -6,6 +6,7 @@ import {
     getChatMessageAtVersion,
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
+    putChatMessageApprovalDecisions,
     sendChatMessage,
     setChatMessageReaction,
     updateChatMessageContent,
@@ -92,6 +93,20 @@ export default implementRpcs(definitions, {
         visibility: ["ChatRealtimeService"],
         execute: (context, input) => {
             return deleteChatMessageReaction(context.actor.authorizeSession(), input);
+        },
+    },
+
+    putChatMessageApprovalDecisions: {
+        visibility: ["ChatRealtimeService"],
+        execute: async (context, input) => {
+            const sessionContext = context.actor.authorizeSession();
+            const {approvals, partIndex, version, createdTime, completedTime} =
+                await putChatMessageApprovalDecisions(sessionContext, {
+                    chatId: input.chatId,
+                    messageIndex: input.messageIndex,
+                    payload: input.payload,
+                });
+            return {approvals, partIndex, version, createdTime, completedTime};
         },
     },
 

@@ -1,11 +1,15 @@
-import {Agent, STATUS_CODES, ServerResponse, createServer, request} from "http";
+import {Agent, IncomingMessage, STATUS_CODES, ServerResponse, createServer, request} from "http";
 import {Socket} from "net";
 import {parseArgs} from "util";
 import {
     bridgeProxiedSockets,
     handleProxiedSocketError,
 } from "~/server/helpers/node/bridge_proxied_sockets.js";
+import {httpServerGracefulForceShutdownTimeoutMs} from "~/server/helpers/node/shutdown_timeouts.js";
 import {InternalError} from "~/shared/error/error.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 assert(process.getuid && process.setuid && process.getgid && process.setgid);
@@ -35,17 +39,65 @@ const {
 });
 
 const ports = new Set(portsArray);
-
 const keepAliveAgent = new Agent({keepAlive: true});
 const dontKeepAliveAgent = new Agent({keepAlive: false});
+
+let isShuttingDown = false;
+let activeSocketClosePromiseResolver: PromiseResolver<void> | null = null;
+const activeProxiedSockets = new Set<Socket>();
+
+function trackActiveProxiedSocket(socket: Socket) {
+    activeProxiedSockets.add(socket);
+
+    socket.once("close", () => {
+        activeProxiedSockets.delete(socket);
+
+        if (isShuttingDown && activeProxiedSockets.size === 0) {
+            activeSocketClosePromiseResolver?.resolve();
+            activeSocketClosePromiseResolver = null;
+        }
+    });
+}
+
+function waitForActiveProxiedSocketsToClose(): Promise<void> {
+    if (activeProxiedSockets.size === 0) return Promise.resolve();
+
+    assert(!activeSocketClosePromiseResolver);
+    activeSocketClosePromiseResolver = createPromiseResolver();
+    return activeSocketClosePromiseResolver.promise;
+}
 
 function logUnexpectedProxiedSocketError(error: Error) {
     // eslint-disable-next-line no-console
     console.error("Proxied request failed:", error);
 }
 
+function rejectHttpRequest(res: ServerResponse, statusCode: number, statusMessage: string) {
+    res.writeHead(statusCode, {
+        "content-type": "text/plain",
+        connection: "close",
+    });
+    res.end(`${statusCode} ${statusMessage}`);
+}
+
+function rejectUpgradeRequest(
+    req: IncomingMessage,
+    socket: Socket,
+    statusCode: number,
+    statusMessage: string,
+) {
+    const res = new ServerResponse(req);
+    res.assignSocket(socket);
+    rejectHttpRequest(res, statusCode, statusMessage);
+}
+
 const server = createServer((req1, res1) => {
     const url = new URL(req1.url!, `http://${req1.headers.host!}`);
+
+    if (isShuttingDown) {
+        rejectHttpRequest(res1, 503, "Service Unavailable (shutting down)");
+        return;
+    }
 
     if (url.pathname === "/healthcheck") {
         res1.writeHead(200, {"content-type": "text/plain"});
@@ -106,11 +158,13 @@ server.on("upgrade", (req1, socket1, head1) => {
     const match = url.pathname?.match(/^\/(\d+)(\/.*|$)/);
     const port = match?.[1];
 
+    if (isShuttingDown) {
+        rejectUpgradeRequest(req1, socket1, 503, "Service Unavailable (shutting down)");
+        return;
+    }
+
     if (!port || !ports.has(port)) {
-        const res1 = new ServerResponse(req1);
-        res1.assignSocket(socket1);
-        res1.writeHead(404, {"content-type": "text/plain"});
-        res1.end("404 Not Found");
+        rejectUpgradeRequest(req1, socket1, 404, "Not Found");
         return;
     }
 
@@ -137,10 +191,7 @@ server.on("upgrade", (req1, socket1, head1) => {
 
         logUnexpectedProxiedSocketError(error);
 
-        const res1 = new ServerResponse(req1);
-        res1.assignSocket(socket1);
-        res1.writeHead(500, {"content-type": "text/plain"});
-        res1.end("500 Internal Server Error");
+        rejectUpgradeRequest(req1, socket1, 500, "Internal Server Error");
     });
 
     req2.on("response", res2 => {
@@ -173,6 +224,9 @@ server.on("upgrade", (req1, socket1, head1) => {
             });
         });
 
+        trackActiveProxiedSocket(socket1);
+        trackActiveProxiedSocket(socket2);
+
         const headers = [];
         for (let i = 0; i < res2.rawHeaders.length; i += 2) {
             headers.push(`${res2.rawHeaders[i]!}: ${res2.rawHeaders[i + 1]!}`);
@@ -198,6 +252,57 @@ server.on("upgrade", (req1, socket1, head1) => {
     });
 
     req1.pipe(req2, {end: true});
+});
+
+async function shutdown(signal: "SIGINT" | "SIGTERM") {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
+    try {
+        // eslint-disable-next-line no-console
+        console.log(`Gateway graceful shutdown started by ${signal} (pid: ${process.pid})`);
+
+        const closeServerPromise = new Promise<void>((resolve, reject) => {
+            server.close(error => {
+                if (error) reject(error);
+                else resolve();
+            });
+        });
+
+        const forceCloseTimeout = createTimeout(() => {
+            // eslint-disable-next-line no-console
+            console.log("Graceful shutdown timeout exceeded, forcefully shutting down");
+            for (const socket of activeProxiedSockets) {
+                socket.destroy();
+            }
+        }, httpServerGracefulForceShutdownTimeoutMs);
+
+        try {
+            await runAllPromises([closeServerPromise, waitForActiveProxiedSocketsToClose()]);
+            forceCloseTimeout.clear();
+
+            // eslint-disable-next-line no-console
+            console.log(`Gateway graceful shutdown finished (pid: ${process.pid})`);
+        } catch (error) {
+            forceCloseTimeout.clear();
+            throw error;
+        }
+
+        process.exit(0);
+    } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Gateway shutdown finished with exception: ", error);
+
+        process.exit(1);
+    }
+}
+
+process.on("SIGINT", () => {
+    void shutdown("SIGINT");
+});
+
+process.on("SIGTERM", () => {
+    void shutdown("SIGTERM");
 });
 
 // We need to be the root process to listen on port 80. Once our server is

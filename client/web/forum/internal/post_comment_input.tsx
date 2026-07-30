@@ -22,7 +22,7 @@ import {PostListHeader} from "~/client/web/forum/post_list.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
-import {MessageInput} from "~/client/web/messaging/message_input.js";
+import {MessageInput, MessageInputRestoreState} from "~/client/web/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
 import {JumpToMessageRangeOptions} from "~/client/web/messaging/use_jump_to_message_range.js";
 import {JumpToPostRangeOptions} from "~/client/web/messaging/use_jump_to_post_range.js";
@@ -59,8 +59,10 @@ import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realt
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {PostId} from "~/shared/id/types/id_types.js";
+import {MessageDraft} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayload} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {getPostWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 
@@ -82,6 +84,10 @@ export type PostRealtimeProcedures = {
         contentVersion: number;
         pos: number | "Files";
     }) => Promise<{}>;
+    putCommentApprovalDecisions: (input: {
+        commentIndex: number;
+        payload: PutMessageApprovalDecisionsPayload;
+    }) => Promise<{}>;
 };
 
 export function PostCommentInput(props: {
@@ -99,11 +105,15 @@ export function PostCommentInput(props: {
     postCommentEditing: MessageEditing<PostId>;
     parent: MessageContentPayloadParent | null;
     onParentClear: () => void;
+    onParentChange: (parent: MessageContentPayloadParent | null) => void;
     onJumpToPostCommentRange: (options: JumpToMessageRangeOptions<PostId>) => void;
     onJumpToPostRange: (options: JumpToPostRangeOptions) => void;
     onDeletePostComment: (postCommentIndex: number) => Promise<void>;
     shouldBeConnectedToChannelRealtime: boolean;
     onPostRealtimeEvents: Memo<(events: ReadonlyArray<RynamoEvent<PostModel>>) => void>;
+    restoreStateRef?: RefObject<MessageInputRestoreState | null>;
+    messageDraft?: MessageDraft;
+    onMessageDraftChange?: (draft: MessageDraft) => void;
 }) {
     const {currentAccount} = useSpaceContext();
     const siteRegistry = useSiteRegistry();
@@ -162,6 +172,7 @@ function usePostCommentInputRealtime({
                 "deleteComment",
                 "setCommentReaction",
                 "deleteCommentReaction",
+                "putCommentApprovalDecisions",
             ]),
         [procedures],
     );
@@ -241,11 +252,15 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         postCommentEditing,
         parent,
         onParentClear,
+        onParentChange,
         onJumpToPostCommentRange,
         onJumpToPostRange,
         onDeletePostComment,
         shouldBeConnectedToChannelRealtime,
         onPostRealtimeEvents,
+        restoreStateRef,
+        messageDraft,
+        onMessageDraftChange,
     } = props;
 
     const context = useAppContext();
@@ -327,6 +342,11 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         ),
     });
 
+    const draftSurface = useMemo(
+        () => ({type: "PostComment" as const, postId: post.id}),
+        [post.id],
+    );
+
     return (
         <MessageInput
             ref={useMergedRefs(inputRef, inputRefProp ?? null)}
@@ -348,6 +368,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
             postRoom={post}
             parent={parent}
             onParentClear={onParentClear}
+            onParentChange={onParentChange}
             onJumpToMessageRange={onJumpToPostCommentRange}
             onJumpToPostRange={onJumpToPostRange}
             onDeleteMessage={onDeletePostComment}
@@ -375,6 +396,11 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
                         ),
                     );
             }}
+            messageDraftSurface={draftSurface}
+            messageDraft={messageDraft}
+            onMessageDraftChange={onMessageDraftChange}
+            shouldFlushDraftOnUnmount={true}
+            restoreStateRef={restoreStateRef}
         />
     );
 }

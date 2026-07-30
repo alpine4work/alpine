@@ -12,6 +12,7 @@ import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_me
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {
     ApiMessageResponse,
+    ApiMessageStreamApprovalsPartPayload,
     ApiMessageStreamPartPayload,
     ApiMessageStreamToolCallPartPayloadCall,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -73,6 +74,13 @@ interface AgentMessageStreamSessionInterface {
      *   then reasoning, preserving the original ordering.
      */
     pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall): void;
+
+    /**
+     * Push an interactive approval-request card: the agent paused, awaiting human
+     * approval for a proposed action. Like other non-content parts, this flushes
+     * buffered text first to preserve ordering.
+     */
+    pushApprovalRequest(span: TracerSpan, payload: ApiMessageStreamApprovalsPartPayload): void;
 
     /**
      * These are non-content (semantic) parts that must be persisted with correct
@@ -251,6 +259,12 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
         assert(!this._isCompleted);
         this._flushUpdateTextState();
         void this._update(span, [{type: "ToolCall", call}]);
+    }
+
+    pushApprovalRequest(span: TracerSpan, payload: ApiMessageStreamApprovalsPartPayload) {
+        assert(!this._isCompleted);
+        this._flushUpdateTextState();
+        void this._update(span, [payload]);
     }
 
     pushReasoningSummary(span: TracerSpan, summary: string) {

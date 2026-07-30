@@ -18,17 +18,23 @@ export async function getAgentMessagesFromEndUntilLimitTokenCount(
     apiClient: ApiClient,
     spaceId: SpaceId,
     room: ApiMessageRoomReference,
-    {startingCursor, limitTokenCount}: {startingCursor: number; limitTokenCount: number},
+    {startingCursor, limitTokenCount}: {startingCursor: number | null; limitTokenCount: number},
 ): Promise<{
     messages: Array<AgentMessage>;
     nextCursor: number | null;
 }> {
+    // A `null` cursor means "the very end of the room" on the first page, and "no more
+    // messages" on every page after that (it's the API's exhausted signal). So the
+    // first page always loads, even with a `null` cursor.
     let cursor: number | null = startingCursor;
+    let isFirstPage = true;
     let totalTokenCount = 0;
     const messages: Array<AgentMessage> = [];
 
     // Load messages until we reach our token limit.
-    while (cursor !== null && totalTokenCount < limitTokenCount) {
+    while ((isFirstPage || cursor !== null) && totalTokenCount < limitTokenCount) {
+        isFirstPage = false;
+
         const {
             data: {nextCursor, messages: currentMessages},
         } = await getApiMessagesFromEnd(tracer, apiClient, room, {

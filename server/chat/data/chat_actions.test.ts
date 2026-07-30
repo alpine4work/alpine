@@ -18,6 +18,7 @@ import {
     getChatMessagesFromStart,
     pingChatMessageStream,
     processSendShareNotificationJob,
+    putChatMessageApprovalDecisions,
     putChatMessageStreamPart,
     sendChatMessage,
     setChatMessageReaction,
@@ -191,7 +192,7 @@ async function sendChatMessageToAccounts(
         otherAccountIds,
     });
 
-    return sendChatMessage(context, {
+    return await sendChatMessage(context, {
         chatId,
         parent,
         content,
@@ -4466,16 +4467,16 @@ testMessagingImplementation<ChatId>(context, {
         };
     },
     async getMessage(context, {roomKey: chatId, messageIndex}) {
-        return getChatMessage(context, {chatId, messageIndex});
+        return await getChatMessage(context, {chatId, messageIndex});
     },
     async getMessagePayload(context, {roomKey: chatId, messageIndex}) {
-        return getChatMessagePayload(context, {chatId, messageIndex});
+        return await getChatMessagePayload(context, {chatId, messageIndex});
     },
     async getMessageParentContent(context, {roomKey: chatId, parent}) {
-        return getChatMessageParentContent(context, chatId, {parent});
+        return await getChatMessageParentContent(context, chatId, {parent});
     },
     async updateMessageContent(context, {roomKey: chatId, messageIndex, contentVersion, steps}) {
-        return updateChatMessageContent(context, {
+        return await updateChatMessageContent(context, {
             chatId,
             messageIndex,
             contentVersion,
@@ -4483,10 +4484,10 @@ testMessagingImplementation<ChatId>(context, {
         });
     },
     async deleteMessage(context, {roomKey: chatId, messageIndex}) {
-        return deleteChatMessage(context, {chatId, messageIndex});
+        return await deleteChatMessage(context, {chatId, messageIndex});
     },
     async pingMessageStream(context, {roomKey: chatId, messageIndex}) {
-        return pingChatMessageStream(context, {chatId, messageIndex});
+        return await pingChatMessageStream(context, {chatId, messageIndex});
     },
     async putMessageStreamPart(
         context,
@@ -4500,8 +4501,17 @@ testMessagingImplementation<ChatId>(context, {
             isTimeoutErrorCompletion,
         });
     },
+    async putMessageApprovalDecisions(context, {roomKey: chatId, messageIndex, payload}) {
+        const {approvals} = await putChatMessageApprovalDecisions(context, {
+            chatId,
+            messageIndex,
+            payload,
+        });
+
+        return {approvals};
+    },
     async completeMessageStream(context, {roomKey: chatId, messageIndex}) {
-        return completeChatMessageStream(context, {
+        return await completeChatMessageStream(context, {
             chatId,
             messageIndex,
         });
@@ -4510,7 +4520,7 @@ testMessagingImplementation<ChatId>(context, {
         context,
         {roomKey: chatId, messageIndex, contentVersion, pos, reaction},
     ) {
-        return setChatMessageReaction(context, {
+        return await setChatMessageReaction(context, {
             chatId,
             messageIndex,
             contentVersion,
@@ -4519,13 +4529,18 @@ testMessagingImplementation<ChatId>(context, {
         });
     },
     async deleteMessageReaction(context, {roomKey: chatId, messageIndex, contentVersion, pos}) {
-        return deleteChatMessageReaction(context, {chatId, messageIndex, contentVersion, pos});
+        return await deleteChatMessageReaction(context, {
+            chatId,
+            messageIndex,
+            contentVersion,
+            pos,
+        });
     },
     async getMessagesFromStart(
         context,
         {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
     ) {
-        return getChatMessagesFromStart(context.actor.authorizeSession(), {
+        return await getChatMessagesFromStart(context.actor.authorizeSession(), {
             chatId,
             limit,
             afterMessageIndex,
@@ -4536,7 +4551,7 @@ testMessagingImplementation<ChatId>(context, {
         context,
         {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
     ) {
-        return getChatMessagesFromEnd(context.actor.authorizeSession(), {
+        return await getChatMessagesFromEnd(context.actor.authorizeSession(), {
             chatId,
             limit,
             afterMessageIndex,
@@ -4547,7 +4562,7 @@ testMessagingImplementation<ChatId>(context, {
         context,
         {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
     ) {
-        return getChatMessagePayloadsFromStart(context.actor.authorizeSession(), {
+        return await getChatMessagePayloadsFromStart(context.actor.authorizeSession(), {
             chatId,
             limit,
             afterMessageIndex,
@@ -4558,7 +4573,7 @@ testMessagingImplementation<ChatId>(context, {
         context,
         {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
     ) {
-        return getChatMessagePayloadsFromEnd(context.actor.authorizeSession(), {
+        return await getChatMessagePayloadsFromEnd(context.actor.authorizeSession(), {
             chatId,
             limit,
             afterMessageIndex,
@@ -4569,7 +4584,7 @@ testMessagingImplementation<ChatId>(context, {
         context,
         {roomKey: chatId, checkpoint, clientMessageCount, newMessageLimit},
     ) {
-        return backfillChatMessages(context, {
+        return await backfillChatMessages(context, {
             chatId,
             checkpoint,
             clientMessageCount,

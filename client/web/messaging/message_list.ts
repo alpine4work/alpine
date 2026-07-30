@@ -1016,6 +1016,7 @@ export class MessageList<Message extends MessageModel> {
             payload: MessageStreamPartPayload;
             createdTime: Date;
         };
+        completedTime: Date | null;
         references: ContentReferences;
     }) {
         const iterator = this._messages.find(event.index);
@@ -1067,6 +1068,7 @@ export class MessageList<Message extends MessageModel> {
         const newStream: MessageStream = {
             ...message.stream,
             parts: newParts,
+            completedTime: message.stream.completedTime ?? event.completedTime,
         };
 
         // Merge in the new references for the stream part. All stream parts in a single

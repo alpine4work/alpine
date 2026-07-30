@@ -29,8 +29,12 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
-import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadParentSchema,
+    MessageExperimentalApprovalSchema,
+} from "~/shared/messaging/message_schema.js";
 import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayloadSchema} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -402,6 +406,23 @@ export const deletePostCommentReaction = defineRpc({
     },
     output: {
         version: Schema.integer,
+    },
+});
+
+export const putPostCommentMessageApprovalDecisions = defineRpc({
+    name: "putPostCommentMessageApprovalDecisions",
+    isIdempotent: true,
+    input: {
+        postId: Schema.id<PostId>(),
+        commentIndex: Schema.integer.min(0),
+        payload: PutMessageApprovalDecisionsPayloadSchema,
+    },
+    output: {
+        approvals: Schema.array(MessageExperimentalApprovalSchema),
+        partIndex: Schema.integer.min(0),
+        version: Schema.integer.min(0),
+        createdTime: Schema.date,
+        completedTime: Schema.date.nullable().default(null),
     },
 });
 

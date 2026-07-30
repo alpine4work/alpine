@@ -81,12 +81,16 @@ export async function loader({request, context: unauthenticatedContext, params}:
         ),
     ]);
 
+    const filteredEntries = filterMapArray(actualEntries, entry =>
+        entry.ok ? entry.value : undefined,
+    );
+
     return jsonWithSchema(LoaderSchema, {
         affinitySearch,
         feed: {
             endCursor: null,
             hasMoreEntries: false,
-            entries: filterMapArray(actualEntries, entry => (entry.ok ? entry.value : undefined)),
+            entries: filteredEntries,
         },
     });
 }

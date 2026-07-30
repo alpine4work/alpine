@@ -7,6 +7,7 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {MessageView} from "~/client/web/messaging/message_view.js";
+import {OnPutMessageApprovalDecisionsFunction} from "~/client/web/messaging/on_put_message_approval_decisions_function.js";
 import {
     OnDeleteMessageReactionFunction,
     OnSetMessageReactionFunction,
@@ -44,6 +45,7 @@ export function PostCommentView({
     onReplyToMessage,
     onDeleteMessageReaction: handleDeleteMessageReaction,
     onSetMessageReaction: handleSetMessageReaction,
+    onPutMessageApprovalDecisions: handlePutMessageApprovalDecisions,
     onUpdatePostCommentsOptimistically,
     disableExpensiveFeaturesDuringScroll,
     hasCommentAccessLevel,
@@ -62,6 +64,7 @@ export function PostCommentView({
     onDeleteMessage: () => Promise<void>;
     onSetMessageReaction: Memo<OnSetMessageReactionFunction<PostId>>;
     onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<PostId>>;
+    onPutMessageApprovalDecisions: Memo<OnPutMessageApprovalDecisionsFunction<PostId>>;
     disableExpensiveFeaturesDuringScroll: boolean;
 
     /**
@@ -117,6 +120,8 @@ export function PostCommentView({
             }}
             onSetMessageReaction={handleSetMessageReaction}
             onDeleteMessageReaction={handleDeleteMessageReaction}
+            onPutMessageApprovalDecisions={handlePutMessageApprovalDecisions}
+            approvalSessionNoun="post"
             onUpdateMessagesOptimistically={onUpdatePostCommentsOptimistically}
             roomDisplayedCreatedTime={item.post.createdTime}
             isReadOnly={isReadOnly}

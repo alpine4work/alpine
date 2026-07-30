@@ -72,6 +72,12 @@ serializer/parser pair that owns it.
   surfaces against it.
 - Treat response/write compatibility as a product requirement, not just an implementation detail.
 
+## Actor Provenance
+
+Actor payloads use `accountId` for the effective actor. Always populate `from` when the action was
+performed through a different non-human actor, such as a bot acting on behalf of a human account. Do
+not duplicate the same account in `from` just to indicate that the actor account is a bot.
+
 ## Consistency
 
 Our API requires strong consistency. Data returned from the API should never be stale when compared

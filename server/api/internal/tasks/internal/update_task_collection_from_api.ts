@@ -1,4 +1,5 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
+import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {fromApiThemeColor} from "~/shared/api/content/closed_source/from_api_theme_color.js";
 import {intoApiThemeColor} from "~/shared/api/content/closed_source/into_api_theme_color.js";
@@ -45,10 +46,7 @@ export async function updateTaskCollectionFromApi(
     const consistency = "StrongWithinCache" as const;
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const botAccountId = context.actor.getBotAccountId();
-    const actor: TaskActor = {
-        accountId: actorId ?? botAccountId,
-        from: {type: "Bot", accountId: botAccountId},
-    };
+    const actor = createApiTaskActor({actorId, botAccountId});
 
     const initialCollection = await context.tasks.getCollection(spaceId, collectionId, {
         consistency,

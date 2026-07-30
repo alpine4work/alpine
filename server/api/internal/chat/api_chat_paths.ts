@@ -9,12 +9,16 @@ import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {getFileIdOrFileEntityIdFromApiMessageContentPayloadFile} from "~/server/api/internal/shared/get_file_id_or_file_entity_id_from_api_message_content_payload_file.js";
 import {getApiMentionTitleWithStrongConsistency} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
 import {
+    broadcastPutChatMessageStreamPart,
     completeChatMessageStream,
+    getChatMessageApprovals,
     getChatMessagePayload,
     getChatMessagePayloadsFromEnd,
     getChatMessagePayloadsFromStart,
     pingChatMessageStream,
+    putChatMessageApprovalDecisions,
     putChatMessageStreamPart,
     sendChatMessage,
 } from "~/server/chat/data/chat_messaging.js";
@@ -543,6 +547,71 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
             });
 
             return {content: {spaceId}};
+        },
+    },
+
+    "/chats/{id}/messages/{index}/experimental-approvals": {
+        get: async (context, {pathParameters}) => {
+            const {spaceId, approvals} = await getChatMessageApprovals(context, {
+                chatId: pathParameters.id,
+                messageIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
+
+            const referenceContext = context.dynamo.unexpectStrongReadConsistency();
+            return {
+                content: {
+                    spaceId,
+                    approvals: await runAllPromises(
+                        approvals.map(approval =>
+                            intoApiMessageExperimentalApproval(referenceContext, {
+                                spaceId,
+                                approval,
+                            }),
+                        ),
+                    ),
+                },
+            };
+        },
+        patch: async (context, {pathParameters, requestBody}) => {
+            const {spaceId, approvals, partIndex, version, createdTime, completedTime} =
+                await putChatMessageApprovalDecisions(context, {
+                    chatId: pathParameters.id,
+                    messageIndex: pathParameters.index,
+                    payload: {
+                        type: "ExperimentalDecisions",
+                        decisions: requestBody.patches.map(patch => ({
+                            index: patch.index,
+                            value: patch.decision.value,
+                        })),
+                    },
+                    consistency: "StrongWithinCache",
+                });
+
+            broadcastPutChatMessageStreamPart(context, {
+                chatId: pathParameters.id,
+                messageIndex: pathParameters.index,
+                partIndex,
+                version,
+                payload: {type: "ExperimentalApprovals", approvals},
+                createdTime,
+                completedTime,
+            });
+
+            const referenceContext = context.dynamo.unexpectStrongReadConsistency();
+            return {
+                content: {
+                    spaceId,
+                    approvals: await runAllPromises(
+                        approvals.map(approval =>
+                            intoApiMessageExperimentalApproval(referenceContext, {
+                                spaceId,
+                                approval,
+                            }),
+                        ),
+                    ),
+                },
+            };
         },
     },
 };

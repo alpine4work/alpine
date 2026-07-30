@@ -235,6 +235,7 @@ import {searchShortcutFavoriteEntityMaxCount} from "~/shared/spaces/space_accoun
 import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collection_search_entity_base.js";
 import {getTaskSearchEntityBase} from "~/shared/tasks/get_task_search_entity_base.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
+import {emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -2693,7 +2694,22 @@ async function prepareSearchEntityDataForResult(
             };
         }
         case "Task": {
-            assert(titleVersion?.type === "TaskTitle");
+            // TODO(ifitzsimmons, 2026-05-19): We need to reindex the semantic search index to
+            // fix this properly. After that, we should assert that the title version is the
+            // expected type.
+            function getTaskVersion() {
+                if (titleVersion?.type === "TaskTitle") {
+                    return {
+                        titleSnapshot: titleVersion.snapshot,
+                        deletedTime: titleVersion.deletedTime,
+                    };
+                }
+
+                return {
+                    titleSnapshot: emptyTaskTitleModel.get().getSnapshot(),
+                    deletedTime: undefined,
+                };
+            }
 
             // TODO(ifitzsimmons, 2026-05-19): We saw an error in production where task
             // entities do not have display statuses, which is crashing the app for a set of
@@ -2710,8 +2726,7 @@ async function prepareSearchEntityDataForResult(
                 title,
                 task: {
                     id: idObject.taskId,
-                    titleSnapshot: titleVersion.snapshot,
-                    deletedTime: titleVersion.deletedTime,
+                    ...getTaskVersion(),
                     displayStatus,
                 },
             };

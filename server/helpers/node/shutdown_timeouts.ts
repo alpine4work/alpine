@@ -7,8 +7,7 @@
  *
  * 1. HTTP server stops accepting new connections and drains existing ones (2
  *    minutes)
- * 2. ECS sends SIGTERM and waits before force-killing the container (2 minutes 15
- *    seconds, giving 15 seconds buffer for final cleanup)
+ * 2. ECS sends SIGTERM and waits before force-killing the container (2 minutes)
  * 3. Shutdown manager timeout is longer but ECS will force-kill first (5 minutes,
  *    mostly relevant for tests)
  */
@@ -35,9 +34,11 @@ export const ecsStopTimeoutMs = 2 * 60 * 1000; // 2 minutes
 
 /**
  * Timeout for HTTP server graceful shutdown. The server will force-close
- * connections if they haven't finished within this time.
+ * connections if they haven't finished within this time. Intentionally slightly
+ * shorter than `ecsStopTimeoutMs` to allow the server to perform any hard shutdown
+ * itself before ECS kills the process.
  */
-export const httpServerGracefulForceShutdownTimeoutMs = 2 * 60 * 1000; // 2 minutes
+export const httpServerGracefulForceShutdownTimeoutMs = ecsStopTimeoutMs - 10000; // 2 minutes, less 10 seconds
 
 /**
  * Timeout for the shutdown manager to wait for all shutdown listeners and

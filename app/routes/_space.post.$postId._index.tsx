@@ -11,6 +11,7 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {getPostAndInitialComments} from "~/server/forum/data/post_messaging.js";
+import {getMessageDraft} from "~/server/messaging/drafts/get_message_draft.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -19,8 +20,13 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
+import {
+    MessageDraftWithFilesSchema,
+    emptyMessageDraftWithFiles,
+} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -34,6 +40,7 @@ const LoaderSchema = Schema.object({
     post: createRynamoItemSchema(PostModel.schema()),
     initialPostComments: Schema.array(PostCommentModel.schema()),
     initialOtherReferencedPostComments: Schema.array(PostCommentModel.schema()),
+    messageDraft: MessageDraftWithFilesSchema,
     inboxEntry: createRynamoItemSchema(InboxEntryModelSchema).nullable(),
 });
 
@@ -52,7 +59,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
     const {
         data1: {post, initialComments, initialOtherReferencedComments},
-        data2: inboxEntry = null,
+        data2: [inboxEntry, messageDraft] = [null, emptyMessageDraftWithFiles],
     } = await loadWithSpaceDiscovery(context, {
         load1: async () => {
             return await getPostAndInitialComments(context, {
@@ -61,17 +68,23 @@ export async function loader({params, context: unauthenticatedContext, request}:
             });
         },
         load2: async ({spaceId}) => {
-            if (url.searchParams.get("inbox") !== "show") return null;
-
             const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId))
                 .ok;
 
-            if (!isSpaceAccessAuthorized) return null;
-
-            return await getInboxEntry(context.actor.authorizeSession(), {
-                spaceId,
-                key: {type: "PostComments", postId},
-            });
+            return await runAllPromises([
+                isSpaceAccessAuthorized && url.searchParams.get("inbox") === "show"
+                    ? getInboxEntry(context.actor.authorizeSession(), {
+                          spaceId,
+                          key: {type: "PostComments", postId},
+                      })
+                    : null,
+                isSpaceAccessAuthorized
+                    ? getMessageDraft(context.actor.authorizeSession(), {
+                          spaceId,
+                          surface: {type: "PostComment", postId},
+                      })
+                    : emptyMessageDraftWithFiles,
+            ]);
         },
     });
 
@@ -82,6 +95,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             post,
             initialPostComments: initialComments,
             initialOtherReferencedPostComments: initialOtherReferencedComments,
+            messageDraft,
             inboxEntry,
         },
         {propagateEventData: {context: {channelId: post.model.channel.id}}},
@@ -123,8 +137,14 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export default function PostRoute() {
     const [searchParams, setSearchParams] = useSearchParams();
-    const {checkpoint, post, initialPostComments, initialOtherReferencedPostComments, inboxEntry} =
-        useLoaderDataWithSchema(LoaderSchema);
+    const {
+        checkpoint,
+        post,
+        initialPostComments,
+        initialOtherReferencedPostComments,
+        messageDraft,
+        inboxEntry,
+    } = useLoaderDataWithSchema(LoaderSchema);
 
     const commentIndexString = searchParams.get("comment");
     const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
@@ -191,6 +211,7 @@ export default function PostRoute() {
             initialPost={post}
             initialPostComments={initialPostComments}
             initialOtherReferencedPostComments={initialOtherReferencedPostComments}
+            initialMessageDraft={messageDraft}
             initialScroll={initialScroll}
             initialParent={initialParent}
         />

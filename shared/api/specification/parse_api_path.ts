@@ -518,6 +518,7 @@ export function parseApiBotWebhookEventIntoMessageRoom(
     event: ApiBotWebhookEvent,
 ): ApiMessageRoomReference {
     switch (event.type) {
+        case "UpdatedMessageStreamExperimentalApprovalsPart":
         case "CreatedMessage": {
             return event.room;
         }
@@ -534,6 +535,7 @@ export function parseApiBotWebhookEventIntoMessageRoomPath(
     event: ApiBotWebhookEvent,
 ): ApiMessageRoomPath {
     switch (event.type) {
+        case "UpdatedMessageStreamExperimentalApprovalsPart":
         case "CreatedMessage": {
             return printApiMessageRoomPath(event.room);
         }

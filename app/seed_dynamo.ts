@@ -29,8 +29,11 @@ export function seedDynamo(
         agentServiceLocalPort: string;
         chatGptLocalUnscopedApiKey: string;
         chatGptLocalScopedApiKey: string;
+        chatGptWebhookSecret?: string;
         cursorLocalUnscopedApiKey: string;
+        cursorWebhookSecret?: string;
         mockChatGptLocalUnscopedApiKey: string;
+        mockChatGptWebhookSecret?: string;
     },
 ): Promise<void> {
     assert(process.env.NODE_ENV !== "production");

@@ -9,6 +9,8 @@ import {
     intoApiContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
+import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {ApiTaskConverter} from "~/server/api/internal/tasks/internal/api_task_converter.js";
 import {createApiPatchTaskResponseCollections} from "~/server/api/internal/tasks/internal/create_api_patch_task_response_collections.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
@@ -27,12 +29,15 @@ import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {
+    broadcastPutTaskCommentStreamPart,
     completeTaskCommentStream,
     createTaskComment,
+    getTaskCommentMessageApprovals,
     getTaskCommentPayload,
     getTaskCommentPayloadsFromEnd,
     getTaskCommentPayloadsFromStart,
     pingTaskCommentStream,
+    putTaskCommentMessageApprovalDecisions,
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_messaging.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
@@ -62,7 +67,6 @@ import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
-import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {
     TaskNotesContentProsemirrorSchema,
     assertTaskNotesContent,
@@ -707,10 +711,7 @@ export const apiTasksPaths: Pick<
             const clock = new HybridLogicalClock(unsynchronizedSystemClock);
             const botAccountId = context.actor.getBotAccountId();
             const creatorId = collection.creator?.id ?? botAccountId;
-            const actor: TaskActor = {
-                accountId: creatorId,
-                from: {type: "Bot", accountId: botAccountId},
-            };
+            const actor = createApiTaskActor({actorId: creatorId, botAccountId});
 
             const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
                 consistency: "StrongWithinCache",
@@ -726,10 +727,7 @@ export const apiTasksPaths: Pick<
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creator: {
-                                accountId: creatorId,
-                                from: {type: "Bot", accountId: botAccountId},
-                            },
+                            creator: actor,
                             name: collection.name,
                             accessPolicy,
                         },
@@ -903,6 +901,71 @@ export const apiTasksPaths: Pick<
                     collection: intoApiTaskCollection(collection),
                     nextCursor,
                     tasks,
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}/messages/{index}/experimental-approvals": {
+        get: async (context, {pathParameters}) => {
+            const {spaceId, approvals} = await getTaskCommentMessageApprovals(context, {
+                taskId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
+
+            const referenceContext = context.dynamo.unexpectStrongReadConsistency();
+            return {
+                content: {
+                    spaceId,
+                    approvals: await runAllPromises(
+                        approvals.map(approval =>
+                            intoApiMessageExperimentalApproval(referenceContext, {
+                                spaceId,
+                                approval,
+                            }),
+                        ),
+                    ),
+                },
+            };
+        },
+        patch: async (context, {pathParameters, requestBody}) => {
+            const {spaceId, approvals, partIndex, version, createdTime, completedTime} =
+                await putTaskCommentMessageApprovalDecisions(context, {
+                    taskId: pathParameters.id,
+                    commentIndex: pathParameters.index,
+                    payload: {
+                        type: "ExperimentalDecisions",
+                        decisions: requestBody.patches.map(patch => ({
+                            index: patch.index,
+                            value: patch.decision.value,
+                        })),
+                    },
+                    consistency: "StrongWithinCache",
+                });
+
+            broadcastPutTaskCommentStreamPart(context, {
+                taskId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                partIndex,
+                version,
+                payload: {type: "ExperimentalApprovals", approvals},
+                createdTime,
+                completedTime,
+            });
+
+            const referenceContext = context.dynamo.unexpectStrongReadConsistency();
+            return {
+                content: {
+                    spaceId,
+                    approvals: await runAllPromises(
+                        approvals.map(approval =>
+                            intoApiMessageExperimentalApproval(referenceContext, {
+                                spaceId,
+                                approval,
+                            }),
+                        ),
+                    ),
                 },
             };
         },

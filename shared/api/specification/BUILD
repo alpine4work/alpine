@@ -32,6 +32,12 @@ ts_project(
     ],
 )
 
+filegroup(
+    name = "api_specification_final",
+    srcs = ["api_specification_final.yaml"],
+    visibility = ["//client/web/docs:__subpackages__"],
+)
+
 ts_project(
     name = "specification_generate_lib",
     srcs = GENERATE_SRCS,

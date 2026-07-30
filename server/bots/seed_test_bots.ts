@@ -12,8 +12,11 @@ export async function seedTestBots(
         agentServiceLocalPort: string | number;
         chatGptLocalUnscopedApiKey: string | null;
         chatGptLocalScopedApiKey: string | null;
+        chatGptWebhookSecret?: string | null;
         cursorLocalUnscopedApiKey: string | null;
+        cursorWebhookSecret?: string | null;
         mockChatGptLocalUnscopedApiKey: string;
+        mockChatGptWebhookSecret?: string | null;
     },
 ) {
     assert(process.env.NODE_ENV !== "production");
@@ -34,10 +37,12 @@ async function seedTestChatGptBot(
         agentServiceLocalPort,
         chatGptLocalUnscopedApiKey,
         chatGptLocalScopedApiKey,
+        chatGptWebhookSecret = null,
     }: {
         agentServiceLocalPort: string | number;
         chatGptLocalUnscopedApiKey: string | null;
         chatGptLocalScopedApiKey: string | null;
+        chatGptWebhookSecret?: string | null;
     },
 ) {
     assert(process.env.NODE_ENV !== "production");
@@ -56,12 +61,15 @@ async function seedTestChatGptBot(
             },
             item => {
                 const webhookUrl = `http://localhost:${agentServiceLocalPort}/chat-gpt/webhook`;
+                const webhook = {url: webhookUrl, secret: chatGptWebhookSecret};
 
-                // Noop if the webhook URL is correct.
-                if (item?.webhookUrl === webhookUrl) return item;
+                // Noop if the webhook configuration is correct.
+                if (item?.webhook?.url === webhook.url && item.webhook?.secret === webhook.secret) {
+                    return item;
+                }
 
                 if (item) {
-                    return {...item, webhookUrl};
+                    return {...item, webhook};
                 } else {
                     return {
                         partitionType: "Bot",
@@ -69,7 +77,7 @@ async function seedTestChatGptBot(
                         botId: chatGptBotId,
                         createdTime: currentTime,
                         name: "ChatGPT",
-                        webhookUrl,
+                        webhook,
                     };
                 }
             },
@@ -117,9 +125,11 @@ async function seedTestCursorBot(
     {
         agentServiceLocalPort,
         cursorLocalUnscopedApiKey,
+        cursorWebhookSecret = null,
     }: {
         agentServiceLocalPort: string | number;
         cursorLocalUnscopedApiKey: string | null;
+        cursorWebhookSecret?: string | null;
     },
 ) {
     assert(process.env.NODE_ENV !== "production");
@@ -137,12 +147,15 @@ async function seedTestCursorBot(
             },
             item => {
                 const webhookUrl = `http://localhost:${agentServiceLocalPort}/cursor/webhook`;
+                const webhook = {url: webhookUrl, secret: cursorWebhookSecret};
 
-                // Noop if the webhook URL is correct.
-                if (item?.webhookUrl === webhookUrl) return item;
+                // Noop if the webhook configuration is correct.
+                if (item?.webhook?.url === webhook.url && item.webhook?.secret === webhook.secret) {
+                    return item;
+                }
 
                 if (item) {
-                    return {...item, webhookUrl};
+                    return {...item, webhook};
                 } else {
                     return {
                         partitionType: "Bot",
@@ -150,7 +163,7 @@ async function seedTestCursorBot(
                         botId: cursorBotId,
                         createdTime: currentTime,
                         name: "Cursor",
-                        webhookUrl,
+                        webhook,
                     };
                 }
             },
@@ -180,9 +193,11 @@ export async function seedTestMockChatGptBot(
     {
         agentServiceLocalPort,
         mockChatGptLocalUnscopedApiKey,
+        mockChatGptWebhookSecret = null,
     }: {
         agentServiceLocalPort: string | number;
         mockChatGptLocalUnscopedApiKey: string;
+        mockChatGptWebhookSecret?: string | null;
     },
 ) {
     assert(process.env.NODE_ENV !== "production");
@@ -200,12 +215,15 @@ export async function seedTestMockChatGptBot(
             },
             item => {
                 const webhookUrl = `http://localhost:${agentServiceLocalPort}/mock/chat-gpt/webhook`;
+                const webhook = {url: webhookUrl, secret: mockChatGptWebhookSecret};
 
-                // Noop if the webhook URL is correct.
-                if (item?.webhookUrl === webhookUrl) return item;
+                // Noop if the webhook configuration is correct.
+                if (item?.webhook?.url === webhook.url && item.webhook?.secret === webhook.secret) {
+                    return item;
+                }
 
                 if (item) {
-                    return {...item, webhookUrl};
+                    return {...item, webhook};
                 } else {
                     return {
                         partitionType: "Bot",
@@ -213,7 +231,7 @@ export async function seedTestMockChatGptBot(
                         botId: mockChatGptBotId,
                         createdTime: currentTime,
                         name: "ChatGPT",
-                        webhookUrl,
+                        webhook,
                     };
                 }
             },

@@ -30,6 +30,7 @@ import {useMessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/web/messaging/message_view.js";
 import {MessagingViewPointerToolbar} from "~/client/web/messaging/messaging_view_pointer_toolbar.js";
+import {OnPutMessageApprovalDecisionsFunction} from "~/client/web/messaging/on_put_message_approval_decisions_function.js";
 import {renderMessageListItem} from "~/client/web/messaging/render_message_list_item.js";
 import {
     OnDeleteMessageReactionFunction,
@@ -82,6 +83,7 @@ import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlap
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -146,6 +148,7 @@ type DocumentCommentThreadTreeCommentInputItem = {
     readonly type: "DocumentCommentInput";
     readonly commentThread: DocumentCommentThreadModel;
     readonly comments: MessageList<DocumentCommentModel>;
+    readonly messageDraft: MessageDraft | MessageDraftWithFiles;
     // The index of the `DocumentCommentThreadHeader` item in our `VirtualizedTree`.
     readonly headerItemIndex: number;
 };
@@ -155,6 +158,7 @@ type DocumentCommentThreadTree = VirtualizedTree<
     {
         readonly commentThread: DocumentCommentThreadModel;
         readonly comments: MessageList<DocumentCommentModel>;
+        readonly messageDraft: MessageDraft | MessageDraftWithFiles;
     },
     DocumentCommentThreadTreeItem
 >;
@@ -193,6 +197,7 @@ function createEmptyDocumentCommentThreadTree(): DocumentCommentThreadTree {
                     type: "DocumentCommentInput",
                     commentThread: node.commentThread,
                     comments: node.comments,
+                    messageDraft: node.messageDraft,
                     headerItemIndex: startItemIndex,
                 };
             }
@@ -250,6 +255,7 @@ function DocumentCommentThreadListView(
             comments: ReadonlyArray<DocumentCommentModel>;
             otherReferencedComments: ReadonlyArray<DocumentCommentModel>;
             optimisticComments: ReadonlyArray<OptimisticMessageModel>;
+            messageDraft: MessageDraft | MessageDraftWithFiles;
         }>;
 
         // Realtime props that should come from `useDocumentContentEditorWebSocket()`.
@@ -385,6 +391,7 @@ function DocumentCommentThreadListView(
                 {
                     commentThread: initialCommentThreadResult.commentThread,
                     comments,
+                    messageDraft: initialCommentThreadResult.messageDraft,
                 },
             ]);
         }
@@ -641,6 +648,36 @@ function DocumentCommentThreadListView(
         ReadonlyMap<DocumentCommentThreadId, MessageContentPayloadParent>
     >(new Map());
 
+    // Stable per-comment-thread callbacks so we don't hand a fresh closure to each
+    // `<MessageInput>` on every render that rebuilds our items, which would re-run the
+    // input's effects (re-applying the comment draft, for example).
+    const onInputParentChangeByCommentThreadId = useConstant(
+        () =>
+            new LazyMap<
+                DocumentCommentThreadId,
+                (parent: MessageContentPayloadParent | null) => void
+            >(commentThreadId => parent => {
+                setInputParentByCommentThreadId(inputParentByCommentThreadId => {
+                    const newInputParentByCommentThreadId = new Map(inputParentByCommentThreadId);
+
+                    if (parent) {
+                        newInputParentByCommentThreadId.set(commentThreadId, parent);
+                    } else {
+                        newInputParentByCommentThreadId.delete(commentThreadId);
+                    }
+
+                    return newInputParentByCommentThreadId;
+                });
+            }),
+    );
+
+    const onInputParentClearByCommentThreadId = useConstant(
+        () =>
+            new LazyMap<DocumentCommentThreadId, () => void>(commentThreadId => () => {
+                onInputParentChangeByCommentThreadId.get(commentThreadId)(null);
+            }),
+    );
+
     const {jumpState, jumpToMessageRange} = useJumpToMessageRange<DocumentCommentRoomKey>({
         viewRef,
         tryLoadingMoreData,
@@ -758,6 +795,21 @@ function DocumentCommentThreadListView(
             });
         },
         [setTreeOptimistically],
+    );
+
+    const handlePutMessageApprovalDecisions: Memo<
+        OnPutMessageApprovalDecisionsFunction<DocumentCommentRoomKey>
+    > = useCallback(
+        async (roomKey, input) => {
+            const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            await procedures.putCommentApprovalDecisions({
+                commentThreadId,
+                commentIndex: input.messageIndex,
+                payload: input.payload,
+            });
+        },
+        [procedures],
     );
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -962,6 +1014,8 @@ function DocumentCommentThreadListView(
                         onSetMessageReaction: handleSetMessageReaction,
                         onDeleteMessageReaction: handleDeleteMessageReaction,
                         onUpdateMessagesOptimistically: handleUpdateMessagesOptimistically,
+                        onPutMessageApprovalDecisions: handlePutMessageApprovalDecisions,
+                        approvalSessionNoun: "thread",
                         shouldAddMarginBottom:
                             isSingleCommentThreadWithPinnedCommentInput &&
                             // -2 instead of -1 since when `isSingleCommentThreadWithPinnedCommentInput` is
@@ -1039,6 +1093,7 @@ function DocumentCommentThreadListView(
                             viewRef={viewRef}
                             commentThread={item.commentThread}
                             comments={item.comments}
+                            messageDraft={item.messageDraft}
                             fileAttachmentTarget={fileAttachmentTarget}
                             onUpdateCommentThread={update =>
                                 setTree(tree =>
@@ -1065,15 +1120,12 @@ function DocumentCommentThreadListView(
                             }
                             messageEditing={messageEditing}
                             parent={inputParent}
-                            onParentClear={() => {
-                                setInputParentByCommentThreadId(inputParentByCommentThreadId => {
-                                    const newInputParentByCommentThreadId = new Map(
-                                        inputParentByCommentThreadId,
-                                    );
-                                    newInputParentByCommentThreadId.delete(item.commentThread.id);
-                                    return newInputParentByCommentThreadId;
-                                });
-                            }}
+                            onParentClear={onInputParentClearByCommentThreadId.get(
+                                item.commentThread.id,
+                            )}
+                            onParentChange={onInputParentChangeByCommentThreadId.get(
+                                item.commentThread.id,
+                            )}
                             onJumpToCommentRange={jumpToMessageRange}
                             onDeleteComment={async commentIndex => {
                                 await procedures.deleteComment({
@@ -1186,6 +1238,7 @@ function DocumentCommentThreadListView(
             handleSetMessageReaction,
             handleDeleteMessageReaction,
             handleUpdateMessagesOptimistically,
+            handlePutMessageApprovalDecisions,
             isNativeMobileTabBarHidden,
             backgroundSlopBottomIfPinnedCommentInput,
             inputParentByCommentThreadId,
@@ -1196,6 +1249,8 @@ function DocumentCommentThreadListView(
             withCommentInputMobileMaxHeight,
             platform,
             setTree,
+            onInputParentChangeByCommentThreadId,
+            onInputParentClearByCommentThreadId,
         ],
     );
 
@@ -1309,6 +1364,7 @@ function DocumentCommentThreadListView(
                                 viewRef={viewRef}
                                 commentThread={item.commentThread}
                                 comments={item.comments}
+                                messageDraft={item.messageDraft}
                                 fileAttachmentTarget={fileAttachmentTarget}
                                 onUpdateCommentThread={update =>
                                     setTree(tree =>
@@ -1335,19 +1391,12 @@ function DocumentCommentThreadListView(
                                 }
                                 messageEditing={messageEditing}
                                 parent={inputParent}
-                                onParentClear={() => {
-                                    setInputParentByCommentThreadId(
-                                        inputParentByCommentThreadId => {
-                                            const newInputParentByCommentThreadId = new Map(
-                                                inputParentByCommentThreadId,
-                                            );
-                                            newInputParentByCommentThreadId.delete(
-                                                item.commentThread.id,
-                                            );
-                                            return newInputParentByCommentThreadId;
-                                        },
-                                    );
-                                }}
+                                onParentClear={onInputParentClearByCommentThreadId.get(
+                                    item.commentThread.id,
+                                )}
+                                onParentChange={onInputParentChangeByCommentThreadId.get(
+                                    item.commentThread.id,
+                                )}
                                 onJumpToCommentRange={jumpToMessageRange}
                                 onDeleteComment={async commentIndex => {
                                     await procedures.deleteComment({

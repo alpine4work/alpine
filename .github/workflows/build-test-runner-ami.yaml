@@ -20,7 +20,7 @@ on:
             - "admin/bazel/third_party/*.bazel"
 
             # Once the checkout action changes on `main`, rebuild the image so
-            # `[NEW CI]` jobs can eventually use it before workflow checkout.
+            # new CI jobs can eventually use it before workflow checkout.
             - ".github/actions/checkout_github_sha/action.yml"
 
             # Changes to the runner image build or source bundle should publish

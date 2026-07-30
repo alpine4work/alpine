@@ -42,7 +42,7 @@ export async function getBotWithAvatarItemIfExists(
         id: attributesItem.botId,
         name: attributesItem.name,
         createdTime: attributesItem.createdTime,
-        hasWebhookUrl: !!attributesItem.webhookUrl,
+        hasWebhookUrl: !!attributesItem.webhook?.url,
         avatar: avatarItem ?? null,
     };
 }

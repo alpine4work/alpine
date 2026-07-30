@@ -1000,6 +1000,10 @@ Resources:
                           Type: double
                         - Name: dynamodb__consumed_capacity__integrations__write_capacity_units
                           Type: double
+                        - Name: dynamodb__consumed_capacity__message_drafts__read_capacity_units
+                          Type: double
+                        - Name: dynamodb__consumed_capacity__message_drafts__write_capacity_units
+                          Type: double
                         - Name: dynamodb__consumed_capacity__notifications__read_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__notifications__write_capacity_units
@@ -1187,6 +1191,10 @@ Resources:
                         - Name: dynamodb__table__integrations__partition_type
                           Type: string
                         - Name: dynamodb__table__integrations__partition__slack_space_integration__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__message_drafts__partition_type
+                          Type: string
+                        - Name: dynamodb__table__message_drafts__partition__space_account__sort_range_type
                           Type: string
                         - Name: dynamodb__table__notifications__partition_type
                           Type: string

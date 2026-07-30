@@ -224,6 +224,10 @@ export class ApiClientMock implements ApiClient {
         const responseConfig = mockConfig.responses[mockConfig.callIndex];
         mockConfig.callIndex++;
 
+        if (responseConfig?.error) {
+            throw responseConfig.error;
+        }
+
         // Create a Response object with defaults
         const response = new Response(null, {
             status: 200,

@@ -736,7 +736,7 @@ test("can create a task with all fields", async () => {
 
     const actor = {
         accountId: bot.id,
-        from: {type: "Bot", accountId: bot.id},
+        from: null,
     };
 
     expect(
@@ -747,7 +747,7 @@ test("can create a task with all fields", async () => {
                 expect.objectContaining({
                     type: "UpdateTask",
                     taskId: response.body.task.id,
-                    taskAction: expect.objectContaining({type: "Create"}),
+                    taskAction: expect.objectContaining({type: "Create", creator: actor}),
                 }),
                 expect.objectContaining({
                     type: "UpdateTask",
@@ -3928,13 +3928,19 @@ test("can create a task collection", async () => {
                 expect.objectContaining({
                     type: "UpdateCollection",
                     collectionId: response.body.collection.id,
-                    collectionAction: expect.objectContaining({type: "Create"}),
+                    collectionAction: expect.objectContaining({
+                        type: "Create",
+                        creator: {
+                            accountId: bot.id,
+                            from: null,
+                        },
+                    }),
                 }),
                 expect.objectContaining({
                     type: "UpdateCollection",
                     actor: {
                         accountId: bot.id,
-                        from: {type: "Bot", accountId: bot.id},
+                        from: null,
                     },
                     collectionId: response.body.collection.id,
                     collectionAction: {type: "UpdateColor", color: "blue"},

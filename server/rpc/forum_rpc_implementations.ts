@@ -24,6 +24,7 @@ import {
     getPostCommentAtVersion,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    putPostCommentMessageApprovalDecisions,
     setPostCommentReaction,
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
@@ -309,6 +310,20 @@ export default implementRpcs(definitions, {
         visibility: ["PostRealtimeService"],
         execute: (context, input) => {
             return deletePostCommentReaction(context.actor.authorizeSession(), input);
+        },
+    },
+
+    putPostCommentMessageApprovalDecisions: {
+        visibility: ["PostRealtimeService"],
+        execute: async (context, input) => {
+            const sessionContext = context.actor.authorizeSession();
+            const {approvals, partIndex, version, createdTime, completedTime} =
+                await putPostCommentMessageApprovalDecisions(sessionContext, {
+                    postId: input.postId,
+                    commentIndex: input.commentIndex,
+                    payload: input.payload,
+                });
+            return {approvals, partIndex, version, createdTime, completedTime};
         },
     },
 

@@ -74,6 +74,11 @@ export const MessageStreamAttributesSchema = Schema.object({
 
     /**
      * The current `updateLockVersion` of the last part in the stream.
+     *
+     * When the last part is an approval part, we complete the stream, so no other
+     * operation can update the stream after the approval part is created. We don't
+     * bother updating this when users approve/reject approvals because the stream is
+     * already complete. As a result, this may be behind the approvals part's version.
      */
     lastPartUpdateLockVersion: Schema.integer.min(0).nullable(),
 

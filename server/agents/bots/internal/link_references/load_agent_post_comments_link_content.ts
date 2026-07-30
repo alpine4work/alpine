@@ -224,10 +224,7 @@ async function getMarkdownContentForPageFromEnd({
     request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
-    cursorOptions: {
-        from: "End";
-        cursor: number;
-    };
+    cursorOptions: {from: "End"; cursor: number | null};
     post: ApiPostResponse;
     tokenLimitFactor: number;
 }): Promise<{

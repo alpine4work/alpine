@@ -27,7 +27,7 @@ export async function initializeMessagesInAgentConversation({
 }): Promise<void> {
     assert(conversation.getState().lastMessageIndex === null);
 
-    const {messagesContent} = await loadInitialAgentMessagesContent({
+    const {messagesContent, messages} = await loadInitialAgentMessagesContent({
         tracer,
         transaction,
         request,
@@ -44,6 +44,15 @@ export async function initializeMessagesInAgentConversation({
                 // We don't want to store 0 for the piece of state that represents the last loaded
                 // message index since it wasn't actually loaded yet.
                 return -1;
+            }
+            case "UpdatedMessageStreamExperimentalApprovalsPart": {
+                // If the conversation has been initialized via an approval decision, which isn't a
+                // new message in the conversation, we load messages from the back of the
+                // conversation and use the last loaded message index as the conversation message
+                // index. If no messages were loaded (an approval decision is user input, so we
+                // can't assert the room's shape), fall back to `-1` like `NewPost` above since
+                // nothing was actually loaded yet.
+                return messages[messages.length - 1]?.index ?? -1;
             }
             default:
                 throw exhaustive(request.event);
@@ -82,6 +91,10 @@ export async function loadInitialAgentMessagesContent({
                 // Has to be 1 for a valid api call to get messages from end since it's range
                 // exclusive.
                 return 1;
+            }
+            case "UpdatedMessageStreamExperimentalApprovalsPart": {
+                // Load messages from the end of the conversation.
+                return null;
             }
             default: {
                 throw exhaustive(event);

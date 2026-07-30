@@ -1,6 +1,9 @@
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
-import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {ApiChat} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {DurableObjectStorageCollection} from "~/server/agents/bots/internal/durable_object_storage_collection.js";
+import {
+    ApiBotWebhookEvent,
+    ApiChat,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -8,7 +11,12 @@ const ApiChatCollection = new DurableObjectStorageCollection<ChatId, ApiChat>("a
 
 export async function shouldAgentRespondToRequest(
     tracer: TracerBase,
-    request: AgentWebhookRequest,
+    request: AgentWebhookRequest & {
+        readonly event: Exclude<
+            ApiBotWebhookEvent,
+            {type: "UpdatedMessageStreamExperimentalApprovalsPart"}
+        >;
+    },
 ): Promise<boolean> {
     // Always respond if mentioned.
     if (request.event.wasMentioned) return true;

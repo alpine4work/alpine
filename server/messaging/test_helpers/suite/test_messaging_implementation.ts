@@ -65,10 +65,15 @@ import {MessageModel, MessageRoomKeyType} from "~/shared/messaging/message_model
 import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,
+    MessageExperimentalApproval,
+    MessageExperimentalApprovalDecisionOption,
+    MessageExperimentalApprovalDecisionValue,
     MessagePayload,
+    MessageStreamExperimentalApprovalsPartPayload,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
 import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayload} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {
     ServerSynchronizationCheckpoint,
@@ -195,8 +200,21 @@ type PutMessageStreamPartFunctionForTest<RoomKey extends string> = (
         partIndex: number | "Create";
         payload: MessageStreamPartPayload;
         isTimeoutErrorCompletion?: boolean;
+        approvalDecisionExpectedVersion?: number;
     },
 ) => Promise<{createdTime: Date}>;
+
+/**
+ * Put approval decisions for a streaming message.
+ */
+type PutMessageApprovalDecisionsFunctionForTest<RoomKey extends string> = (
+    context: TestActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        payload: PutMessageApprovalDecisionsPayload;
+    },
+) => Promise<{approvals: ReadonlyArray<MessageExperimentalApproval>}>;
 
 /**
  * Complete a message stream. After this parts can't be added or updated.
@@ -480,6 +498,11 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     putMessageStreamPart: PutMessageStreamPartFunctionForTest<RoomKey>;
 
     /**
+     * Put approval decisions for a streaming message.
+     */
+    putMessageApprovalDecisions: PutMessageApprovalDecisionsFunctionForTest<RoomKey>;
+
+    /**
      * Complete a message stream. After this parts can't be added or updated.
      */
     completeMessageStream: CompleteMessageStreamFunctionForTest<RoomKey>;
@@ -589,6 +612,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         deleteMessage,
         pingMessageStream,
         putMessageStreamPart,
+        putMessageApprovalDecisions,
         completeMessageStream,
         setMessageReaction,
         deleteMessageReaction,
@@ -11452,6 +11476,406 @@ export function testMessagingImplementation<RoomKey extends string>(
                         ],
                     }),
                 );
+            });
+
+            describe("approvals", () => {
+                const defaultApprovalDecisionOptions: ReadonlyArray<MessageExperimentalApprovalDecisionOption> =
+                    [{type: "Approved"}, {type: "Rejected"}];
+
+                function createPendingApprovalsPayload(
+                    approvalCount: number,
+                    options: ReadonlyArray<MessageExperimentalApprovalDecisionOption> = defaultApprovalDecisionOptions,
+                ): MessageStreamExperimentalApprovalsPartPayload {
+                    return {
+                        type: "ExperimentalApprovals",
+                        approvals: createArrayWithLength(approvalCount, approvalIndex => ({
+                            summary: createSimpleMessageContent(
+                                `Approval request ${approvalIndex + 1}`,
+                            ),
+                            decision: {schema: {options}},
+                        })),
+                    };
+                }
+
+                function createPendingApprovalPayload(
+                    options: ReadonlyArray<MessageExperimentalApprovalDecisionOption> = defaultApprovalDecisionOptions,
+                ): MessageStreamExperimentalApprovalsPartPayload {
+                    return createPendingApprovalsPayload(1, options);
+                }
+
+                async function createMessageWithFinalApprovalPart(
+                    approval: MessageStreamExperimentalApprovalsPartPayload = createPendingApprovalPayload(),
+                ) {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent(),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: approval,
+                    });
+
+                    const stream = assertExists(
+                        (
+                            await getMessagePayload(session.action(), {
+                                roomKey: room.key,
+                                messageIndex: message.index,
+                            })
+                        ).stream,
+                    );
+
+                    return {space, session, botAccount, room, message, approval, stream};
+                }
+
+                test("can decide a final approval request after completing stream message", async () => {
+                    const {session, botAccount, room, message} =
+                        await createMessageWithFinalApprovalPart();
+                    await completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+
+                    await putMessageApprovalDecisions(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        payload: {
+                            type: "ExperimentalDecisions",
+                            decisions: [{index: 0, value: {type: "Approved"}}],
+                        },
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => stream),
+                    ).toEqual(
+                        expect.objectContaining({
+                            completedTime: expect.any(Date),
+                            parts: [
+                                expect.objectContaining({
+                                    payload: expect.objectContaining({
+                                        approvals: [
+                                            expect.objectContaining({
+                                                decision: expect.objectContaining({
+                                                    value: {
+                                                        type: "Approved",
+                                                        decider: {
+                                                            account: {id: session.account.id},
+                                                        },
+                                                    },
+                                                }),
+                                            }),
+                                        ],
+                                    }),
+                                }),
+                            ],
+                        }),
+                    );
+                });
+
+                test("can\u2019t decide a final approval request that is already decided", async () => {
+                    const {session, room, message} = await createMessageWithFinalApprovalPart();
+
+                    await putMessageApprovalDecisions(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        payload: {
+                            type: "ExperimentalDecisions",
+                            decisions: [{index: 0, value: {type: "Approved"}}],
+                        },
+                    });
+
+                    await expect(
+                        putMessageApprovalDecisions(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            payload: {
+                                type: "ExperimentalDecisions",
+                                decisions: [{index: 0, value: {type: "Rejected"}}],
+                            },
+                        }),
+                    ).rejects.toThrow("Approval request has already been decided");
+                });
+
+                test("can\u2019t decide approval request with a decision value that isn\u2019t an option", async () => {
+                    const approval = createPendingApprovalPayload([{type: "Approved"}]);
+                    const {session, room, message} =
+                        await createMessageWithFinalApprovalPart(approval);
+
+                    await expect(
+                        putMessageApprovalDecisions(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            payload: {
+                                type: "ExperimentalDecisions",
+                                decisions: [{index: 0, value: {type: "Rejected"}}],
+                            },
+                        }),
+                    ).rejects.toThrow("Invalid approval decision.");
+                });
+
+                test("can\u2019t decide approval request if the last stream part is not an approval", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent(),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    await expect(
+                        putMessageApprovalDecisions(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            payload: {
+                                type: "ExperimentalDecisions",
+                                decisions: [{index: 0, value: {type: "Approved"}}],
+                            },
+                        }),
+                    ).rejects.toThrow("Approval request not found");
+                });
+
+                test("can\u2019t decide approval request if the message is not a stream", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent(),
+                            fileIds: [],
+                        },
+                    );
+
+                    await expect(
+                        putMessageApprovalDecisions(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            payload: {
+                                type: "ExperimentalDecisions",
+                                decisions: [{index: 0, value: {type: "Approved"}}],
+                            },
+                        }),
+                    ).rejects.toThrow("Message approvals can only be sent with message streams");
+                });
+
+                test("can\u2019t decide approval request if the message doesn\u2019t exist", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    await expect(
+                        putMessageApprovalDecisions(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: 100,
+                            payload: {
+                                type: "ExperimentalDecisions",
+                                decisions: [{index: 0, value: {type: "Approved"}}],
+                            },
+                        }),
+                    ).rejects.toThrow(/not found/);
+                });
+
+                describe("batch", () => {
+                    test("can decide multiple final approval requests at once", async () => {
+                        const approval = createPendingApprovalsPayload(2);
+                        const {session, room, message} =
+                            await createMessageWithFinalApprovalPart(approval);
+                        const approvedDecisionValue: MessageExperimentalApprovalDecisionValue = {
+                            type: "Approved",
+                            decider: {account: {id: session.account.id}},
+                        };
+                        const rejectedDecisionValue: MessageExperimentalApprovalDecisionValue = {
+                            type: "Rejected",
+                            decider: {account: {id: session.account.id}},
+                        };
+
+                        const {approvals} = await putMessageApprovalDecisions(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            payload: {
+                                type: "ExperimentalDecisions",
+                                decisions: [
+                                    {index: 0, value: {type: "Approved"}},
+                                    {index: 1, value: {type: "Rejected"}},
+                                ],
+                            },
+                        });
+
+                        expect({
+                            approvals,
+                            stream: await getMessagePayload(session.action(), {
+                                roomKey: room.key,
+                                messageIndex: message.index,
+                            }).then(({stream}) => stream),
+                        }).toEqual({
+                            approvals: [
+                                expect.objectContaining({
+                                    decision: expect.objectContaining({
+                                        value: approvedDecisionValue,
+                                    }),
+                                }),
+                                expect.objectContaining({
+                                    decision: expect.objectContaining({
+                                        value: rejectedDecisionValue,
+                                    }),
+                                }),
+                            ],
+                            stream: expect.objectContaining({
+                                parts: [
+                                    expect.objectContaining({
+                                        payload: expect.objectContaining({
+                                            approvals: [
+                                                expect.objectContaining({
+                                                    decision: expect.objectContaining({
+                                                        value: approvedDecisionValue,
+                                                    }),
+                                                }),
+                                                expect.objectContaining({
+                                                    decision: expect.objectContaining({
+                                                        value: rejectedDecisionValue,
+                                                    }),
+                                                }),
+                                            ],
+                                        }),
+                                    }),
+                                ],
+                            }),
+                        });
+                    });
+
+                    test("fails if one decision value isn\u2019t an option", async () => {
+                        const approval = createPendingApprovalsPayload(2, [{type: "Approved"}]);
+                        const {session, botAccount, room, message} =
+                            await createMessageWithFinalApprovalPart(approval);
+
+                        await expect(
+                            putMessageApprovalDecisions(
+                                botAccount.action(getRoomBotScope(room.key)),
+                                {
+                                    roomKey: room.key,
+                                    messageIndex: message.index,
+                                    payload: {
+                                        type: "ExperimentalDecisions",
+                                        decisions: [
+                                            {index: 0, value: {type: "Approved"}},
+                                            {index: 1, value: {type: "Rejected"}},
+                                        ],
+                                    },
+                                },
+                            ),
+                        ).rejects.toThrow("Invalid approval decision.");
+
+                        expect(
+                            await getMessagePayload(session.action(), {
+                                roomKey: room.key,
+                                messageIndex: message.index,
+                            }).then(({stream}) => stream),
+                        ).toEqual(
+                            expect.objectContaining({
+                                parts: [
+                                    expect.objectContaining({
+                                        payload: approval,
+                                    }),
+                                ],
+                            }),
+                        );
+                    });
+
+                    test("fails if one approval is already decided", async () => {
+                        const approval = createPendingApprovalsPayload(2);
+                        const {session, botAccount, room, message} =
+                            await createMessageWithFinalApprovalPart(approval);
+
+                        await putMessageApprovalDecisions(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                messageIndex: message.index,
+                                payload: {
+                                    type: "ExperimentalDecisions",
+                                    decisions: [{index: 0, value: {type: "Approved"}}],
+                                },
+                            },
+                        );
+
+                        const decidedStream = await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => stream);
+
+                        await expect(
+                            putMessageApprovalDecisions(
+                                botAccount.action(getRoomBotScope(room.key)),
+                                {
+                                    roomKey: room.key,
+                                    messageIndex: message.index,
+                                    payload: {
+                                        type: "ExperimentalDecisions",
+                                        decisions: [
+                                            {index: 1, value: {type: "Rejected"}},
+                                            {index: 0, value: {type: "Rejected"}},
+                                        ],
+                                    },
+                                },
+                            ),
+                        ).rejects.toThrow("Approval request has already been decided");
+
+                        expect(
+                            await getMessagePayload(session.action(), {
+                                roomKey: room.key,
+                                messageIndex: message.index,
+                            }).then(({stream}) => stream),
+                        ).toEqual(decidedStream);
+                    });
+                });
             });
 
             test("completing stream message is idempotent", async () => {

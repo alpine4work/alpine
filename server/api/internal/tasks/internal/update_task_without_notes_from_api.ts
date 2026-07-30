@@ -1,6 +1,7 @@
 import {parseDate} from "@internationalized/date";
 import {findSpans} from "unicode-default-word-boundary";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
+import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {resolveApiTaskMovesInCollection} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_collection.js";
 import {resolveApiTaskMovesInParent} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_parent.js";
@@ -106,10 +107,7 @@ export async function updateTasksWithoutNotesFromApi(
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const timeZone = defaultTimeZone;
 
-    const actor: TaskActor = {
-        accountId: actorId ?? botAccountId,
-        from: {type: "Bot", accountId: botAccountId},
-    };
+    const actor = createApiTaskActor({actorId, botAccountId});
 
     const taskIds = Array.from(new Set(patches.map(({id}) => id)));
 

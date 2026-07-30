@@ -1724,6 +1724,31 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/IntegrationsTable/Resource
+    MessageDraftsTable07F0BF6E:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: partitionKey
+                  AttributeType: S
+                - AttributeName: sortKey
+                  AttributeType: S
+            BillingMode: PAY_PER_REQUEST
+            DeletionProtectionEnabled: true
+            KeySchema:
+                - AttributeName: partitionKey
+                  KeyType: HASH
+                - AttributeName: sortKey
+                  KeyType: RANGE
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            TableName: MessageDrafts
+            TimeToLiveSpecification:
+                AttributeName: expirationTime
+                Enabled: true
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/MessageDraftsTable/Resource
     NotificationsTable76DCFC6C:
         Type: AWS::DynamoDB::Table
         Properties:
@@ -2564,6 +2589,9 @@ Resources:
                                 - IntegrationsTable781EC78A
                                 - Arn
                           - Fn::GetAtt:
+                                - MessageDraftsTable07F0BF6E
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -2663,6 +2691,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - MessageDraftsTable07F0BF6E
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -2782,13 +2816,6 @@ Resources:
                                         - OpensearchDomainCED7C974
                                         - Arn
                                   - /tasks/*
-                    - Action:
-                          - kinesis:ListShards
-                          - kinesis:PutRecord
-                          - kinesis:PutRecords
-                      Effect: Allow
-                      Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                 Version: 2012-10-17
             PolicyName: TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
             Roles:
@@ -2817,6 +2844,13 @@ Resources:
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
                                 - Arn
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                     - Action:
                           - firehose:PutRecord
                           - firehose:PutRecordBatch
@@ -3033,6 +3067,7 @@ Resources:
                       - ContainerPort: 80
                         HostPort: 80
                         Protocol: tcp
+                  StopTimeout: 120
                   User: root
             ExecutionRoleArn:
                 Fn::GetAtt:
@@ -3366,6 +3401,9 @@ Resources:
                                 - IntegrationsTable781EC78A
                                 - Arn
                           - Fn::GetAtt:
+                                - MessageDraftsTable07F0BF6E
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -3465,6 +3503,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - MessageDraftsTable07F0BF6E
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -4093,6 +4137,9 @@ Resources:
                                 - IntegrationsTable781EC78A
                                 - Arn
                           - Fn::GetAtt:
+                                - MessageDraftsTable07F0BF6E
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -4192,6 +4239,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - MessageDraftsTable07F0BF6E
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -4312,13 +4365,6 @@ Resources:
                                         - Arn
                                   - /tasks/*
                     - Action:
-                          - kinesis:ListShards
-                          - kinesis:PutRecord
-                          - kinesis:PutRecords
-                      Effect: Allow
-                      Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
-                    - Action:
                           - ec2:DescribeNetworkInterfaces
                           - ecs:DescribeContainerInstances
                           - ecs:DescribeTasks
@@ -4353,6 +4399,13 @@ Resources:
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
                                 - Arn
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                     - Action: ses:SendEmail
                       Effect: Allow
                       Resource:
@@ -5315,6 +5368,9 @@ Resources:
                                 - IntegrationsTable781EC78A
                                 - Arn
                           - Fn::GetAtt:
+                                - MessageDraftsTable07F0BF6E
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -5414,6 +5470,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - MessageDraftsTable07F0BF6E
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -5534,13 +5596,6 @@ Resources:
                                         - Arn
                                   - /tasks/*
                     - Action:
-                          - kinesis:ListShards
-                          - kinesis:PutRecord
-                          - kinesis:PutRecords
-                      Effect: Allow
-                      Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
-                    - Action:
                           - ec2:DescribeNetworkInterfaces
                           - ecs:DescribeContainerInstances
                           - ecs:DescribeTasks
@@ -5575,6 +5630,13 @@ Resources:
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
                                 - Arn
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                 Version: 2012-10-17
             Roles:
                 - Ref: ApiServiceTaskDefinitionTaskRole5521C40B
@@ -6384,6 +6446,9 @@ Resources:
                                 - IntegrationsTable781EC78A
                                 - Arn
                           - Fn::GetAtt:
+                                - MessageDraftsTable07F0BF6E
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -6488,6 +6553,12 @@ Resources:
                           - Fn::Join:
                                 - ""
                                 - - Fn::GetAtt:
+                                        - MessageDraftsTable07F0BF6E
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
@@ -6533,6 +6604,60 @@ Resources:
                                         - TasksTable88911DC5
                                         - Arn
                                   - /index/*
+                    - Action:
+                          - sqs:ChangeMessageVisibility
+                          - sqs:DeleteMessage
+                          - sqs:ReceiveMessage
+                          - sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsJobQueue62388F96
+                                - Arn
+                    - Action: ses:SendEmail
+                      Effect: Allow
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:ses:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :configuration-set/
+                                  - Ref: SesConfigurationSet74E7EAAF
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:ses:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :identity/
+                                  - Ref: SesEmailIdentity8E702B39
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                Version: 2012-10-17
+            PolicyName: JobQueueServiceTaskDefinitionTaskRoleDefaultPolicy9F7601AC
+            Roles:
+                - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
+        Metadata:
+            aws:cdk:path: CyberworldsStack/JobQueueService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    JobQueueServiceTaskDefinitionTaskRoleOverflowPolicy10624BA54:
+        Type: AWS::IAM::ManagedPolicy
+        Properties:
+            Description: Part of the policies for CyberworldsStack/JobQueueService/TaskDefinition/TaskRole
+            Path: /
+            PolicyDocument:
+                Statement:
                     - Action:
                           - es:ESHttpDelete
                           - es:ESHttpGet
@@ -6602,53 +6727,6 @@ Resources:
                                         - OpensearchDomainCED7C974
                                         - Arn
                                   - /tasks/*
-                Version: 2012-10-17
-            PolicyName: JobQueueServiceTaskDefinitionTaskRoleDefaultPolicy9F7601AC
-            Roles:
-                - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
-        Metadata:
-            aws:cdk:path: CyberworldsStack/JobQueueService/TaskDefinition/TaskRole/DefaultPolicy/Resource
-    JobQueueServiceTaskDefinitionTaskRoleOverflowPolicy10624BA54:
-        Type: AWS::IAM::ManagedPolicy
-        Properties:
-            Description: Part of the policies for CyberworldsStack/JobQueueService/TaskDefinition/TaskRole
-            Path: /
-            PolicyDocument:
-                Statement:
-                    - Action:
-                          - sqs:ChangeMessageVisibility
-                          - sqs:DeleteMessage
-                          - sqs:ReceiveMessage
-                          - sqs:SendMessage
-                      Effect: Allow
-                      Resource:
-                          - Fn::GetAtt:
-                                - SqsFileProcessorHeavyJobQueueA7996724
-                                - Arn
-                          - Fn::GetAtt:
-                                - SqsFileProcessorJobQueue551DBCF8
-                                - Arn
-                          - Fn::GetAtt:
-                                - SqsFileProcessorLightJobQueueDC9222EF
-                                - Arn
-                          - Fn::GetAtt:
-                                - SqsJobQueue62388F96
-                                - Arn
-                    - Action: ses:SendEmail
-                      Effect: Allow
-                      Resource:
-                          - Fn::Join:
-                                - ""
-                                - - "arn:aws:ses:us-east-1:"
-                                  - Ref: AWS::AccountId
-                                  - :configuration-set/
-                                  - Ref: SesConfigurationSet74E7EAAF
-                          - Fn::Join:
-                                - ""
-                                - - "arn:aws:ses:us-east-1:"
-                                  - Ref: AWS::AccountId
-                                  - :identity/
-                                  - Ref: SesEmailIdentity8E702B39
                     - Action:
                           - s3:GetBucket*
                           - s3:GetObject*
@@ -6664,13 +6742,6 @@ Resources:
                                         - ImportUploadsBucketECD42D88
                                         - Arn
                                   - /*
-                    - Action:
-                          - kinesis:ListShards
-                          - kinesis:PutRecord
-                          - kinesis:PutRecords
-                      Effect: Allow
-                      Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                     - Action:
                           - ec2:DescribeNetworkInterfaces
                           - ecs:DescribeContainerInstances
@@ -7199,6 +7270,9 @@ Resources:
                                 - IntegrationsTable781EC78A
                                 - Arn
                           - Fn::GetAtt:
+                                - MessageDraftsTable07F0BF6E
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -7298,6 +7372,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - MessageDraftsTable07F0BF6E
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -7417,13 +7497,6 @@ Resources:
                                         - OpensearchDomainCED7C974
                                         - Arn
                                   - /tasks/*
-                    - Action:
-                          - kinesis:ListShards
-                          - kinesis:PutRecord
-                          - kinesis:PutRecords
-                      Effect: Allow
-                      Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                 Version: 2012-10-17
             PolicyName: MigrationServiceTaskDefinitionTaskRoleDefaultPolicy0D3E0F49
             Roles:
@@ -7452,6 +7525,13 @@ Resources:
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
                                 - Arn
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                 Version: 2012-10-17
             Roles:
                 - Ref: MigrationServiceTaskDefinitionTaskRole781D9E98

@@ -21,6 +21,7 @@ import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
 import {createRoomChat} from "~/server/chat/data/create_room_chat.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/get_chat_and_initial_messages.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
+import {getMessageDraft} from "~/server/messaging/drafts/get_message_draft.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -34,6 +35,10 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    MessageDraftWithFilesSchema,
+    emptyMessageDraftWithFiles,
+} from "~/shared/messaging/message_draft_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
@@ -50,6 +55,7 @@ const LoaderSchema = Schema.object({
     initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
     inboxEntry: createRynamoItemSchema(InboxEntryModelSchema).nullable(),
     isFavorite: Schema.boolean,
+    messageDraft: MessageDraftWithFilesSchema,
 });
 
 function parseChatCreateSearchParam(createSearchParam: string): {
@@ -133,6 +139,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
             {chat, initialIsSubscribed, initialMessages, initialOtherReferencedMessages},
             inboxEntry,
             isFavorite,
+            messageDraft,
         ],
         siteLoaderData,
     } = await loadWithSpaceAndSiteDiscovery(context, {
@@ -189,6 +196,17 @@ export async function loader({context: unauthenticatedContext, request, params}:
                         ),
                     }),
                 ),
+                chatPromiseResolver.promise.then(chat =>
+                    context.actor.type === "Session"
+                        ? getMessageDraft(context.actor.authorizeSession(), {
+                              spaceId: chat.spaceId,
+                              surface: {
+                                  type: "Chat",
+                                  chatId,
+                              },
+                          })
+                        : emptyMessageDraftWithFiles,
+                ),
             ]);
         },
         load2: async () => {},
@@ -205,6 +223,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
             initialOtherReferencedMessages,
             inboxEntry,
             isFavorite,
+            messageDraft,
         },
         {siteLoaderData},
     );
@@ -291,6 +310,7 @@ function ChatRouteInner() {
         initialOtherReferencedMessages,
         inboxEntry,
         isFavorite,
+        messageDraft,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     const {currentAccount} = useSpaceContext();
@@ -353,6 +373,7 @@ function ChatRouteInner() {
                 key={chat.id}
                 withInboxBanner={!!inboxEntry}
                 chat={chat}
+                messageDraft={messageDraft}
                 onUpdateChat={handleUpdateChat}
                 initialIsSubscribed={initialIsSubscribed}
                 initialCheckpoint={checkpoint}

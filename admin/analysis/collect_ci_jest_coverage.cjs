@@ -174,17 +174,15 @@ function testlogPathForLabel(targetLabel) {
 /**
  * Runs the shared coverage merge script against the collected testlogs tree.
  *
- * `NODE_PATH` is expanded so the script can find dependencies both from a source
- * checkout and from Bazel runfiles. We do not initialize the full Bazel cache just
- * to merge already-uploaded coverage artifacts.
+ * The aggregate CI job intentionally runs this with a small `NODE_PATH` dependency
+ * install instead of Bazel. That is not hermetic and breaks Bazel's rules, but
+ * there is nothing Bazel-specific about statically merging uploaded coverage JSON
+ * and zip files, and initializing the full Bazel cache here would add minutes.
+ * Local Bazel callers still get dependencies from runfiles.
  */
 function runMergeJestCoverage({coverageOutputPath, targetsFilePath, testlogsPath, workspacePath}) {
     const mergeScriptPath = path.join(__dirname, "merge_jest_coverage.cjs");
     const nodePath = process.execPath;
-    const env = {
-        ...process.env,
-        NODE_PATH: nodePathEnv(workspacePath),
-    };
     const result = childProcess.spawnSync(
         nodePath,
         [
@@ -200,7 +198,6 @@ function runMergeJestCoverage({coverageOutputPath, targetsFilePath, testlogsPath
         ],
         {
             cwd: workspacePath,
-            env,
             stdio: "inherit",
         },
     );
@@ -235,22 +232,6 @@ function makeWritable(filePath) {
     } else {
         fs.chmodSync(filePath, stats.mode | 0o600);
     }
-}
-
-/**
- * Builds a Node module search path for source checkouts and Bazel runfiles.
- */
-function nodePathEnv(workspacePath) {
-    const runfilesWorkspacePath = path.resolve(__dirname, "..", "..");
-    return [
-        path.join(runfilesWorkspacePath, "node_modules", ".pnpm", "node_modules"),
-        path.join(runfilesWorkspacePath, "node_modules"),
-        path.join(workspacePath, "node_modules", ".pnpm", "node_modules"),
-        path.join(workspacePath, "node_modules"),
-        process.env.NODE_PATH,
-    ]
-        .filter(value => value)
-        .join(path.delimiter);
 }
 
 /**

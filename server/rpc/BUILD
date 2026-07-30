@@ -43,6 +43,7 @@ ts_project(
         "//server/importer/notion",
         "//server/integrations",
         "//server/language_models",
+        "//server/messaging/drafts",
         "//server/messaging/helpers",
         "//server/notifications/data",
         "//server/opensearch",

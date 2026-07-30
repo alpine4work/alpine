@@ -16,6 +16,8 @@ ts_project(
         "//shared/forum",
         "//shared/helpers",
         "//shared/id",
+        "//shared/messaging",
+        "//shared/rpc",
         "//shared/schema",
     ],
 )

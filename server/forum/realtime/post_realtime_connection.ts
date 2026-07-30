@@ -14,6 +14,7 @@ import {
     GetMessageAtVersionFunction,
     GetMessageReferencesFunction,
     MessagingRealtimeConnection,
+    PutMessageApprovalDecisionsFunction,
     SetMessageReactionFunction,
     UpdateMessageContentFunction,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
@@ -41,6 +42,7 @@ import {
     getPostCommentAtVersion,
     getPostCommentReferences,
     getPostRealtimeEvent,
+    putPostCommentMessageApprovalDecisions,
     setPostCommentReaction,
     updatePostCommentContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
@@ -98,6 +100,7 @@ export class PostRealtimeConnection {
             deleteMessage,
             setMessageReaction,
             deleteMessageReaction,
+            putMessageApprovalDecisions,
             backfillMessages,
             getMessageAtVersion,
             getMessageReferences,
@@ -170,6 +173,9 @@ export class PostRealtimeConnection {
 
         deleteCommentReaction: (context, {commentIndex: messageIndex, contentVersion, pos}) =>
             this._connection.deleteMessageReaction(context, {messageIndex, contentVersion, pos}),
+
+        putCommentApprovalDecisions: (context, {commentIndex: messageIndex, payload}) =>
+            this._connection.putMessageApprovalDecisions(context, {messageIndex, payload}),
 
         startTypingInCommentInput: (context, input) =>
             this._connection.startTypingInMessageInput(context, input),
@@ -277,6 +283,13 @@ const setMessageReaction: SetMessageReactionFunction<PostId> = (
     {roomKey: postId, messageIndex: commentIndex, contentVersion, pos, reaction},
 ) => {
     return setPostCommentReaction(context, {postId, commentIndex, contentVersion, pos, reaction});
+};
+
+const putMessageApprovalDecisions: PutMessageApprovalDecisionsFunction<PostId> = (
+    context,
+    {roomKey: postId, messageIndex: commentIndex, payload},
+) => {
+    return putPostCommentMessageApprovalDecisions(context, {postId, commentIndex, payload});
 };
 
 const deleteMessageReaction: DeleteMessageReactionFunction<PostId> = (

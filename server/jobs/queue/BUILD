@@ -5,7 +5,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "queue_lib",
-    test_deps = ["//server/dynamo/test_helpers"],
+    test_deps = [
+        "//:node_modules/@jest/globals",
+        "//server/dynamo/test_helpers",
+    ],
     deps = [
         "//:node_modules/@octokit/auth-app",
         "//:node_modules/@types/fs-extra",
@@ -13,10 +16,13 @@ ts_project(
         "//server/apns",
         "//server/bots",
         "//server/bots/with_spaces",
+        "//server/chat/data",
         "//server/content/context_module",
         "//server/deploy/data",
+        "//server/documents/data",
         "//server/emails",
         "//server/feed",
+        "//server/forum/data",
         "//server/jobs/core",
         "//server/jobs/queue/consumer",
         "//server/language_models",
@@ -26,9 +32,12 @@ ts_project(
         "//server/notifications/data",
         "//server/search/data/index",
         "//server/sites/data",
+        "//server/spaces",
         "//server/tasks/data",
         "//shared/error",
         "//shared/helpers",
+        "//shared/id",
+        "//shared/messaging",
         "//shared/schema",
     ],
 )

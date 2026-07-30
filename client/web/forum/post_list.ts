@@ -135,6 +135,11 @@ export interface PostListInterface {
     } | null;
 
     /**
+     * Iterate through every post currently loaded in this list.
+     */
+    iteratePostIds(): Iterable<PostId>;
+
+    /**
      * Are there more posts we can load from this post list?
      */
     hasMorePosts(): boolean;
@@ -308,6 +313,10 @@ export class PostListWithHeaderOrWithFooter implements PostListInterface {
         return this._posts.hasMorePosts();
     }
 
+    public iteratePostIds(): Iterable<PostId> {
+        return this._posts.iteratePostIds();
+    }
+
     public hasOpenPostComments(): boolean {
         return this._posts.hasOpenPostComments();
     }
@@ -401,6 +410,10 @@ abstract class PostListBase<NodeOrderKey> implements PostListInterface {
 
     public getPostRealtimeItemIfExists(postId: PostId): RynamoItem<PostModel> | null {
         return this._posts.getPostRealtimeItemIfExists(postId);
+    }
+
+    public iteratePostIds(): Iterable<PostId> {
+        return mapIterable(this._posts.iterateNodes(), node => node.model.id);
     }
 
     public abstract hasMorePosts(): boolean;
@@ -713,10 +726,6 @@ export class PostBasicList extends PostListBase<number> {
 
     public getLastPostIdIfExists(): PostId | null {
         return this._posts.getLastNodeIfExists()?.model.id ?? null;
-    }
-
-    public iteratePostIds(): Iterable<PostId> {
-        return mapIterable(this._posts.iterateNodes(), node => node.model.id);
     }
 
     public loadMorePosts({

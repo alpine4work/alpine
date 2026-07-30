@@ -49,6 +49,12 @@ ts_project(
             "**/*.test.tsx",
         ],
     ),
+    # Generated docs data and rendered markdown are read from runfiles at request
+    # time.
+    data = [
+        "//client/web/docs:docs_generated",
+        "//client/web/docs/internal/codegen:docs_markdown",
+    ],
     visibility = [
         "//app/integration_tests:__pkg__",
         "//app/routes_test:__pkg__",
@@ -86,6 +92,7 @@ ts_project(
         "//client/web/context",
         "//client/web/debug/chat_gpt",
         "//client/web/design",
+        "//client/web/docs",
         "//client/web/documents",
         "//client/web/feed",
         "//client/web/forum",
@@ -137,6 +144,7 @@ ts_project(
         "//server/tasks/router",
         "//server/tracer",
         "//shared/alpha",
+        "//shared/api/specification",
         "//shared/avatar/protocol",
         "//shared/bots",
         "//shared/context",
@@ -268,6 +276,11 @@ js_binary(
         ":app_client_optimize_deps",
         ":app_wrapper_lib",
         "@ffmpeg",
+        # Generated docs data and rendered markdown are read from runfiles at
+        # request time. The wrapper doesn't get `app_lib`'s transitive runfiles,
+        # so include them directly.
+        "//client/web/docs:docs_generated",
+        "//client/web/docs/internal/codegen:docs_markdown",
     ],
     entry_point = "app_service_main.js",
 )

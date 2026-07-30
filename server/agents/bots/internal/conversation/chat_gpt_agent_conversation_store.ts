@@ -3,13 +3,17 @@ import {AgentConversationStore} from "~/server/agents/bots/internal/conversation
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {ApiMentionResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
+
+export type ChatGptAgentMessageApprovalScope = "Write";
 
 export type ChatGptAgentConversationState = {
     readonly lastOrderKey: OrderKey | null;
     readonly lastMessageIndex: number | null;
     readonly startTime: Date;
     readonly timeZone: TimeZone;
+    readonly allowedMessageApprovalScopes: ReadonlySet<ChatGptAgentMessageApprovalScope>;
     readonly currentlyViewingTarget: {
         readonly target: ApiMentionResponse | null;
         readonly previousTarget: ApiMentionResponse | null;
@@ -52,6 +56,7 @@ export class ChatGptAgentConversationStore extends AgentConversationStore<ChatGp
             timeZone: initialTimeZone,
             startTime: new Date(),
             currentlyViewingTarget: null,
+            allowedMessageApprovalScopes: emptySet,
         };
 
         return new ChatGptAgentConversationStore(state);
@@ -91,6 +96,20 @@ export class ChatGptAgentConversationStore extends AgentConversationStore<ChatGp
         await this.setState(transaction, {
             lastOrderKey: orderKey,
             lastMessageIndex: newMessageIndex,
+        });
+    }
+
+    public async grantApprovedMessageApprovalScope(
+        transaction: DurableObjectTransaction,
+        scope: ChatGptAgentMessageApprovalScope,
+    ) {
+        if (this._state.allowedMessageApprovalScopes.has(scope)) return;
+
+        await this.setState(transaction, {
+            allowedMessageApprovalScopes: new Set([
+                ...this._state.allowedMessageApprovalScopes,
+                scope,
+            ]),
         });
     }
 }
