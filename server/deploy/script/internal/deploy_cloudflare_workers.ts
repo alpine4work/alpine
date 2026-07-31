@@ -140,7 +140,7 @@ export async function deployCloudflareWorkers(
     await deployCloudflareWorkerWithRetry(
         context,
         "Agent Service",
-        joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.sh"),
+        joinPath(runfilesPath, "cyberworlds/server/agents/bots/wrangler.sh"),
         env,
     );
 
