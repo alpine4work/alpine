@@ -14,6 +14,7 @@ type LambdaFunctionUrlResult = {
 type FetchCall = {
     readonly url: string;
     readonly method: string;
+    readonly headers: Record<string, string>;
     readonly body: unknown;
 };
 
@@ -32,22 +33,30 @@ let mockResponses: Array<MockResponse> = [];
 
 const mockFetch = import.meta.jest
     .fn()
-    .mockImplementation((url: string, options?: {method?: string; body?: string}) => {
-        fetchCalls.push({
-            url,
-            method: options?.method ?? "GET",
-            body: options?.body ? JSON.parse(options.body) : undefined,
-        });
-        const response = assertExists(mockResponses.shift());
+    .mockImplementation(
+        (
+            url: string,
+            options?: {method?: string; headers?: Record<string, string>; body?: string},
+        ) => {
+            fetchCalls.push({
+                url,
+                method: options?.method ?? "GET",
+                headers: options?.headers ?? {},
+                body: options?.body ? JSON.parse(options.body) : undefined,
+            });
+            const response = assertExists(mockResponses.shift());
 
-        return Promise.resolve({
-            ok: response.status >= 200 && response.status < 300,
-            status: response.status,
-            statusText: response.statusText,
-            text: () =>
-                Promise.resolve(response.body === undefined ? "" : JSON.stringify(response.body)),
-        });
-    });
+            return Promise.resolve({
+                ok: response.status >= 200 && response.status < 300,
+                status: response.status,
+                statusText: response.statusText,
+                text: () =>
+                    Promise.resolve(
+                        response.body === undefined ? "" : JSON.stringify(response.body),
+                    ),
+            });
+        },
+    );
 
 function createFathomPayload(overrides: Partial<FathomWebhookPayload> = {}): FathomWebhookPayload {
     return {
@@ -313,6 +322,7 @@ describe("Fathom meeting notes Lambda", () => {
         expect({
             result,
             requests: fetchCalls.map(({url, method}) => ({url, method})),
+            requestHeaders: fetchCalls[0]?.headers,
             createdDocument: {
                 title: createBody.document.title,
                 creator: createBody.document.creator,
@@ -342,6 +352,11 @@ describe("Fathom meeting notes Lambda", () => {
                     method: "PATCH",
                 },
             ],
+            requestHeaders: {
+                "Alpine-Version": "2026-07-29",
+                "Content-Type": "application/json",
+                Authorization: "Bearer test-api-key",
+            },
             createdDocument: {
                 title,
                 creator: {id: "7dw297xezx6rs6qy4gjh6h5xx4"},

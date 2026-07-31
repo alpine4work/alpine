@@ -47,6 +47,7 @@ export async function fetchFathomMeetingNotesAlpineApi<T>(
         const response = await fetch(apiUrl, {
             method: options.method,
             headers: {
+                "Alpine-Version": "2026-07-29",
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${alpineAPIKey}`,
             },
