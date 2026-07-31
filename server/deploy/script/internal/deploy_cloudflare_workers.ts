@@ -147,7 +147,7 @@ export async function deployCloudflareWorkers(
     await applyCloudflareD1Migrations(
         context,
         "agent-usage",
-        joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.sh"),
+        joinPath(runfilesPath, "cyberworlds/server/agents/bots/wrangler.sh"),
         env,
     );
 
