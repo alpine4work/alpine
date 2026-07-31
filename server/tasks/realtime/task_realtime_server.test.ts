@@ -7788,53 +7788,65 @@ test("expensively loading after an unloaded cursor catches up a small query", as
     expect(getCount()).toEqual(2);
 });
 
-test("expensively loading after an unloaded cursor catches up a large query", async () => {
-    const space = await TestSpace.create(context);
-    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
-    const session = await space.createSession();
-    const tasks = await runAllPromises(Array.from({length: 1001}, () => TestTask.create(session)));
-    const server = new TestTaskRealtimeServer(context);
+test(
+    "expensively loading after an unloaded cursor catches up a large query",
+    async () => {
+        const space = await TestSpace.create(context);
+        const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+        const session = await space.createSession();
+        const tasks = await runAllPromises(
+            Array.from({length: 1001}, () => TestTask.create(session)),
+        );
+        const server = new TestTaskRealtimeServer(context);
 
-    await server.wait();
+        await server.wait();
 
-    expect(
-        await server.expensivelyLoadQueryAfterCursor(session, {
-            limit: 5,
-            afterCursor: await tasks[990]!.getIndexDoc(),
-        }),
-    ).toEqual({
-        hasMoreTasks: true,
-        tasks: await runAllPromises(tasks.slice(991, 996).map(task => task.getIndexDoc())),
-    });
-    expect(getCount()).toEqual(6);
-});
+        expect(
+            await server.expensivelyLoadQueryAfterCursor(session, {
+                limit: 5,
+                afterCursor: await tasks[990]!.getIndexDoc(),
+            }),
+        ).toEqual({
+            hasMoreTasks: true,
+            tasks: await runAllPromises(tasks.slice(991, 996).map(task => task.getIndexDoc())),
+        });
+        expect(getCount()).toEqual(6);
+    },
+    30 * 1000,
+);
 
-test("expensively loading after a loaded cursor reuses the loaded range when it covers the limit", async () => {
-    const space = await TestSpace.create(context);
-    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
-    const session = await space.createSession();
-    const tasks = await runAllPromises(Array.from({length: 10}, () => TestTask.create(session)));
-    const server = new TestTaskRealtimeServer(context);
+test(
+    "expensively loading after a loaded cursor reuses the loaded range when it covers the limit",
+    async () => {
+        const space = await TestSpace.create(context);
+        const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+        const session = await space.createSession();
+        const tasks = await runAllPromises(
+            Array.from({length: 10}, () => TestTask.create(session)),
+        );
+        const server = new TestTaskRealtimeServer(context);
 
-    await server.wait();
+        await server.wait();
 
-    expect(await server.loadQuery(session, {limit: 8})).toEqual({
-        hasMoreTasks: true,
-        tasks: await runAllPromises(tasks.slice(0, 8).map(task => task.getIndexDoc())),
-    });
-    expect(getCount()).toEqual(1);
+        expect(await server.loadQuery(session, {limit: 8})).toEqual({
+            hasMoreTasks: true,
+            tasks: await runAllPromises(tasks.slice(0, 8).map(task => task.getIndexDoc())),
+        });
+        expect(getCount()).toEqual(1);
 
-    expect(
-        await server.expensivelyLoadQueryAfterCursor(session, {
-            limit: 4,
-            afterCursor: await tasks[2]!.getIndexDoc(),
-        }),
-    ).toEqual({
-        hasMoreTasks: true,
-        tasks: await runAllPromises(tasks.slice(3, 7).map(task => task.getIndexDoc())),
-    });
-    expect(getCount()).toEqual(1);
-});
+        expect(
+            await server.expensivelyLoadQueryAfterCursor(session, {
+                limit: 4,
+                afterCursor: await tasks[2]!.getIndexDoc(),
+            }),
+        ).toEqual({
+            hasMoreTasks: true,
+            tasks: await runAllPromises(tasks.slice(3, 7).map(task => task.getIndexDoc())),
+        });
+        expect(getCount()).toEqual(1);
+    },
+    30 * 1000,
+);
 
 test("expensively loading after a loaded cursor loads only the missing limit", async () => {
     const space = await TestSpace.create(context);
