@@ -4,7 +4,6 @@ import {Readable as ReadableStream} from "stream";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
-import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
     FileCodePreviewContent,
     maxFileCodePreviewLineCodePointCount,
@@ -16,6 +15,7 @@ import {
 } from "~/shared/files/file_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.js";
 
 const fileCodePreviewWaitForLineCount = 128;
 

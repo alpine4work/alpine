@@ -12,7 +12,6 @@ import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {commitTaskActionTransactionBeforeExecuteTestCheckpoint} from "~/server/tasks/data/commit_task_action_transaction_before_execute_test_checkpoint.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {getTaskCollectionItemForTest} from "~/server/tasks/data/test_helpers/get_task_collection_item_for_test.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {
     FailedPreconditionError,
@@ -83,13 +82,6 @@ describe("old style", () => {
     };
 
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
-
-    function taskActionActor(session: TestSessionItem) {
-        return {
-            accountId: session.accountId,
-            from: null,
-        };
-    }
 
     function getCurrentTaskTime() {
         return new TaskFilterableTime({
@@ -2084,33 +2076,35 @@ describe("old style", () => {
         ]);
     });
 
-    test("can create a collection with no creator by defaulting to the actor", async () => {
+    test("can\u2019t create a collection with no creator", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateCollection",
-                time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "Create",
-                    creator: null,
-                    name: "Test",
-                    accessPolicy: {
-                        type: "Local",
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
-                        ]),
-                        defaultGrant: null,
-                        urlGrant: null,
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "Create",
+                        creator: null,
+                        name: "Test",
+                        accessPolicy: {
+                            type: "Local",
+                            accountGrantById: new Map([
+                                [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                            ]),
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
                     },
                 },
-            },
-        ]);
-
-        await expect(getTaskCollectionItemForTest(context, collectionId)).resolves.toMatchObject({
-            creatorId: session1.account.id,
-        });
+            ]),
+        ).rejects.toThrow(
+            new PermissionDeniedError(
+                "Task collection creator is required for new task collections",
+            ),
+        );
     });
 
     test("can\u2019t create a collection with the wrong creator", async () => {
@@ -11349,7 +11343,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new PermissionDeniedError("Space mismatch"));
+        ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
         await commitTaskActionTransaction(context.action(sharedSession), space.id, [
             {
@@ -11397,7 +11391,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new PermissionDeniedError("Space mismatch"));
+        ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
         await commitTaskActionTransaction(context.action(sharedSession), space.id, [
             {
@@ -11485,7 +11479,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11524,7 +11517,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11537,7 +11529,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11569,7 +11560,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11638,7 +11628,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11677,7 +11666,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11732,7 +11720,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11787,7 +11774,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11874,7 +11860,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11913,7 +11898,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11952,7 +11936,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11965,7 +11948,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -11997,7 +11979,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: taskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12120,7 +12101,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12150,7 +12130,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12189,7 +12168,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12202,7 +12180,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12234,7 +12211,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12273,7 +12249,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12286,7 +12261,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12327,7 +12301,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12340,7 +12313,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12381,7 +12353,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12420,7 +12391,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12459,7 +12429,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12472,7 +12441,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12513,7 +12481,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12526,7 +12493,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12567,7 +12533,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12580,7 +12545,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12621,7 +12585,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -12634,7 +12597,6 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    actor: taskActionActor(session1),
                     taskId: parentTaskId2,
                     taskAction: {
                         type: "UpdateChildrenCounts",

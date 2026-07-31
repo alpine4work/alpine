@@ -44,7 +44,7 @@ export async function traceServerResponse(
         assert(
             new RegExp(
                 route.replaceAll(
-                    /(^|\/)(\*|:[a-zA-Z0-9_]+)(?=\/|$)/g,
+                    /(^|\/)(\*|:[a-zA-Z0-9_]+)(?=-|\/|$)/g,
                     (substring, match1, match2) => `${match1}${match2 === "*" ? ".*" : "[^/]*"}`,
                 ),
             ).test(requestUrl.pathname),

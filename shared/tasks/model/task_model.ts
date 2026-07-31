@@ -13,7 +13,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
@@ -35,7 +35,7 @@ import {
     TaskAssigneeStatusRegister,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+import {TaskActorFromSchema} from "~/shared/tasks/task_creator.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskLayout, TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
@@ -88,7 +88,7 @@ const TaskModelDataSchema = Schema.object({
 
     creator: TaskSortableAccountSchema.merge(
         Schema.object({
-            from: TaskCreatorFromSchema.nullable().default(null),
+            from: TaskActorFromSchema.nullable().default(null),
         }),
     ),
     createdTime: TaskFilterableTime.schema,
@@ -595,6 +595,26 @@ export class TaskModel {
 
     public getCollections() {
         return this.rawData.collections;
+    }
+
+    /**
+     * Get the task's position in a collection. Returns null if the task is not in the
+     * collection.
+     *
+     * If the task's position in this collection was never explicitly set then the
+     * task's position defaults to the end of the collection at the time the task was
+     * added to the collection. See `TaskUpdateCollectionPositionAction` for more.
+     */
+    public getCollectionPosition(collectionId: TaskCollectionId): TaskPosition | null {
+        const version = this.getCollections().getVersion(collectionId);
+        if (!version) return null;
+
+        return (
+            this.rawData.positionByCollectionId.get(collectionId) ?? {
+                orderTime: version,
+                orderKey: initialOrderKey,
+            }
+        );
     }
 
     public getStatus() {

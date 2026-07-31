@@ -238,7 +238,6 @@ export function deleteTaskAndAllChildren(
                     ({newTaskItem}): TaskAction => ({
                         type: "UpdateTask",
                         time: actionTime,
-                        actor,
                         taskId: newTaskItem.taskId,
                         taskAction: {type: "Delete"},
                     }),
@@ -263,7 +262,6 @@ export function deleteTaskAndAllChildren(
                             // Match `commitTaskActionTransaction()`. Each extra action has +1 tick above the
                             // action time.
                             time: [actionTime[0], actionTime[1] + 1],
-                            actor,
                             taskId: newTaskItem.taskId,
                             taskAction: {
                                 type: "UpdateChildrenCounts",
@@ -279,7 +277,6 @@ export function deleteTaskAndAllChildren(
                               // Match `commitTaskActionTransaction()`. Each extra action has +1 tick above the
                               // action time.
                               time: [actionTime[0], actionTime[1] + 1],
-                              actor,
                               taskId: parentTaskItem.taskId,
                               taskAction: {
                                   type: "UpdateChildrenCounts",
@@ -296,7 +293,7 @@ export function deleteTaskAndAllChildren(
                     : []),
             ],
             wasProcessed: false,
-            actorId: context.actor.getAccountId(),
+            actor,
             clientId: options?.clientId ?? null,
         };
 

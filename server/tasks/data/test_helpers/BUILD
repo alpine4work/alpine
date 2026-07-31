@@ -24,7 +24,7 @@ ts_project(
         "//server/tokens",
         "//shared/access/model",
         "//shared/api/content",
-        "//shared/api/markdown",
+        "//shared/api/content/closed_source",
         "//shared/content",
         "//shared/context",
         "//shared/design",

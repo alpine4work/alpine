@@ -22,13 +22,6 @@ const context = createTestContext({
 });
 
 describe("deleteTaskAndAllChildren()", () => {
-    function taskActionActor(session: Awaited<ReturnType<TestSpace["createSession"]>>) {
-        return {
-            accountId: session.account.id,
-            from: null,
-        };
-    }
-
     test("can delete a task and all its children when it has no children", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
@@ -45,7 +38,6 @@ describe("deleteTaskAndAllChildren()", () => {
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task.id,
                     taskAction: {type: "Delete"},
                 },
@@ -120,7 +112,6 @@ describe("deleteTaskAndAllChildren()", () => {
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session3),
                     taskId: task.id,
                     taskAction: {type: "Delete"},
                 },
@@ -184,63 +175,54 @@ describe("deleteTaskAndAllChildren()", () => {
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task4.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task5.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task6.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task7.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task8.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: [actionTime[0], actionTime[1] + 1],
-                    actor: taskActionActor(session),
                     taskId: task9.id,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -253,7 +235,6 @@ describe("deleteTaskAndAllChildren()", () => {
                 {
                     type: "UpdateTask",
                     time: [actionTime[0], actionTime[1] + 1],
-                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -266,7 +247,6 @@ describe("deleteTaskAndAllChildren()", () => {
                 {
                     type: "UpdateTask",
                     time: [actionTime[0], actionTime[1] + 1],
-                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -279,7 +259,6 @@ describe("deleteTaskAndAllChildren()", () => {
                 {
                     type: "UpdateTask",
                     time: [actionTime[0], actionTime[1] + 1],
-                    actor: taskActionActor(session),
                     taskId: task5.id,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -292,7 +271,6 @@ describe("deleteTaskAndAllChildren()", () => {
                 {
                     type: "UpdateTask",
                     time: [actionTime[0], actionTime[1] + 1],
-                    actor: taskActionActor(session),
                     taskId: task4.id,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -387,35 +365,30 @@ describe("deleteTaskAndAllChildren()", () => {
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task4.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: [actionTime[0], actionTime[1] + 1],
-                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -512,35 +485,30 @@ describe("deleteTaskAndAllChildren()", () => {
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: actionTime,
-                    actor: taskActionActor(session),
                     taskId: task4.id,
                     taskAction: {type: "Delete"},
                 },
                 {
                     type: "UpdateTask",
                     time: [actionTime[0], actionTime[1] + 1],
-                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -553,7 +521,6 @@ describe("deleteTaskAndAllChildren()", () => {
                 {
                     type: "UpdateTask",
                     time: [actionTime[0], actionTime[1] + 1],
-                    actor: taskActionActor(session),
                     taskId: grandParentTask.id,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -600,7 +567,6 @@ describe("deleteTaskAndAllChildren()", () => {
             {
                 type: "UpdateTask",
                 time: deletedTime,
-                actor: taskActionActor(session),
                 taskId: task1.id,
                 taskAction: {type: "Delete"},
             },
@@ -689,7 +655,6 @@ describe("deleteTaskAndAllChildren()", () => {
             {
                 type: "UpdateTask",
                 time: deletedTime,
-                actor: taskActionActor(session),
                 taskId: task1.id,
                 taskAction: {type: "Delete"},
             },
@@ -799,21 +764,18 @@ describe("deleteTaskAndAllChildren()", () => {
             {
                 type: "UpdateTask",
                 time: deletedTime,
-                actor: taskActionActor(session),
                 taskId: task1.id,
                 taskAction: {type: "Delete"},
             },
             {
                 type: "UpdateTask",
                 time: deletedTime,
-                actor: taskActionActor(session),
                 taskId: task1a.id,
                 taskAction: {type: "Delete"},
             },
             {
                 type: "UpdateTask",
                 time: deletedTime,
-                actor: taskActionActor(session),
                 taskId: task1b.id,
                 taskAction: {type: "Delete"},
             },
@@ -951,21 +913,18 @@ describe("deleteTaskAndAllChildren()", () => {
             {
                 type: "UpdateTask",
                 time: deletedTime,
-                actor: taskActionActor(session),
                 taskId: task1.id,
                 taskAction: {type: "Delete"},
             },
             {
                 type: "UpdateTask",
                 time: deletedTime,
-                actor: taskActionActor(session),
                 taskId: task1a.id,
                 taskAction: {type: "Delete"},
             },
             {
                 type: "UpdateTask",
                 time: deletedTime,
-                actor: taskActionActor(session),
                 taskId: task1b.id,
                 taskAction: {type: "Delete"},
             },

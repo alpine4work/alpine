@@ -278,6 +278,27 @@ export async function getContentFileReference(
     fileId: FileId,
     fileAuthorizer: FileAuthorizer,
 ): Promise<{type: "File"; signedUrlSearch: string; file: FileModel} | null> {
+    const file = await getContentFileReferenceWithoutSignedUrlSearch(
+        context,
+        fileId,
+        fileAuthorizer,
+    );
+
+    if (!file) return null;
+
+    const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+        spaceId,
+        fileId,
+    );
+
+    return {type: "File", signedUrlSearch: signedUrl.search, file};
+}
+
+export async function getContentFileReferenceWithoutSignedUrlSearch(
+    context: ServerActionContext,
+    fileId: FileId,
+    fileAuthorizer: FileAuthorizer,
+): Promise<FileModel | null> {
     let file = await getFileIfExistsFromAttachment(context, fileId, fileAuthorizer, {
         consistency: "Eventual",
     });
@@ -298,12 +319,5 @@ export async function getContentFileReference(
         });
     }
 
-    if (!file) return null;
-
-    const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
-        spaceId,
-        fileId,
-    );
-
-    return {type: "File", signedUrlSearch: signedUrl.search, file};
+    return file;
 }

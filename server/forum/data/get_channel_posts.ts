@@ -4,9 +4,11 @@ import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_acce
 import {ChannelPostsIndex} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {DynamoIndexCursor, DynamoIndexPartitionKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {RynamoBackfillResult, RynamoIndexQueryResult} from "~/shared/dynamo/rynamo_types.js";
+import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
 import {getMinId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
@@ -71,6 +73,9 @@ export async function getChannelPostContents(
         authorId: AccountId;
         createdTime: Date;
         createdTimeZone: TimeZone;
+        contentVersion: number;
+        content: PostContent;
+        commentCount: number;
     }>;
     hasNextPage: boolean;
 }> {
@@ -97,9 +102,12 @@ export async function getChannelPostContents(
         channelName: channel.channelName,
         posts: items.slice(0, limit).map(item => ({
             postId: item.postId,
-            authorId: item.authorId,
+            authorId: item.author.accountId,
             createdTime: item.createdTime,
             createdTimeZone: item.createdTimeZone,
+            contentVersion: item.contentUpdate?.mappings.length ?? 0,
+            content: item.content,
+            commentCount: sumIterable(item.commentsSummary.commentCountByAuthorId.values()),
         })),
         hasNextPage: items.length > limit,
     };

@@ -1,11 +1,11 @@
 import {
-    getApiMentionTargetPathIfExists,
-    isApiMentionTargetPath,
-    parseApiMentionTarget,
+    getApiMentionReferencePathIfExists,
+    isApiMentionReferencePath,
+    parseApiMentionReference,
     parseApiMessageRoomPath,
-    parseApiNotMentionTarget,
+    parseApiNotMentionReference,
     parseApiPath,
-    printApiMentionTarget,
+    printApiMentionReference,
     printApiMessageRoomPath,
     printApiPath,
 } from "~/shared/api/specification/parse_api_path.js";
@@ -164,9 +164,9 @@ describe("parseApiPath", () => {
             expect(
                 parseApiPath(`/documents/${documentId}/threads/${documentCommentThreadId}`),
             ).toEqual({
-                type: "DocumentCommentThread",
-                id: documentId,
-                threadId: documentCommentThreadId,
+                type: "DocumentThread",
+                id: documentCommentThreadId,
+                document: {id: documentId},
             });
         });
 
@@ -412,9 +412,9 @@ describe("printApiPath", () => {
     test("prints document comment thread path", () => {
         expect(
             printApiPath({
-                type: "DocumentCommentThread",
-                id: documentId,
-                threadId: documentCommentThreadId,
+                type: "DocumentThread",
+                id: documentCommentThreadId,
+                document: {id: documentId},
             }),
         ).toEqual(`/documents/${documentId}/threads/${documentCommentThreadId}`);
     });
@@ -498,9 +498,9 @@ describe("parseApiMessageRoomPath", () => {
         expect(
             parseApiMessageRoomPath(`/documents/${documentId}/threads/${documentCommentThreadId}`),
         ).toEqual({
-            type: "DocumentCommentThread",
-            id: documentId,
-            threadId: documentCommentThreadId,
+            type: "DocumentThread",
+            id: documentCommentThreadId,
+            document: {id: documentId},
         });
     });
 });
@@ -513,9 +513,9 @@ describe("printApiMessageRoomPath", () => {
     test("prints document comment thread path", () => {
         expect(
             printApiMessageRoomPath({
-                type: "DocumentCommentThread",
-                id: documentId,
-                threadId: documentCommentThreadId,
+                type: "DocumentThread",
+                id: documentCommentThreadId,
+                document: {id: documentId},
             }),
         ).toEqual(`/documents/${documentId}/threads/${documentCommentThreadId}`);
     });
@@ -529,51 +529,51 @@ describe("printApiMessageRoomPath", () => {
     });
 });
 
-describe("parseApiMentionTarget", () => {
+describe("parseApiMentionReference", () => {
     test("parses account path", () => {
-        expect(parseApiMentionTarget(`/accounts/${accountId}`)).toEqual({
+        expect(parseApiMentionReference(`/accounts/${accountId}`)).toEqual({
             type: "Account",
             id: accountId,
         });
     });
 
     test("parses channel path", () => {
-        expect(parseApiMentionTarget(`/channels/${channelId}`)).toEqual({
+        expect(parseApiMentionReference(`/channels/${channelId}`)).toEqual({
             type: "Channel",
             id: channelId,
         });
     });
 
     test("parses chat path", () => {
-        expect(parseApiMentionTarget(`/chats/${chatId}`)).toEqual({
+        expect(parseApiMentionReference(`/chats/${chatId}`)).toEqual({
             type: "Chat",
             id: chatId,
         });
     });
 
     test("parses document path", () => {
-        expect(parseApiMentionTarget(`/documents/${documentId}`)).toEqual({
+        expect(parseApiMentionReference(`/documents/${documentId}`)).toEqual({
             type: "Document",
             id: documentId,
         });
     });
 
     test("parses post path", () => {
-        expect(parseApiMentionTarget(`/posts/${postId}`)).toEqual({
+        expect(parseApiMentionReference(`/posts/${postId}`)).toEqual({
             type: "Post",
             id: postId,
         });
     });
 
     test("parses task path", () => {
-        expect(parseApiMentionTarget(`/tasks/${taskId}`)).toEqual({
+        expect(parseApiMentionReference(`/tasks/${taskId}`)).toEqual({
             type: "Task",
             id: taskId,
         });
     });
 
     test("parses task collection path", () => {
-        expect(parseApiMentionTarget(`/task-collections/${taskCollectionId}`)).toEqual({
+        expect(parseApiMentionReference(`/task-collections/${taskCollectionId}`)).toEqual({
             type: "TaskCollection",
             id: taskCollectionId,
         });
@@ -582,38 +582,38 @@ describe("parseApiMentionTarget", () => {
 
 describe("printApiMentionPath", () => {
     test("prints account path", () => {
-        expect(printApiMentionTarget({type: "Account", id: accountId})).toEqual(
+        expect(printApiMentionReference({type: "Account", id: accountId})).toEqual(
             `/accounts/${accountId}`,
         );
     });
 
     test("prints channel path", () => {
-        expect(printApiMentionTarget({type: "Channel", id: channelId})).toEqual(
+        expect(printApiMentionReference({type: "Channel", id: channelId})).toEqual(
             `/channels/${channelId}`,
         );
     });
 
     test("prints chat path", () => {
-        expect(printApiMentionTarget({type: "Chat", id: chatId})).toEqual(`/chats/${chatId}`);
+        expect(printApiMentionReference({type: "Chat", id: chatId})).toEqual(`/chats/${chatId}`);
     });
 
     test("prints document path", () => {
-        expect(printApiMentionTarget({type: "Document", id: documentId})).toEqual(
+        expect(printApiMentionReference({type: "Document", id: documentId})).toEqual(
             `/documents/${documentId}`,
         );
     });
 
     test("prints post path", () => {
-        expect(printApiMentionTarget({type: "Post", id: postId})).toEqual(`/posts/${postId}`);
+        expect(printApiMentionReference({type: "Post", id: postId})).toEqual(`/posts/${postId}`);
     });
 
     test("prints task path", () => {
-        expect(printApiMentionTarget({type: "Task", id: taskId})).toEqual(`/tasks/${taskId}`);
+        expect(printApiMentionReference({type: "Task", id: taskId})).toEqual(`/tasks/${taskId}`);
     });
 
     test("prints task collection path", () => {
         expect(
-            printApiMentionTarget({
+            printApiMentionReference({
                 type: "TaskCollection",
                 id: taskCollectionId,
             }),
@@ -623,7 +623,7 @@ describe("printApiMentionPath", () => {
 
 describe("parseApiContentNonMentionableElementTargetPath", () => {
     test("parses chat messages list path", () => {
-        expect(parseApiNotMentionTarget(`/chats/${chatId}/messages`)).toEqual({
+        expect(parseApiNotMentionReference(`/chats/${chatId}/messages`)).toEqual({
             type: "ChatMessages",
             id: chatId,
         });
@@ -631,7 +631,7 @@ describe("parseApiContentNonMentionableElementTargetPath", () => {
 
     test("parses document comment thread comment path", () => {
         expect(
-            parseApiNotMentionTarget(
+            parseApiNotMentionReference(
                 `/documents/${documentId}/threads/${documentCommentThreadId}/messages/0`,
             ),
         ).toEqual({
@@ -643,93 +643,95 @@ describe("parseApiContentNonMentionableElementTargetPath", () => {
     });
 });
 
-describe("isApiMentionTargetPath", () => {
+describe("isApiMentionReferencePath", () => {
     test("returns true for mentionable paths", () => {
-        expect(isApiMentionTargetPath(`/accounts/${accountId}`)).toEqual(true);
-        expect(isApiMentionTargetPath(`/channels/${channelId}`)).toEqual(true);
-        expect(isApiMentionTargetPath(`/chats/${chatId}`)).toEqual(true);
-        expect(isApiMentionTargetPath(`/documents/${documentId}`)).toEqual(true);
-        expect(isApiMentionTargetPath(`/posts/${postId}`)).toEqual(true);
-        expect(isApiMentionTargetPath(`/tasks/${taskId}`)).toEqual(true);
-        expect(isApiMentionTargetPath(`/task-collections/${taskCollectionId}`)).toEqual(true);
+        expect(isApiMentionReferencePath(`/accounts/${accountId}`)).toEqual(true);
+        expect(isApiMentionReferencePath(`/channels/${channelId}`)).toEqual(true);
+        expect(isApiMentionReferencePath(`/chats/${chatId}`)).toEqual(true);
+        expect(isApiMentionReferencePath(`/documents/${documentId}`)).toEqual(true);
+        expect(isApiMentionReferencePath(`/posts/${postId}`)).toEqual(true);
+        expect(isApiMentionReferencePath(`/tasks/${taskId}`)).toEqual(true);
+        expect(isApiMentionReferencePath(`/task-collections/${taskCollectionId}`)).toEqual(true);
     });
 
     test("returns false for non-mentionable paths", () => {
-        expect(isApiMentionTargetPath(`/chats/${chatId}/messages`)).toEqual(false);
-        expect(isApiMentionTargetPath(`/chats/${chatId}/messages/0`)).toEqual(false);
+        expect(isApiMentionReferencePath(`/chats/${chatId}/messages`)).toEqual(false);
+        expect(isApiMentionReferencePath(`/chats/${chatId}/messages/0`)).toEqual(false);
         expect(
-            isApiMentionTargetPath(`/documents/${documentId}/threads/${documentCommentThreadId}`),
+            isApiMentionReferencePath(
+                `/documents/${documentId}/threads/${documentCommentThreadId}`,
+            ),
         ).toEqual(false);
         expect(
-            isApiMentionTargetPath(
+            isApiMentionReferencePath(
                 `/documents/${documentId}/threads/${documentCommentThreadId}/messages`,
             ),
         ).toEqual(false);
         expect(
-            isApiMentionTargetPath(
+            isApiMentionReferencePath(
                 `/documents/${documentId}/threads/${documentCommentThreadId}/messages/0`,
             ),
         ).toEqual(false);
     });
 });
 
-describe("getApiMentionTargetPathIfExists", () => {
+describe("getApiMentionReferencePathIfExists", () => {
     test("returns path for already mentionable paths", () => {
-        expect(getApiMentionTargetPathIfExists(`/accounts/${accountId}`)).toEqual(
+        expect(getApiMentionReferencePathIfExists(`/accounts/${accountId}`)).toEqual(
             `/accounts/${accountId}`,
         );
-        expect(getApiMentionTargetPathIfExists(`/channels/${channelId}`)).toEqual(
+        expect(getApiMentionReferencePathIfExists(`/channels/${channelId}`)).toEqual(
             `/channels/${channelId}`,
         );
-        expect(getApiMentionTargetPathIfExists(`/chats/${chatId}`)).toEqual(`/chats/${chatId}`);
-        expect(getApiMentionTargetPathIfExists(`/documents/${documentId}`)).toEqual(
+        expect(getApiMentionReferencePathIfExists(`/chats/${chatId}`)).toEqual(`/chats/${chatId}`);
+        expect(getApiMentionReferencePathIfExists(`/documents/${documentId}`)).toEqual(
             `/documents/${documentId}`,
         );
-        expect(getApiMentionTargetPathIfExists(`/posts/${postId}`)).toEqual(`/posts/${postId}`);
-        expect(getApiMentionTargetPathIfExists(`/tasks/${taskId}`)).toEqual(`/tasks/${taskId}`);
-        expect(getApiMentionTargetPathIfExists(`/task-collections/${taskCollectionId}`)).toEqual(
+        expect(getApiMentionReferencePathIfExists(`/posts/${postId}`)).toEqual(`/posts/${postId}`);
+        expect(getApiMentionReferencePathIfExists(`/tasks/${taskId}`)).toEqual(`/tasks/${taskId}`);
+        expect(getApiMentionReferencePathIfExists(`/task-collections/${taskCollectionId}`)).toEqual(
             `/task-collections/${taskCollectionId}`,
         );
     });
 
     test("returns parent document path for document comment paths", () => {
         expect(
-            getApiMentionTargetPathIfExists(
+            getApiMentionReferencePathIfExists(
                 `/documents/${documentId}/threads/${documentCommentThreadId}`,
             ),
         ).toEqual(`/documents/${documentId}`);
         expect(
-            getApiMentionTargetPathIfExists(
+            getApiMentionReferencePathIfExists(
                 `/documents/${documentId}/threads/${documentCommentThreadId}/messages`,
             ),
         ).toEqual(`/documents/${documentId}`);
         expect(
-            getApiMentionTargetPathIfExists(
+            getApiMentionReferencePathIfExists(
                 `/documents/${documentId}/threads/${documentCommentThreadId}/messages/0`,
             ),
         ).toEqual(`/documents/${documentId}`);
     });
 
     test("returns parent post path for post comment paths", () => {
-        expect(getApiMentionTargetPathIfExists(`/posts/${postId}/messages`)).toEqual(
+        expect(getApiMentionReferencePathIfExists(`/posts/${postId}/messages`)).toEqual(
             `/posts/${postId}`,
         );
-        expect(getApiMentionTargetPathIfExists(`/posts/${postId}/messages/0`)).toEqual(
+        expect(getApiMentionReferencePathIfExists(`/posts/${postId}/messages/0`)).toEqual(
             `/posts/${postId}`,
         );
     });
 
     test("returns parent task path for task comment paths", () => {
-        expect(getApiMentionTargetPathIfExists(`/tasks/${taskId}/messages`)).toEqual(
+        expect(getApiMentionReferencePathIfExists(`/tasks/${taskId}/messages`)).toEqual(
             `/tasks/${taskId}`,
         );
-        expect(getApiMentionTargetPathIfExists(`/tasks/${taskId}/messages/0`)).toEqual(
+        expect(getApiMentionReferencePathIfExists(`/tasks/${taskId}/messages/0`)).toEqual(
             `/tasks/${taskId}`,
         );
     });
 
     test("returns null for chat message paths", () => {
-        expect(getApiMentionTargetPathIfExists(`/chats/${chatId}/messages`)).toEqual(null);
-        expect(getApiMentionTargetPathIfExists(`/chats/${chatId}/messages/0`)).toEqual(null);
+        expect(getApiMentionReferencePathIfExists(`/chats/${chatId}/messages`)).toEqual(null);
+        expect(getApiMentionReferencePathIfExists(`/chats/${chatId}/messages/0`)).toEqual(null);
     });
 });

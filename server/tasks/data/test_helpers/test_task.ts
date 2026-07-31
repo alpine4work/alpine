@@ -38,11 +38,12 @@ import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
-import {fromApiContentBlockElements} from "~/shared/api/content/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {fromApiContentBlockElements} from "~/shared/api/content/closed_source/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -367,7 +368,7 @@ export class TestTask extends TestCommentRoomBase {
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
-            fileIds: ReadonlyArray<FileId>;
+            fileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone?: TimeZone;
             overrideCreatedTime?: Date;
             isStream?: boolean;

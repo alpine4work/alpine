@@ -11,7 +11,7 @@ import {createNotificationEventProcessor} from "~/server/notifications/data/proc
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {ApiMentionTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -233,19 +233,20 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         );
     },
     getBotWebhookEvent: (event, {accountId}) => ({
-        type: "NewMessage",
+        type: "CreatedMessage",
         room: {
             type: "Chat",
             id: event.chatId,
         },
         index: event.messageIndex,
-        authorId: event.authorId,
+        author: {id: event.authorId},
         createdTimeZone: event.createdTimeZone,
-        wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
         parent: event.parent ?? undefined,
-        viewingTarget: event.currentlyViewedSearchEntityId
-            ? intoApiMentionTarget(event.currentlyViewedSearchEntityId)
-            : undefined,
+        wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
+        viewing:
+            event.currentlyViewedSearchEntityId !== undefined
+                ? {reference: intoApiMentionReference(event.currentlyViewedSearchEntityId)}
+                : undefined,
     }),
     getAlertContent: async (context, event, {info: {definition}, entryItem, locale}) => {
         assert(entryItem.sortRangeType === "ChatEntry");
@@ -316,7 +317,9 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
     },
 });
 
-function intoApiMentionTarget(searchMentionEntityId: SearchMentionEntityId): ApiMentionTarget {
+function intoApiMentionReference(
+    searchMentionEntityId: SearchMentionEntityId,
+): ApiMentionReference {
     const entityIdObject = parseSearchMentionEntityId(searchMentionEntityId);
 
     switch (entityIdObject.type) {

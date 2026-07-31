@@ -5,7 +5,9 @@
  * scrambled using `entityId` as the seed. The unscrambled bytes are:
  *
  * - 1 version bit
- * - 23 bits of the entity hash
+ * - 1 inline bit (whether the keyed element has inline content and so allows
+ *   `type: "Inline"` positions)
+ * - 22 bits of the entity hash
  * - version varint
  * - pos varint
  * - node size varint

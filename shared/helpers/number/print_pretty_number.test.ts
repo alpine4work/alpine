@@ -77,7 +77,7 @@ describe("printPrettyNumber", () => {
             {number: 10, expected: "ten"},
             {number: 11, expected: "11"},
             {number: 100, expected: "100"},
-            {number: 0, expected: "0"},
+            {number: 0, expected: "zero"},
         ];
 
         test.each(testCases)("$number → $expected", ({number, expected}) => {

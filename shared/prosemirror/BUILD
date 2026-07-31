@@ -9,6 +9,7 @@ ts_project(
         "//shared/content",
         "//shared/documents",
         "//shared/forum",
+        "//shared/prosemirror/test_helpers",
     ],
     visibility = ["//visibility:public"],
     deps = [

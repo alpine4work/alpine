@@ -87,6 +87,7 @@ ts_project(
         "//shared/files",
         "//shared/helpers",
         "//shared/id",
+        "//shared/lezer",
         "//shared/schema",
         "//shared/tracer",
     ],

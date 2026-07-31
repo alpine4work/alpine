@@ -3,7 +3,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {getSpaceAccountBotIdIfExists} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
-import {ApiMessageRoomTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -78,7 +78,7 @@ export async function putMessageApprovalDecisions(
         consistency,
         readApprovalStreamPart,
     }: {
-        room: ApiMessageRoomTarget;
+        room: ApiMessageRoomReference;
         messageIndex: number;
         payload: PutMessageApprovalDecisionsPayload;
         consistency?: DynamoCacheReadConsistency;

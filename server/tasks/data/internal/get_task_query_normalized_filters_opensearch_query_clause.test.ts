@@ -5587,18 +5587,6 @@ test("can filter for a single creator account", async () => {
                 type: "Creator",
                 operation: {
                     type: "OneOf",
-                    accounts: [{type: "MissingAccount"}],
-                },
-            },
-        ]),
-    ).toEqual([]);
-
-    expect(
-        await testQuery(session1, space, [
-            {
-                type: "Creator",
-                operation: {
-                    type: "OneOf",
                     accounts: [{type: "CurrentAccount"}],
                 },
             },
@@ -5711,18 +5699,6 @@ test("can filter for multiple creator accounts", async () => {
                 type: "Creator",
                 operation: {
                     type: "OneOf",
-                    accounts: [{type: "MissingAccount"}, {type: "CurrentAccount"}],
-                },
-            },
-        ]),
-    ).toEqual([task1Id]);
-
-    expect(
-        await testQuery(session1, space, [
-            {
-                type: "Creator",
-                operation: {
-                    type: "OneOf",
                     accounts: [
                         {type: "Account", accountId: session1.account.id},
                         {type: "Account", accountId: session2.account.id},
@@ -5795,18 +5771,6 @@ test("can negative filter for a single creator account", async () => {
             },
         },
     ]);
-
-    expect(
-        await testQuery(session1, space, [
-            {
-                type: "Creator",
-                operation: {
-                    type: "NoneOf",
-                    accounts: [{type: "MissingAccount"}],
-                },
-            },
-        ]),
-    ).toEqual([task1Id, task2Id, task3Id, task4Id]);
 
     expect(
         await testQuery(session1, space, [
@@ -5919,18 +5883,6 @@ test("can negative filter for multiple creator accounts", async () => {
             },
         },
     ]);
-
-    expect(
-        await testQuery(session1, space, [
-            {
-                type: "Creator",
-                operation: {
-                    type: "NoneOf",
-                    accounts: [{type: "MissingAccount"}, {type: "CurrentAccount"}],
-                },
-            },
-        ]),
-    ).toEqual([task2Id, task3Id, task4Id]);
 
     expect(
         await testQuery(session1, space, [

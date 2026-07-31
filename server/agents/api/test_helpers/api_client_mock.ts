@@ -1,66 +1,47 @@
+import jsonStableStringify from "json-stable-stringify";
 import {PathsWithMethod} from "openapi-typescript-helpers";
 import {ApiClient} from "~/server/agents/api/api_client.js";
-import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
-import {
-    ApiContentResponse,
-    ApiDocumentCommentThreadResponse,
-    ApiMessageResponse,
-    ApiPostResponse,
-    ApiTaskCollection,
-    ApiTaskResponse,
-    ApiTaskWithoutNotes,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {
-    AccountId,
-    ChatId,
-    DocumentCommentThreadId,
-    DocumentId,
-    PostId,
-    SpaceId,
-    TaskCollectionId,
-    TaskId,
-} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 type HttpMethod = "GET" | "PUT" | "POST" | "DELETE" | "PATCH";
 
-// Extract the success response data type for a given path and method
-type SuccessResponseData<T> = T extends {responses: infer R}
-    ? R extends {200: {content: {"application/json": infer Data}}}
-        ? Data
-        : R extends {201: {content: {"application/json": infer Data}}}
-          ? Data
-          : R extends {204: never}
-            ? void
-            : unknown
-    : unknown;
+type MockResponseConfigData<
+    Path extends keyof ApiSpecification.paths,
+    Method extends Lowercase<HttpMethod>,
+> = ApiSpecification.paths[Path][Method] extends {
+    responses: {200: {content: {"application/json": infer JsonResponse}}};
+}
+    ? JsonResponse
+    : null;
 
-// Configuration for a single mock response. Pass `error` instead of `data` to
-// reject the request with that error, the way the real API client throws on a
-// non-2xx response.
-type MockResponseConfig<TData = any> =
-    | {data: TData; response?: Partial<Response>; error?: never}
+type MockResponseConfig<Data> =
+    | {data: Data; response?: Partial<Response>; error?: never}
     | {error: Error; data?: never; response?: never};
+
+// Configuration for a single mock response
+type MockResponseConfigWithParams<
+    Path extends keyof ApiSpecification.paths,
+    Method extends Lowercase<HttpMethod>,
+> = {
+    params: ApiSpecification.paths[Path][Method] extends {parameters: infer Parameters}
+        ? Parameters | "Any"
+        : {} | "Any";
+} & MockResponseConfig<MockResponseConfigData<Path, Method>>;
 
 // Matcher for request parameters
 type RequestMatcher = {
     path: string;
-    params?: any;
+    params: unknown;
     method: HttpMethod;
 };
 
 // Internal mock configuration
 type MockConfig = {
     matcher: RequestMatcher;
-    responses: Array<MockResponseConfig>;
+    responses: Array<MockResponseConfig<any>>;
     callIndex: number;
 };
 
@@ -91,8 +72,13 @@ export class ApiClientMock implements ApiClient {
 
     constructor() {
         afterEach(() => {
-            this.assertAllMocksUsed();
-            this.reset();
+            try {
+                this.assertAllMocksUsed();
+            } finally {
+                // Reset even if the above assert throws so we don't poison future tests with old
+                // config.
+                this.reset();
+            }
         });
     }
 
@@ -104,10 +90,9 @@ export class ApiClientMock implements ApiClient {
      */
     mockGet<Path extends PathsWithMethod<ApiSpecification.paths, "get">>(
         path: Path,
-        response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["get"]>>,
-        params?: any,
+        response: MockResponseConfigWithParams<Path, "get">,
     ) {
-        this.addMock("GET", path, response, params);
+        this.addMock("GET", path, response);
     }
 
     /**
@@ -115,10 +100,9 @@ export class ApiClientMock implements ApiClient {
      */
     mockPut<Path extends PathsWithMethod<ApiSpecification.paths, "put">>(
         path: Path,
-        response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["put"]>>,
-        params?: any,
+        response: MockResponseConfigWithParams<Path, "put">,
     ) {
-        this.addMock("PUT", path, response, params);
+        this.addMock("PUT", path, response);
     }
 
     /**
@@ -126,10 +110,9 @@ export class ApiClientMock implements ApiClient {
      */
     mockPost<Path extends PathsWithMethod<ApiSpecification.paths, "post">>(
         path: Path,
-        response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["post"]>>,
-        params?: any,
+        response: MockResponseConfigWithParams<Path, "post">,
     ) {
-        this.addMock("POST", path, response, params);
+        this.addMock("POST", path, response);
     }
 
     /**
@@ -137,10 +120,9 @@ export class ApiClientMock implements ApiClient {
      */
     mockDelete<Path extends PathsWithMethod<ApiSpecification.paths, "delete">>(
         path: Path,
-        response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["delete"]>>,
-        params?: any,
+        response: MockResponseConfigWithParams<Path, "delete">,
     ) {
-        this.addMock("DELETE", path, response, params);
+        this.addMock("DELETE", path, response);
     }
 
     /**
@@ -148,10 +130,9 @@ export class ApiClientMock implements ApiClient {
      */
     mockPatch<Path extends PathsWithMethod<ApiSpecification.paths, "patch">>(
         path: Path,
-        response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["patch"]>>,
-        params?: any,
+        response: MockResponseConfigWithParams<Path, "patch">,
     ) {
-        this.addMock("PATCH", path, response, params);
+        this.addMock("PATCH", path, response);
     }
 
     /**
@@ -163,7 +144,11 @@ export class ApiClientMock implements ApiClient {
         this.spyConfigs.push({method, path});
     }
 
-    private addMock(method: HttpMethod, path: string, response: MockResponseConfig, params?: any) {
+    private addMock(
+        method: HttpMethod,
+        path: string,
+        {params, ...response}: MockResponseConfigWithParams<any, any>,
+    ) {
         const mockConfig = this.findMatchingMock(method, path, params);
         if (mockConfig) {
             mockConfig.responses.push(response);
@@ -266,7 +251,7 @@ export class ApiClientMock implements ApiClient {
     private findMatchingMock(
         method: HttpMethod,
         path: string,
-        params?: any,
+        params: unknown,
     ): MockConfig | undefined {
         return this.mockConfigs.find(config => {
             // Method must match
@@ -280,8 +265,14 @@ export class ApiClientMock implements ApiClient {
             }
 
             // If matcher has params, they must match exactly
-            if (config.matcher.params !== undefined) {
-                return isDeepEqual(config.matcher.params, params);
+            //
+            // We use `jsonStableStringify()` instead of `isDeepEqual()` to use JSON deep
+            // equality semantics. For example ignoring `undefined` properties on objects.
+            if (
+                config.matcher.params !== "Any" &&
+                jsonStableStringify(config.matcher.params) !== jsonStableStringify(params)
+            ) {
+                return false;
             }
 
             // No params specified in matcher, so any params are acceptable
@@ -344,387 +335,60 @@ export class ApiClientMock implements ApiClient {
     /**
      * Get the number of times a specific endpoint was called
      */
-    getCallCount(method: HttpMethod, path: string, params?: any): number {
+    getCallCount<Path extends PathsWithMethod<ApiSpecification.paths, "get">>(
+        method: "GET",
+        path: Path,
+        params?: ApiSpecification.paths[Path]["get"] extends {
+            parameters: infer Parameters;
+        }
+            ? Parameters | "Any"
+            : {} | "Any",
+    ): number;
+    getCallCount<Path extends PathsWithMethod<ApiSpecification.paths, "put">>(
+        method: "PUT",
+        path: Path,
+        params?: ApiSpecification.paths[Path]["put"] extends {
+            parameters: infer Parameters;
+        }
+            ? Parameters | "Any"
+            : {} | "Any",
+    ): number;
+    getCallCount<Path extends PathsWithMethod<ApiSpecification.paths, "post">>(
+        method: "POST",
+        path: Path,
+        params?: ApiSpecification.paths[Path]["post"] extends {
+            parameters: infer Parameters;
+        }
+            ? Parameters | "Any"
+            : {} | "Any",
+    ): number;
+    getCallCount<Path extends PathsWithMethod<ApiSpecification.paths, "delete">>(
+        method: "DELETE",
+        path: Path,
+        params?: ApiSpecification.paths[Path]["delete"] extends {
+            parameters: infer Parameters;
+        }
+            ? Parameters | "Any"
+            : {} | "Any",
+    ): number;
+    getCallCount<Path extends PathsWithMethod<ApiSpecification.paths, "patch">>(
+        method: "PATCH",
+        path: Path,
+        params?: ApiSpecification.paths[Path]["patch"] extends {
+            parameters: infer Parameters;
+        }
+            ? Parameters | "Any"
+            : {} | "Any",
+    ): number;
+    getCallCount(method: HttpMethod, path: string, params: any = "Any"): number {
         return this.requestHistory.filter(record => {
             if (record.method !== method || record.path !== path) {
                 return false;
             }
-            if (params !== undefined) {
+            if (params !== "Any") {
                 return isDeepEqual(params, record.params);
             }
             return true;
         }).length;
     }
-
-    mockGetChatMessagesList(
-        spaceId: SpaceId,
-        chatId: ChatId,
-        responseData: {
-            totalMessageCount?: number;
-            nextCursor?: number | null;
-            messages?: Array<ApiMessageResponse>;
-        },
-        // If you don't provide this, it'll match any page info in the order that you call
-        // the mock.
-        pageInfo?: {
-            from?: "start" | "end";
-            // undefined means the query is starting at the begining of the list of comments
-            cursor: number | undefined;
-            limit: number;
-        },
-    ): void {
-        const matcherData = pageInfo
-            ? {
-                  path: {id: chatId},
-                  query: {
-                      ...(pageInfo.from ? {from: pageInfo.from} : {}),
-                      cursor: pageInfo.cursor,
-                      limit: pageInfo.limit,
-                  },
-              }
-            : undefined;
-
-        this.mockGet(
-            "/chats/{id}/messages",
-            {
-                data: {
-                    spaceId,
-                    totalMessageCount: 0,
-                    nextCursor: null,
-                    messages: [],
-                    ...responseData,
-                },
-            },
-            matcherData,
-        );
-    }
-
-    mockGetDocument(
-        spaceId: SpaceId,
-        documentId: DocumentId,
-        responseData: Partial<{
-            creatorId: AccountId;
-            title: string;
-            content: ApiContentResponse;
-            version: number;
-        }>,
-    ): void {
-        documentId ??= generateId<DocumentId>();
-        spaceId ??= generateId<SpaceId>();
-        const defaultContent = createApiContentResponseWithSingleParagraph(
-            "mock-document",
-            "Test Document Content",
-        );
-
-        this.mockGet(
-            "/documents/{id}",
-            {
-                data: {
-                    document: {
-                        id: documentId,
-                        title: responseData.title ?? "Test Document",
-                        content: responseData.content ?? defaultContent,
-                        version: responseData.version ?? 1,
-                    },
-                    spaceId,
-                },
-            },
-            {path: {id: documentId}},
-        );
-    }
-
-    mockGetDocumentThread(
-        spaceId: SpaceId,
-        documentId: DocumentId,
-        commentThreadId: DocumentCommentThreadId,
-        responseData: Partial<Omit<ApiDocumentCommentThreadResponse, "id">>,
-    ): void {
-        this.mockGet(
-            "/documents/{id}/threads/{threadId}",
-            {
-                data: {
-                    spaceId,
-                    commentThread: {
-                        id: commentThreadId,
-                        createdTime: responseData.createdTime ?? serializeDateString(new Date()),
-                        isResolved: responseData.isResolved ?? false,
-                        commentCount: responseData.commentCount ?? 0,
-                        documentContentSnippet: responseData.documentContentSnippet ?? {
-                            elements: [],
-                        },
-                        firstCommentAuthor: responseData.firstCommentAuthor ?? null,
-                    },
-                },
-            },
-            {path: {id: documentId, threadId: commentThreadId}},
-        );
-    }
-
-    mockGetDocumentCommentsList(
-        spaceId: SpaceId,
-        documentId: DocumentId,
-        commentThreadId: DocumentCommentThreadId,
-        responseData: {
-            totalMessageCount?: number;
-            nextCursor?: number | null;
-            messages?: Array<ApiMessageResponse>;
-        },
-        pageInfo?: {
-            from?: "start" | "end";
-            // undefined means the query is starting at the begining of the list of comments
-            cursor: number | undefined;
-            limit: number;
-        },
-    ): void {
-        const matcherData = pageInfo
-            ? {
-                  path: {id: documentId, threadId: commentThreadId},
-                  query: {
-                      ...(pageInfo.from ? {from: pageInfo.from} : {}),
-                      cursor: pageInfo.cursor,
-                      limit: pageInfo.limit,
-                  },
-              }
-            : undefined;
-
-        this.mockGet(
-            "/documents/{id}/threads/{threadId}/messages",
-            {
-                data: {
-                    spaceId,
-                    totalMessageCount: 0,
-                    nextCursor: null,
-                    messages: [],
-                    ...responseData,
-                },
-            },
-            matcherData,
-        );
-    }
-
-    mockGetPost(
-        spaceId: SpaceId,
-        postId: PostId,
-        responseData: Partial<Omit<ApiPostResponse, "id">>,
-    ): void {
-        postId ??= generateId<PostId>();
-        spaceId ??= generateId<SpaceId>();
-        const defaultContent = createApiContentResponseWithSingleParagraph(
-            "mock-post",
-            "Test Post Content",
-        );
-
-        this.mockGet(
-            "/posts/{id}",
-            {
-                data: {
-                    post: {
-                        id: postId,
-                        author: responseData.author ?? createApiAccountMock({}),
-                        createdTimeZone: responseData.createdTimeZone ?? defaultTimeZone,
-                        content: responseData.content ?? defaultContent,
-                        contentPreview: responseData.contentPreview ?? "Test Post Content Preview",
-                        createdTime: responseData.createdTime ?? serializeDateString(new Date()),
-                        ...responseData,
-                    },
-                    spaceId,
-                },
-            },
-            {path: {id: postId}},
-        );
-    }
-
-    mockGetPostCommentsList(
-        spaceId: SpaceId,
-        postId: PostId,
-        responseData: {
-            totalMessageCount?: number;
-            nextCursor?: number | null;
-            messages?: Array<ApiMessageResponse>;
-        },
-        // If you don't provide this, it'll match any page info in the order that you call
-        // the mock.
-        pageInfo?: {
-            from?: "start" | "end";
-            // undefined means the query is starting at the begining of the list of comments
-            cursor: number | undefined;
-            limit: number;
-        },
-    ): void {
-        const matcherData = pageInfo
-            ? {
-                  path: {id: postId},
-                  query: {
-                      ...(pageInfo.from ? {from: pageInfo.from} : {}),
-                      cursor: pageInfo.cursor,
-                      limit: pageInfo.limit,
-                  },
-              }
-            : undefined;
-
-        this.mockGet(
-            "/posts/{id}/messages",
-            {
-                data: {
-                    spaceId,
-                    totalMessageCount: 0,
-                    nextCursor: null,
-                    messages: [],
-                    ...responseData,
-                },
-            },
-            matcherData,
-        );
-    }
-
-    mockGetTask(
-        spaceId: SpaceId,
-        taskId: TaskId,
-        responseData: Partial<Omit<ApiTaskResponse, "id">>,
-    ): void {
-        taskId ??= generateId<TaskId>();
-        spaceId ??= generateId<SpaceId>();
-
-        this.mockGet(
-            "/tasks/{id}",
-            {
-                data: {
-                    task: {
-                        id: taskId,
-                        status: responseData.status ?? {type: "Open", isActive: true},
-                        title: responseData.title ?? "Test Task",
-                        collections: responseData.collections ?? [],
-                        notes: responseData.notes ?? {
-                            version: 0,
-                            content: createApiContentResponseWithSingleParagraph(
-                                "mock-task",
-                                "Test Task Content",
-                            ),
-                        },
-                        ...responseData,
-                    },
-                    spaceId,
-                },
-            },
-            {path: {id: taskId}},
-        );
-    }
-
-    mockGetTaskCommentsList(
-        spaceId: SpaceId,
-        taskId: TaskId,
-        responseData: {
-            totalMessageCount?: number;
-            nextCursor?: number | null;
-            messages?: Array<ApiMessageResponse>;
-        },
-        pageInfo?: {
-            from?: "start" | "end";
-            // undefined means the query is starting at the begining of the list of comments
-            cursor: number | undefined;
-            limit: number;
-        },
-    ): void {
-        const matcherData = pageInfo
-            ? {
-                  path: {id: taskId},
-                  query: {
-                      ...(pageInfo.from ? {from: pageInfo.from} : {}),
-                      cursor: pageInfo.cursor,
-                      limit: pageInfo.limit,
-                  },
-              }
-            : undefined;
-
-        this.mockGet(
-            "/tasks/{id}/messages",
-            {
-                data: {
-                    spaceId,
-                    totalMessageCount: 0,
-                    nextCursor: null,
-                    messages: [],
-                    ...responseData,
-                },
-            },
-            matcherData,
-        );
-    }
-
-    mockGetTaskCollection(
-        spaceId: SpaceId,
-        collectionId: TaskCollectionId,
-        responseData: Partial<Omit<ApiTaskCollection, "id">>,
-    ): void {
-        this.mockGet(
-            "/task-collections/{id}",
-            {
-                data: {
-                    spaceId,
-                    collection: {
-                        id: collectionId,
-                        name: responseData.name ?? "Test Task Collection",
-                    },
-                },
-            },
-            {path: {id: collectionId}},
-        );
-    }
-
-    mockGetTaskCollectionTasks(
-        spaceId: SpaceId,
-        collectionId: TaskCollectionId,
-        responseData: {
-            totalTaskCount?: number;
-            nextCursor?: string | null;
-            tasks?: Array<ApiTaskWithoutNotes>;
-        },
-        queryParams?: {
-            limit?: number;
-            cursor?: string | null;
-            status?: Array<"Open" | "Closed">;
-        },
-    ): void {
-        const matcherData = queryParams
-            ? {
-                  path: {id: collectionId},
-                  query: queryParams,
-              }
-            : undefined;
-
-        this.mockGet(
-            "/task-collections/{id}/tasks",
-            {
-                data: {
-                    spaceId,
-                    nextCursor: responseData.nextCursor ?? null,
-                    tasks: responseData.tasks ?? [],
-                },
-            },
-            matcherData,
-        );
-    }
-}
-
-/**
- * Creates mock API content with a single keyed paragraph for response fixtures
- * that need to satisfy the public response shape.
- */
-function createApiContentResponseWithSingleParagraph(
-    keyPrefix: string,
-    text: string,
-): ApiContentResponse {
-    return {
-        elements: [
-            {
-                type: "Paragraph",
-                key: createMockApiContentKey(keyPrefix),
-                elements: [{type: "Text", text}],
-            },
-        ],
-    };
-}
-
-function createMockApiContentKey(entityId: string): ApiContentKey {
-    return new ApiContentKeyEncoder({entityId, version: 0}).encode({pos: 0, nodeSize: 0});
 }

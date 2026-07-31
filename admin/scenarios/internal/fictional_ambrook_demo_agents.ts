@@ -198,11 +198,11 @@ Here\u2019s how the feedback clusters and what to do with it:
 
 Followup tasks:
 
-- [Define the billing domain model & API](https://alpine.inc/task/{{task1Id}}?mention)
+- [Define the billing domain model & API](https://alpine.inc/task/{{task1Id}}#mention)
 
-- [Document billing migration risks](https://alpine.inc/task/{{task2Id}}?mention)
+- [Document billing migration risks](https://alpine.inc/task/{{task2Id}}#mention)
 
-- [Add a business impact & analytics section](https://alpine.inc/task/{{task3Id}}?mention)
+- [Add a business impact & analytics section](https://alpine.inc/task/{{task3Id}}#mention)
                     `,
                     {
                         spaceId: space.id,

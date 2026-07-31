@@ -25,11 +25,6 @@ export function collectReferencedIdsFromTaskAction(
     siteIds: Set<SiteId>,
     action: TaskActionMaybeModel,
 ) {
-    if (action.type === "UpdateTask" || action.type === "UpdateCollection") {
-        collectReferencedAccountId(accountIds, action.actor?.accountId);
-        collectReferencedAccountId(accountIds, action.actor?.from?.accountId);
-    }
-
     switch (action.type) {
         case "UpdateTask": {
             switch (action.taskAction.type) {

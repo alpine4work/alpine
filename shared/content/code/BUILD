@@ -40,6 +40,7 @@ ts_project(
         "//shared/content",
         "//shared/error",
         "//shared/helpers",
+        "//shared/lezer",
         "//shared/store",
         "//shared/tracer",
     ],

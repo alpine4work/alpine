@@ -513,7 +513,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
             backfillCollections,
             defaultAuthorizationStateVersion: event.defaultAuthorizationStateVersion,
             referencedAccounts,
-            referencedSites: referencedSites.filter(isNonNullable),
+            referencedSites,
             originClientId: this._originClientId,
         };
     }

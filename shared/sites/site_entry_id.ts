@@ -99,8 +99,8 @@ export function isSiteContainerId(id: string): id is SiteContainerId {
     return idTest(idRest);
 }
 
-export const SiteTopBarContainerIdSchema = Schema.string as Schema<SiteTopBarContainerId>;
-export const SiteContainerIdSchema = Schema.string as Schema<SiteContainerId>;
+export const SiteTopBarContainerIdSchema = Schema.stringAs<SiteTopBarContainerId>();
+export const SiteContainerIdSchema = Schema.stringAs<SiteContainerId>();
 
 export function isSiteTopBarContainerId(id: string): id is SiteTopBarContainerId {
     const [idType = "", idRest = ""] = id.split(":", 2);

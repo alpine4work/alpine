@@ -24,7 +24,7 @@ export async function getPostNotificationSubscribers(
 
     const accountIds = new Set(
         concatIterables(
-            [postItem.authorId],
+            [postItem.author.accountId],
             postItem.commentsSummary.commentCountByAuthorId.keys(),
             postItem.commentsSummary.mentionCountByAccountId.keys(),
         ),

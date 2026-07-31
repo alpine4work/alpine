@@ -325,7 +325,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: Unknown ${getSearchEntityNoun(
+                        `in ${channel.initialName}:\n\nMention: Unknown ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -374,7 +374,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: Unknown ${getSearchEntityNoun(
+                        `in ${channel.initialName}:\n\nMention: Unknown ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -429,7 +429,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -482,7 +482,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -537,7 +537,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -590,7 +590,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -655,7 +655,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -720,7 +720,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -791,7 +791,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -863,7 +863,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -937,7 +937,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1010,7 +1010,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1083,7 +1083,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1156,7 +1156,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1230,7 +1230,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1301,7 +1301,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1374,7 +1374,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1530,7 +1530,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel1.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1548,7 +1548,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel2.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1566,7 +1566,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel3.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1584,7 +1584,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1602,7 +1602,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel5.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1625,7 +1625,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel1.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1645,7 +1645,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel2.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1665,7 +1665,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel3.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1685,7 +1685,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1703,7 +1703,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel5.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1728,7 +1728,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel1.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1748,7 +1748,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel2.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1766,7 +1766,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel3.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1784,7 +1784,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1802,7 +1802,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel5.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1827,7 +1827,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel1.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1845,7 +1845,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel2.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1863,7 +1863,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel3.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1881,7 +1881,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -1899,7 +1899,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel5.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1924,7 +1924,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel1.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1944,7 +1944,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel2.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1964,7 +1964,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel3.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -1984,7 +1984,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2002,7 +2002,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel5.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2027,7 +2027,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel1.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2045,7 +2045,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel2.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2063,7 +2063,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel3.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2081,7 +2081,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2099,7 +2099,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel5.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2255,7 +2255,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel1.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2275,7 +2275,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel2.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2295,7 +2295,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel3.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2315,7 +2315,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2333,7 +2333,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel5.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2358,7 +2358,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel1.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2378,7 +2378,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel2.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2396,7 +2396,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel3.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2414,7 +2414,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2432,7 +2432,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel5.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2457,7 +2457,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel1.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2475,7 +2475,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel2.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2493,7 +2493,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel3.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2511,7 +2511,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2529,7 +2529,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel5.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2554,7 +2554,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel1.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2574,7 +2574,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel2.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2592,7 +2592,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel3.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2610,7 +2610,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2628,7 +2628,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel5.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2653,7 +2653,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel1.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2671,7 +2671,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel2.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2689,7 +2689,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel3.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel3.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2707,7 +2707,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel4.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel4.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2725,7 +2725,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel5.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel5.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2778,7 +2778,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2801,7 +2801,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${entity.prefix ?? ""}Dolor Sit Amet.`,
+                        `in ${channel.initialName}:\n\nMention: ${entity.prefix ?? ""}Dolor Sit Amet.`,
                     ],
                 },
             });
@@ -2824,7 +2824,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel.initialName}: Mention: ${
+                        `in ${channel.initialName}:\n\nMention: ${
                             entity.prefix ?? ""
                         }Consectetur Adipiscing Elit.`,
                     ],
@@ -2893,7 +2893,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel1.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -2911,7 +2911,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel2.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2937,7 +2937,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: Deleted ${getSearchEntityNoun(
+                        `in ${channel1.initialName}:\n\nMention: Deleted ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2957,7 +2957,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel2.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -2983,7 +2983,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel1.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -3001,7 +3001,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: Private ${getSearchEntityNoun(
+                        `in ${channel2.initialName}:\n\nMention: Private ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -3070,7 +3070,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel1.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -3088,7 +3088,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel2.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -3112,7 +3112,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: Deleted ${getSearchEntityNoun(
+                        `in ${channel1.initialName}:\n\nMention: Deleted ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -3132,7 +3132,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: Deleted ${getSearchEntityNoun(
+                        `in ${channel2.initialName}:\n\nMention: Deleted ${getSearchEntityNoun(
                             entityType,
                         )}.`,
                     ],
@@ -3158,7 +3158,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel1.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel1.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -3176,7 +3176,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 version: expect.any(Object),
                 fields: {
                     body: [
-                        `in ${channel2.initialName}: Mention: ${entity.prefix ?? ""}Lorem Ipsum.`,
+                        `in ${channel2.initialName}:\n\nMention: ${entity.prefix ?? ""}Lorem Ipsum.`,
                     ],
                 },
             });
@@ -3227,7 +3227,7 @@ test("can mention direct chat in a private entity", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: [expect.stringMatching(/^in .*: Mention: .*, and 1 other\.$/)],
+            body: [expect.stringMatching(/^in .*:\n\nMention: .*, and 1 other\.$/)],
         },
     });
 });
@@ -3345,7 +3345,7 @@ test("deleted document mention in a post title", async () => {
         version: expect.any(Object),
         fields: {
             title: [`in Updates: Review Important Doc today`],
-            body: [`in Updates: Review Important Doc today`],
+            body: [`in Updates:\n\nReview Important Doc today`],
         },
     });
 
@@ -3369,7 +3369,7 @@ test("deleted document mention in a post title", async () => {
         version: expect.any(Object),
         fields: {
             title: [`in Updates: Review Deleted document today`],
-            body: [`in Updates: Review Deleted document today`],
+            body: [`in Updates:\n\nReview Deleted document today`],
         },
     });
 });

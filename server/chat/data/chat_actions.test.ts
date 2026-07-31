@@ -3562,15 +3562,15 @@ test("authorizing chat access after getting chat as session actor is cached", as
             beforeMessageIndex: null,
         });
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         await authorizeChatAccess(actionContext, chatId, "Edit");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         await authorizeChatAccess(actionContext, chatId, "Edit");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -3580,7 +3580,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
     }
 });
 
@@ -4268,7 +4268,7 @@ test("bot can\u2019t send messages in a chat if it\u2019s not a member even if i
             fileIds: [],
             createdTimeZone: defaultTimeZone,
         }),
-    ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
+    ).rejects.toThrow("Bot can only view messages in direct chat it\u2019s not a member of");
 });
 
 test("bot can send messages in a chat if it\u2019s a member", async () => {

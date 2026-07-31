@@ -50,7 +50,7 @@ export function updatePostContent(
 
         await authorizeChannelAccess(context, oldPostItem.channelId, "Edit");
 
-        if (oldPostItem.authorId !== context.actor.getAccountId())
+        if (oldPostItem.author.accountId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only update posts you authored");
 
         if (contentVersion !== (oldPostItem.contentUpdate?.mappings.length ?? 0))

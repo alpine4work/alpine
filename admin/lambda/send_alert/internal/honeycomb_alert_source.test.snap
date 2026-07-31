@@ -19,7 +19,7 @@ Priority: Low
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
 Occurrences: 2
 
@@ -39,7 +39,7 @@ Priority: Low
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
 Occurrences: 1
 
@@ -55,7 +55,7 @@ Priority: Low
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
 Occurrences: 3
 
@@ -71,7 +71,7 @@ Priority: Low
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
 Occurrences: 4
 
@@ -92,7 +92,7 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*New user registration detected*
+_New user registration detected_
 "
 `;
 
@@ -104,7 +104,7 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*New user registration detected*
+_New user registration detected_
 "
 `;
 
@@ -116,7 +116,7 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 "
 `;
 
@@ -423,7 +423,7 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
 **Measurement has returned to normal status.**
 "
@@ -437,7 +437,7 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
 Environment: staging
 "
@@ -452,7 +452,7 @@ Priority: High
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
 Occurrences: 1
 
@@ -468,7 +468,7 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*Deploy marker detected*
+_Deploy marker detected_
 "
 `;
 
@@ -480,7 +480,7 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 "
 `;
 
@@ -492,7 +492,7 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 "
 `;
 
@@ -504,14 +504,52 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
-| error.type | Count |
-| - | - |
-| ConnectionError | 8 |
-| TimeoutError | 2<span hidden data-column-widths="1,0.000001"/> |
+<table data-column-widths="1,0.000001">
+<thead>
+<tr>
+<th>
 
-[Unknown](https://alpine.inc/mention/7dw297xezx6rs6qy4gjh6h5xx4?short) [Unknown](https://alpine.inc/mention/jttc8n911at1wxt0b8rm75n270?short)
+error.type
+
+</th>
+<th>
+
+Count
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+ConnectionError
+
+</td>
+<td>
+
+8
+
+</td>
+</tr>
+<tr>
+<td>
+
+TimeoutError
+
+</td>
+<td>
+
+2
+
+</td>
+</tr>
+</tbody>
+</table>
+
+[Unknown](https://alpine.inc/mention/7dw297xezx6rs6qy4gjh6h5xx4#short) [Unknown](https://alpine.inc/mention/jttc8n911at1wxt0b8rm75n270#short)
 "
 `;
 
@@ -523,12 +561,65 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
-| error.type | service.name | Count |
-| - | - | - |
-| ConnectionError | api-gateway | 5 |
-| TimeoutError | database | 3<span hidden data-column-widths="1,1,0.000001"/> |
+<table data-column-widths="1,1,0.000001">
+<thead>
+<tr>
+<th>
+
+error.type
+
+</th>
+<th>
+
+service.name
+
+</th>
+<th>
+
+Count
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+ConnectionError
+
+</td>
+<td>
+
+api-gateway
+
+</td>
+<td>
+
+5
+
+</td>
+</tr>
+<tr>
+<td>
+
+TimeoutError
+
+</td>
+<td>
+
+database
+
+</td>
+<td>
+
+3
+
+</td>
+</tr>
+</tbody>
+</table>
 "
 `;
 
@@ -540,12 +631,80 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
-| exception.message | exception.type | service.name | Count |
-| - | - | - | - |
-| \`Connection refused\` | \`NetworkError\` | api-gateway | 5 |
-| \`Timeout exceeded\` | \`TimeoutError\` | database | 3<span hidden data-column-widths="1,1,1,0.000001"/> |
+<table data-column-widths="1,1,1,0.000001">
+<thead>
+<tr>
+<th>
+
+exception.message
+
+</th>
+<th>
+
+exception.type
+
+</th>
+<th>
+
+service.name
+
+</th>
+<th>
+
+Count
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+\`Connection refused\`
+
+</td>
+<td>
+
+\`NetworkError\`
+
+</td>
+<td>
+
+api-gateway
+
+</td>
+<td>
+
+5
+
+</td>
+</tr>
+<tr>
+<td>
+
+\`Timeout exceeded\`
+
+</td>
+<td>
+
+\`TimeoutError\`
+
+</td>
+<td>
+
+database
+
+</td>
+<td>
+
+3
+
+</td>
+</tr>
+</tbody>
+</table>
 "
 `;
 
@@ -557,11 +716,58 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
-| exception.message | exception.type | service.name | Count |
-| - | - | - | - |
-| \`Connection refused\` | \`NetworkError\` | api-gateway | 5<span hidden data-column-widths="1,1,1,0.000001"/> |
+<table data-column-widths="1,1,1,0.000001">
+<thead>
+<tr>
+<th>
+
+exception.message
+
+</th>
+<th>
+
+exception.type
+
+</th>
+<th>
+
+service.name
+
+</th>
+<th>
+
+Count
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+\`Connection refused\`
+
+</td>
+<td>
+
+\`NetworkError\`
+
+</td>
+<td>
+
+api-gateway
+
+</td>
+<td>
+
+5
+
+</td>
+</tr>
+</tbody>
+</table>
 "
 `;
 
@@ -573,7 +779,7 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 "
 `;
 
@@ -585,9 +791,9 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
-[Unknown](https://alpine.inc/mention/7dw297xezx6rs6qy4gjh6h5xx4?short) [Unknown](https://alpine.inc/mention/jttc8n911at1wxt0b8rm75n270?short)
+[Unknown](https://alpine.inc/mention/7dw297xezx6rs6qy4gjh6h5xx4#short) [Unknown](https://alpine.inc/mention/jttc8n911at1wxt0b8rm75n270#short)
 "
 `;
 
@@ -599,16 +805,87 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
-*High error rate detected in database connections*
+_High error rate detected in database connections_
 
-| error | Count |
-| - | - |
-| Error 1 | 1 |
-| Error 2 | 2 |
-| Error 3 | 3 |
-| Error 4 | 4 |
-| Error 5 | 5<span hidden data-column-widths="1,0.000001"/> |
+<table data-column-widths="1,0.000001">
+<thead>
+<tr>
+<th>
 
-*(2 more results...)*
+error
+
+</th>
+<th>
+
+Count
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+Error 1
+
+</td>
+<td>
+
+1
+
+</td>
+</tr>
+<tr>
+<td>
+
+Error 2
+
+</td>
+<td>
+
+2
+
+</td>
+</tr>
+<tr>
+<td>
+
+Error 3
+
+</td>
+<td>
+
+3
+
+</td>
+</tr>
+<tr>
+<td>
+
+Error 4
+
+</td>
+<td>
+
+4
+
+</td>
+</tr>
+<tr>
+<td>
+
+Error 5
+
+</td>
+<td>
+
+5
+
+</td>
+</tr>
+</tbody>
+</table>
+
+_(2 more results...)_
 "
 `;

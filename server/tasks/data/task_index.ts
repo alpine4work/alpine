@@ -104,6 +104,7 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
+import {TaskCreator} from "~/shared/tasks/task_creator.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
@@ -605,7 +606,7 @@ export function indexTaskActionTransactionAssumingItsCommitted(
         committedTime: Date;
         actionTransactionId: TaskActionTransactionId;
         actions: ReadonlyArray<TaskAction>;
-        actorId: AccountId | null;
+        actor: TaskCreator | null;
     },
     options?: {
         withoutSearchAffinityEntityInteraction?: boolean;
@@ -628,7 +629,7 @@ export function indexTaskActionTransactionAssumingItsCommitted(
             await actuallyIndexTaskActionTransactionAssumingItsCommitted(
                 context,
                 actionTransaction.spaceId,
-                actionTransaction.actorId,
+                actionTransaction.actor?.accountId ?? null,
                 actionTransaction.actions,
                 options,
             );

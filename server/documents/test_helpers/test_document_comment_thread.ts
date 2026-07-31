@@ -33,6 +33,7 @@ import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {MessageContent, assertMessageContent} from "~/shared/content/message_content_schema.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {encodeDocumentCommentRoomKey} from "~/shared/documents/document_model.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
@@ -163,7 +164,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
-            fileIds: ReadonlyArray<FileId>;
+            fileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone?: TimeZone;
             overrideCreatedTime?: Date;
             isStream?: boolean;

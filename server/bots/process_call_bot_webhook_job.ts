@@ -216,8 +216,8 @@ async function actuallyCallBotWebhook(
         case "Chat":
             scope = {type: "Chat", chatId: room.id};
             break;
-        case "DocumentCommentThread":
-            scope = {type: "Document", documentId: room.id};
+        case "DocumentThread":
+            scope = {type: "Document", documentId: room.document.id};
             break;
         case "Post":
             scope = {type: "Post", postId: room.id};
@@ -240,11 +240,10 @@ async function actuallyCallBotWebhook(
 
     const requestBody: ApiBotWebhookRequestBody = {
         spaceId: job.spaceId,
-        botId: job.botId,
-        botAccountId: job.botAccountId,
-        // TODO(calebmer, #public-api): Remove `accountId` after this commit deploys. It's
-        // only here for backwards compatibility purposes.
-        accountId: job.botAccountId,
+        botAccount: {
+            id: job.botAccountId,
+            bot: {id: job.botId},
+        },
         accessToken,
         attempt: attemptNumber,
         eventId: job.eventId,

@@ -6296,15 +6296,15 @@ test("authorizing post access after getting post as session actor is cached", as
             beforeCommentIndex: null,
         });
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
 
         await authorizePostAccess(actionContext, post.id, "View");
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
 
         await authorizePostAccess(actionContext, post.id, "View");
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -6314,7 +6314,7 @@ test("authorizing post access after getting post as session actor is cached", as
             ]);
         }
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
     }
 });
 
@@ -6505,15 +6505,15 @@ test("authorizing post access after getting post as system actor is cached", asy
             beforeCommentIndex: null,
         });
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         await authorizePostAccess(actionContext, post.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         await authorizePostAccess(actionContext, post.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -6523,7 +6523,7 @@ test("authorizing post access after getting post as system actor is cached", asy
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
     }
 });
 

@@ -92,10 +92,10 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             documentId: document.id,
             commentThreadId,
             createdTime,
+            createdTimeZone: defaultTimeZone,
             fallbackContentSnippet: null,
             commentsSummary: {
                 nextCommentIndex: 0,
-                lastChangeTime: null,
                 commentCountByAuthorId: new Map(),
                 mentionCountByAccountId: new Map(),
             },
@@ -162,10 +162,10 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             documentId: document.id,
             commentThreadId,
             createdTime,
+            createdTimeZone: defaultTimeZone,
             fallbackContentSnippet: null,
             commentsSummary: {
                 nextCommentIndex: 0,
-                lastChangeTime: null,
                 commentCountByAuthorId: new Map(),
                 mentionCountByAccountId: new Map(),
             },

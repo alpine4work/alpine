@@ -224,6 +224,9 @@ export function getProcessEnvToPropagate() {
         RUNFILES: process.env.RUNFILES,
         BUILD_WORKSPACE_DIRECTORY: process.env.BUILD_WORKSPACE_DIRECTORY,
         BAZEL_BINDIR: process.env.BAZEL_BINDIR,
+        TEST_SRCDIR: process.env.TEST_SRCDIR,
+        TEST_TMPDIR: process.env.TEST_TMPDIR,
+        BAZEL_TEST: process.env.BAZEL_TEST,
     };
 
     for (const [key, value] of Object.entries(process.env)) {

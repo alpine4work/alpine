@@ -2584,7 +2584,7 @@ test("can index post with cyclic mention", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: Qux: […]"],
+            body: ["in Bar:\n\nQux: […]"],
         },
     });
 
@@ -2613,7 +2613,7 @@ test("can index post with cyclic mention", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: Qux: […]"],
+            body: ["in Bar:\n\nQux: […]"],
         },
     });
 
@@ -2650,7 +2650,7 @@ test("can index post with cyclic mention", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: Qux: […] (test)"],
+            body: ["in Bar:\n\nQux: […] (test)"],
         },
     });
 
@@ -2687,7 +2687,7 @@ test("can index post with cyclic mention", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: Qux: […] (test 2)"],
+            body: ["in Bar:\n\nQux: […] (test 2)"],
         },
     });
 });
@@ -2921,7 +2921,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: a1 Foo in Bar: c Foo in Bar: b […]"],
+            body: ["in Bar:\n\na1 Foo in Bar: c Foo in Bar: b […]"],
         },
     });
 
@@ -2937,7 +2937,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: b Foo in Bar: a1 Foo in Bar: c […]"],
+            body: ["in Bar:\n\nb Foo in Bar: a1 Foo in Bar: c […]"],
         },
     });
 
@@ -2953,7 +2953,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: c Foo in Bar: b Foo in Bar: a1 […]"],
+            body: ["in Bar:\n\nc Foo in Bar: b Foo in Bar: a1 […]"],
         },
     });
 
@@ -2969,7 +2969,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: e Foo in Bar: c Foo in Bar: b Foo in Bar: a1 […]"],
+            body: ["in Bar:\n\ne Foo in Bar: c Foo in Bar: b Foo in Bar: a1 […]"],
         },
     });
 
@@ -3007,7 +3007,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: a2 Foo in Bar: c Foo in Bar: b […]"],
+            body: ["in Bar:\n\na2 Foo in Bar: c Foo in Bar: b […]"],
         },
     });
 
@@ -3023,7 +3023,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: b Foo in Bar: a2 Foo in Bar: c […]"],
+            body: ["in Bar:\n\nb Foo in Bar: a2 Foo in Bar: c […]"],
         },
     });
 
@@ -3039,7 +3039,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: c Foo in Bar: b Foo in Bar: a2 […]"],
+            body: ["in Bar:\n\nc Foo in Bar: b Foo in Bar: a2 […]"],
         },
     });
 
@@ -3055,7 +3055,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: e Foo in Bar: c Foo in Bar: b Foo in Bar: a2 […]"],
+            body: ["in Bar:\n\ne Foo in Bar: c Foo in Bar: b Foo in Bar: a2 […]"],
         },
     });
 
@@ -3093,7 +3093,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: a3 Foo in Bar: c Foo in Bar: b […]"],
+            body: ["in Bar:\n\na3 Foo in Bar: c Foo in Bar: b […]"],
         },
     });
 
@@ -3109,7 +3109,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: b Foo in Bar: a3 Foo in Bar: c […]"],
+            body: ["in Bar:\n\nb Foo in Bar: a3 Foo in Bar: c […]"],
         },
     });
 
@@ -3125,7 +3125,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: c Foo in Bar: b Foo in Bar: a3 […]"],
+            body: ["in Bar:\n\nc Foo in Bar: b Foo in Bar: a3 […]"],
         },
     });
 
@@ -3141,7 +3141,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: e Foo in Bar: c Foo in Bar: b Foo in Bar: a3 […]"],
+            body: ["in Bar:\n\ne Foo in Bar: c Foo in Bar: b Foo in Bar: a3 […]"],
         },
     });
 
@@ -3179,7 +3179,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: a3 Foo in Bar: c Foo in Bar: d […]"],
+            body: ["in Bar:\n\na3 Foo in Bar: c Foo in Bar: d […]"],
         },
     });
 
@@ -3195,7 +3195,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: d Foo in Bar: a3 Foo in Bar: c […]"],
+            body: ["in Bar:\n\nd Foo in Bar: a3 Foo in Bar: c […]"],
         },
     });
 
@@ -3211,7 +3211,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: c Foo in Bar: d Foo in Bar: a3 […]"],
+            body: ["in Bar:\n\nc Foo in Bar: d Foo in Bar: a3 […]"],
         },
     });
 
@@ -3227,7 +3227,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            body: ["in Bar: e Foo in Bar: c Foo in Bar: d Foo in Bar: a3 […]"],
+            body: ["in Bar:\n\ne Foo in Bar: c Foo in Bar: d Foo in Bar: a3 […]"],
         },
     });
 });

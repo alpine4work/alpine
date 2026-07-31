@@ -100,6 +100,8 @@ export function createTestApiServer(
                 break;
         }
 
+        request = request.set("Alpine-Version", "2026-07-29");
+
         for (const [key, value] of Object.entries(options?.headers ?? {})) {
             request = request.set(key, value);
         }

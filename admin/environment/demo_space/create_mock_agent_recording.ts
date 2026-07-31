@@ -9,7 +9,7 @@ import {
 import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
-} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+} from "~/shared/api/content/parse_api_content_from_markdown.js";
 
 export function createMockAgentRecording(
     paragraphs: Array<string | number>,

@@ -7,11 +7,11 @@
  */
 
 import {
-    contentDateFullMonthNames,
     formatContentDateString,
     parseContentDateString,
-} from "~/shared/content/content_date_helpers.js";
+} from "~/shared/content/format_content_date_string.js";
 import {InternalError} from "~/shared/error/error.js";
+import {dateFullMonthNames} from "~/shared/helpers/date/date_month_names.js";
 
 export function formatContentDate(date: string, today: string): string {
     const parsedDate = parseDateString(date);
@@ -179,5 +179,5 @@ export function getContentDateStringForLastDayOfWeek(isoDayOfWeek: number): stri
 }
 
 function monthName(month: number): string {
-    return contentDateFullMonthNames[month - 1]!;
+    return dateFullMonthNames[month - 1]!;
 }

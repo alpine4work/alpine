@@ -1,4 +1,5 @@
-import {Ajv} from "ajv";
+import {parseDate, today} from "@internationalized/date";
+import {Ajv, ErrorObject} from "ajv";
 import _addAjvFormats from "ajv-formats";
 import {parse as parseCookieHeader} from "cookie";
 import FindMyWay from "find-my-way";
@@ -47,6 +48,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -289,40 +291,91 @@ export async function createApiServiceRequestListener(
         });
     });
 
-    const ajv = new Ajv({strict: false});
-
-    // Support formats like `date-time` from the OpenAPI specification.
-    addAjvFormats(ajv);
-
     const ajvSharedSchemaName = "shared.yaml";
+    const ajv = createAjv({validateObjectKeyOrder: false});
 
-    ajv.addSchema(
-        // Ajv supports `discriminator.propertyName` but not `discriminator.mapping`. So
-        // remove `discriminator.mapping` from our schema. Ajv uses
-        // `discriminator.propertyName` purely as an optimization and expects discriminator
-        // schemas to have constant property names at `discriminator.propertyName`.
-        //
-        // `api_specification.test.ts` makes sure our usage of `discriminator` is
-        // consistent and compatible with Ajv.
-        removeDiscriminatorMappingForAjv(apiSpecification as any) as any,
-        ajvSharedSchemaName,
-    );
+    const debugResponseAjv =
+        process.env.NODE_ENV !== "production" ? createAjv({validateObjectKeyOrder: true}) : null;
 
-    function removeDiscriminatorMappingForAjv(value: JsonValue): JsonValue {
+    function createAjv({validateObjectKeyOrder}: {validateObjectKeyOrder: boolean}) {
+        const ajv = new Ajv({strict: false});
+
+        if (validateObjectKeyOrder) {
+            ajv.addKeyword({
+                keyword: objectPropertyOrderKeyword,
+                type: "object",
+                schemaType: "array",
+                errors: true,
+                validate: validateObjectPropertyOrderForAjv,
+            });
+        }
+
+        // Support formats like `date-time` from the OpenAPI specification.
+        addAjvFormats(ajv);
+
+        ajv.addSchema(
+            // Ajv supports `discriminator.propertyName` but not `discriminator.mapping`. So
+            // remove `discriminator.mapping` from our schema. Ajv uses
+            // `discriminator.propertyName` purely as an optimization and expects discriminator
+            // schemas to have constant property names at `discriminator.propertyName`.
+            //
+            // `api_specification.test.ts` makes sure our usage of `discriminator` is
+            // consistent and compatible with Ajv.
+            prepareSchemaForAjv(apiSpecification as any, {validateObjectKeyOrder}) as any,
+            ajvSharedSchemaName,
+        );
+
+        return ajv;
+    }
+
+    function prepareSchemaForAjv(
+        value: JsonValue,
+        {validateObjectKeyOrder}: {validateObjectKeyOrder: boolean},
+    ): JsonValue {
         if (!isObject(value)) return value;
-        if (isReadonlyArray(value)) return value.map(removeDiscriminatorMappingForAjv);
 
-        return mapObjectValues(value, (keyValue, key) =>
+        if (isReadonlyArray(value)) {
+            return value.map(value => prepareSchemaForAjv(value, {validateObjectKeyOrder}));
+        }
+
+        let result = mapObjectValues(value, (keyValue, key) =>
             key !== "mapping" && keyValue !== undefined
-                ? removeDiscriminatorMappingForAjv(keyValue)
+                ? prepareSchemaForAjv(keyValue, {validateObjectKeyOrder})
                 : undefined,
         );
+
+        if (validateObjectKeyOrder && result.type === "object" && isObject(result.properties)) {
+            result = {
+                ...result,
+                [objectPropertyOrderKeyword]: Object.keys(result.properties),
+            };
+        }
+
+        return result;
     }
 
     function compileWithAjv(schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject) {
-        schema = updateRefsForAjv(schema as JsonValue) as
-            | OpenAPIV3.SchemaObject
-            | OpenAPIV3.ReferenceObject;
+        return actuallyCompileWithAjv(ajv, schema, {validateObjectKeyOrder: false});
+    }
+
+    function compileDebugResponseWithAjv(
+        schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject,
+    ) {
+        assert(debugResponseAjv);
+
+        return actuallyCompileWithAjv(debugResponseAjv, schema, {
+            validateObjectKeyOrder: true,
+        });
+    }
+
+    function actuallyCompileWithAjv(
+        ajv: Ajv,
+        schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject,
+        {validateObjectKeyOrder}: {validateObjectKeyOrder: boolean},
+    ) {
+        schema = updateRefsForAjv(
+            prepareSchemaForAjv(schema as JsonValue, {validateObjectKeyOrder}),
+        ) as OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject;
 
         return ajv.compile(schema);
     }
@@ -351,9 +404,8 @@ export async function createApiServiceRequestListener(
         if (openApiPath === "/specification.yaml") continue;
 
         // Convert path parameters from the OpenAPI format (`/hello/{name}`) to the
-        // `find-my-way` format (`/hello/:name`). Right now we only support path parameters
-        // that are an entire path segment. Paths like `/report.{format}` aren't currently
-        // accepted.
+        // `find-my-way` format (`/hello/:name`). Parameters may have a static suffix, as
+        // in `/tasks/{id}-with-notes`, but must begin their path segment.
         const findMyWayPath = openApiPath
             .split("/")
             .map(pathSegment => {
@@ -362,12 +414,11 @@ export async function createApiServiceRequestListener(
                     return pathSegment;
                 }
 
-                assert(pathSegment.endsWith("}"));
-
-                const pathParamName = pathSegment.slice(1, -1);
+                const match = assertExists(pathSegment.match(/^\{([^}]+)\}([^{}]*)$/));
+                const [, pathParamName = "", staticSuffix = ""] = match;
                 assert(isIdentifier(pathParamName));
 
-                return `:${pathParamName}`;
+                return `:${pathParamName}${staticSuffix}`;
             })
             .join("/");
 
@@ -525,7 +576,7 @@ export async function createApiServiceRequestListener(
                           return null;
                       }
 
-                      return compileWithAjv(jsonSchema);
+                      return compileDebugResponseWithAjv(jsonSchema);
                   })
                 : null;
 
@@ -544,6 +595,63 @@ export async function createApiServiceRequestListener(
             });
 
             try {
+                /* ========================================================================== *\
+                 *                                 Versioning                                 *
+                \* ========================================================================== */
+
+                const currentDate = today(defaultTimeZone);
+
+                const versionHeader = request.headers.get("Alpine-Version");
+                if (versionHeader === null) {
+                    return createApiErrorResponse({
+                        status: 400,
+                        message: `Missing \`Alpine-Version\` header. When starting a new project, you should set the \`Alpine-Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Alpine-Version\` header from today\u2019s date or your code may be broken by backwards incompatible API changes.`,
+                        isRetryable: false,
+                    });
+                }
+
+                const version = parseDate(versionHeader);
+
+                if (version.compare(currentDate.add({days: 1})) > 0) {
+                    return createApiErrorResponse({
+                        status: 400,
+                        message: `Can\u2019t set the \`Alpine-Version\` header to a future date. When starting a new project, you should set the \`Alpine-Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Alpine-Version\` header from today\u2019s date or your code may be broken by backwards incompatible API changes.`,
+                        isRetryable: false,
+                    });
+                }
+
+                // TODO(calebmer): Eventually we'll have more than one API version. At that point,
+                // my rough idea is we'll have multiple `api_specification.yaml`s and we'll have
+                // translation middleware. The translation middleware will be responsible for
+                // making a request to the new version of the API and translating it back to an
+                // older version of the API. (My understanding is this is how Stripe implements API
+                // versioning on their backend.)
+                //
+                // My concept here is we'll have a single file like
+                // `api_middleware_2027_04_30_to_2026_07_12.ts` which looks like:
+                //
+                // ```ts
+                // export const middleware = {
+                //     // For all paths:
+                //     "/documents/{id}": {
+                //         get: async (context, request, next) => {
+                //             // Manipulate `request`...
+                //
+                //             const response = await next.get("/documents/{id}", request);
+                //
+                //             // Manipulate `response`...
+                //
+                //             return response;
+                //         },
+                //     },
+                // };
+                // ```
+                //
+                // `next` is a way to make a request against against the _next_ version of the API.
+                // So we only ever need to write middleware between two versions. From there we
+                // should be able to safely implement an old request shape by sending a request
+                // through multiple layers of middleware.
+
                 /* ========================================================================== *\
                  *                               Authorization                                *
                 \* ========================================================================== */
@@ -940,7 +1048,7 @@ export async function createApiServiceRequestListener(
 
                 // If there's no display message, always return a 500. Expected errors should
                 // always include a display message.
-                if (!(error instanceof ErrorBase && error.displayMessage)) {
+                if (!(error instanceof ErrorBase) || error.displayMessage === undefined) {
                     status = 500;
                     displayMessage = defaultErrorDisplayMessage;
                 } else {
@@ -965,7 +1073,10 @@ export async function createApiServiceRequestListener(
                 return createApiErrorResponse({
                     status,
                     message: renderErrorDisplayMessage(displayMessage),
-                    stack: error instanceof Error ? error.stack : undefined,
+                    stack:
+                        isObject(error) && "stack" in error && typeof error.stack === "string"
+                            ? error.stack
+                            : undefined,
                     isRetryable: isTransientError(error),
                 });
             }
@@ -1043,3 +1154,50 @@ function renderErrorDisplayMessage(displayMessage: ErrorDisplayMessage): string 
 
     return string;
 }
+
+const objectPropertyOrderKeyword = "x-propertyOrder";
+
+function validateObjectPropertyOrderForAjv(expectedPropertyOrder: unknown, data: unknown) {
+    assert(isReadonlyArray(expectedPropertyOrder));
+    assert(isObject(data));
+
+    const expectedPropertyIndexByName = new Map<string, number>();
+
+    for (let index = 0; index < expectedPropertyOrder.length; index++) {
+        const propertyName = expectedPropertyOrder[index];
+        assert(typeof propertyName === "string");
+        expectedPropertyIndexByName.set(propertyName, index);
+    }
+
+    let previousPropertyIndex = -1;
+    let previousPropertyName: string | undefined;
+
+    for (const propertyName of Object.keys(data)) {
+        const propertyIndex = expectedPropertyIndexByName.get(propertyName);
+        if (propertyIndex === undefined) continue;
+
+        if (propertyIndex < previousPropertyIndex) {
+            validateObjectPropertyOrderForAjv.errors = [
+                {
+                    keyword: objectPropertyOrderKeyword,
+                    params: {
+                        previousPropertyName,
+                        propertyName,
+                    },
+                    message: quote`must list ${propertyName} before ${previousPropertyName}`,
+                },
+            ];
+
+            return false;
+        }
+
+        previousPropertyIndex = propertyIndex;
+        previousPropertyName = propertyName;
+    }
+
+    validateObjectPropertyOrderForAjv.errors = undefined;
+
+    return true;
+}
+
+validateObjectPropertyOrderForAjv.errors = cast<Array<Partial<ErrorObject>> | undefined>(undefined);

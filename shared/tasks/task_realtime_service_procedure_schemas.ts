@@ -1,4 +1,5 @@
 import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {
     BrowserId,
     TaskCollectionId,
@@ -11,9 +12,12 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryEvaluationContextSchema} from "~/shared/tasks/task_query_evaluation_context.js";
+import {TaskQueryFiltersSchema} from "~/shared/tasks/task_query_filters_schema.js";
 import {TaskQueryNormalizedFiltersSchema} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskQuerySortsSchema} from "~/shared/tasks/task_query_sorts_schema.js";
 import {
+    TaskQuerySortCursorSchema,
     TaskRealtimeQueryLoadedStateSchema,
     TaskRealtimeUpdateEventSchema,
 } from "~/shared/tasks/task_realtime_protocol.js";
@@ -35,12 +39,44 @@ export const TaskRealtimeLoadQueriesInputQuerySchema = Schema.union({
         filters: TaskQueryNormalizedFiltersSchema,
         sorts: Schema.array(TaskQueryNormalizedSortSchema),
         shouldLoadGridViewExpandedChildTasksForBrowserId: Schema.id<BrowserId>().optional(),
+
+        // Expensive since we need to load all tasks before the cursor to serve this
+        // request. If the tasks are already loaded in `TaskRealtimeService` this is cheap.
+        // However, if this is a large query and it isn't loaded in `TaskRealtimeService`
+        // then we may need to load thousands of tasks.
+        expensivelyAfterCursor: TaskQuerySortCursorSchema.optional(),
     }),
     Collection: Schema.object({
         type: Schema.value("Collection"),
         limit: Schema.integer,
         collectionId: Schema.id<TaskCollectionId>(),
+        filters: TaskQueryFiltersSchema.optional(),
+        sorts: TaskQuerySortsSchema.optional(),
         evaluationContext: TaskQueryEvaluationContextSchema,
+
+        // Notes:
+        //
+        // - Expensive since we need to load all tasks before the cursor to serve this
+        //   request. If the task is already loaded in `TaskRealtimeService` this is cheap.
+        //   However, if this is a large query and it isn't loaded in `TaskRealtimeService`
+        //   then we may need to load thousands of tasks.
+        //
+        // - This is an `ApiTaskQueryCursor` instead of a `TaskQuerySortCursor` because we
+        //   need the `TaskQueryNormalizedSort`s to parse an `ApiTaskQueryCursor` but the
+        //   API doesn't have the collection's default sorts, that'll be loaded in
+        //   `TaskRealtimeService`.
+        expensivelyAfterCursorForApi: Schema.stringAs<ApiTaskQueryCursor>().optional(),
+    }),
+    Children: Schema.object({
+        type: Schema.value("Children"),
+        limit: Schema.integer,
+        taskId: Schema.id<TaskId>(),
+        filters: TaskQueryFiltersSchema.optional(),
+        sorts: TaskQuerySortsSchema.optional(),
+        evaluationContext: TaskQueryEvaluationContextSchema,
+
+        // See the notes for `Collection.expensivelyAfterCursorForApi`.
+        expensivelyAfterCursorForApi: Schema.stringAs<ApiTaskQueryCursor>().optional(),
     }),
 }).defaultVariant("Normalized");
 

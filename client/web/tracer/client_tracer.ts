@@ -5,7 +5,7 @@ import {
     unstable_cancelCallback,
     unstable_scheduleCallback,
 } from "scheduler";
-import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
+import {getClientTracerSynchronizedSystemClock} from "~/client/web/tracer/client_tracer_synchronized_system_clock.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -24,7 +24,7 @@ export function createClientTracer() {
     let scheduledFlushEventsCallbackNode: CallbackNode | null = null;
 
     const synchronizedSystemClock = new Lazy(() =>
-        getSynchronizedSystemClock().then(
+        getClientTracerSynchronizedSystemClock().then(
             clock => clock,
             error => {
                 scheduleUncaughtError(error);
@@ -100,7 +100,7 @@ export function createClientTracer() {
 
         switch (synchronizedSystemClockPromiseState.status) {
             case "fulfilled": {
-                run(synchronizedSystemClockPromiseState.value?.getClientTimeOffsetMs() ?? 0);
+                run(synchronizedSystemClockPromiseState.value?.offset ?? 0);
                 break;
             }
             case "rejected": {
@@ -109,7 +109,7 @@ export function createClientTracer() {
             }
             case "pending": {
                 synchronizedSystemClockPromise.then(
-                    clock => run(clock?.getClientTimeOffsetMs() ?? 0),
+                    clock => run(clock?.offset ?? 0),
                     () => run(0),
                 );
                 break;

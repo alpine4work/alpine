@@ -8,6 +8,7 @@ import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_sc
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
 
 export function renderContentFileErrorPreview({
     layout,
@@ -49,9 +50,9 @@ export function renderContentFileErrorPreview({
 
     errorHtml.setAttribute(
         "style",
-        `min-width: ${thirdOfBlockMaxWidth}px; transform: scale(${Math.min(
-            1,
-            layout.width / thirdOfBlockMaxWidth,
+        `min-width: ${thirdOfBlockMaxWidth}px; transform: scale(${toFixedWithoutTrailingZeros(
+            Math.min(1, layout.width / thirdOfBlockMaxWidth),
+            6,
         )})`,
     );
 

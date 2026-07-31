@@ -111,7 +111,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // `find-my-way`, `mustache`, `openapi-types`, `openapi-typescript`, `supertest`,
     // and `negotiator` for `ApiService`.
     ["parse-json", ["5.2.0", "8.3.0"]],
-    ["qs", ["6.11.0", "6.14.0"]],
+    ["qs", ["6.11.0", "6.15.3"]],
     ["negotiator", ["0.6.3", "1.0.0"]],
 
     // NOTE(calebmer, 2025-08-27): Duplicate packages after adding a couple MDAST
@@ -137,7 +137,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["is-unicode-supported", ["0.1.0", "1.3.0", "2.1.0"]],
     ["log-symbols", ["4.1.0", "6.0.0", "7.0.1"]],
     ["mime-db", ["1.52.0", "1.54.0"]],
-    ["mime-types", ["2.1.35", "3.0.1"]],
     ["ora", ["5.4.1", "8.2.0"]],
     ["pathe", ["1.1.2", "2.0.3"]],
     ["pkg-types", ["1.1.1", "2.3.0"]],
@@ -171,7 +170,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["content-disposition", ["0.5.2", "0.5.4"]],
     ["is-port-reachable", ["3.1.0", "4.0.0"]],
     ["mime-db", ["1.33.0", "1.52.0", "1.54.0"]],
-    ["mime-types", ["2.1.18", "2.1.35", "3.0.1"]],
+    ["mime-types", ["2.1.18", "2.1.35", "3.0.2"]],
     ["negotiator", ["0.6.3", "0.6.4", "1.0.0"]],
     ["range-parser", ["1.2.0", "1.2.1"]],
 

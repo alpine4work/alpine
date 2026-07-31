@@ -18,7 +18,7 @@ ts_project(
         "//server/api/internal/shared",
         "//server/chat/data",
         "//server/files/data",
-        "//shared/api/markdown",
+        "//shared/api/content",
         "//shared/api/specification",
         "//shared/error",
         "//shared/helpers",

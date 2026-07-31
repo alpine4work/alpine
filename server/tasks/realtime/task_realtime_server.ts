@@ -51,6 +51,7 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryDefaults} from "~/shared/tasks/task_query_defaults.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
 // Run the query store eviction procedure every minute. When an item in the query
@@ -369,6 +370,30 @@ export class TaskRealtimeServer {
 
         const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
         return await store.loadQuery(context, options);
+    }
+
+    public async expensivelyLoadQueryAfterCursor(
+        context: TaskRealtimeSystemActionContext,
+        options: {
+            spaceId: SpaceId;
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+            afterCursor: TaskQuerySortCursor | null;
+        },
+    ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
+        tasks: Array<TaskIndexDoc>;
+    }> {
+        // Must be a system actor because we do no filtering to check whether you are
+        // allowed to see the queried tasks. Permissions filtering is done at a different
+        // level.
+        context.actor.authorizeSystem();
+
+        await authorizeSpaceAccess(context, options.spaceId);
+
+        const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
+        return await store.expensivelyLoadQueryAfterCursor(context, options);
     }
 
     public async subscribeToQuery(

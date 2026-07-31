@@ -13,7 +13,7 @@ import {
     TaskClientQueryInternal,
 } from "~/client/web/tasks/core/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
-import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
+import {getClientTracerSynchronizedSystemClock} from "~/client/web/tracer/client_tracer_synchronized_system_clock.js";
 import {ResolvedAccessPolicyWithGenerations} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ContentDuplicationVariableValues} from "~/shared/content/content_duplication_variable_schema.js";
@@ -875,7 +875,7 @@ export class TaskClientStoreInternal {
         this.currentAccountId = currentAccountId;
         this._onError = onError;
 
-        const synchronizedSystemClockPromise = getSynchronizedSystemClock();
+        const synchronizedSystemClockPromise = getClientTracerSynchronizedSystemClock();
         let synchronizedSystemClock: Clock | null = null;
 
         this.clock = new HybridLogicalClock({

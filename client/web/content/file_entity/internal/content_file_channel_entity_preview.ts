@@ -25,7 +25,7 @@ import {
     channelViewMetadataSectionTitleMarginBottom,
 } from "~/client/web/styles/forum_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";

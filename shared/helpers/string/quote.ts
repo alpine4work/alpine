@@ -8,6 +8,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
  *
  * You can also call the function with a single string like `quote("foo")` to wrap
  * the string in quotes and escape any quotes within the string.
+ *
+ * The string is escaped to make sure it's valid Markdown. So it's safe to
+ * interpolate the result of this function into a Markdown string.
  */
 export function quote(string: string | number | bigint): string;
 export function quote(
@@ -25,12 +28,7 @@ export function quote(
         return String(templateStrings);
     }
     if (typeof templateStrings === "string") {
-        let quotedString = JSON.stringify(templateStrings);
-        quotedString = quotedString.replaceAll("`", "\\`");
-        // eslint-disable-next-line cyberworlds/string-quotes
-        quotedString = quotedString.replaceAll('\\"', '"');
-        quotedString = `\`${quotedString.slice(1, -1)}\``;
-        return quotedString;
+        return quoteValue(templateStrings);
     }
 
     assert(templateStrings.length > 0);
@@ -51,10 +49,7 @@ export function quote(
             // backticks than curl quotes (given our lint rule disallows the use of straight
             // quotes elsewhere in strings).
             if (typeof value === "string") {
-                quotedString = quotedString.replaceAll("`", "\\`");
-                // eslint-disable-next-line cyberworlds/string-quotes
-                quotedString = quotedString.replaceAll('\\"', '"');
-                quotedString = `\`${quotedString.slice(1, -1)}\``;
+                quotedString = quoteValue(value);
             }
 
             string += quotedString;
@@ -63,4 +58,34 @@ export function quote(
     }
 
     return string;
+}
+
+/**
+ * Quote a string using Markdown inline code syntax. Escapes using the same
+ * procedure as `mdast-util-to-markdown` which we use to print markdown across our
+ * codebase.
+ */
+function quoteValue(value: string) {
+    // Fun fact: an empty code span is unrepresentable in CommonMark since two epeated
+    // backticks are interpreted as a single run of length 2. So we use the special
+    // string "empty" instead.
+    if (value.length === 0) return "empty";
+
+    // Escapes a bunch of characters like `\n`. Except we don't want to escape string
+    // double quotes! Those are totally ok in Markdown inline code.
+    //
+    // eslint-disable-next-line cyberworlds/string-quotes
+    value = JSON.stringify(value).slice(1, -1).replaceAll('\\"', '"');
+
+    let sequence = "`";
+
+    while (new RegExp(`(^|[^\`])${sequence}([^\`]|$)`).test(value)) {
+        sequence += "`";
+    }
+
+    if (/[^ ]/.test(value) && ((/^ /.test(value) && / $/.test(value)) || /^`|`$/.test(value))) {
+        value = ` ${value} `;
+    }
+
+    return sequence + value + sequence;
 }

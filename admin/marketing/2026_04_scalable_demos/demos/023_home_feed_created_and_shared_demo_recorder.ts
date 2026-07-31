@@ -27,7 +27,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
             .toDate(timeZone);
 
     const accountMentionUrl = (accountSession: {account: {id: string}}) =>
-        `https://alpine.inc/mention/${accountSession.account.id}?short`;
+        `https://alpine.inc/mention/${accountSession.account.id}#short`;
 
     const [announcementsChannel, engineeringChannel, craftChannel, salesChannel, planningChannel] =
         await runAllPromises([

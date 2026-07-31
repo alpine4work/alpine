@@ -7,7 +7,7 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
-        "//shared/api/content",
+        "//shared/api/content/closed_source",
         "//server/bots/test_helpers",
         "//server/files/test_helpers",
         "//server/integrations",

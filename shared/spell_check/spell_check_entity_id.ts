@@ -5,7 +5,7 @@ import {Schema} from "~/shared/schema/schema.js";
 
 export type SpellCheckEntityId = `Document:${DocumentId}` | `Task:${TaskId}`;
 
-export const SpellCheckEntityIdSchema = Schema.string as Schema<SpellCheckEntityId>;
+export const SpellCheckEntityIdSchema = Schema.stringAs<SpellCheckEntityId>();
 
 /**
  * Parsed representation of a `SpellCheckEntityId` string for easier manipulation.

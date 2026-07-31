@@ -49,7 +49,7 @@ ts_project(
         "//server/spaces",
         "//shared/access",
         "//shared/api/content",
-        "//shared/api/markdown",
+        "//shared/api/content/closed_source",
         "//shared/api/specification",
         "//shared/documents",
         "//shared/error",

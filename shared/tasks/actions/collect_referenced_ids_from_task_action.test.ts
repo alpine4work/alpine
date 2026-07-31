@@ -240,33 +240,6 @@ test("doesn\u2019t collect ids from task actions without account or site referen
     expect(ids).toEqual({accountIds: new Set(), siteIds: new Set()});
 });
 
-test("collects the action actor account ids from a task action", () => {
-    const accountId = generateId<AccountId>();
-    const botAccountId = generateId<AccountId>();
-
-    const ids = collectIds({
-        ...createTestUpdateTaskAction({type: "Delete"}),
-        actor: {
-            accountId,
-            from: {type: "Bot", accountId: botAccountId},
-        },
-    });
-
-    expect(ids).toEqual({accountIds: new Set([accountId, botAccountId]), siteIds: new Set()});
-});
-
-test("doesn\u2019t collect unknown action actor account ids from a task action", () => {
-    const ids = collectIds({
-        ...createTestUpdateTaskAction({type: "Delete"}),
-        actor: {
-            accountId: unknownAccountId,
-            from: {type: "Bot", accountId: unknownAccountId},
-        },
-    });
-
-    expect(ids).toEqual({accountIds: new Set(), siteIds: new Set()});
-});
-
 test("collects the site id from a create collection action with a site access policy", () => {
     const siteId = generateId<SiteId>();
 
@@ -312,21 +285,6 @@ test("doesn\u2019t collect ids from collection actions without site references",
     const ids = collectIds(createTestUpdateCollectionAction({type: "Delete"}));
 
     expect(ids).toEqual({accountIds: new Set(), siteIds: new Set()});
-});
-
-test("collects the action actor account ids from a collection action", () => {
-    const accountId = generateId<AccountId>();
-    const botAccountId = generateId<AccountId>();
-
-    const ids = collectIds({
-        ...createTestUpdateCollectionAction({type: "Delete"}),
-        actor: {
-            accountId,
-            from: {type: "Bot", accountId: botAccountId},
-        },
-    });
-
-    expect(ids).toEqual({accountIds: new Set([accountId, botAccountId]), siteIds: new Set()});
 });
 
 test("collects the account id from an update account name action", () => {

@@ -84,7 +84,7 @@ export async function getPostContentAndChannelPreviewIfPossible(
             spaceId: postItem.spaceId,
             version: postItem.updateLockVersion ?? 0,
             createdTime: postItem.createdTime,
-            authorId: postItem.authorId,
+            authorId: postItem.author.accountId,
             content: postItem.content,
             contentUpdate: postItem.contentUpdate,
             channel: channelResult.value,

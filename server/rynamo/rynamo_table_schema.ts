@@ -1231,7 +1231,10 @@ export class RynamoTableSchema<
         update: (
             item: DynamoItem<MergeObjectIntersection<Types["Item"] & ItemKey>>,
         ) => MaybePromise<DynamoItem<MergeObjectIntersection<Types["Item"] & ItemKey>>>,
-        options: {initialItem: DynamoItem<Types["Item"] & ItemKey>},
+        options: {
+            initialItem: DynamoItem<Types["Item"] & ItemKey>;
+            consistency?: DynamoCacheReadConsistency;
+        },
     ): Promise<{
         getEvent: (
             context: ServerActionContext,
@@ -1245,7 +1248,10 @@ export class RynamoTableSchema<
         update: (
             item: DynamoItem<MergeObjectIntersection<Types["Item"] & ItemKey>> | null,
         ) => MaybePromise<DynamoItem<MergeObjectIntersection<Types["Item"] & ItemKey>>>,
-        options?: {initialItem?: DynamoItem<Types["Item"] & ItemKey>},
+        options?: {
+            initialItem?: DynamoItem<Types["Item"] & ItemKey>;
+            consistency?: DynamoCacheReadConsistency;
+        },
     ): Promise<{
         getEvent: (
             context: ServerActionContext,
@@ -1259,7 +1265,13 @@ export class RynamoTableSchema<
         // Typed as `never` since a caller should always match one of the overloads, not
         // this base definition.
         update: never,
-        {initialItem}: {initialItem?: DynamoItem<Types["Item"] & ItemKey>} = {},
+        {
+            initialItem,
+            consistency,
+        }: {
+            initialItem?: DynamoItem<Types["Item"] & ItemKey>;
+            consistency?: DynamoCacheReadConsistency;
+        } = {},
     ): Promise<{
         getEvent: (
             context: ServerActionContext,
@@ -1276,7 +1288,7 @@ export class RynamoTableSchema<
             const item =
                 isInitialAttempt && initialItem
                     ? initialItem
-                    : await this.getItemIfExists(context, itemKey);
+                    : await this.getItemIfExists(context, itemKey, {consistency});
 
             const newItem: DynamoItem<Types["Item"] & ItemKey> = await (update as any)(item);
 

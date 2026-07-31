@@ -111,7 +111,7 @@ function extractFilePaths(cell: string): Array<string> | null {
 function createFileElement(fileId: FileId): ApiContentFileBlockElement {
     return {
         type: "File",
-        id: fileId,
+        file: {id: fileId},
     };
 }
 
@@ -163,7 +163,7 @@ function createCellInlineElements(
             return [
                 {
                     type: "Mention",
-                    target: {type: "Document", id: documentId},
+                    reference: {type: "Document", id: documentId},
                 },
             ];
         }

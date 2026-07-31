@@ -19,6 +19,14 @@ import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_curso
  * This function is to help implement the `getMoveTasksToQueryActions()` prop of
  * `useTaskGridViewVirtualizedList()`.
  */
+// TODO(calebmer): The API implements moves in `updateTaskWithoutNotesFromApi()`
+// with behavior we should eventually mirror here since the client behavior today
+// is weird/unexpected. Notably in the when moving between two neighboring tasks
+// that share the exact same position (equal `orderTime` and `orderKey`, e.g. from
+// task duplication) it re-keys every task with that position with
+// `generateOrderKeysBetween()` so their order is preserved and the moved task has
+// space to land between them. This function instead tries to generates a key
+// between two equal keys which throws.
 export function getNewTaskPositionForQuerySortedByPosition(
     time: HybridLogicalTime,
     query: TaskClientQuery,

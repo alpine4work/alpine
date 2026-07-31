@@ -6,7 +6,6 @@ type ApiContentBlockElement = ApiContent["elements"][number];
 
 export interface InsertFathomMeetingNotesMentionOptions {
     readonly content: ApiContent;
-    readonly title: string;
     readonly documentId: DocumentId;
     readonly scheduledStartTime: string;
 }
@@ -51,7 +50,6 @@ const monthNames = [
  */
 export function insertFathomMeetingNotesMention({
     content,
-    title,
     documentId,
     scheduledStartTime,
 }: InsertFathomMeetingNotesMentionOptions): InsertFathomMeetingNotesMentionResult {
@@ -61,8 +59,8 @@ export function insertFathomMeetingNotesMention({
             element.elements.some(
                 inlineElement =>
                     inlineElement.type === "Mention" &&
-                    inlineElement.target.type === "Document" &&
-                    inlineElement.target.id === documentId,
+                    inlineElement.reference.type === "Document" &&
+                    inlineElement.reference.id === documentId,
             ),
     );
     if (alreadyInserted) return {content, inserted: false};
@@ -78,8 +76,7 @@ export function insertFathomMeetingNotesMention({
         elements: [
             {
                 type: "Mention",
-                target: {type: "Document", id: documentId},
-                title,
+                reference: {type: "Document", id: documentId},
             },
         ],
     };

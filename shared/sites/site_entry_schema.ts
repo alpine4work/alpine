@@ -45,7 +45,7 @@ export const SiteEntrySideBarSectionSchema = Schema.object({
     /**
      * A SideBarSection must be nested under a SideBar or another SideBarSection.
      */
-    parentId: Schema.string as Schema<SiteSideBarContainerId | SiteSideBarSectionContainerId>,
+    parentId: Schema.stringAs<SiteSideBarContainerId | SiteSideBarSectionContainerId>(),
 });
 type SiteEntrySideBarSection = SchemaType<typeof SiteEntrySideBarSectionSchema>;
 

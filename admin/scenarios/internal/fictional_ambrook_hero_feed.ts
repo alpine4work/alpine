@@ -55,9 +55,9 @@ export async function createFictionalAmbrookHeroFeed({
                         markdown`
 [ChatGPT](https://alpine.inc/mention/{{chatGptAccountId}}) please write an executive summary of
 everything the engineering team worked in Q1 2026 and whether we met our estimates from
-[Product Roadmap (Q1 2026)](https://alpine.inc/doc/{{roadmapDocumentId}}?mention).
+[Product Roadmap (Q1 2026)](https://alpine.inc/doc/{{roadmapDocumentId}}#mention).
 
-cc [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}?short) let\u2019s use this for our retro
+cc [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}#short) let\u2019s use this for our retro
 today
                         `,
                         {

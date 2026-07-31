@@ -10,10 +10,13 @@ import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
 import {authorizeTaskAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_access_if_possible.js";
-import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/backfill_task_action_transaction_history.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {commitTaskActionTransactionBeforeExecuteTestCheckpoint} from "~/server/tasks/data/commit_task_action_transaction_before_execute_test_checkpoint.js";
 import {deleteTaskAndAllChildren} from "~/server/tasks/data/delete_task_and_all_children.js";
+import {
+    TaskActionTable,
+    TaskActionTransactionItem,
+} from "~/server/tasks/data/internal/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {getTaskCollectionItemForTest} from "~/server/tasks/data/test_helpers/get_task_collection_item_for_test.js";
 import {getTaskItemForTest} from "~/server/tasks/data/test_helpers/get_task_item_for_test.js";
@@ -35,10 +38,11 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, getMinId} from "~/shared/id/id.js";
 import {
-    AccountId,
     ContentEditorClientId,
+    SpaceId,
+    TaskActionTransactionId,
     TaskActionTransactionLeaseId,
     TaskCollectionId,
     TaskId,
@@ -67,6 +71,28 @@ const context = createTestContext({
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
     return new Slice(Fragment.from(schema.text(text)), 0, 0);
+}
+
+async function getTaskActionTransactionItemsForTest(spaceId: SpaceId, startCommittedTime: Date) {
+    const actionTransactionItems: Array<TaskActionTransactionItem> = [];
+
+    for await (const item of TaskActionTable.query(context, {
+        partitionKey: {
+            partitionType: "TaskActions",
+            spaceId,
+        },
+        startSortKey: {
+            sortRangeType: "ActionTransaction",
+            committedTime: startCommittedTime,
+            actionTransactionId: getMinId<TaskActionTransactionId>(),
+        },
+        limit: "All",
+        consistency: "Strong",
+    })) {
+        actionTransactionItems.push(item);
+    }
+
+    return actionTransactionItems;
 }
 
 describe("commitTaskActionTransaction()", () => {
@@ -2978,8 +3004,8 @@ describe("commitTaskActionTransaction()", () => {
     });
 });
 
-describe("task action actor tracking", () => {
-    test("records session context actor on task actions", async () => {
+describe("task action transaction actor tracking", () => {
+    test("records session context actor on task action transactions", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const task = await TestTask.create(session);
@@ -3007,18 +3033,16 @@ describe("task action actor tracking", () => {
             ],
         );
 
-        expect(
-            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
-        ).toEqual([
+        expect(await getTaskActionTransactionItemsForTest(space.id, startTime)).toEqual([
             expect.objectContaining({
+                actor: {
+                    accountId: session.account.id,
+                    from: null,
+                },
                 actions: [
                     expect.objectContaining({
                         type: "UpdateTask",
                         taskId: task.id,
-                        actor: {
-                            accountId: session.account.id,
-                            from: null,
-                        },
                         taskAction: expect.objectContaining({type: "UpdateTitle"}),
                     }),
                 ],
@@ -3026,7 +3050,7 @@ describe("task action actor tracking", () => {
         ]);
     });
 
-    test("records session context actor on task collection actions", async () => {
+    test("records session context actor on task collection action transactions", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const collection = await TestTaskCollection.create(session, {access: "Public"});
@@ -3051,18 +3075,16 @@ describe("task action actor tracking", () => {
             ],
         );
 
-        expect(
-            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
-        ).toEqual([
+        expect(await getTaskActionTransactionItemsForTest(space.id, startTime)).toEqual([
             expect.objectContaining({
+                actor: {
+                    accountId: session.account.id,
+                    from: null,
+                },
                 actions: [
                     expect.objectContaining({
                         type: "UpdateCollection",
                         collectionId: collection.id,
-                        actor: {
-                            accountId: session.account.id,
-                            from: null,
-                        },
                         collectionAction: {type: "UpdateName", name: "Context actor"},
                     }),
                 ],
@@ -3070,7 +3092,7 @@ describe("task action actor tracking", () => {
         ]);
     });
 
-    test("records impersonated account context actor on task actions", async () => {
+    test("records impersonated account context actor on task action transactions", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const task = await TestTask.create(session);
@@ -3094,18 +3116,16 @@ describe("task action actor tracking", () => {
             },
         ]);
 
-        expect(
-            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
-        ).toEqual([
+        expect(await getTaskActionTransactionItemsForTest(space.id, startTime)).toEqual([
             expect.objectContaining({
+                actor: {
+                    accountId: session.account.id,
+                    from: null,
+                },
                 actions: [
                     expect.objectContaining({
                         type: "UpdateTask",
                         taskId: task.id,
-                        actor: {
-                            accountId: session.account.id,
-                            from: null,
-                        },
                         taskAction: expect.objectContaining({type: "UpdateTitle"}),
                     }),
                 ],
@@ -3115,38 +3135,42 @@ describe("task action actor tracking", () => {
 });
 
 describe("bot task creation authorization", () => {
-    test("non-bot can\u2019t record task action bot provenance", async () => {
+    test("non-bot can\u2019t commit a task action transaction for another account", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
+        const otherSession = await space.createSession();
         const task = await TestTask.create(session);
 
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
         await expect(
-            commitTaskActionTransaction(session.action(), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    actor: {
-                        accountId: session.account.id,
-                        from: {type: "Bot", accountId: generateId<AccountId>()},
+            commitTaskActionTransaction(
+                session.action(),
+                space.id,
+                [
+                    {
+                        type: "UpdateTask",
+                        time: clock.now(),
+                        taskId: task.id,
+                        taskAction: {
+                            type: "UpdateTitle",
+                            titleUpdate: createTaskTitleFromText(
+                                randomlyGenerateTaskTitleClientId(),
+                                "Bot provenance",
+                            ),
+                        },
                     },
-                    taskId: task.id,
-                    taskAction: {
-                        type: "UpdateTitle",
-                        titleUpdate: createTaskTitleFromText(
-                            randomlyGenerateTaskTitleClientId(),
-                            "Bot provenance",
-                        ),
-                    },
-                },
-            ]),
+                ],
+                {actorId: otherSession.account.id},
+            ),
         ).rejects.toThrow(
-            new PermissionDeniedError("Only bots can record task action bot provenance"),
+            new PermissionDeniedError(
+                "Only bots can commit task actions on behalf of other accounts",
+            ),
         );
     });
 
-    test("bot can record task action actor provenance", async () => {
+    test("bot can record task action transaction actor provenance", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -3155,58 +3179,62 @@ describe("bot task creation authorization", () => {
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
         const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
 
-        await commitTaskActionTransaction(botContext, space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creator: {
-                        accountId: session.account.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+        await commitTaskActionTransaction(
+            botContext,
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "Create",
+                        creator: {
+                            accountId: session.account.id,
+                            from: {type: "Bot", accountId: botAccount.id},
+                        },
+                        creatorTimeZone: defaultTimeZone,
+                        accessPolicy,
                     },
-                    creatorTimeZone: defaultTimeZone,
-                    accessPolicy,
                 },
-            },
-        ]);
+            ],
+            {actorId: session.account.id},
+        );
 
         await ProcessContextModule.waitForTestTasks();
 
         const startTime = new Date();
 
-        await commitTaskActionTransaction(botContext, space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
+        await commitTaskActionTransaction(
+            botContext,
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate: createTaskTitleFromText(
+                            randomlyGenerateTaskTitleClientId(),
+                            "Bot provenance",
+                        ),
+                    },
+                },
+            ],
+            {actorId: session.account.id},
+        );
+
+        expect(await getTaskActionTransactionItemsForTest(space.id, startTime)).toEqual([
+            expect.objectContaining({
                 actor: {
                     accountId: session.account.id,
                     from: {type: "Bot", accountId: botAccount.id},
                 },
-                taskId,
-                taskAction: {
-                    type: "UpdateTitle",
-                    titleUpdate: createTaskTitleFromText(
-                        randomlyGenerateTaskTitleClientId(),
-                        "Bot provenance",
-                    ),
-                },
-            },
-        ]);
-
-        expect(
-            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
-        ).toEqual([
-            expect.objectContaining({
                 actions: [
                     expect.objectContaining({
                         type: "UpdateTask",
                         taskId,
-                        actor: {
-                            accountId: session.account.id,
-                            from: {type: "Bot", accountId: botAccount.id},
-                        },
                         taskAction: expect.objectContaining({type: "UpdateTitle"}),
                     }),
                 ],
@@ -3239,7 +3267,9 @@ describe("bot task creation authorization", () => {
                 },
             ]),
         ).rejects.toThrow(
-            new PermissionDeniedError("Only bots can create tasks on behalf of other accounts"),
+            new PermissionDeniedError(
+                "Task creator must exactly match the task action transaction actor",
+            ),
         );
     });
 
@@ -3252,21 +3282,26 @@ describe("bot task creation authorization", () => {
         const taskId = generateId<TaskId>();
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-        await commitTaskActionTransaction(botAccount.action(), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creator: {
-                        accountId: otherSession.account.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+        await commitTaskActionTransaction(
+            botAccount.action(),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "Create",
+                        creator: {
+                            accountId: otherSession.account.id,
+                            from: {type: "Bot", accountId: botAccount.id},
+                        },
+                        creatorTimeZone: defaultTimeZone,
                     },
-                    creatorTimeZone: defaultTimeZone,
                 },
-            },
-        ]);
+            ],
+            {actorId: otherSession.account.id},
+        );
 
         expect(await getTaskItemForTest(context, taskId)).toMatchObject({
             creatorId: otherSession.account.id,
@@ -3294,7 +3329,7 @@ describe("bot task creation authorization", () => {
                     type: "Create",
                     creator: {
                         accountId: botAccount.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+                        from: null,
                     },
                     creatorTimeZone: defaultTimeZone,
                     accessPolicy,
@@ -3324,7 +3359,7 @@ describe("bot task creation authorization", () => {
                     type: "Create",
                     creator: {
                         accountId: botAccount.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+                        from: null,
                     },
                     creatorTimeZone: defaultTimeZone,
                     accessPolicy,
@@ -3362,7 +3397,7 @@ describe("bot task creation authorization", () => {
                     type: "Create",
                     creator: {
                         accountId: botAccount.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+                        from: null,
                     },
                     creatorTimeZone: defaultTimeZone,
                     accessPolicy,
@@ -3420,7 +3455,7 @@ describe("bot task creation authorization", () => {
                     type: "Create",
                     creator: {
                         accountId: botAccount.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+                        from: null,
                     },
                     creatorTimeZone: defaultTimeZone,
                     accessPolicy,
@@ -3453,7 +3488,7 @@ describe("bot task creation authorization", () => {
                     type: "Create",
                     creator: {
                         accountId: botAccount.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+                        from: null,
                     },
                     creatorTimeZone: defaultTimeZone,
                     accessPolicy,
@@ -3575,35 +3610,39 @@ describe("bot task creation authorization", () => {
 });
 
 describe("bot task collection creation authorization", () => {
-    test("non-bot can\u2019t record task collection action bot provenance", async () => {
+    test("non-bot can\u2019t commit a collection action transaction for another account", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
+        const otherSession = await space.createSession();
         const collection = await TestTaskCollection.create(session);
 
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
         await expect(
-            commitTaskActionTransaction(session.action(), space.id, [
-                {
-                    type: "UpdateCollection",
-                    time: clock.now(),
-                    actor: {
-                        accountId: session.account.id,
-                        from: {type: "Bot", accountId: generateId<AccountId>()},
+            commitTaskActionTransaction(
+                session.action(),
+                space.id,
+                [
+                    {
+                        type: "UpdateCollection",
+                        time: clock.now(),
+                        collectionId: collection.id,
+                        collectionAction: {
+                            type: "UpdateName",
+                            name: "Bot provenance",
+                        },
                     },
-                    collectionId: collection.id,
-                    collectionAction: {
-                        type: "UpdateName",
-                        name: "Bot provenance",
-                    },
-                },
-            ]),
+                ],
+                {actorId: otherSession.account.id},
+            ),
         ).rejects.toThrow(
-            new PermissionDeniedError("Only bots can record task collection action bot provenance"),
+            new PermissionDeniedError(
+                "Only bots can commit task actions on behalf of other accounts",
+            ),
         );
     });
 
-    test("bot can record task collection action actor provenance", async () => {
+    test("bot can record task collection action transaction actor provenance", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -3614,34 +3653,33 @@ describe("bot task collection creation authorization", () => {
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
         const startTime = new Date();
 
-        await commitTaskActionTransaction(botAccount.action(), space.id, [
-            {
-                type: "UpdateCollection",
-                time: clock.now(),
+        await commitTaskActionTransaction(
+            botAccount.action(),
+            space.id,
+            [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId: collection.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Bot provenance",
+                    },
+                },
+            ],
+            {actorId: session.account.id},
+        );
+
+        expect(await getTaskActionTransactionItemsForTest(space.id, startTime)).toEqual([
+            expect.objectContaining({
                 actor: {
                     accountId: session.account.id,
                     from: {type: "Bot", accountId: botAccount.id},
                 },
-                collectionId: collection.id,
-                collectionAction: {
-                    type: "UpdateName",
-                    name: "Bot provenance",
-                },
-            },
-        ]);
-
-        expect(
-            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
-        ).toEqual([
-            expect.objectContaining({
                 actions: [
                     expect.objectContaining({
                         type: "UpdateCollection",
                         collectionId: collection.id,
-                        actor: {
-                            accountId: session.account.id,
-                            from: {type: "Bot", accountId: botAccount.id},
-                        },
                         collectionAction: {type: "UpdateName", name: "Bot provenance"},
                     }),
                 ],
@@ -3683,7 +3721,7 @@ describe("bot task collection creation authorization", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Only bots can create task collections on behalf of other accounts",
+                "Task collection creator must exactly match the task action transaction actor",
             ),
         );
     });
@@ -3699,22 +3737,27 @@ describe("bot task collection creation authorization", () => {
         const botContext = botAccount.action();
         const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
 
-        await commitTaskActionTransaction(botContext, space.id, [
-            {
-                type: "UpdateCollection",
-                time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "Create",
-                    creator: {
-                        accountId: otherSession.account.id,
-                        from: {type: "Bot", accountId: botAccount.id},
+        await commitTaskActionTransaction(
+            botContext,
+            space.id,
+            [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "Create",
+                        creator: {
+                            accountId: otherSession.account.id,
+                            from: {type: "Bot", accountId: botAccount.id},
+                        },
+                        name: "Test Collection",
+                        accessPolicy,
                     },
-                    name: "Test Collection",
-                    accessPolicy,
                 },
-            },
-        ]);
+            ],
+            {actorId: otherSession.account.id},
+        );
 
         expect(await getTaskCollectionItemForTest(context, collectionId)).toMatchObject({
             creatorId: otherSession.account.id,

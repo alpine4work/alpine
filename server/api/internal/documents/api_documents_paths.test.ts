@@ -1,20 +1,19 @@
 import {jest} from "@jest/globals";
 import {Fragment, Mark, Slice} from "prosemirror-model";
-import {AddMarkStep, AddNodeMarkStep, ReplaceStep} from "prosemirror-transform";
+import {ReplaceStep} from "prosemirror-transform";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {createTestWorkerContextFromBaseContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
+import {SearchInjection} from "~/server/context/injection_context_module.js";
+import {DocumentCollaborationDurableObject} from "~/server/documents/collaboration/document_collaboration_durable_object.js";
 import {
     FileDocumentAuthorizer,
-    getDocumentCommentPayload,
-    getDocumentContent,
-    getDocumentContentSteps,
-    updateDocumentContent,
+    getDocumentPreviewIfPossible,
     updateDocumentSnapshotForTest,
 } from "~/server/documents/data/documents_actions.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
-import {handleUpdateContentWithoutOptimisticBroadcastForTest} from "~/server/documents/test_helpers/handle_update_content_without_optimistic_broadcast_for_test.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_actions.js";
@@ -23,61 +22,51 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {ApiContentKeyDecoder, ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import {getApiContentRange} from "~/shared/api/content/get_api_content_range.js";
-import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
-import {
-    MessageContent,
-    createSimpleMessageContent,
-} from "~/shared/content/message_content_schema.js";
-import {
-    DocumentCollaborationCreateCommentThreadForApiRequestBodySchema,
-    DocumentCollaborationCreateCommentThreadForApiResponseBodySchema,
-    DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
-    DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
-} from "~/shared/documents/document_collaboration_protocol.js";
-import {
-    DocumentContent,
-    DocumentContentProsemirrorSchema,
-    assertDocumentContent,
-} from "~/shared/documents/document_content_schema.js";
-import {getDocumentCommentThreadSnippetAtPos} from "~/shared/documents/get_document_comment_thread_snippet_at_pos.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {assertId, generateId, isId} from "~/shared/id/id.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {assertId, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
-import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
-let createCommentThreadDocumentContentOverrideForTest:
-    | ((args: {
-          commentThreadId: DocumentCommentThreadId;
-          documentContent: DocumentContent;
-      }) => DocumentContent)
-    | null = null;
-let createCommentThreadMessageContentOverrideForTest: MessageContent | null = null;
-let createCommentThreadForApiResponseOverrideForTest: (() => unknown) | null = null;
+const searchInjection: Partial<SearchInjection> = {
+    getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
+        assert(entityId.startsWith("Document:"));
+        const documentId = assertId<DocumentId>(entityId.slice("Document:".length));
+
+        const documentResult = await getDocumentPreviewIfPossible(context, documentId, {
+            consistency: "StrongWithinCache",
+        });
+        if (!documentResult) return null;
+        if (!documentResult.ok) return {isPrivate: true};
+        const document = documentResult.value;
+
+        return {
+            isPrivate: false,
+            entity: new SearchEntityModel({
+                type: "Document",
+                title: document.getTitle(),
+                document: {
+                    id: documentId,
+                    version: document.version,
+                },
+            }),
+        };
+    },
+};
 
 const context = createTestContext({
     chatInjection,
     documentsInjection,
     tasksInjection,
+    searchInjection,
 
-    // Reimplement the Durable Object `/update-content-with-diff` route in tests so we
-    // can test the API endpoint. The actual route in
-    // `DocumentCollaborationDurableObject` isn't that dissimilar from what you see
-    // here.
     sendRequestToDurableObject: async (actualContext, request) => {
-        const updateContentResponse = await handleUpdateContentWithoutOptimisticBroadcastForTest(
-            actualContext,
-            request,
-        );
-        if (updateContentResponse !== undefined) return updateContentResponse;
-
-        const match = request.url.match(/^\/api\/durable-objects\/documents\/([^/]+)\/([^/]+)/);
+        const match = request.url.match(/^\/api\/durable-objects\/documents\/([^/]+)(\/.*)$/);
         if (!match) return;
 
         const context = (actualContext as ApiServiceBotActionContext).dynamo
@@ -85,264 +74,35 @@ const context = createTestContext({
             // will be strong consistency implicitly.
             .unexpectStrongReadConsistency();
 
-        const documentId = assertId<DocumentId>(match[1]!);
-        const route = match[2]!;
-
-        if (route === "create-comment-thread-for-api") {
-            if (createCommentThreadForApiResponseOverrideForTest) {
-                return createCommentThreadForApiResponseOverrideForTest();
-            }
-
-            const requestBody =
-                DocumentCollaborationCreateCommentThreadForApiRequestBodySchema.deserialize(
-                    request.body ?? null,
-                );
-
-            const document = await getDocumentContent(context, documentId);
-            const apiContentRange = await getApiContentRange({
-                entityId: `Document:${documentId}`,
-                latestVersion: document.version,
-                range: requestBody.range,
-                getContentAtVersion: async version => {
-                    const invertedSteps =
-                        version < document.version
-                            ? await getDocumentContentSteps(context, {
-                                  id: documentId,
-                                  startVersion: version,
-                                  endVersion: document.version,
-                              })
-                            : [];
-
-                    let documentContentAtVersion = document.content;
-
-                    for (let index = invertedSteps.length - 1; index >= 0; index--) {
-                        const stepResult =
-                            invertedSteps[index]!.invertedStep.apply(documentContentAtVersion);
-                        if (!stepResult.doc) throw new InternalError(stepResult.failed!);
-                        documentContentAtVersion = assertDocumentContent(stepResult.doc);
-                    }
-
-                    return documentContentAtVersion;
-                },
-            });
-            const commentRange = trimSpacesFromProsemirrorRange(
-                apiContentRange.contentAtVersion,
-                apiContentRange,
-            );
-            const selectedContent = apiContentRange.contentAtVersion.textBetween(
-                commentRange.from,
-                commentRange.to,
-                "",
-                "\uFFFC",
-            );
-            if (
-                commentRange.from >= commentRange.to ||
-                (!selectedContent.includes("\uFFFC") && !/\S/u.test(selectedContent))
-            ) {
-                throw new InvalidArgumentError(
-                    "Item target range must include at least one non-space character",
-                    {
-                        displayMessage: errorDisplayMessage`Item target range must include at least one non-space character.`,
-                    },
-                );
-            }
-
-            const commentThreadId = generateId<DocumentCommentThreadId>();
-            const commentMark = DocumentContentProsemirrorSchema.marks.comment.create({
-                commentThreadId,
-            });
-
-            // Keep this test implementation aligned with the collaboration service: inline
-            // descendants use one range mark while each fully enclosed leaf node needs its own
-            // node mark.
-            const commentSteps: Array<AddMarkStep | AddNodeMarkStep> = [];
-            let hasInlineContent = false;
-            apiContentRange.contentAtVersion.nodesBetween(
-                commentRange.from,
-                commentRange.to,
-                (node, pos) => {
-                    if (node.isInline) hasInlineContent = true;
-
-                    if (
-                        !node.isInline &&
-                        node.isLeaf &&
-                        node.type.allowsMarkType(commentMark.type) &&
-                        commentRange.from <= pos &&
-                        pos + node.nodeSize <= commentRange.to
-                    ) {
-                        commentSteps.push(new AddNodeMarkStep(pos, commentMark));
-                    }
-                },
-            );
-
-            if (hasInlineContent) {
-                commentSteps.unshift(
-                    new AddMarkStep(commentRange.from, commentRange.to, commentMark),
-                );
-            }
-
-            const {steps} = await getCollaborativelyUpdateContentResult(context, {
-                currentVersion: document.version,
-                currentContent: document.content,
-                clientVersion: apiContentRange.version,
-                clientSteps: commentSteps,
-                knownClientContent: apiContentRange.contentAtVersion,
-                getSteps: (startVersion, endVersion) =>
-                    getDocumentContentSteps(context, {
-                        id: documentId,
-                        startVersion,
-                        endVersion,
-                    }),
-            });
-
-            const {newVersion, newContent} = await updateDocumentContent(context, {
-                id: documentId,
-                version: document.version,
-                steps,
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId,
-                        createdTimeZone: requestBody.createdTimeZone,
-                        initialCommentContent: requestBody.content,
-                        initialCommentFileIds: requestBody.fileIds,
-                        attachInitialCommentFilesAsBot: true,
-                    },
-                ],
-            });
-
-            const fileIds = new Set(
-                requestBody.fileIds.filter((fileId): fileId is FileId => isId(fileId)),
-            );
-            const files = await runAllPromises(
-                Array.from(fileIds, fileId =>
-                    getFileFromAttachment(
-                        context,
-                        fileId,
-                        FileDocumentAuthorizer.bind({
-                            type: "DocumentComments",
-                            documentId,
-                        }),
-                        {consistency: "Strong"},
-                    ),
-                ),
-            );
-
-            const firstComment = await getDocumentCommentPayload(context, {
-                documentId,
-                commentThreadId,
-                commentIndex: 0,
-            });
-            const commentThread = {
-                spaceId: document.spaceId,
-                id: commentThreadId,
-                createdTime: firstComment.createdTime,
-                isResolved: false,
-                commentCount: 1,
-                firstCommentAuthorId: firstComment.authorId,
-                fallbackContentSnippet: null,
-            };
-            const documentContent =
-                createCommentThreadDocumentContentOverrideForTest?.({
-                    commentThreadId,
-                    documentContent: newContent,
-                }) ?? newContent;
-            const appliedCommentStep = steps[0];
-            assert(appliedCommentStep);
-            let appliedCommentPos: number;
-            if (appliedCommentStep instanceof AddNodeMarkStep) {
-                appliedCommentPos = appliedCommentStep.pos;
-            } else {
-                assert(appliedCommentStep instanceof AddMarkStep);
-                appliedCommentPos = appliedCommentStep.from;
-            }
-            const documentContentSnippet = getDocumentCommentThreadSnippetAtPos(
-                documentContent,
-                appliedCommentPos,
-                {wholeTextBlocks: true},
-            );
-            const payload =
-                firstComment.payload.type === "Content" &&
-                createCommentThreadMessageContentOverrideForTest
-                    ? {
-                          ...firstComment.payload,
-                          content: createCommentThreadMessageContentOverrideForTest,
-                      }
-                    : firstComment.payload;
-
-            return DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.serialize({
-                ok: true,
-                newVersion,
-                commentThreadId,
-                commentThread: {
-                    ...commentThread,
-                    firstCommentAuthorId: commentThread.firstCommentAuthorId ?? null,
-                },
-                documentContentSnippet,
-                files,
-                message: {
-                    index: firstComment.index,
-                    version: firstComment.version,
-                    createdTime: firstComment.createdTime,
-                    createdTimeZone: firstComment.createdTimeZone,
-                    authorId: firstComment.authorId,
-                    payload,
-                    stream: firstComment.stream,
-                },
-            });
-        }
-
-        if (route !== "update-content-with-diff") return;
-
-        const requestBody = DocumentCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
-            request.body ?? null,
+        const response = await TestDocumentCollaborationDurableObject.fetchForTest(
+            workerContext.botAction(
+                context.actor.getSpaceId(),
+                context.actor.getBotAccountId(),
+                context.actor.getScope(),
+            ),
+            match[1]!,
+            new Request(new URL(match[2]!, "https://cyberworlds.dev"), {
+                method: "POST",
+                body: request.body != null ? JSON.stringify(request.body) : request.body,
+            }),
         );
 
-        const document = await getDocumentContent(context, documentId);
+        const responseBody = await response.json();
 
-        const invertedSteps =
-            requestBody.version < document.version
-                ? await getDocumentContentSteps(context, {
-                      id: documentId,
-                      startVersion: requestBody.version,
-                      endVersion: document.version,
-                  })
-                : [];
-
-        let oldContent = document.content;
-
-        for (let index = invertedSteps.length - 1; index >= 0; index--) {
-            const step = invertedSteps[index]!;
-            const stepResult = step.invertedStep.apply(oldContent);
-            if (!stepResult.doc) throw new InternalError(stepResult.failed!);
-            oldContent = assertDocumentContent(stepResult.doc);
+        if (response.status !== 200) {
+            throw new InternalError(
+                quote`Fetch to ${request.url} failed with status code ${response.status}: ${JSON.stringify(responseBody)}`,
+            );
         }
 
-        const requestContent = DocumentContentProsemirrorSchema.nodes.doc.create(
-            // This method isn't currently allowed to update document attributes like
-            // `AccessPolicy`.
-            oldContent.attrs,
-            requestBody.content,
-        );
-
-        const steps = diffProsemirrorNodes(oldContent, requestContent);
-
-        const {newVersion, newContent} = await updateDocumentContent(context, {
-            id: documentId,
-            version: requestBody.version,
-            steps,
-            clientId: generateId(),
-        });
-
-        return DocumentCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
-            ok: true,
-            spaceId: document.spaceId,
-            creatorId: document.creator.id,
-            newVersion,
-            newContent,
-        });
+        return responseBody;
     },
 });
+
+const workerContext = createTestWorkerContextFromBaseContext(context);
+
+const TestDocumentCollaborationDurableObject =
+    DocumentCollaborationDurableObject.test(workerContext);
 
 // Mock content conversion so an individual test can force it to throw and assert
 // the document endpoints translate the failure into a 400 instead of a 500. This
@@ -350,28 +110,25 @@ const context = createTestContext({
 // schema may accept more shapes over time. The mocks default to the real
 // implementations so every other test is unaffected.
 const actualFromApiContentModule =
-    await import("../../../../shared/api/content/from_api_content.js");
+    await import("../../../../shared/api/content/closed_source/from_api_content.js");
 const fromApiContentMock = jest.fn(actualFromApiContentModule.fromApiContent);
 const fromApiContentToDocumentChildNodesMock = jest.fn(
     actualFromApiContentModule.fromApiContentToDocumentChildNodes,
 );
-jest.unstable_mockModule("../../../../shared/api/content/from_api_content.js", () => ({
-    ...actualFromApiContentModule,
-    fromApiContent: fromApiContentMock,
-    fromApiContentToDocumentChildNodes: fromApiContentToDocumentChildNodesMock,
-}));
+jest.unstable_mockModule(
+    "../../../../shared/api/content/closed_source/from_api_content.js",
+    () => ({
+        ...actualFromApiContentModule,
+        fromApiContent: fromApiContentMock,
+        fromApiContentToDocumentChildNodes: fromApiContentToDocumentChildNodesMock,
+    }),
+);
 
 // Must be dynamically imported after the mock so the handlers use the mocked
 // content conversion functions.
 const {apiDocumentsPaths} = await import("./api_documents_paths.js");
 
 const server = createTestApiServer(context, apiDocumentsPaths);
-
-afterEach(() => {
-    createCommentThreadDocumentContentOverrideForTest = null;
-    createCommentThreadMessageContentOverrideForTest = null;
-    createCommentThreadForApiResponseOverrideForTest = null;
-});
 
 describe("POST /documents", () => {
     test("can create a document without content", async () => {
@@ -792,7 +549,7 @@ test("can\u2019t read document content for non-existent document", async () => {
     });
 });
 
-describe("/documents/{id}/mention", () => {
+describe("/documents/{id}-reference", () => {
     test("can read document mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -806,7 +563,7 @@ describe("/documents/{id}/mention", () => {
         });
 
         expect(
-            await server.GET(`/documents/${document.id}/mention`, {
+            await server.GET(`/documents/${document.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -814,11 +571,9 @@ describe("/documents/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Document",
-                        id: document.id,
-                    },
+                reference: {
+                    type: "Document",
+                    id: document.id,
                     title: "Test Document Title",
                 },
             },
@@ -836,7 +591,7 @@ describe("/documents/{id}/mention", () => {
         const document = await TestDocument.create(session2, {access: "Private"});
 
         expect(
-            await server.GET(`/documents/${document.id}/mention`, {
+            await server.GET(`/documents/${document.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -860,7 +615,7 @@ describe("/documents/{id}/mention", () => {
         const apiKey = await bot.createApiKey(session);
 
         expect(
-            await server.GET(`/documents/${generateId<DocumentId>()}/mention`, {
+            await server.GET(`/documents/${generateId<DocumentId>()}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -886,7 +641,7 @@ describe("/documents/{id}/mention", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/mention`, {
+            await server.GET(`/documents/${document.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -894,11 +649,9 @@ describe("/documents/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Document",
-                        id: document.id,
-                    },
+                reference: {
+                    type: "Document",
+                    id: document.id,
                     title: "Scoped Document",
                 },
             },
@@ -951,8 +704,6 @@ test("can read document content with document scope", async () => {
 });
 
 describe("comment threads", () => {
-    const schema = DocumentContentProsemirrorSchema;
-
     function textSlice(text: string, marks: ReadonlyArray<Mark> = []) {
         if (text.length === 0) return Slice.empty;
         return new Slice(Fragment.from(schema.text(text, marks)), 0, 0);
@@ -974,6 +725,126 @@ describe("comment threads", () => {
 
         return paragraph;
     }
+
+    test("returns thread metadata without loading a document preview", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session, {access: "Public"});
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const response = await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({
+            response,
+            hasDocument: "document" in response.body,
+            hasPreview: "preview" in response.body.thread,
+        }).toMatchObject({
+            response: {
+                status: 200,
+                body: {
+                    spaceId: space.id,
+                    thread: {
+                        id: commentThread.id,
+                        isResolved: false,
+                        totalMessageCount: 1,
+                    },
+                },
+            },
+            hasDocument: false,
+            hasPreview: false,
+        });
+    });
+
+    test("resolves a comment thread", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session, {access: "Public"});
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const response = await server.PATCH(
+            `/documents/${document.id}/threads/${commentThread.id}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {patches: [{type: "Resolve"}]},
+            },
+        );
+
+        expect({response, commentThread: await commentThread.get()}).toMatchObject({
+            response: {
+                status: 200,
+                body: {
+                    spaceId: space.id,
+                    thread: {id: commentThread.id, isResolved: true},
+                },
+            },
+            commentThread: {isResolved: true},
+        });
+    });
+
+    test("unresolves a comment thread", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session, {access: "Public"});
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        await commentThread.resolve(session);
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const response = await server.PATCH(
+            `/documents/${document.id}/threads/${commentThread.id}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {patches: [{type: "Unresolve"}]},
+            },
+        );
+
+        expect({response, commentThread: await commentThread.get()}).toMatchObject({
+            response: {
+                status: 200,
+                body: {
+                    spaceId: space.id,
+                    thread: {id: commentThread.id, isResolved: false},
+                },
+            },
+            commentThread: {isResolved: false},
+        });
+    });
+
+    test("applies resolution patches in request order", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session, {access: "Public"});
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        const oldVersion = (await document.get()).version;
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const response = await server.PATCH(
+            `/documents/${document.id}/threads/${commentThread.id}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {patches: [{type: "Resolve"}, {type: "Unresolve"}]},
+            },
+        );
+
+        expect({response, documentVersion: (await document.get()).version}).toMatchObject({
+            response: {
+                status: 200,
+                body: {thread: {id: commentThread.id, isResolved: false}},
+            },
+            documentVersion: oldVersion,
+        });
+    });
 
     test("returns snippet of document with comment", async () => {
         const space = await TestSpace.create(context);
@@ -1004,7 +875,7 @@ describe("comment threads", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
+            await server.GET(`/documents/${document.id}/threads/${commentThread.id}-with-preview`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1012,40 +883,127 @@ describe("comment threads", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                commentThread: expect.objectContaining({
+                thread: expect.objectContaining({
                     id: commentThread.id,
                     isResolved: false,
-                    commentCount: 1,
-                    documentContentSnippet: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                key: expect.any(String),
-                                elements: [
-                                    {
-                                        type: "Text",
-                                        text: "Hello",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                threadId: commentThread.id,
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: ", world!",
-                                    },
-                                ],
-                            },
-                        ],
+                    totalMessageCount: 1,
+                    preview: {
+                        version: await document.getVersion(),
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Hello",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: ", world!",
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
                     },
                 }),
+                document: expect.objectContaining({id: document.id}),
             },
         });
     });
 
-    test("returns snippet content keys that decode to block positions in the document", async () => {
+    test("returns other overlapping comment marks in the current document snippet", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session);
+        const {range} = await document.type(session, "Shared text");
+
+        const commentThread = await document.createCommentThread(
+            session,
+            {from: range.from, to: range.from + 6},
+            "First comment",
+        );
+        const overlappingCommentThread = await document.createCommentThread(
+            session,
+            {from: range.from + 3, to: range.to},
+            "Overlapping comment",
+        );
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
+
+        const response = await server.GET(
+            `/documents/${document.id}/threads/${commentThread.id}-with-preview`,
+            {headers: {authorization: `bearer ${apiKey}`}},
+        );
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                thread: {
+                    id: commentThread.id,
+                    preview: {
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Sha",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: "red",
+                                            marks: expect.arrayContaining([
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                                {
+                                                    type: "Comment",
+                                                    thread: {
+                                                        id: overlappingCommentThread.id,
+                                                    },
+                                                },
+                                            ]),
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: " text",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {
+                                                        id: overlappingCommentThread.id,
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        });
+    });
+
+    test("returns snippet cut to the lines around the commented block", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -1085,59 +1043,50 @@ describe("comment threads", () => {
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
-        const response = await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
-            headers: {authorization: `bearer ${apiKey}`},
-        });
+        const response = await server.GET(
+            `/documents/${document.id}/threads/${commentThread.id}-with-preview`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
         assert(response.status === 200);
 
-        const snippetElements = response.body.commentThread.documentContentSnippet.elements;
+        const snippetElements = response.body.thread.preview.contentSnippet.elements;
         assert(Array.isArray(snippetElements));
 
-        // Adding the comment mark doesn't move any positions, so the content from before
-        // the comment was added still has the positions the keys encode.
-        const version = await document.getVersion();
-        const decoder = new ApiContentKeyDecoder(`Document:${document.id}`);
+        const elementText = (element: {elements: Array<{text: string}>}) =>
+            element.elements.map(inlineElement => inlineElement.text).join("");
 
+        // The snippet is cut to a couple lines above the commented block and a few lines
+        // below it. The lines above cover the whole previous paragraph while the long
+        // trailing paragraph is cut mid-paragraph before the following "Last paragraph."
+        // block. Content snippets don't include keys.
         expect(
-            snippetElements.map(element => {
-                const key = decoder.decode(element.key);
-                const documentBlock = assertExists(documentContent.resolve(key.pos).nodeAfter);
-                return {
-                    type: element.type,
-                    snippetText: element.elements
-                        .map((inlineElement: {text: string}) => inlineElement.text)
-                        .join(""),
-                    keyVersion: key.version,
-                    documentBlockText: documentBlock.textContent,
-                    documentBlockNodeSize: documentBlock.nodeSize === key.nodeSize,
-                };
-            }),
+            snippetElements.map(element => ({
+                type: element.type,
+                text: elementText(element),
+                isCut: elementText(element).length < 2500,
+            })),
         ).toEqual([
             {
                 type: "Paragraph",
-                snippetText: "a".repeat(300) + "b".repeat(300) + "c".repeat(300),
-                keyVersion: version,
-                documentBlockText: "a".repeat(300) + "b".repeat(300) + "c".repeat(300),
-                documentBlockNodeSize: true,
+                text: "a".repeat(300) + "b".repeat(300) + "c".repeat(300),
+                isCut: true,
             },
             {
                 type: "Paragraph",
-                snippetText: "Commented paragraph.",
-                keyVersion: version,
-                documentBlockText: "Commented paragraph.",
-                documentBlockNodeSize: true,
+                text: "Commented paragraph.",
+                isCut: true,
             },
             {
                 type: "Paragraph",
-                snippetText: "d".repeat(2500),
-                keyVersion: version,
-                documentBlockText: "d".repeat(2500),
-                documentBlockNodeSize: true,
+                text: expect.stringMatching(/^d+$/),
+                isCut: true,
             },
         ]);
     });
 
-    test("returns the same content keys in the snippet as the document content", async () => {
+    test("returns the same content in the snippet as the document content", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -1177,25 +1126,22 @@ describe("comment threads", () => {
         assert(documentResponse.status === 200);
 
         const threadResponse = await server.GET(
-            `/documents/${document.id}/threads/${commentThread.id}`,
+            `/documents/${document.id}/threads/${commentThread.id}-with-preview`,
             {headers: {authorization: `bearer ${apiKey}`}},
         );
         assert(threadResponse.status === 200);
 
         const documentElements = documentResponse.body.document.content.elements;
-        const snippetElements = threadResponse.body.commentThread.documentContentSnippet.elements;
+        const snippetElements = threadResponse.body.thread.preview.contentSnippet.elements;
         assert(Array.isArray(documentElements));
         assert(Array.isArray(snippetElements));
 
-        const elementTextAndKey = (element: {key: string; elements: Array<{text: string}>}) => [
-            element.elements.map(inlineElement => inlineElement.text.slice(0, 12)).join(""),
-            element.key,
-        ];
+        const elementText = (element: {elements: Array<{text: string}>}) =>
+            element.elements.map(inlineElement => inlineElement.text.slice(0, 12)).join("");
 
-        // The snippet skips the first paragraph and contains the rest of the document with
-        // the exact content keys the document content has.
-        expect(snippetElements.map(elementTextAndKey)).toEqual(
-            documentElements.slice(1).map(elementTextAndKey),
+        // The snippet skips the first paragraph and contains the rest of the document.
+        expect(snippetElements.map(elementText)).toEqual(
+            documentElements.slice(1).map(elementText),
         );
     });
 
@@ -1240,7 +1186,7 @@ describe("comment threads", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
+            await server.GET(`/documents/${document.id}/threads/${commentThread.id}-with-preview`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1248,40 +1194,131 @@ describe("comment threads", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                commentThread: expect.objectContaining({
+                thread: expect.objectContaining({
                     id: commentThread.id,
                     isResolved: false,
-                    commentCount: 1,
-                    documentContentSnippet: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                key: expect.any(String),
-                                elements: [
-                                    {
-                                        type: "Text",
-                                        text: "Hello",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                threadId: commentThread.id,
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: ", world!",
-                                    },
-                                ],
-                            },
-                        ],
+                    totalMessageCount: 1,
+                    preview: {
+                        version: (await document.getVersion()) - 1,
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Hello",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: ", world!",
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
                     },
                 }),
+                document: expect.objectContaining({id: document.id}),
             },
         });
     });
 
-    test("returns fallback snippet content keys with the version the snippet was saved from", async () => {
+    test("returns other overlapping comment marks in a fallback snippet", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session);
+        const {range} = await document.type(session, "Shared text");
+
+        const overlappingCommentThread = await document.createCommentThread(
+            session,
+            {from: range.from + 3, to: range.to},
+            "Overlapping comment",
+        );
+        const commentThread = await document.createCommentThread(
+            session,
+            {from: range.from, to: range.from + 6},
+            "First comment",
+        );
+
+        await document.update(session, [
+            new ReplaceStep(range.from, range.from + 6, textSlice("")),
+        ]);
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
+
+        const response = await server.GET(
+            `/documents/${document.id}/threads/${commentThread.id}-with-preview`,
+            {headers: {authorization: `bearer ${apiKey}`}},
+        );
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                thread: {
+                    id: commentThread.id,
+                    preview: {
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Sha",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: "red",
+                                            marks: expect.arrayContaining([
+                                                {
+                                                    type: "Comment",
+                                                    thread: {
+                                                        id: overlappingCommentThread.id,
+                                                    },
+                                                },
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ]),
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: " text",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {
+                                                        id: overlappingCommentThread.id,
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        });
+    });
+
+    test("returns fallback snippet with the version the snippet was saved from", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -1300,19 +1337,15 @@ describe("comment threads", () => {
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
-        const response = await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
-            headers: {authorization: `bearer ${apiKey}`},
-        });
+        const response = await server.GET(
+            `/documents/${document.id}/threads/${commentThread.id}-with-preview`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
         assert(response.status === 200);
 
-        const snippetElements = response.body.commentThread.documentContentSnippet.elements;
-        assert(Array.isArray(snippetElements));
-
-        const decoder = new ApiContentKeyDecoder(`Document:${document.id}`);
-
-        expect(snippetElements.map(element => decoder.decode(element.key).version)).toEqual([
-            fallbackVersion,
-        ]);
+        expect(response.body.thread.preview.version).toBe(fallbackVersion);
     });
 
     test("returns snippet of document if comment thread is resolved", async () => {
@@ -1356,7 +1389,7 @@ describe("comment threads", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
+            await server.GET(`/documents/${document.id}/threads/${commentThread.id}-with-preview`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1364,35 +1397,38 @@ describe("comment threads", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                commentThread: expect.objectContaining({
+                thread: expect.objectContaining({
                     id: commentThread.id,
                     isResolved: true,
-                    commentCount: 1,
-                    documentContentSnippet: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                key: expect.any(String),
-                                elements: [
-                                    {
-                                        type: "Text",
-                                        text: "Hello",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                threadId: commentThread.id,
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: ", world!",
-                                    },
-                                ],
-                            },
-                        ],
+                    totalMessageCount: 1,
+                    preview: {
+                        version: expect.any(Number),
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Hello",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: ", world!",
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
                     },
                 }),
+                document: expect.objectContaining({id: document.id}),
             },
         });
     });
@@ -1450,7 +1486,7 @@ describe("comment threads", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
+            await server.GET(`/documents/${document.id}/threads/${commentThread.id}-with-preview`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1458,35 +1494,38 @@ describe("comment threads", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                commentThread: expect.objectContaining({
+                thread: expect.objectContaining({
                     id: commentThread.id,
                     isResolved: true,
-                    commentCount: 1,
-                    documentContentSnippet: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                key: expect.any(String),
-                                elements: [
-                                    {
-                                        type: "Text",
-                                        text: "Hello",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                threadId: commentThread.id,
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: ", world!",
-                                    },
-                                ],
-                            },
-                        ],
+                    totalMessageCount: 1,
+                    preview: {
+                        version: expect.any(Number),
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Hello",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: ", world!",
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
                     },
                 }),
+                document: expect.objectContaining({id: document.id}),
             },
         });
     });
@@ -1512,8 +1551,8 @@ describe("comment threads", () => {
         expect(paragraph.type).toBe("Paragraph");
         expect(paragraph.key).toEqual(expect.any(String));
 
-        const emojiStartIndex = Array.from("A").length;
-        const emojiEndIndex = emojiStartIndex + Array.from(emoji).length - 1;
+        const emojiStartIndex = "A".length;
+        const emojiEndIndex = emojiStartIndex + emoji.length;
 
         const createThreadResponse = await server.POST(`/documents/${document.id}/threads`, {
             headers: {authorization: `bearer ${apiKey}`},
@@ -1542,37 +1581,14 @@ describe("comment threads", () => {
             expect.objectContaining({"content-type": "application/json"}),
         );
         expect(createThreadResponse.body.spaceId).toBe(space.id);
-        expect(createThreadResponse.body.document).toEqual({
-            id: document.id,
-            version: expect.any(Number),
-        });
         expect(createThreadResponse.body.thread).toEqual(
             expect.objectContaining({
                 id: expect.any(String),
                 isResolved: false,
-                commentCount: 1,
-                documentContentSnippet: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            key: expect.any(String),
-                            elements: [
-                                {type: "Text", text: "A"},
-                                {
-                                    type: "Text",
-                                    text: emoji,
-                                    marks: [
-                                        {
-                                            type: "Comment",
-                                            threadId: expect.any(String),
-                                        },
-                                    ],
-                                },
-                                {type: "Text", text: "B"},
-                            ],
-                        },
-                    ],
-                },
+                totalMessageCount: 1,
+                firstMessage: expect.objectContaining({
+                    createdTime: expect.any(String),
+                }),
             }),
         );
         expect(createThreadResponse.body.message).toEqual(
@@ -1594,6 +1610,42 @@ describe("comment threads", () => {
         );
 
         const createdCommentThreadId = createThreadResponse.body.thread.id;
+        const getThreadWithPreviewResponse = await server.GET(
+            `/documents/${document.id}/threads/${createdCommentThreadId}-with-preview`,
+            {headers: {authorization: `bearer ${apiKey}`}},
+        );
+
+        expect(getThreadWithPreviewResponse).toMatchObject({
+            status: 200,
+            body: {
+                thread: {
+                    id: createdCommentThreadId,
+                    preview: {
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {type: "Text", text: "A"},
+                                        {
+                                            type: "Text",
+                                            text: emoji,
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: createdCommentThreadId},
+                                                },
+                                            ],
+                                        },
+                                        {type: "Text", text: "B"},
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        });
 
         expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
@@ -1688,9 +1740,9 @@ describe("comment threads", () => {
         const firstFile = fileGallery.rows[0]?.items[0]?.element;
         const secondFile = fileGallery.rows[0]?.items[1]?.element;
         const thirdFile = fileGallery.rows[0]?.items[2]?.element;
-        assert(firstFile?.type === "File" && firstFile.id === file1.id);
-        assert(secondFile?.type === "File" && secondFile.id === file2.id);
-        assert(thirdFile?.type === "File" && thirdFile.id === file3.id);
+        assert(firstFile?.type === "File" && firstFile.file.id === file1.id);
+        assert(secondFile?.type === "File" && secondFile.file.id === file2.id);
+        assert(thirdFile?.type === "File" && thirdFile.file.id === file3.id);
 
         // Every request intentionally uses keys from the initial GET. Each preceding
         // comment makes those keys stale and exercises collaboration rebasing. Together
@@ -1831,6 +1883,16 @@ describe("comment threads", () => {
                 fileToTextId !== undefined,
         );
 
+        const previewResponses = await runAllPromises(
+            responses.map(response =>
+                server.GET(
+                    `/documents/${document.id}/threads/${response.body.thread.id}-with-preview`,
+                    {headers: {authorization: `bearer ${apiKey}`}},
+                ),
+            ),
+        );
+        for (const response of previewResponses) assert(response.status === 200);
+
         const commentThreadIdsByText = new Map<string, Set<DocumentCommentThreadId>>();
         const commentThreadIdsByFileId = new Map<FileId, Set<DocumentCommentThreadId>>();
         (await document.get()).content.doc.descendants((node, _pos, parent) => {
@@ -1864,7 +1926,11 @@ describe("comment threads", () => {
             responses: responses.map(response => ({
                 status: response.status,
                 messageIndex: response.body.message.index,
-                hasSnippet: response.body.thread.documentContentSnippet.elements.length > 0,
+                totalMessageCount: response.body.thread.totalMessageCount,
+            })),
+            previews: previewResponses.map(response => ({
+                status: response.status,
+                hasSnippet: response.body.thread.preview.contentSnippet.elements.length > 0,
             })),
             text: Object.fromEntries(
                 Array.from(commentThreadIdsByText, ([text, ids]) => [text, sortedIds(ids)]),
@@ -1876,8 +1942,9 @@ describe("comment threads", () => {
             responses: comments.map(() => ({
                 status: 200,
                 messageIndex: 0,
-                hasSnippet: true,
+                totalMessageCount: 1,
             })),
+            previews: comments.map(() => ({status: 200, hasSnippet: true})),
             text: {
                 "Section heading": [headingId],
                 "First paragraph": sortedIds([
@@ -1897,111 +1964,6 @@ describe("comment threads", () => {
                 [file3.id]: sortedIds([multipleFilesId, fileToTextId]),
             },
         });
-    });
-
-    test("uses the collaboration service response for a newly created comment thread", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-
-        const document = await TestDocument.create(session);
-        await document.type(session, "Hello");
-
-        const bot = await TestBot.createAndInstantiate(session);
-        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
-
-        const paragraph = await getFirstParagraphFromApiDocument({
-            documentId: document.id,
-            apiKey,
-        });
-
-        createCommentThreadDocumentContentOverrideForTest = ({commentThreadId}) =>
-            assertDocumentContent(
-                schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
-                    schema.node("title"),
-                    schema.node("paragraph", {}, [
-                        schema.text("Snippet from returned response", [
-                            schema.mark("comment", {commentThreadId}),
-                        ]),
-                    ]),
-                ]),
-            );
-        createCommentThreadMessageContentOverrideForTest = createSimpleMessageContent(
-            "Comment from returned response",
-        );
-
-        const createThreadResponse = await server.POST(`/documents/${document.id}/threads`, {
-            headers: {authorization: `bearer ${apiKey}`},
-            body: {
-                thread: {
-                    range: {
-                        start: {type: "Inline", key: paragraph.key, index: 0},
-                        end: {type: "Inline", key: paragraph.key, index: 4},
-                    },
-                    firstMessage: {
-                        content: {
-                            elements: [
-                                {
-                                    type: "Paragraph",
-                                    elements: [{type: "Text", text: "Persisted comment"}],
-                                },
-                            ],
-                        },
-                    },
-                },
-            },
-        });
-
-        expect(createThreadResponse.status).toBe(200);
-
-        const createdCommentThreadId = createThreadResponse.body.thread.id;
-
-        expect(createThreadResponse.body.thread.documentContentSnippet).toEqual({
-            elements: [
-                {
-                    type: "Paragraph",
-                    key: expect.any(String),
-                    elements: [
-                        {
-                            type: "Text",
-                            text: "Snippet from returned response",
-                            marks: [{type: "Comment", threadId: createdCommentThreadId}],
-                        },
-                    ],
-                },
-            ],
-        });
-        expect(createThreadResponse.body.message).toEqual(
-            expect.objectContaining({
-                index: 0,
-                payload: expect.objectContaining({
-                    type: "Content",
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                key: expect.any(String),
-                                elements: [{type: "Text", text: "Comment from returned response"}],
-                            },
-                        ],
-                    },
-                }),
-            }),
-        );
-
-        expect((await document.get()).content.doc.toJSON()).toEqual(
-            schema
-                .node("doc", {accessPolicy: document.initialAccessPolicy}, [
-                    schema.node("title"),
-                    schema.node("paragraph", {}, [
-                        schema.text("Hello", [
-                            schema.mark("comment", {
-                                commentThreadId: createdCommentThreadId,
-                            }),
-                        ]),
-                    ]),
-                ])
-                .toJSON(),
-        );
     });
 
     test("can create a document comment thread with file attachments", async () => {
@@ -2039,7 +2001,7 @@ describe("comment threads", () => {
                                 },
                             ],
                         },
-                        files: [{element: {type: "File", id: file.id}}],
+                        files: [{element: {type: "File", file: {id: file.id}}}],
                     },
                 },
             },
@@ -2058,9 +2020,11 @@ describe("comment threads", () => {
                                 width: 1,
                                 element: {
                                     type: "File",
-                                    id: file.id,
-                                    contentType: expect.any(String),
-                                    contentLength: expect.any(Number),
+                                    file: {
+                                        id: file.id,
+                                        contentType: expect.any(String),
+                                        contentLength: expect.any(Number),
+                                    },
                                 },
                             }),
                         ],
@@ -2070,7 +2034,7 @@ describe("comment threads", () => {
         });
     });
 
-    test("does not attach files to document comments without comment access", async () => {
+    test("attaches files before rejecting document comments without comment access", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const viewerSession = await space.createSession();
@@ -2089,7 +2053,11 @@ describe("comment threads", () => {
         let paragraphKey = null;
         (await document.getContent()).descendants((node, pos) => {
             if (node.type.name !== "paragraph") return;
-            paragraphKey = encoder.encode({pos, nodeSize: node.nodeSize});
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
             return false;
         });
         assert(paragraphKey !== null);
@@ -2097,53 +2065,53 @@ describe("comment threads", () => {
         const file = await TestFile.create(session);
         await document.attachFile(session, file);
 
-        expect(
-            await server.POST(`/documents/${document.id}/threads`, {
-                headers: {authorization: `bearer ${apiKey}`},
-                body: {
-                    thread: {
-                        range: {
-                            start: {type: "Inline", key: paragraphKey, index: 0},
-                            end: {type: "Inline", key: paragraphKey, index: 4},
+        const response = await server.POST(`/documents/${document.id}/threads`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                thread: {
+                    range: {
+                        start: {type: "Inline", key: paragraphKey, index: 0},
+                        end: {type: "Inline", key: paragraphKey, index: 4},
+                    },
+                    firstMessage: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Comment with file"}],
+                                },
+                            ],
                         },
-                        firstMessage: {
-                            content: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [{type: "Text", text: "Comment with file"}],
-                                    },
-                                ],
-                            },
-                            files: [{element: {type: "File", id: file.id}}],
-                        },
+                        files: [{element: {type: "File", file: {id: file.id}}}],
                     },
                 },
-            }),
-        ).toEqual({
-            status: 403,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: {
-                error: expect.objectContaining({
-                    message: expect.stringContaining("comment"),
-                }),
             },
         });
+        const attachedFile = await getFileFromAttachment(
+            space.systemAction(),
+            file.id,
+            FileDocumentAuthorizer.bind({
+                type: "DocumentComments",
+                documentId: document.id,
+            }),
+            {consistency: "Strong"},
+        );
 
-        await expect(
-            getFileFromAttachment(
-                space.systemAction(),
-                file.id,
-                FileDocumentAuthorizer.bind({
-                    type: "DocumentComments",
-                    documentId: document.id,
-                }),
-                {consistency: "Strong"},
-            ),
-        ).rejects.toThrow("File isn\u2019t attached to target");
+        expect({response, attachedFile}).toMatchObject({
+            response: {
+                status: 403,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message: expect.stringContaining("comment"),
+                    }),
+                },
+            },
+            attachedFile: {id: file.id},
+        });
     });
 
-    test("does not attach files when target range validation fails", async () => {
+    test("attaches files before rejecting a reversed target range", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -2160,108 +2128,50 @@ describe("comment threads", () => {
         const file = await TestFile.create(session);
         await document.attachFile(session, file);
 
-        expect(
-            await server.POST(`/documents/${document.id}/threads`, {
-                headers: {authorization: `bearer ${apiKey}`},
-                body: {
-                    thread: {
-                        range: {
-                            start: {type: "Inline", key: paragraph.key, index: 1},
-                            end: {type: "Inline", key: paragraph.key, index: 0},
+        const response = await server.POST(`/documents/${document.id}/threads`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                thread: {
+                    range: {
+                        start: {type: "Inline", key: paragraph.key, index: 1},
+                        end: {type: "Inline", key: paragraph.key, index: 0},
+                    },
+                    firstMessage: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Comment with file"}],
+                                },
+                            ],
                         },
-                        firstMessage: {
-                            content: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [{type: "Text", text: "Comment with file"}],
-                                    },
-                                ],
-                            },
-                            files: [{element: {type: "File", id: file.id}}],
-                        },
+                        files: [{element: {type: "File", file: {id: file.id}}}],
                     },
                 },
-            }),
-        ).toMatchObject({
-            status: 400,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: {
-                error: expect.objectContaining({
-                    message: expect.stringContaining(
-                        "Item target range start must be before the end",
-                    ),
-                }),
             },
         });
 
-        await expect(
-            getFileFromAttachment(
-                space.systemAction(),
-                file.id,
-                FileDocumentAuthorizer.bind({
-                    type: "DocumentComments",
-                    documentId: document.id,
-                }),
-                {consistency: "Strong"},
-            ),
-        ).rejects.toThrow("File isn\u2019t attached to target");
-    });
+        const attachedFile = await getFileFromAttachment(
+            space.systemAction(),
+            file.id,
+            FileDocumentAuthorizer.bind({
+                type: "DocumentComments",
+                documentId: document.id,
+            }),
+            {consistency: "Strong"},
+        );
 
-    test("returns collaboration service range validation errors as a 400", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-
-        const bot = await TestBot.createAndInstantiate(session);
-        const document = await TestDocument.create(session);
-        await document.type(session, "Hello");
-
-        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
-        const paragraph = await getFirstParagraphFromApiDocument({
-            documentId: document.id,
-            apiKey,
-        });
-
-        createCommentThreadForApiResponseOverrideForTest = () =>
-            DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.serialize({
-                ok: false,
-                error: new InvalidArgumentError("Item target range start must be before the end", {
-                    displayMessage: errorDisplayMessage`Item target range start must be before the end.`,
-                }),
-            });
-
-        expect(
-            await server.POST(`/documents/${document.id}/threads`, {
-                headers: {authorization: `bearer ${apiKey}`},
+        expect({response, attachedFile}).toMatchObject({
+            response: {
+                status: 400,
                 body: {
-                    thread: {
-                        range: {
-                            start: {type: "Inline", key: paragraph.key, index: 0},
-                            end: {type: "Inline", key: paragraph.key, index: 4},
-                        },
-                        firstMessage: {
-                            content: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [{type: "Text", text: "Comment"}],
-                                    },
-                                ],
-                            },
-                        },
+                    error: {
+                        message:
+                            "Range start position is greater than range end position. Try again but swap the order of the start/end positions.",
                     },
                 },
-            }),
-        ).toMatchObject({
-            status: 400,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: {
-                error: expect.objectContaining({
-                    message: expect.stringContaining(
-                        "Item target range start must be before the end",
-                    ),
-                }),
             },
+            attachedFile: {id: file.id},
         });
     });
 
@@ -2284,7 +2194,7 @@ describe("comment threads", () => {
 
         let fileElement = null;
         for (const element of getDocumentResponse.body.document.content.elements) {
-            if (element.type === "File" && element.id === file.id) {
+            if (element.type === "File" && element.file.id === file.id) {
                 fileElement = element;
                 break;
             }
@@ -2352,7 +2262,7 @@ describe("comment threads", () => {
                 thread: {
                     range: {
                         start: {type: "Inline", key: staleParagraph.key, index: 0},
-                        end: {type: "Inline", key: staleParagraph.key, index: 4},
+                        end: {type: "Inline", key: staleParagraph.key, index: 5},
                     },
                     firstMessage: {
                         content: {
@@ -2389,7 +2299,7 @@ describe("comment threads", () => {
         );
     });
 
-    test("trims whitespace from a document comment range", async () => {
+    test("preserves whitespace in a document comment range", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -2435,13 +2345,12 @@ describe("comment threads", () => {
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
                     schema.node("paragraph", {}, [
-                        schema.text("  "),
-                        schema.text("hello", [
+                        schema.text("  hello ", [
                             schema.mark("comment", {
                                 commentThreadId: createdCommentThreadId,
                             }),
                         ]),
-                        schema.text("  "),
+                        schema.text(" "),
                     ]),
                 ])
                 .toJSON(),
@@ -2497,7 +2406,7 @@ describe("comment threads", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringContaining("same item version"),
+                    message: expect.stringContaining("different document versions"),
                 }),
             },
         });
@@ -2550,7 +2459,7 @@ describe("comment threads", () => {
         });
     });
 
-    test("rejects whitespace-only document comment ranges", async () => {
+    test("creates document comments on whitespace-only ranges", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -2565,34 +2474,53 @@ describe("comment threads", () => {
             apiKey,
         });
 
-        expect(
-            await server.POST(`/documents/${document.id}/threads`, {
-                headers: {authorization: `bearer ${apiKey}`},
-                body: {
-                    thread: {
-                        range: {
-                            start: {type: "Inline", key: paragraph.key, index: 0},
-                            end: {type: "Inline", key: paragraph.key, index: 1},
-                        },
-                        firstMessage: {
-                            content: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [{type: "Text", text: "whitespace comment"}],
-                                    },
-                                ],
-                            },
+        const response = await server.POST(`/documents/${document.id}/threads`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                thread: {
+                    range: {
+                        start: {type: "Inline", key: paragraph.key, index: 0},
+                        end: {type: "Inline", key: paragraph.key, index: 1},
+                    },
+                    firstMessage: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "whitespace comment"}],
+                                },
+                            ],
                         },
                     },
                 },
-            }),
-        ).toMatchObject({
-            status: 400,
-            body: {
-                error: expect.objectContaining({
-                    message: expect.stringContaining("non-space character"),
-                }),
+            },
+        });
+
+        expect({
+            response,
+            content: (await document.get()).content.doc.toJSON(),
+        }).toMatchObject({
+            response: {status: 200},
+            content: {
+                content: [
+                    {},
+                    {
+                        content: [
+                            {
+                                text: " ",
+                                marks: [
+                                    {
+                                        type: "comment",
+                                        attrs: {
+                                            commentThreadId: response.body.thread.id,
+                                        },
+                                    },
+                                ],
+                            },
+                            {text: " hello"},
+                        ],
+                    },
+                ],
             },
         });
     });
@@ -2612,35 +2540,83 @@ describe("comment threads", () => {
             apiKey,
         });
 
-        expect(
-            await server.POST(`/documents/${document.id}/threads`, {
-                headers: {authorization: `bearer ${apiKey}`},
-                body: {
-                    thread: {
-                        range: {
-                            start: {type: "Inline", key: paragraph.key, index: 2},
-                            end: {type: "Inline", key: paragraph.key, index: 1},
-                        },
-                        firstMessage: {
-                            content: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [{type: "Text", text: "collapsed range comment"}],
-                                    },
-                                ],
-                            },
+        const response = await server.POST(`/documents/${document.id}/threads`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                thread: {
+                    range: {
+                        start: {type: "Inline", key: paragraph.key, index: 2},
+                        end: {type: "Inline", key: paragraph.key, index: 1},
+                    },
+                    firstMessage: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "collapsed range comment"}],
+                                },
+                            ],
                         },
                     },
                 },
-            }),
-        ).toEqual({
+            },
+        });
+
+        expect(response).toMatchObject({
             status: 400,
-            headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
-                error: expect.objectContaining({
-                    message: expect.stringContaining("start must be before the end"),
-                }),
+                error: {
+                    message:
+                        "Range start position is greater than range end position. Try again but swap the order of the start/end positions.",
+                },
+            },
+        });
+    });
+
+    test("rejects empty document comment target ranges", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const document = await TestDocument.create(session);
+        await document.type(session, "Hello");
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
+
+        const paragraph = await getFirstParagraphFromApiDocument({
+            documentId: document.id,
+            apiKey,
+        });
+
+        const response = await server.POST(`/documents/${document.id}/threads`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                thread: {
+                    range: {
+                        start: {type: "Inline", key: paragraph.key, index: 1},
+                        end: {type: "Inline", key: paragraph.key, index: 1},
+                    },
+                    firstMessage: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "empty range comment"}],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: {
+                    message:
+                        "Range is empty because the start position is equal to the range end position. Try again but with a non-empty range.",
+                },
             },
         });
     });
@@ -2721,8 +2697,9 @@ describe("comment threads", () => {
             apiKey,
         });
 
-        expect(paragraph.elements[0]!.type).toBe("Mention");
-        expect(paragraph.elements[0]!.title!.length).toBeGreaterThan(2);
+        const firstElement = paragraph.elements[0]!;
+        assert(firstElement.type === "Mention");
+        expect(firstElement.reference.title.length).toBeGreaterThan(2);
 
         const createThreadResponse = await server.POST(`/documents/${document.id}/threads`, {
             headers: {authorization: `bearer ${apiKey}`},
@@ -2730,7 +2707,7 @@ describe("comment threads", () => {
                 thread: {
                     range: {
                         start: {type: "Inline", key: paragraph.key, index: 0},
-                        end: {type: "Inline", key: paragraph.key, index: 0},
+                        end: {type: "Inline", key: paragraph.key, index: 1},
                     },
                     firstMessage: {
                         content: {
@@ -2780,6 +2757,93 @@ describe("comment threads", () => {
 });
 
 describe("PATCH /documents/{id}", () => {
+    test("rejects more than one SetTitle patch with a helpful message", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const document = await TestDocument.create(session);
+
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {type: "SetTitle", version: 0, title: "First title"},
+                    {type: "SetTitle", version: 0, title: "Second title"},
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "You can only include one `SetTitle` patch when updating a document",
+                    ),
+                }),
+            },
+        });
+    });
+
+    test("rejects more than one SetContent patch with a helpful message", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const document = await TestDocument.create(session);
+
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {type: "SetContent", version: 0, content: {elements: []}},
+                    {type: "SetContent", version: 0, content: {elements: []}},
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "You can only include one `SetContent` patch when updating a document",
+                    ),
+                }),
+            },
+        });
+    });
+
+    test("rejects title and content patches with different versions", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const document = await TestDocument.create(session);
+
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {type: "SetTitle", version: 0, title: "Updated title"},
+                    {type: "SetContent", version: 1, content: {elements: []}},
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "the `SetTitle` and `SetContent` patches must use the same `version`",
+                    ),
+                }),
+            },
+        });
+    });
+
     test("no-op PATCH returns the unchanged document", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -2795,18 +2859,20 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "No-op Test",
-                    version: await document.getVersion(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Stable content."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: await document.getVersion(),
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Stable content."}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
 
@@ -2848,18 +2914,20 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Updated Test",
-                    version: await document.getVersion(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Updated content."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: await document.getVersion(),
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated content."}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
 
@@ -2900,25 +2968,27 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Keyed Input Test",
-                    version: await document.getVersion(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Heading",
-                                key: "client-heading-key",
-                                level: 2,
-                                elements: [{type: "Text", text: "Updated heading"}],
-                            },
-                            {
-                                type: "Paragraph",
-                                key: "client-paragraph-key",
-                                elements: [{type: "Text", text: "Updated body."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: await document.getVersion(),
+                        content: {
+                            elements: [
+                                {
+                                    type: "Heading",
+                                    key: "client-heading-key",
+                                    level: 2,
+                                    elements: [{type: "Text", text: "Updated heading"}],
+                                },
+                                {
+                                    type: "Paragraph",
+                                    key: "client-paragraph-key",
+                                    elements: [{type: "Text", text: "Updated body."}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
 
@@ -2962,18 +3032,13 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Renamed Via API",
-                    version: await document.getVersion(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Body stays the same."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetTitle",
+                        title: "Renamed Via API",
+                        version: await document.getVersion(),
                     },
-                },
+                ],
             },
         });
 
@@ -3005,18 +3070,13 @@ describe("PATCH /documents/{id}", () => {
         const patchResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Renamed Title",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Original body."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetTitle",
+                        title: "Renamed Title",
+                        version: previousVersion,
                     },
-                },
+                ],
             },
         });
         const getResponse = await server.GET(`/documents/${document.id}`, {
@@ -3087,35 +3147,32 @@ describe("PATCH /documents/{id}", () => {
         const concurrentTitleResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Concurrent Title",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Original body."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetTitle",
+                        title: "Concurrent Title",
+                        version: previousVersion,
                     },
-                },
+                ],
             },
         });
         const staleBodyResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Original Title",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Updated body."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: previousVersion,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated body."}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
 
@@ -3157,35 +3214,39 @@ describe("PATCH /documents/{id}", () => {
         const concurrentBodyResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Body Rebase",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Alpha Beta"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: previousVersion,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Alpha Beta"}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
         const staleBodyResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Body Rebase",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Start Alpha"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: previousVersion,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Start Alpha"}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
 
@@ -3233,18 +3294,13 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Renamed Across Snapshot",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Base"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetTitle",
+                        title: "Renamed Across Snapshot",
+                        version: previousVersion,
                     },
-                },
+                ],
             },
         });
 
@@ -3281,18 +3337,25 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "",
-                    version: await document.getVersion(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Updated content."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetTitle",
+                        title: "",
+                        version: await document.getVersion(),
                     },
-                },
+                    {
+                        type: "SetContent",
+                        version: await document.getVersion(),
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated content."}],
+                                },
+                            ],
+                        },
+                    },
+                ],
             },
         });
 
@@ -3335,9 +3398,11 @@ test("can read document with file attachment", async () => {
                         expect.objectContaining({
                             type: "File",
                             key: expect.any(String),
-                            id: file.id,
-                            contentType: "image/png",
-                            contentLength: 5232,
+                            file: {
+                                id: file.id,
+                                contentType: "image/png",
+                                contentLength: 5232,
+                            },
                         }),
                     ]),
                 }),
@@ -3375,7 +3440,7 @@ test("can create document comment with file attachments", async () => {
                         },
                     ],
                 },
-                files: [{element: {type: "File", id: file.id}}],
+                files: [{element: {type: "File", file: {id: file.id}}}],
             },
         },
     );
@@ -3392,9 +3457,11 @@ test("can create document comment with file attachments", async () => {
                             width: 1,
                             element: {
                                 type: "File",
-                                id: file.id,
-                                contentType: expect.any(String),
-                                contentLength: expect.any(Number),
+                                file: {
+                                    id: file.id,
+                                    contentType: expect.any(String),
+                                    contentLength: expect.any(Number),
+                                },
                             },
                         }),
                     ],
@@ -3428,10 +3495,164 @@ test("document comment with invalid file object returns 400", async () => {
                         },
                     ],
                 },
-                files: [{element: {type: "File", id: "not-a-valid-id"}}],
+                files: [{element: {type: "File", file: {id: "not-a-valid-id"}}}],
             },
         },
     );
 
     expect(response).toMatchObject({status: 400});
+});
+
+test("document preview in response", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document1 = await TestDocument.create(session);
+    const document2 = await TestDocument.create(session, {title: "Lorem Ipsum"});
+
+    await document1.update(session, lastUpdatePos => [
+        new ReplaceStep(
+            lastUpdatePos + 1,
+            lastUpdatePos + 1,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: `Document:${document2.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const response = await server.GET(`/documents/${document1.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            document: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "Preview",
+                            reference: {
+                                type: "Document",
+                                id: document2.id,
+                                title: "Lorem Ipsum",
+                            },
+                        }),
+                    ]),
+                }),
+            }),
+        },
+    });
+});
+
+test("untitled document preview in response", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document1 = await TestDocument.create(session);
+    const document2 = await TestDocument.create(session);
+
+    await document1.update(session, lastUpdatePos => [
+        new ReplaceStep(
+            lastUpdatePos + 1,
+            lastUpdatePos + 1,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: `Document:${document2.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const response = await server.GET(`/documents/${document1.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            document: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "Preview",
+                            reference: {
+                                type: "Document",
+                                id: document2.id,
+                                title: "Untitled",
+                            },
+                        }),
+                    ]),
+                }),
+            }),
+        },
+    });
+});
+
+test("private document preview in response", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const otherSession = await space.createSession();
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document1 = await TestDocument.create(session);
+    const document2 = await TestDocument.create(otherSession, {title: "Lorem Ipsum"});
+
+    await document1.update(session, lastUpdatePos => [
+        new ReplaceStep(
+            lastUpdatePos + 1,
+            lastUpdatePos + 1,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: `Document:${document2.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const response = await server.GET(`/documents/${document1.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            document: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "Preview",
+                            reference: {
+                                type: "Document",
+                                id: document2.id,
+                                title: "Private document",
+                            },
+                        }),
+                    ]),
+                }),
+            }),
+        },
+    });
 });

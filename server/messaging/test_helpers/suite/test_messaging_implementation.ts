@@ -2854,7 +2854,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can\u2019t get messages from start when before cursor is greater than after cursor", async () => {
+        test("gets no messages from start when before cursor is greater than after cursor", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -2913,14 +2913,18 @@ export function testMessagingImplementation<RoomKey extends string>(
                 fileIds: [],
             });
 
-            await expect(
-                getMessagesFromStart(context.action(session1), {
+            expect(
+                await getMessagesFromStart(context.action(session1), {
                     roomKey: room.key,
                     limit: 100,
                     afterMessageIndex: 10,
                     beforeMessageIndex: 5,
                 }),
-            ).rejects.toThrow(InternalError);
+            ).toEqual({
+                messageCount: 8,
+                messages: [],
+                otherReferencedMessages: [],
+            });
         });
 
         test("can get empty messages", async () => {
@@ -4699,7 +4703,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can\u2019t get messages from end when before cursor is greater than after cursor", async () => {
+        test("gets no messages from end when before cursor is greater than after cursor", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -4758,14 +4762,18 @@ export function testMessagingImplementation<RoomKey extends string>(
                 fileIds: [],
             });
 
-            await expect(
-                getMessagesFromEnd(context.action(session1), {
+            expect(
+                await getMessagesFromEnd(context.action(session1), {
                     roomKey: room.key,
                     limit: 100,
                     afterMessageIndex: 10,
                     beforeMessageIndex: 5,
                 }),
-            ).rejects.toThrow(InternalError);
+            ).toEqual({
+                messageCount: 8,
+                messages: [],
+                otherReferencedMessages: [],
+            });
         });
 
         test("can get empty messages from end", async () => {

@@ -1076,7 +1076,7 @@ yeah this is us. the 7:55 deploy. rolling it back
 {{hollyMention}} already has 2 in support saying chat isn\u2019t updating. Pulling her in
             `,
             {
-                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}?short)`,
+                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}#short)`,
             },
         ),
         {overrideCreatedTime: new Date("2025-09-03T08:17:00-04:00")},
@@ -1193,7 +1193,7 @@ Also {{elleMention}}, postmortem by Friday. And I want this one to have clear ac
 It\u2019s the second deploy-induced incident this quarter. This can\u2019t happen again.
             `,
             {
-                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}?short)`,
+                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}#short)`,
             },
         ),
         {overrideCreatedTime: new Date("2025-09-03T08:39:00-04:00")},
@@ -1393,7 +1393,7 @@ Demo is at 12:30 so genuinely fine for me, I was being dramatic
 Also lol, the 14k-comments doc is {{mattMention}}\u2019s editor interaction audit. Of course it is
             `,
             {
-                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}#short)`,
             },
         ),
         {overrideCreatedTime: new Date("2025-10-09T11:42:00-04:00")},

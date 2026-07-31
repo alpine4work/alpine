@@ -35,7 +35,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
         [daysAgoAt(days, hour, minute).getTime(), tick] as const;
 
     const mentionUrl = (session: {account: {id: string}}) =>
-        `https://alpine.inc/mention/${session.account.id}?short`;
+        `https://alpine.inc/mention/${session.account.id}#short`;
 
     const [announcementsChannel, engineeringChannel, planningChannel, salesChannel] =
         await runAllPromises([

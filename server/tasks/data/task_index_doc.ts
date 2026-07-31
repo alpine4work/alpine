@@ -52,7 +52,7 @@ import {
     TaskAssigneeStatusSchema,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+import {TaskActorFromSchema} from "~/shared/tasks/task_creator.js";
 import {
     TaskDisplayStatus,
     TaskDisplayStatusIntegerMapping,
@@ -108,7 +108,7 @@ const TaskIndexCreatorType = OpensearchIndexObjectType.new({
         accountId: new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
         workingAccountName: new OpensearchIndexKeywordType({isSortable: true}),
         workingAccountNameVersion: new OpensearchIndexIntegerType({isFilterable: true}),
-        from: new OpensearchIndexIgnoredObjectType(TaskCreatorFromSchema).nullable().default(null),
+        from: new OpensearchIndexIgnoredObjectType(TaskActorFromSchema).nullable().default(null),
     },
 });
 

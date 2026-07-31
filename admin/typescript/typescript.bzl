@@ -23,6 +23,7 @@ def ts_project(
         test_deps = [],
         test_data = [],
         tests = {},
+        all_tests = {},
         visibility = [],
         module = "es6",
         **kwargs):
@@ -43,6 +44,7 @@ def ts_project(
         test_deps: Any dependencies this project needs to run tests.
         test_data: Any data for this project that is only available in tests.
         tests: Provide extra arguments to individual tests. Keyed by test label.
+        all_tests: Provide extra arguments to every test. Use `tests` for individual tests.
         visibility: Controls who may depend on your target.
         module: Do the built JavaScript files use the ES6 or CommonJS module system?
         **kwargs: Arguments that will be forwarded to `ts_project()` from `aspect_rules_ts`.
@@ -134,7 +136,9 @@ def ts_project(
                 js_outs = [test_src_js],
             )
 
-            extra_kwargs = dict(tests[test_name]) if test_name in tests else {}
+            extra_kwargs = dict(all_tests)
+            if test_name in tests:
+                extra_kwargs.update(tests[test_name])
             extra_tags = extra_kwargs.pop("tags", default = [])
             extra_node_options = extra_kwargs.pop("node_options", default = [])
             extra_data = extra_kwargs.pop("data", default = [])

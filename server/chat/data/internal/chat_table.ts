@@ -316,9 +316,14 @@ export const AccountChatsIndex = ChatTable.addIndex({
 const FileChatAuthorizer = FileAuthorizer.new(
     ChatTable,
     "Chat",
-    async (context, target, expectedAccessLevel) =>
+    async (context, target, expectedAccessLevel, options) =>
         mapResult(
-            await authorizeChatAccessIfPossible(context, target.chatId, expectedAccessLevel),
+            await authorizeChatAccessIfPossible(
+                context,
+                target.chatId,
+                expectedAccessLevel,
+                options,
+            ),
             () => {},
         ),
 );

@@ -2056,15 +2056,15 @@ describe("authorizeTaskAccess()", () => {
                 beforeCommentIndex: null,
             });
 
-            expect(getCount()).toEqual(4);
+            expect(getCount()).toEqual(3);
 
             await authorizeTaskAccess(actionContext, task.id, "View");
 
-            expect(getCount()).toEqual(4);
+            expect(getCount()).toEqual(3);
 
             await authorizeTaskAccess(actionContext, task.id, "View");
 
-            expect(getCount()).toEqual(4);
+            expect(getCount()).toEqual(3);
 
             for (let i = 0; i < 5; i++) {
                 await runAllPromises([
@@ -2074,7 +2074,7 @@ describe("authorizeTaskAccess()", () => {
                 ]);
             }
 
-            expect(getCount()).toEqual(4);
+            expect(getCount()).toEqual(3);
         }
     });
 
@@ -2169,15 +2169,15 @@ describe("authorizeTaskAccess()", () => {
                 beforeCommentIndex: null,
             });
 
-            expect(getCount()).toEqual(2);
+            expect(getCount()).toEqual(1);
 
             await authorizeTaskAccess(actionContext, task.id, "View");
 
-            expect(getCount()).toEqual(2);
+            expect(getCount()).toEqual(1);
 
             await authorizeTaskAccess(actionContext, task.id, "View");
 
-            expect(getCount()).toEqual(2);
+            expect(getCount()).toEqual(1);
 
             for (let i = 0; i < 5; i++) {
                 await runAllPromises([
@@ -2187,7 +2187,7 @@ describe("authorizeTaskAccess()", () => {
                 ]);
             }
 
-            expect(getCount()).toEqual(2);
+            expect(getCount()).toEqual(1);
         }
     });
 

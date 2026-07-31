@@ -38,6 +38,32 @@ test("can read account information", async () => {
     });
 });
 
+test("bot account reference includes long title, short name, and bot id", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session, {name: "Release Helper"});
+    const apiKey = await bot.createApiKey(session);
+
+    expect(
+        await server.GET(`/accounts/${bot.id}-reference`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            reference: {
+                type: "Account",
+                id: bot.id,
+                title: "Release Helper",
+                shortName: "Release",
+                bot: {id: bot.bot.id},
+            },
+        },
+    });
+});
+
 test("can\u2019t read account information for non-existent account", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});

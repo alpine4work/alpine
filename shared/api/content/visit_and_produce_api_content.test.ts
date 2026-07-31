@@ -65,7 +65,7 @@ describe("visitAndProduceApiContent", () => {
                     // Replace link with mention
                     (context.elements as Array<ApiContentInlineElement>)[context.index] = {
                         type: "Mention",
-                        target: {type: "Document", id: "doc123" as any},
+                        reference: {type: "Document", id: "doc123" as any},
                     };
                 }
             },
@@ -75,7 +75,7 @@ describe("visitAndProduceApiContent", () => {
             type: "Paragraph",
             elements: [
                 {type: "Text", text: "See "},
-                {type: "Mention", target: {type: "Document", id: "doc123"}},
+                {type: "Mention", reference: {type: "Document", id: "doc123"}},
                 {type: "Text", text: " for details"},
             ],
         });
@@ -120,7 +120,7 @@ describe("visitAndProduceApiContent", () => {
         };
 
         const result = visitAndProduceApiContent(content, {
-            visitInlineElementMark: mark => {
+            visitMark: mark => {
                 if (mark.type === "Bold") {
                     // Change Bold to Italic
                     (mark as any).type = "Italic";
@@ -269,7 +269,7 @@ describe("visitAndProduceApiContent", () => {
                         replacedUrls.push(linkMark.url);
                         (context.elements as Array<ApiContentInlineElement>)[context.index] = {
                             type: "Mention",
-                            target: {type: "Document", id: linkMark.url as any},
+                            reference: {type: "Document", id: linkMark.url as any},
                         };
                     }
                 }
@@ -280,8 +280,8 @@ describe("visitAndProduceApiContent", () => {
         expect(result.elements[0]).toMatchObject({
             type: "Paragraph",
             elements: [
-                {type: "Mention", target: {type: "Document", id: "a.md"}},
-                {type: "Mention", target: {type: "Document", id: "b.md"}},
+                {type: "Mention", reference: {type: "Document", id: "a.md"}},
+                {type: "Mention", reference: {type: "Document", id: "b.md"}},
             ],
         });
     });

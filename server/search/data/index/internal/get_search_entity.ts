@@ -68,8 +68,8 @@ import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -1982,7 +1982,20 @@ async function getPostSearchEntity(
             getFileIfExists: contentReferences.getFileIfExists,
         }),
         titleVersion: {type: "Integers", versions: [post.version, post.channel.version]},
-        body: `in ${post.channel.name}: ${getFullText()}`,
+        // TODO: We should probably index:
+        //
+        // ```
+        // body: getFullText(),
+        // tags: [post.channel.name],
+        // ```
+        //
+        // ...instead. And then on the client, always render a prefix like "Rachel in
+        // Product: ...". Right now there's a bug where if the body match is not in the
+        // start of a post you'll see a search result on the client that looks like "Rachel
+        // but we do need to do ..." (where "but we do need to do" is the body match and
+        // "Rachel " was added because we assumed the body would start with " in Product:"
+        // but the body doesn't start with " in Product:" if the match is near the end).
+        body: `in ${post.channel.name}:\n\n${getFullText()}`,
         tags: emptyArray,
         media: {type: "Account", accountId: post.authorId},
         embeddingChunks: getEmbeddingChunks(),

@@ -14,6 +14,7 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/after_commit_task_action_transaction_event_emitter_for_test.js";
+import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {waitForProcessTaskActionTransactionsForTest} from "~/server/tasks/data/task_context_module.js";
 import {refreshTaskIndexForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
@@ -56,6 +57,7 @@ import {
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {
     TaskRealtimeLoadQueriesInput,
     TaskRealtimeLoadQueriesOutput,
@@ -241,6 +243,56 @@ export class TestTaskRealtimeServer {
             sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
             limit: options?.limit ?? 100,
         });
+
+        return {
+            hasMoreTasks: loadedState.type === "Partial",
+            tasks,
+        };
+    }
+
+    public async expensivelyLoadQueryAfterCursor(
+        session: TestSpaceSession,
+        options?: {
+            filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
+            sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
+            limit?: number;
+            afterCursor?: TaskQuerySortCursor | TaskIndexDoc | null;
+        },
+    ): Promise<{
+        hasMoreTasks: boolean;
+        tasks: Array<TaskIndexDoc>;
+    }> {
+        const evaluationContext: TaskQueryEvaluationContext = {
+            currentAccountId: session.account.id,
+            currentDate: toCalendarDate(
+                parseAbsolute(new Date(testTaskClock.now()[0]).toISOString(), defaultTimeZone),
+            ),
+        };
+
+        const filters = options?.filters
+            ? isReadonlyArray(options.filters)
+                ? normalizeTaskQueryFilters(options.filters, evaluationContext)
+                : ({type: "Possible", normalizedFilters: options.filters} as const)
+            : normalizeTaskQueryFilters([], evaluationContext);
+
+        if (filters.type === "Impossible") return {tasks: [], hasMoreTasks: false};
+
+        const sorts = normalizeTaskQuerySorts(options?.sorts ?? []);
+
+        const {loadedState, tasks} = await this.server.expensivelyLoadQueryAfterCursor(
+            session.space.systemAction(),
+            {
+                spaceId: session.space.id,
+                filters: filters.normalizedFilters,
+                sorts,
+                limit: options?.limit ?? 100,
+                afterCursor: options?.afterCursor
+                    ? isReadonlyArray(options.afterCursor)
+                        ? options.afterCursor
+                        : getTaskQueryNormalizedSortCursorForIndexDoc(sorts, options.afterCursor)
+                    : null,
+            },
+        );
 
         return {
             hasMoreTasks: loadedState.type === "Partial",

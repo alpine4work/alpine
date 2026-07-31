@@ -90,18 +90,18 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 import {
     TaskAction,
     TaskActionSchema,
     TaskUpdateTaskAction,
     getTaskActionLabel,
 } from "~/shared/tasks/actions/task_action.js";
-import {getTaskCollectionCreateActionCreator} from "~/shared/tasks/actions/task_collection_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskActor} from "~/shared/tasks/task_creator.js";
+import {TaskCreator} from "~/shared/tasks/task_creator.js";
 import {
     createTaskCollectionNotFoundError,
     taskCollectionDeletedErrorDisplayMessage,
@@ -136,6 +136,7 @@ export function commitTaskActionTransaction(
     actions: ReadonlyArray<TaskAction>,
     options: {
         clientId?: TaskRealtimeClientId | null;
+        actorId?: AccountId;
         leaseId?: TaskActionTransactionLeaseId;
         createLeaseIfLostAccess?: {
             id: TaskActionTransactionLeaseId;
@@ -153,16 +154,10 @@ export function commitTaskActionTransaction(
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     return context.tracer.withSpan("Commit task action transaction", async (context, span) => {
-        const actionsWithContextActors = addTaskActionActorsFromContext(context, actions);
-        const optionsWithContextActors = addTaskActionTransactionOptionActorsFromContext(
-            context,
-            options,
-        );
-
         span.addData({
             tasks: {
-                actions: actionsWithContextActors.map(getTaskActionLabel).join(","),
-                actionCount: actionsWithContextActors.length,
+                actions: actions.map(getTaskActionLabel).join(","),
+                actionCount: actions.length,
             },
         });
 
@@ -178,8 +173,38 @@ export function commitTaskActionTransaction(
         }
 
         if (
-            optionsWithContextActors.updateAccessPolicyShareNotification &&
-            !actionsWithContextActors.some(
+            options.actorId !== undefined &&
+            context.actor.type !== "Bot" &&
+            options.actorId !== context.actor.getPossiblyBotAccountId()
+        ) {
+            throw new PermissionDeniedError(
+                "Only bots can commit task actions on behalf of other accounts",
+            );
+        }
+
+        if (
+            options.actorId !== undefined &&
+            context.actor.type === "Bot" &&
+            options.actorId !== context.actor.getPossiblyBotAccountId() &&
+            !(await isAccountMemberOfSpace(context, spaceId, options.actorId))
+        ) {
+            const hasTaskAction = actions.some(action => action.type === "UpdateTask");
+            const hasCollectionAction = actions.some(action => action.type === "UpdateCollection");
+
+            throw new PermissionDeniedError(
+                "Unexpected task action transaction actor outside of space",
+                {
+                    displayMessage:
+                        hasTaskAction && !hasCollectionAction
+                            ? errorDisplayMessage`Actor must be a member of the same space the task is in. Try again without an actor or with an actor in the same space as the task.`
+                            : errorDisplayMessage`Actor must be a member of the same space the task collection is in. Try again without an actor or with an actor in the same space as the task collection.`,
+                },
+            );
+        }
+
+        if (
+            options.updateAccessPolicyShareNotification &&
+            !actions.some(
                 action =>
                     (action.type === "UpdateCollection" &&
                         action.collectionAction.type === "UpdateAccessPolicy") ||
@@ -193,12 +218,7 @@ export function commitTaskActionTransaction(
         }
 
         const {actionTransactionItem, extraActions, getRynamoEventsForSite} =
-            await TaskActionTransactionCommitState.commit(
-                context,
-                spaceId,
-                actionsWithContextActors,
-                optionsWithContextActors,
-            );
+            await TaskActionTransactionCommitState.commit(context, spaceId, actions, options);
 
         span.addData({
             tasks: {
@@ -228,8 +248,8 @@ export function commitTaskActionTransaction(
 
         // Send a notification for all collections updated via the `UpdateAccessPolicy`
         // action in this transaction.
-        if (optionsWithContextActors.updateAccessPolicyShareNotification) {
-            for (const action of actionsWithContextActors) {
+        if (options.updateAccessPolicyShareNotification) {
+            for (const action of actions) {
                 let entityId: FileEntityId | null = null;
 
                 if (
@@ -252,23 +272,23 @@ export function commitTaskActionTransaction(
                     spaceId,
                     actorAccountId: context.actor.getPossiblyBotAccountId(),
                     entityId,
-                    notification: optionsWithContextActors.updateAccessPolicyShareNotification,
+                    notification: options.updateAccessPolicyShareNotification,
                 });
             }
         }
 
-        // Try and wait until the transaction is processed before returning to the client.
-        // We only wait up to 100ms then let the transaction processing finish in the
-        // background.
-        //
-        // Given the client only sends one `commitTaskActionTransaction()` request at a
-        // time, this helps reduce conflicts when indexing many sequential actions on the
-        // same task (e.g. from typing in the title). And helps other users connected to
-        // realtime see these actions in the same order they were made.
-        await Promise.race([processPromise.catch(() => {}), wait(100 - (endTime - startTime))]);
-
         if (options.waitForProcessing) {
             await processPromise;
+        } else {
+            // Try and wait until the transaction is processed before returning to the client.
+            // We only wait up to 100ms then let the transaction processing finish in the
+            // background.
+            //
+            // Given the client only sends one `commitTaskActionTransaction()` request at a
+            // time, this helps reduce conflicts when indexing many sequential actions on the
+            // same task (e.g. from typing in the title). And helps other users connected to
+            // realtime see these actions in the same order they were made.
+            await Promise.race([processPromise.catch(() => {}), wait(100 - (endTime - startTime))]);
         }
 
         return {
@@ -276,98 +296,6 @@ export function commitTaskActionTransaction(
             getRynamoEventsForSite,
         };
     });
-}
-
-function addTaskActionTransactionOptionActorsFromContext(
-    context: ServerAccountActionContext,
-    options: {
-        clientId?: TaskRealtimeClientId | null;
-        leaseId?: TaskActionTransactionLeaseId;
-        createLeaseIfLostAccess?: {
-            id: TaskActionTransactionLeaseId;
-            actions: ReadonlyArray<TaskUpdateTaskAction>;
-        };
-        updateAccessPolicyShareNotification?: ShareNotification;
-        extraTransactionEntries?: Array<DynamoTransactionEntry>;
-        consistency?: DynamoCacheReadConsistency;
-        waitForProcessing?: boolean;
-    },
-): typeof options {
-    if (options.createLeaseIfLostAccess === undefined) return options;
-
-    return {
-        ...options,
-        createLeaseIfLostAccess: {
-            ...options.createLeaseIfLostAccess,
-            actions: addTaskActionActorsFromContext(
-                context,
-                options.createLeaseIfLostAccess.actions,
-            ),
-        },
-    };
-}
-
-function addTaskActionActorsFromContext(
-    context: ServerAccountActionContext,
-    actions: ReadonlyArray<TaskUpdateTaskAction>,
-): ReadonlyArray<TaskUpdateTaskAction>;
-function addTaskActionActorsFromContext(
-    context: ServerAccountActionContext,
-    actions: ReadonlyArray<TaskAction>,
-): ReadonlyArray<TaskAction>;
-function addTaskActionActorsFromContext(
-    context: ServerAccountActionContext,
-    actions: ReadonlyArray<TaskAction>,
-): ReadonlyArray<TaskAction> {
-    const actor = getTaskActionActorFromContext(context);
-    if (actor === null) return actions;
-
-    let didAddActor = false;
-    const actionsWithActors = actions.map(action => {
-        switch (action.type) {
-            case "UpdateTask": {
-                if (action.actor !== undefined) return action;
-                didAddActor = true;
-                return {...action, actor};
-            }
-            case "UpdateCollection": {
-                if (action.actor !== undefined) return action;
-                didAddActor = true;
-                return {...action, actor};
-            }
-            case "UpdateAccountName":
-            case "UpdateNotepadPage": {
-                return action;
-            }
-            default:
-                throw exhaustive(action);
-        }
-    });
-
-    return didAddActor ? actionsWithActors : actions;
-}
-
-type TaskActionActorFromContext = {
-    readonly accountId: AccountId;
-    readonly from: null;
-};
-
-function getTaskActionActorFromContext(
-    context: ServerAccountActionContext,
-): TaskActionActorFromContext | null {
-    switch (context.actor.type) {
-        case "Session":
-        case "ImpersonatedAccount": {
-            return {
-                accountId: context.actor.getAccountId(),
-                from: null,
-            };
-        }
-        case "Bot":
-            return null;
-        default:
-            throw exhaustive(context.actor);
-    }
 }
 
 export async function afterCommitTaskActionTransaction(
@@ -457,6 +385,7 @@ class TaskActionTransactionCommitState {
     private readonly _context: ServerAccountActionContext;
     private readonly _spaceId: SpaceId;
     private readonly _leaseId: TaskActionTransactionLeaseId | null;
+    private readonly _providedActorIdFromBot: AccountId;
     private _startTime = Date.now();
 
     // We may only have one DynamoDB transaction entry for each item. So we need to
@@ -517,16 +446,19 @@ class TaskActionTransactionCommitState {
         {
             spaceId,
             leaseId,
+            providedActorIdFromBot,
             consistency = "Eventual",
         }: {
             spaceId: SpaceId;
             leaseId: TaskActionTransactionLeaseId | null;
+            providedActorIdFromBot: AccountId;
             consistency?: DynamoCacheReadConsistency;
         },
     ) {
         this._context = context;
         this._spaceId = spaceId;
         this._leaseId = leaseId;
+        this._providedActorIdFromBot = providedActorIdFromBot;
         this._consistency = consistency;
     }
 
@@ -536,12 +468,14 @@ class TaskActionTransactionCommitState {
         actions: ReadonlyArray<TaskAction>,
         {
             clientId = null,
+            actorId: providedActorIdFromBot = context.actor.getPossiblyBotAccountId(),
             leaseId = null,
             createLeaseIfLostAccess,
             extraTransactionEntries,
             consistency,
         }: {
             clientId?: TaskRealtimeClientId | null;
+            actorId?: AccountId;
             leaseId?: TaskActionTransactionLeaseId | null;
             createLeaseIfLostAccess?: {
                 id: TaskActionTransactionLeaseId;
@@ -604,6 +538,7 @@ class TaskActionTransactionCommitState {
             const state = new TaskActionTransactionCommitState(context, {
                 spaceId,
                 leaseId,
+                providedActorIdFromBot,
                 consistency,
             });
             await state._prepareCommit(actions);
@@ -639,6 +574,7 @@ class TaskActionTransactionCommitState {
                         const testState = new TaskActionTransactionCommitState(context, {
                             spaceId,
                             leaseId: null,
+                            providedActorIdFromBot,
                         });
                         await testState._prepareCommit(createLeaseIfLostAccess.actions);
 
@@ -710,7 +646,6 @@ class TaskActionTransactionCommitState {
 
         const transactionEntries: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
         const extraActions: Array<TaskAction> = [];
-        const actor = getTaskActionActorFromContext(this._context);
 
         for (const transactionEntry of this._transactionEntryByTaskId.values()) {
             switch (transactionEntry.action) {
@@ -746,7 +681,6 @@ class TaskActionTransactionCommitState {
                     type: "UpdateTask",
                     // For our extra action's time, add a tick to the max action time.
                     time: [maxActionTime[0], maxActionTime[1] + 1],
-                    ...(actor === null ? {} : {actor}),
                     taskId: transactionEntry.taskItem.taskId,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -843,7 +777,7 @@ class TaskActionTransactionCommitState {
             actionTransactionId: generateId<TaskActionTransactionId>(),
             actions: [...actions, ...extraActions],
             wasProcessed: false,
-            actorId: this._context.actor.getPossiblyBotAccountId(),
+            actor: this.getCreator(),
             clientId,
         };
 
@@ -891,6 +825,7 @@ class TaskActionTransactionCommitState {
             spaceId: this._spaceId,
             // The forked state does not inherit the lease. It must authorize on its own.
             leaseId: null,
+            providedActorIdFromBot: this._providedActorIdFromBot,
         });
         newState._startTime = this._startTime;
 
@@ -907,6 +842,26 @@ class TaskActionTransactionCommitState {
 
     public getActorAccountId(): AccountId {
         return this._context.actor.getPossiblyBotAccountId();
+    }
+
+    public getCreator(): TaskCreator {
+        const actorIdFromContext = this.getActorAccountId();
+
+        // We throw a `PermissionDeniedError` much earlier if the actor is not a bot and
+        // `actorId` isn't equal to what's in context, but double check once again here
+        // right before committing.
+        assert(
+            this._context.actor.type === "Bot" ||
+                this._providedActorIdFromBot === actorIdFromContext,
+        );
+
+        return {
+            accountId: this._providedActorIdFromBot,
+            from:
+                this._providedActorIdFromBot !== actorIdFromContext
+                    ? {type: "Bot", accountId: actorIdFromContext}
+                    : null,
+        };
     }
 
     public getActorType() {
@@ -951,8 +906,13 @@ class TaskActionTransactionCommitState {
             );
             if (!taskItem) return null;
 
-            if (taskItem.spaceId !== this._spaceId)
-                throw new FailedPreconditionError("Space mismatch");
+            if (taskItem.spaceId !== this._spaceId) {
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    taskItem.spaceId,
+                    this._context.actor.getPossiblyBotAccountId(),
+                    "Member",
+                );
+            }
 
             return taskItem;
         });
@@ -1118,8 +1078,13 @@ class TaskActionTransactionCommitState {
             );
             if (!collectionItem) return null;
 
-            if (collectionItem.spaceId !== this._spaceId)
-                throw new FailedPreconditionError("Space mismatch");
+            if (collectionItem.spaceId !== this._spaceId) {
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    collectionItem.spaceId,
+                    this._context.actor.getPossiblyBotAccountId(),
+                    "Member",
+                );
+            }
 
             // If we have an atomic update transaction entry, we need to apply it when the
             // collection is loaded. Since we can't put an entry in `collectionItemById` when
@@ -1417,35 +1382,14 @@ async function actuallyCommitTaskActionTransaction(
 
         switch (action.type) {
             case "UpdateTask": {
-                validateTaskActionActorForServer(state, action.actor, "task action");
-
                 const {taskId, taskAction} = action;
 
                 switch (taskAction.type) {
                     case "Create": {
-                        const creatorId = taskAction.creator.accountId;
-
-                        if (
-                            creatorId !== state.getActorAccountId() &&
-                            state.getActorType() !== "Bot"
-                        ) {
+                        if (!isDeepEqual(taskAction.creator, state.getCreator())) {
                             throw new PermissionDeniedError(
-                                "Only bots can create tasks on behalf of other accounts",
+                                "Task creator must exactly match the task action transaction actor",
                             );
-                        }
-
-                        if (taskAction.creator.from !== null) {
-                            if (state.getActorType() !== "Bot") {
-                                throw new PermissionDeniedError(
-                                    "Only bots can record task bot provenance",
-                                );
-                            }
-
-                            if (taskAction.creator.from.accountId !== state.getActorAccountId()) {
-                                throw new PermissionDeniedError(
-                                    "Task bot provenance must match the acting bot",
-                                );
-                            }
                         }
 
                         const newResolvedAccessPolicy = taskAction.accessPolicy
@@ -1470,11 +1414,7 @@ async function actuallyCommitTaskActionTransaction(
                             sortRangeType: "EssentialAttributes",
                             taskId,
                             spaceId,
-                            // TODO(calebmer, #api): Think about bot "credit". Ideally bots come with an
-                            // initiator. The initiator should get partial credit. For example task created by
-                            // Caleb (with ChatGPT). Counting steps on documents and tasks should be similar.
-                            // "caleb's docs" in search should find docs written by me (with ChatGPT).
-                            creatorId,
+                            creatorId: taskAction.creator.accountId,
                             creatorFrom: taskAction.creator.from,
                             createdTime: action.time,
                             deletedTime: null,
@@ -2402,36 +2342,22 @@ async function actuallyCommitTaskActionTransaction(
                 break;
             }
             case "UpdateCollection": {
-                validateTaskActionActorForServer(state, action.actor, "task collection action");
-
                 const {collectionId, collectionAction} = action;
 
                 switch (collectionAction.type) {
                     case "Create": {
-                        const creator = getTaskCollectionCreateActionCreator(collectionAction);
-                        const creatorId = creator?.accountId ?? state.getActorAccountId();
+                        const {creator} = collectionAction;
 
-                        if (
-                            creatorId !== state.getActorAccountId() &&
-                            state.getActorType() !== "Bot"
-                        ) {
+                        if (!creator) {
                             throw new PermissionDeniedError(
-                                "Only bots can create task collections on behalf of other accounts",
+                                "Task collection creator is required for new task collections",
                             );
                         }
 
-                        if (creator?.from !== null && creator?.from !== undefined) {
-                            if (state.getActorType() !== "Bot") {
-                                throw new PermissionDeniedError(
-                                    "Only bots can record task collection bot provenance",
-                                );
-                            }
-
-                            if (creator.from.accountId !== state.getActorAccountId()) {
-                                throw new PermissionDeniedError(
-                                    "Task collection bot provenance must match the acting bot",
-                                );
-                            }
+                        if (!isDeepEqual(creator, state.getCreator())) {
+                            throw new PermissionDeniedError(
+                                "Task collection creator must exactly match the task action transaction actor",
+                            );
                         }
 
                         const newEffectiveAccessPolicy = await state.validateAccessPolicyUpdate(
@@ -2446,8 +2372,8 @@ async function actuallyCommitTaskActionTransaction(
                             collectionId,
                             spaceId,
                             createdTime: action.time,
-                            creatorId,
-                            creatorFrom: creator?.from ?? null,
+                            creatorId: creator.accountId,
+                            creatorFrom: creator.from,
                             rawDeletedTime: null,
                             rawUndeletedTime: null,
                             name: new LabelStringRegister(collectionAction.name, action.time),
@@ -2473,8 +2399,8 @@ async function actuallyCommitTaskActionTransaction(
                                 type: "TaskCollection",
                                 collectionId,
                                 sharedTime: new Date(action.time[0]),
-                                sharerId: creatorId,
-                                creator: {id: creatorId, from: creator?.from ?? null},
+                                sharerId: creator.accountId,
+                                creator: {id: creator.accountId, from: creator.from},
                                 event: "Created",
                             };
 
@@ -2483,7 +2409,12 @@ async function actuallyCommitTaskActionTransaction(
                             // feed below. This way the creator can quickly find the collection they created
                             // again by opening their feed.
                             context.process.waitUntil(
-                                addFeedAccountCandidateEntry(context, spaceId, creatorId, entry),
+                                addFeedAccountCandidateEntry(
+                                    context,
+                                    spaceId,
+                                    creator.accountId,
+                                    entry,
+                                ),
                             );
 
                             // If we created a public task collection then add a feed candidate entry after 5
@@ -2781,26 +2712,4 @@ function registerSharedTaskFeedCandidateEntry(
             shouldAddImmediately: shouldAddTaskFeedCandidateEntryImmediately(taskItem),
         });
     });
-}
-
-function validateTaskActionActorForServer(
-    state: TaskActionTransactionCommitState,
-    actor: TaskActor | undefined,
-    label: string,
-) {
-    if (actor === undefined) return;
-
-    if (actor.accountId !== state.getActorAccountId() && state.getActorType() !== "Bot") {
-        throw new PermissionDeniedError(`Only bots can record ${label} actors on behalf of others`);
-    }
-
-    if (actor.from === null) return;
-
-    if (state.getActorType() !== "Bot") {
-        throw new PermissionDeniedError(`Only bots can record ${label} bot provenance`);
-    }
-
-    if (actor.from.accountId !== state.getActorAccountId()) {
-        throw new PermissionDeniedError(`${label} bot provenance must match the acting bot`);
-    }
 }

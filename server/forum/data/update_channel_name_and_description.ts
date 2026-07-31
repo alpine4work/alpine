@@ -1,4 +1,5 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeChannelItemAccess} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
@@ -19,10 +20,12 @@ export async function updateChannelNameAndDescription(
         channelId,
         name,
         description,
+        consistency,
     }: {
         channelId: ChannelId;
         name: string;
         description: MessageContent;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     getRynamoEvents: (
@@ -48,6 +51,7 @@ export async function updateChannelNameAndDescription(
 
             return channelItem.update({name, description});
         },
+        {consistency},
     );
 
     assert(spaceId);

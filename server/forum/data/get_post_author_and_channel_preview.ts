@@ -29,7 +29,7 @@ export async function getPostAuthorAndChannelPreviewIfPossible(
     const postItem = await getPostItemForAuthorizationIfExists(context, postId, options);
     if (!postItem) return null;
 
-    const authorPromise = getAccount(context, postItem.spaceId, postItem.authorId, options);
+    const authorPromise = getAccount(context, postItem.spaceId, postItem.author.accountId, options);
     const channelResultPromise = getChannelPreviewIfPossible(context, postItem.channelId, options);
 
     const [, channelResult] = await runAllPromises([

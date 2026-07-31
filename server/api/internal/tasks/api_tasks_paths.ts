@@ -1,28 +1,23 @@
-import {parseDate} from "@internationalized/date";
+import {today} from "@internationalized/date";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
-import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
+import {getFileIdOrFileEntityIdFromApiMessageContentPayloadFile} from "~/server/api/internal/shared/get_file_id_or_file_entity_id_from_api_message_content_payload_file.js";
 import {
     getApiMentionTitleWithStrongConsistency,
     getApiTaskMentionTitleWithStrongConsistency,
-    intoApiContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
-import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
+import {ApiTaskConverter} from "~/server/api/internal/tasks/internal/api_task_converter.js";
+import {commitTaskPatchesFromApi} from "~/server/api/internal/tasks/internal/commit_task_patches_from_api.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
-import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
-import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
-import {getApiTaskCollectionItems} from "~/server/api/internal/tasks/internal/get_api_task_collection_items.js";
 import {getApiTaskNotes} from "~/server/api/internal/tasks/internal/get_api_task_notes.js";
-import {getApiTasksWithoutNotes} from "~/server/api/internal/tasks/internal/get_api_tasks_without_notes.js";
-import {intoApiTask} from "~/server/api/internal/tasks/internal/into_api_task.js";
-import {intoApiTaskLayout} from "~/server/api/internal/tasks/internal/into_api_task_layout.js";
+import {intoApiTaskCollection} from "~/server/api/internal/tasks/internal/into_api_task_collection.js";
+import {loadTasksFromApiQuery} from "~/server/api/internal/tasks/internal/load_tasks_from_api_query.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
-import {updateTaskWithoutNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
@@ -38,41 +33,30 @@ import {
     putTaskCommentMessageApprovalDecisions,
     putTaskCommentStreamPartAndBroadcastEvent,
 } from "~/server/tasks/data/task_messaging.js";
-import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {fromApiThemeColor} from "~/shared/api/content/from_api_theme_color.js";
-import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
-import {intoApiThemeColor} from "~/shared/api/content/into_api_theme_color.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
+import {fromApiThemeColor} from "~/shared/api/content/closed_source/from_api_theme_color.js";
+import {fromApiTaskQueryFilter} from "~/shared/api/content/closed_source/into_api_task_query_filter.js";
+import {fromApiTaskQuerySort} from "~/shared/api/content/closed_source/into_api_task_query_sort.js";
+import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateId, isId} from "~/shared/id/id.js";
+import {FileId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
-import {
-    TaskNotesContentProsemirrorSchema,
-    assertTaskNotesContent,
-    emptyTaskNotesContent,
-} from "~/shared/tasks/task_notes_content_schema.js";
-import {
-    TaskQueryCollectionsNormalizedFilter,
-    TaskQueryDisplayStatusNormalizedFilter,
-    assertNonEmptyReadonlyMap,
-} from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 
 export const apiTasksPaths: Pick<
     ApiPaths,
@@ -80,114 +64,66 @@ export const apiTasksPaths: Pick<
         ("/task-collections" | `/task-collections/${string}` | "/tasks" | `/tasks/${string}`)
 > = {
     "/tasks": {
-        post: async (context, {requestBody}) => {
+        patch: async (context, {requestBody}) => {
             const spaceId = context.actor.getSpaceId();
-            const {task: taskInput} = requestBody;
-            const consistency = "StrongWithinCache" as const;
-            const title = taskInput.title ?? "";
+            const {actor, patches} = requestBody;
 
-            const notesContent = taskInput.content
-                ? assertTaskNotesContent(
-                      fromApiContent(TaskNotesContentProsemirrorSchema, taskInput.content),
-                  )
-                : undefined;
-
-            const dueDate = taskInput.due ? parseDate(taskInput.due.date) : undefined;
-
-            const taskId = generateId<TaskId>();
-            const accessPolicyPromise = createAccessPolicyForContentCreatedByBot(context, spaceId, {
-                consistency,
-            });
-
-            let accessPolicy: LocalAccessPolicy;
-
-            // Attach files referenced in the content before creating the task so there's no
-            // race where a reader sees the task before its files are attached.
-            //
-            // We intentionally keep file attachment in `api_*_paths.ts` instead of moving it
-            // into `createTaskFromApi()`. Attaching files is adjacent to task creation, but it
-            // is not part of the task write itself, and we've agreed this one-off pre-step
-            // does not need to be atomic with the task transaction.
-            if (taskInput.content) {
-                const fileIds = extractFileIdsFromApiContent(taskInput.content);
-                [accessPolicy] = await runAllPromises([
-                    accessPolicyPromise,
-                    runAllPromises(
-                        [...fileIds].map(fileId =>
-                            attachFileToTargetAsBot(
-                                context,
-                                fileId,
-                                FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
-                            ),
-                        ),
-                    ),
-                ]);
-            } else {
-                accessPolicy = await accessPolicyPromise;
+            if (spaceId !== requestBody.spaceId) {
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    spaceId,
+                    context.actor.getPossiblyBotAccountId(),
+                    "Member",
+                );
             }
 
-            const [task, content] = await runAllPromises([
-                createTaskFromApi(context, {
-                    taskId,
-                    spaceId,
-                    accessPolicy,
-                    creatorId: taskInput.creator?.id,
-                    title,
-                    notesContent,
-                    assigneeId: taskInput.assignee?.id,
-                    status: taskInput.status,
-                    dueDate,
-                    priority: taskInput.priority,
-                    layout: taskInput.layout ? fromApiTaskLayout(taskInput.layout) : undefined,
-                    parentTaskId: taskInput.parent?.task.id,
-                    collectionIds: taskInput.collections?.map(item => item.collection.id),
-                }),
-                intoApiContentWithReferences(
-                    context,
-                    spaceId,
-                    FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
-                    notesContent ?? emptyTaskNotesContent,
-                    {
-                        encoder: new ApiContentKeyEncoder({
-                            entityId: `Task:${taskId}`,
-                            version: 0,
-                        }),
-                    },
-                ),
-            ]);
-
-            const assigneeId = task.assigneeId;
-            const apiAssignee =
-                assigneeId !== undefined
-                    ? await getApiAccount(context, spaceId, assigneeId, {
-                          consistency: "StrongWithinCache",
-                      })
-                    : undefined;
-
-            const collections = await getApiTaskCollectionItems(
-                context,
+            const {tasks, updateEvent, results} = await commitTaskPatchesFromApi(context, {
                 spaceId,
-                task.collectionIds,
-            );
+                actorId: actor?.id ?? null,
+                patches,
+            });
+
+            const converter = new ApiTaskConverter(updateEvent);
+
+            return {
+                content: {
+                    spaceId,
+                    tasks: tasks.map(task => converter.into(task)),
+                    results,
+                },
+            };
+        },
+
+        post: async (context, {requestBody}) => {
+            const spaceId = context.actor.getSpaceId();
+
+            if (spaceId !== requestBody.spaceId) {
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    spaceId,
+                    context.actor.getPossiblyBotAccountId(),
+                    "Member",
+                );
+            }
+
+            const {tasks, updateEvent} = await commitTaskPatchesFromApi(context, {
+                spaceId,
+                actorId: requestBody.task.creator?.id ?? null,
+                patches: [{type: "Create", task: requestBody.task}],
+            });
+
+            const task = assertExists(tasks[0]);
+
+            // Read the notes back so the response includes the initial notes content committed
+            // with the task.
+            const {notes} = await getApiTaskNotes(context, task.id, {
+                consistency: "StrongWithinCache",
+            });
 
             return {
                 content: {
                     spaceId,
                     task: {
-                        id: task.id,
-                        creator: {id: task.creatorId},
-                        status: task.status,
-                        title: task.title,
-                        assignee: apiAssignee ?? undefined,
-                        due: task.dueDate ? {date: task.dueDate.toString()} : undefined,
-                        priority: task.priority,
-                        layout: intoApiTaskLayout(task.layout),
-                        parent: task.parentTaskId ? {task: {id: task.parentTaskId}} : undefined,
-                        collections,
-                        notes: {
-                            version: 0,
-                            content,
-                        },
+                        ...new ApiTaskConverter(updateEvent).into(task),
+                        notes,
                     },
                 },
             };
@@ -197,38 +133,68 @@ export const apiTasksPaths: Pick<
     "/tasks/{id}": {
         patch: async (context, {pathParameters, requestBody}) => {
             const spaceId = context.actor.getSpaceId();
-            const consistency = "StrongWithinCache" as const;
             const taskId = pathParameters.id;
 
-            const [task, {notes}] = await runAllPromises([
-                updateTaskWithoutNotesFromApi(context, {
-                    spaceId,
-                    taskId,
-                    actorId: requestBody.actor?.id,
-                    patches: requestBody.patches,
-                }),
-                getApiTaskNotes(context, taskId, {consistency}),
-            ]);
+            const {tasks, updateEvent, results} = await commitTaskPatchesFromApi(context, {
+                spaceId,
+                actorId: requestBody.actor?.id ?? null,
+                patches: requestBody.patches.map(patch => ({
+                    type: "Update",
+                    id: taskId,
+                    patch,
+                })),
+            });
 
             return {
                 content: {
                     spaceId,
-                    task: await intoApiTask(context, task, notes),
+                    task: new ApiTaskConverter(updateEvent).into(assertExists(tasks[0])),
+                    results: results.map(result => {
+                        assert(result.type === "Update");
+                        return result.result;
+                    }),
                 },
             };
         },
 
         get: async (context, {pathParameters}) => {
-            const [task, {notes}] = await runAllPromises([
+            const spaceId = context.actor.getSpaceId();
+
+            const result = await context.tasks.loadQueries(
+                spaceId,
+                {
+                    queries: [],
+                    taskIds: [pathParameters.id],
+                    collectionIds: [],
+                },
+                {consistency: "StrongWithinCache"},
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    task: new ApiTaskConverter(result.updateEvent).into(pathParameters.id),
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}-with-notes": {
+        get: async (context, {pathParameters}) => {
+            const [result, {notes}] = await runAllPromises([
                 // TODO(calebmer): An optimization that would be pretty nice here is if we move
                 // notes loading into `TaskRealtimeService`. Currently we have to load the data for
                 // bot authorization twice. Once here in `ApiService` and again in
                 // `TaskRealtimeService`. If we pushed task notes loading into
                 // `TaskRealtimeService` then we could leverage `ContextCache` to only load the bot
                 // authorization data once.
-                context.tasks.getTaskWithoutDependencies(
+                context.tasks.loadQueries(
                     context.actor.getSpaceId(),
-                    pathParameters.id,
+                    {
+                        queries: [],
+                        taskIds: [pathParameters.id],
+                        collectionIds: [],
+                    },
                     {consistency: "StrongWithinCache"},
                 ),
                 getApiTaskNotes(context, pathParameters.id, {
@@ -238,8 +204,147 @@ export const apiTasksPaths: Pick<
 
             return {
                 content: {
-                    spaceId: task.getSpaceId(),
-                    task: await intoApiTask(context, task, notes),
+                    spaceId: context.actor.getSpaceId(),
+                    task: {
+                        ...new ApiTaskConverter(result.updateEvent).into(pathParameters.id),
+                        notes,
+                    },
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}/subtasks": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const taskId = pathParameters.id;
+
+            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Children",
+                    taskId,
+                    limit: queryParameters.limit ?? 10,
+                    evaluationContext: {
+                        currentAccountId: null,
+                        currentDate: today(defaultTimeZone),
+                    },
+                    expensivelyAfterCursorForApi: queryParameters.cursor,
+                },
+                taskIds: [taskId],
+                collectionIds: [],
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    task: new ApiTaskConverter(updateEvent).into(taskId),
+                    nextCursor,
+                    tasks,
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}/subtasks-query": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const taskId = pathParameters.id;
+
+            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Children",
+                    taskId,
+                    limit: requestBody.limit ?? 10,
+                    filters: requestBody.filters?.map(fromApiTaskQueryFilter),
+                    sorts: requestBody.sorts?.map(fromApiTaskQuerySort),
+                    evaluationContext: {
+                        currentAccountId: null,
+                        currentDate: today(defaultTimeZone),
+                    },
+                    expensivelyAfterCursorForApi: requestBody.cursor,
+                },
+                taskIds: [taskId],
+                collectionIds: [],
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    task: new ApiTaskConverter(updateEvent).into(taskId),
+                    nextCursor,
+                    tasks,
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}-with-notes/subtasks": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const taskId = pathParameters.id;
+
+            const [{spaceId, updateEvent, nextCursor, tasks}, {notes}] = await runAllPromises([
+                loadTasksFromApiQuery(context, {
+                    query: {
+                        type: "Children",
+                        taskId,
+                        limit: queryParameters.limit ?? 10,
+                        evaluationContext: {
+                            currentAccountId: null,
+                            currentDate: today(defaultTimeZone),
+                        },
+                        expensivelyAfterCursorForApi: queryParameters.cursor,
+                    },
+                    taskIds: [taskId],
+                    collectionIds: [],
+                }),
+                getApiTaskNotes(context, taskId, {consistency: "StrongWithinCache"}),
+            ]);
+
+            return {
+                content: {
+                    spaceId,
+                    task: {
+                        ...new ApiTaskConverter(updateEvent).into(taskId),
+                        notes,
+                    },
+                    nextCursor,
+                    tasks,
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}-with-notes/subtasks-query": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const taskId = pathParameters.id;
+
+            const [{spaceId, updateEvent, nextCursor, tasks}, {notes}] = await runAllPromises([
+                loadTasksFromApiQuery(context, {
+                    query: {
+                        type: "Children",
+                        taskId,
+                        limit: requestBody.limit ?? 10,
+                        filters: requestBody.filters?.map(fromApiTaskQueryFilter),
+                        sorts: requestBody.sorts?.map(fromApiTaskQuerySort),
+                        evaluationContext: {
+                            currentAccountId: null,
+                            currentDate: today(defaultTimeZone),
+                        },
+                        expensivelyAfterCursorForApi: requestBody.cursor,
+                    },
+                    taskIds: [taskId],
+                    collectionIds: [],
+                }),
+                getApiTaskNotes(context, taskId, {consistency: "StrongWithinCache"}),
+            ]);
+
+            return {
+                content: {
+                    spaceId,
+                    task: {
+                        ...new ApiTaskConverter(updateEvent).into(taskId),
+                        notes,
+                    },
+                    nextCursor,
+                    tasks,
                 },
             };
         },
@@ -251,7 +356,7 @@ export const apiTasksPaths: Pick<
 
             const {spaceId, notes} = await updateTaskNotesFromApi(context, {
                 taskId,
-                patch: requestBody.notes,
+                patches: requestBody.patches,
             });
 
             return {
@@ -276,7 +381,7 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/tasks/{id}/mention": {
+    "/tasks/{id}-reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -289,13 +394,11 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "Task",
-                            id: pathParameters.id,
-                            status: intoApiTaskStatus(displayStatus),
-                        },
+                    reference: {
+                        type: "Task",
+                        id: pathParameters.id,
                         title,
+                        status: intoApiTaskStatus(displayStatus),
                     },
                 },
             };
@@ -315,13 +418,17 @@ export const apiTasksPaths: Pick<
                     spaceId: message.spaceId,
                     message: await intoApiMessage(context, {
                         spaceId: message.spaceId,
+                        entityId: `TaskComment:${pathParameters.id}-${pathParameters.index}`,
+                        fileAuthorizer: FileTaskAuthorizer.bind({
+                            type: "TaskComments",
+                            taskId: pathParameters.id,
+                        }),
                         message,
                         intoContentPayloadParent: createIntoApiTaskCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
                         ),
-                        entityId: `TaskComment:${pathParameters.id}-${pathParameters.index}`,
                     }),
                 },
             };
@@ -331,7 +438,7 @@ export const apiTasksPaths: Pick<
     "/tasks/{id}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, commentCount, comments} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getTaskCommentPayloadsFromEnd(context, {
                           taskId: pathParameters.id,
                           limit: queryParameters.limit ?? 10,
@@ -352,7 +459,7 @@ export const apiTasksPaths: Pick<
             if (comments.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstComment = comments[0]!;
                     if (firstComment.index > 0) {
                         nextCursor = firstComment.index;
@@ -378,6 +485,11 @@ export const apiTasksPaths: Pick<
                         comments.map(message =>
                             intoApiMessage(context, {
                                 spaceId,
+                                entityId: `TaskComment:${pathParameters.id}-${message.index}`,
+                                fileAuthorizer: FileTaskAuthorizer.bind({
+                                    type: "TaskComments",
+                                    taskId: pathParameters.id,
+                                }),
                                 message,
                                 intoContentPayloadParent:
                                     createIntoApiTaskCommentContentPayloadParent(
@@ -385,7 +497,6 @@ export const apiTasksPaths: Pick<
                                         spaceId,
                                         pathParameters.id,
                                     ),
-                                entityId: `TaskComment:${pathParameters.id}-${message.index}`,
                             }),
                         ),
                     ),
@@ -400,13 +511,30 @@ export const apiTasksPaths: Pick<
             );
 
             const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
+            const fileIds = (requestBody.files ?? []).map(
+                getFileIdOrFileEntityIdFromApiMessageContentPayloadFile,
+            );
+            const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
+
+            await runAllPromises(
+                attachmentFileIds.map(fileId =>
+                    attachFileToTargetAsBot(
+                        context,
+                        fileId,
+                        FileTaskAuthorizer.bind({
+                            type: "TaskComments",
+                            taskId: pathParameters.id,
+                        }),
+                    ),
+                ),
+            );
 
             const {spaceId, index, createdTime} = await createTaskComment(context, {
                 taskId: pathParameters.id,
                 parent,
                 content,
                 createdTimeZone,
-                fileIds: [],
+                fileIds,
                 isStream: requestBody.isStream,
                 consistency: "StrongWithinCache",
             });
@@ -416,7 +544,7 @@ export const apiTasksPaths: Pick<
                 parent,
                 content,
                 contentUpdate: null,
-                fileIds: [],
+                fileIds,
                 reactionsByPos: emptyMap,
                 filesReactions: emptyReactionSet,
             };
@@ -462,6 +590,11 @@ export const apiTasksPaths: Pick<
                     spaceId,
                     message: await intoApiMessage(context, {
                         spaceId,
+                        entityId: `TaskComment:${pathParameters.id}-${index}`,
+                        fileAuthorizer: FileTaskAuthorizer.bind({
+                            type: "TaskComments",
+                            taskId: pathParameters.id,
+                        }),
                         message: {
                             index,
                             version: 0,
@@ -478,7 +611,6 @@ export const apiTasksPaths: Pick<
                             spaceId,
                             pathParameters.id,
                         ),
-                        entityId: `TaskComment:${pathParameters.id}-${index}`,
                     }),
                 },
             };
@@ -561,7 +693,6 @@ export const apiTasksPaths: Pick<
             const clock = new HybridLogicalClock(unsynchronizedSystemClock);
             const botAccountId = context.actor.getBotAccountId();
             const creatorId = collection.creator?.id ?? botAccountId;
-            const actor = createApiTaskActor({actorId: creatorId, botAccountId});
 
             const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
                 consistency: "StrongWithinCache",
@@ -577,7 +708,13 @@ export const apiTasksPaths: Pick<
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creator: actor,
+                            creator: {
+                                accountId: creatorId,
+                                from:
+                                    creatorId !== botAccountId
+                                        ? {type: "Bot", accountId: botAccountId}
+                                        : null,
+                            },
                             name: collection.name,
                             accessPolicy,
                         },
@@ -587,7 +724,6 @@ export const apiTasksPaths: Pick<
                               {
                                   type: "UpdateCollection" as const,
                                   time: clock.now(),
-                                  actor,
                                   collectionId,
                                   collectionAction: {
                                       type: "UpdateColor" as const,
@@ -599,7 +735,13 @@ export const apiTasksPaths: Pick<
                           ]
                         : []),
                 ],
-                {waitForProcessing: true},
+                {
+                    actorId: creatorId,
+                    // Very important! For the API to have read-after-write consistency we need to wait
+                    // until our actions have been sent to every `TaskRealtimeService`. Then future
+                    // reads against `TaskRealtimeService` will return the data we wrote.
+                    waitForProcessing: true,
+                },
             );
 
             return {
@@ -612,6 +754,7 @@ export const apiTasksPaths: Pick<
                         },
                         name: collection.name,
                         color: collection.color ?? undefined,
+                        defaults: {filters: [], sorts: []},
                     },
                 },
             };
@@ -621,6 +764,7 @@ export const apiTasksPaths: Pick<
     "/task-collections/{id}": {
         patch: async (context, {pathParameters, requestBody}) => {
             const spaceId = context.actor.getSpaceId();
+
             const collection = await updateTaskCollectionFromApi(context, {
                 spaceId,
                 collectionId: pathParameters.id,
@@ -631,13 +775,7 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    collection: {
-                        id: collection.id,
-                        name: collection.getName(),
-                        color: collection.getColor()
-                            ? intoApiThemeColor(collection.getColor()!)
-                            : undefined,
-                    },
+                    collection: await intoApiTaskCollection(context, collection),
                 },
             };
         },
@@ -652,22 +790,13 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId: context.actor.getSpaceId(),
-                    collection: {
-                        id: collection.id,
-                        creator: collection.rawData.creator?.accountId
-                            ? {id: collection.rawData.creator.accountId}
-                            : undefined,
-                        name: collection.getName(),
-                        color: collection.getColor()
-                            ? intoApiThemeColor(collection.getColor()!)
-                            : undefined,
-                    },
+                    collection: await intoApiTaskCollection(context, collection),
                 },
             };
         },
     },
 
-    "/task-collections/{id}/mention": {
+    "/task-collections/{id}-reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -680,12 +809,30 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "TaskCollection",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "TaskCollection",
+                        id: pathParameters.id,
                         title,
+                    },
+                },
+            };
+        },
+    },
+
+    "/task-collections/{id}-preview": {
+        get: async (context, {pathParameters}) => {
+            const spaceId = context.actor.getSpaceId();
+
+            const collection = await context.tasks.getCollection(spaceId, pathParameters.id, {
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    collection: {
+                        id: collection.id,
+                        name: collection.getName(),
                     },
                 },
             };
@@ -694,55 +841,81 @@ export const apiTasksPaths: Pick<
 
     "/task-collections/{id}/tasks": {
         get: async (context, {pathParameters, queryParameters}) => {
-            const limit = queryParameters.limit ?? 10;
             const collectionId = pathParameters.id;
-            const spaceId = context.actor.getSpaceId();
 
-            const statuses = new Set(
-                queryParameters.status && queryParameters.status.length > 0
-                    ? queryParameters.status
-                    : // NOTE(iftizsimmons, 2025-11-05): We'll only showing open tasks by default since
-                      // that is the default behavior in the UI. One day, when users can set default
-                      // filters for a task collection, we should use that filter instead.
-                      ["Open"],
-            );
-
-            const displayStatusFilter = {
-                ifOpenInactive: statuses.has("Open"),
-                ifOpenActive: statuses.has("Open"),
-                ifClosed: statuses.has("Closed"),
-            };
-            assertValidTaskQueryDisplayStatusNormalizedFilter(displayStatusFilter);
-
-            const collectionsFilter: TaskQueryCollectionsNormalizedFilter =
-                assertNonEmptyReadonlyArray([
-                    assertNonEmptyReadonlyMap(new Map([[collectionId, false]])),
-                ]);
-
-            const sort: TaskQueryNormalizedSort = {
-                type: "CollectionPosition",
-                collectionId,
-                direction: "Ascending",
-                missing: "Last",
-            };
-
-            const {tasks, nextCursor} = await getApiTasksWithoutNotes(context, {
-                collectionId,
-                cursor: queryParameters.cursor ?? null,
-                limit,
-                filters: {displayStatusFilter, collectionsFilter},
-                sorts: [sort],
+            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Collection",
+                    limit: queryParameters.limit ?? 10,
+                    collectionId,
+                    evaluationContext: {
+                        currentAccountId: null,
+                        currentDate: today(defaultTimeZone),
+                    },
+                    expensivelyAfterCursorForApi: queryParameters.cursor,
+                },
+                taskIds: [],
+                collectionIds: [collectionId],
             });
 
-            return {
-                content: {spaceId, nextCursor, tasks},
-            };
+            const collection = assertExists(
+                findMapIterable(updateEvent.backfillCollections, backfillCollection =>
+                    backfillCollection.type === "Authorized" &&
+                    backfillCollection.collection.id === collectionId
+                        ? backfillCollection.collection
+                        : undefined,
+                ),
+            );
 
-            function assertValidTaskQueryDisplayStatusNormalizedFilter<
-                T extends Record<string, boolean> = TaskQueryDisplayStatusNormalizedFilter,
-            >(obj: Record<string, boolean>): asserts obj is T {
-                assert(Object.values(obj).some(v => v));
-            }
+            return {
+                content: {
+                    spaceId,
+                    collection: await intoApiTaskCollection(context, collection),
+                    nextCursor,
+                    tasks,
+                },
+            };
+        },
+    },
+
+    "/task-collections/{id}/tasks-query": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const collectionId = pathParameters.id;
+
+            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Collection",
+                    limit: requestBody.limit ?? 10,
+                    collectionId,
+                    evaluationContext: {
+                        currentAccountId: null,
+                        currentDate: today(defaultTimeZone),
+                    },
+                    filters: requestBody.filters?.map(fromApiTaskQueryFilter),
+                    sorts: requestBody.sorts?.map(fromApiTaskQuerySort),
+                    expensivelyAfterCursorForApi: requestBody.cursor,
+                },
+                taskIds: [],
+                collectionIds: [collectionId],
+            });
+
+            const collection = assertExists(
+                findMapIterable(updateEvent.backfillCollections, backfillCollection =>
+                    backfillCollection.type === "Authorized" &&
+                    backfillCollection.collection.id === collectionId
+                        ? backfillCollection.collection
+                        : undefined,
+                ),
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    collection: await intoApiTaskCollection(context, collection),
+                    nextCursor,
+                    tasks,
+                },
+            };
         },
     },
 

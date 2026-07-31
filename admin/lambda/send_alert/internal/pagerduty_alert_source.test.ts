@@ -1,7 +1,7 @@
 import {createHmac} from "crypto";
 import {PagerDutyAlertSource} from "~/admin/lambda/send_alert/internal/pagerduty_alert_source.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/internal/pagerduty_alert_source_types.js";
-import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
 const mockEnv = {

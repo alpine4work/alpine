@@ -1,0 +1,485 @@
+import {
+    AgentWebChatPage,
+    normalizeAgentWebChatPage,
+    parseAgentWebChatPage,
+    printAgentWebChatPage,
+} from "~/server/agents/web/pages/agent_web_chat_page.js";
+import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
+import {
+    ApiAccountReferenceResponse,
+    ApiContentInlineElementResponse,
+    ApiContentParagraphBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
+    ApiContentTextInlineElement,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, BotId, ChatId} from "~/shared/id/types/id_types.js";
+
+const chatId = generateId<ChatId>();
+const paginationChatId = generateId<ChatId>();
+
+function accountReference({
+    name,
+    botId,
+}: {
+    name: string;
+    botId?: BotId;
+}): ApiAccountReferenceResponse {
+    return {
+        type: "Account",
+        id: generateId<AccountId>(),
+        title: name,
+        shortName: name,
+        ...(botId ? {bot: {id: botId}} : {}),
+    };
+}
+
+const aliceReference = accountReference({name: "Alice"});
+const bobReference = accountReference({name: "Bob"});
+const carolReference = accountReference({name: "Carol"});
+const danReference = accountReference({name: "Dan"});
+const assistantReference = accountReference({name: "Assistant", botId: generateId<BotId>()});
+const escapedTeamReference = accountReference({
+    name: `Alice & Bob\u2019s \u201CTeam\u201D`,
+});
+
+function content(
+    elements: ApiContentResponseWithoutKeys["elements"],
+): ApiContentResponseWithoutKeys {
+    return {elements};
+}
+
+function paragraph(
+    elements: ReadonlyArray<ApiContentInlineElementResponse>,
+): ApiContentParagraphBlockElementResponseWithoutKeys {
+    return {type: "Paragraph", elements};
+}
+
+function text(text: string): ApiContentTextInlineElement {
+    return {type: "Text", text};
+}
+
+runAgentWebPageTests<ChatId, AgentWebChatPage>({
+    print: printAgentWebChatPage,
+    parse: parseAgentWebChatPage,
+    normalize: normalizeAgentWebChatPage,
+    tests: [
+        {
+            name: "direct chat with one member",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice).
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceReference]},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "direct chat with one member without period",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice)
+`,
+            printMarkdown: `\
+Chat with [Alice](/human/alice).
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceReference]},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "direct chat with bot member",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Assistant](/bot/assistant).
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [assistantReference]},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "direct chat with two members",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceReference, bobReference]},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "direct chat with two members and oxford comma",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice), and [Bob](/human/bob).
+`,
+            printMarkdown: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceReference, bobReference]},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "direct chat with three members",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice), [Bob](/human/bob), and [Carol](/human/carol).
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceReference, bobReference, carolReference]},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "direct chat with three members without period",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice), [Bob](/human/bob), and [Carol](/human/carol)
+`,
+            printMarkdown: `\
+Chat with [Alice](/human/alice), [Bob](/human/bob), and [Carol](/human/carol).
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceReference, bobReference, carolReference]},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "direct chat with three members without oxford comma",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice), [Bob](/human/bob) and [Carol](/human/carol).
+`,
+            printMarkdown: `\
+Chat with [Alice](/human/alice), [Bob](/human/bob), and [Carol](/human/carol).
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceReference, bobReference, carolReference]},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "direct chat with four members",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice), [Bob](/human/bob), [Carol](/human/carol), and [Dan](/human/dan).
+`,
+            page: {
+                type: "Chat",
+                preamble: {
+                    type: "Direct",
+                    members: [aliceReference, bobReference, carolReference, danReference],
+                },
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "direct chat with escaped member name",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice & Bob\u2019s \u201CTeam\u201D](/human/alice-and-bobs-team).
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [escapedTeamReference]},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "direct chat preamble before message",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message from="[Alice](/human/alice)">
+
+Hello Bob.
+
+</message>
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceReference, bobReference]},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Message",
+                        idAttribute: null,
+                        author: aliceReference,
+                        deletedAttribute: null,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Hello Bob.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "direct chat with previous page pagination link",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice). [Previous page »](/chat/alice?before=3)
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceReference]},
+                pagination: {
+                    pageLink: {
+                        type: "Chat",
+                        id: paginationChatId,
+                        title: "Alice",
+                    },
+                    previousLink: {type: "Message", beforeMessageIndex: 3},
+                    nextLink: null,
+                },
+                isEndOfMessages: false,
+                blocks: [],
+            },
+            createParseError: markdown`
+Error: Can\u2019t add \u201CPrevious page »\u201D link when creating messages markdown. Try again
+without the \u201CPrevious page »\u201D link.
+            `,
+        },
+        {
+            name: "direct chat with next page pagination link",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice). [Next page »](/chat/alice?after=9)
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceReference]},
+                pagination: {
+                    pageLink: {
+                        type: "Chat",
+                        id: paginationChatId,
+                        title: "Alice",
+                    },
+                    previousLink: null,
+                    nextLink: {type: "Message", afterMessageIndex: 9},
+                },
+                isEndOfMessages: false,
+                blocks: [],
+            },
+            createParseError: markdown`
+Error: Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again
+without the \u201CNext page »\u201D link.
+            `,
+        },
+        {
+            name: "room chat",
+            pageLink: chatId,
+            markdown: `\
+# Engineering Room
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Room", name: "Engineering Room"},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "room chat with formatted heading",
+            pageLink: chatId,
+            markdown: `\
+# **Launch** Room
+`,
+            printMarkdown: `\
+# Launch Room
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Room", name: "Launch Room"},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [],
+            },
+        },
+        {
+            name: "room chat preamble before time and message",
+            pageLink: chatId,
+            markdown: `\
+# Engineering Room
+
+<time>May 13, 2026 3:00 PM EDT</time>
+
+<message from="[Alice](/human/alice)">
+
+Room update.
+
+</message>
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Room", name: "Engineering Room"},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Time",
+                        timeContent: "May 13, 2026 3:00 PM EDT",
+                    },
+                    {
+                        type: "Message",
+                        idAttribute: null,
+                        author: aliceReference,
+                        deletedAttribute: null,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Room update.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "room chat with previous page pagination link",
+            pageLink: chatId,
+            markdown: `\
+# Engineering Room
+
+[Previous page »](/chat/engineering-room?before=3)
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Room", name: "Engineering Room"},
+                pagination: {
+                    pageLink: {
+                        type: "Chat",
+                        id: paginationChatId,
+                        title: "Engineering Room",
+                    },
+                    previousLink: {type: "Message", beforeMessageIndex: 3},
+                    nextLink: null,
+                },
+                isEndOfMessages: false,
+                blocks: [],
+            },
+            createParseError: markdown`
+Error: Can\u2019t add \u201CPrevious page »\u201D link when creating messages markdown. Try again
+without the \u201CPrevious page »\u201D link.
+            `,
+        },
+        {
+            name: "room chat with next page pagination link",
+            pageLink: chatId,
+            markdown: `\
+# Engineering Room
+
+[Next page »](/chat/engineering-room?after=9)
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Room", name: "Engineering Room"},
+                pagination: {
+                    pageLink: {
+                        type: "Chat",
+                        id: paginationChatId,
+                        title: "Engineering Room",
+                    },
+                    previousLink: null,
+                    nextLink: {type: "Message", afterMessageIndex: 9},
+                },
+                isEndOfMessages: false,
+                blocks: [],
+            },
+            createParseError: markdown`
+Error: Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again
+without the \u201CNext page »\u201D link.
+            `,
+        },
+        {
+            name: "direct chat with no members",
+            pageLink: chatId,
+            markdown: `\
+Chat with .
+`,
+            parseError: markdown`
+Error: Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g.
+\`Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).\` or for chats with 2+ members
+\`Chat with A, B, and C.\`). Chat markdown for named chat rooms must start with a markdown h1 (e.g.
+\`# My Chat Room\`). Try again with a proper start to chat markdown on line 1.
+            `,
+        },
+        {
+            name: "direct chat with wrong separator",
+            pageLink: chatId,
+            markdown: `\
+Chat with Alice and Bob.
+`,
+            parseError: markdown`
+Error: Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g.
+\`Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).\` or for chats with 2+ members
+\`Chat with A, B, and C.\`). Chat markdown for named chat rooms must start with a markdown h1 (e.g.
+\`# My Chat Room\`). Try again with a proper start to chat markdown on line 1.
+            `,
+        },
+        {
+            name: "direct chat with multiple paragraphs",
+            pageLink: chatId,
+            markdown: `\
+Chat with Alice.
+
+Extra paragraph.
+`,
+            parseError: markdown`
+Error: Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g.
+\`Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).\` or for chats with 2+ members
+\`Chat with A, B, and C.\`). Chat markdown for named chat rooms must start with a markdown h1 (e.g.
+\`# My Chat Room\`). Try again with a proper start to chat markdown on line 1.
+            `,
+        },
+        {
+            name: "room chat with h2 preamble",
+            pageLink: chatId,
+            markdown: `\
+## Engineering Room
+`,
+            parseError: markdown`
+Error: Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g.
+\`Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).\` or for chats with 2+ members
+\`Chat with A, B, and C.\`). Chat markdown for named chat rooms must start with a markdown h1 (e.g.
+\`# My Chat Room\`). Try again with a proper start to chat markdown on line 1.
+            `,
+        },
+    ],
+});

@@ -9,8 +9,11 @@ import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {Color} from "~/shared/design/core/colors.js";
 import {invertColor} from "~/shared/design/core/inverted_colors.js";
-import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
-import {ErrorBase, getErrorCode} from "~/shared/error/error.js";
+import {
+    getErrorDisplayMessage,
+    hasErrorDisplayMessage,
+} from "~/shared/error/default_error_display_message.js";
+import {getErrorCode} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {getErrorOriginalTracerSpan} from "~/shared/error/error_original_tracer_span.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -63,7 +66,7 @@ export function ErrorDisplayMessageRenderer({
     const location = useLocation();
     const navigate = useNavigate();
 
-    const displayMessage = error instanceof ErrorBase ? error.displayMessage : undefined;
+    const displayMessage = getErrorDisplayMessage(error);
 
     const withoutReporting: boolean =
         isObject(error) && error[withoutErrorDisplayMessageRendererReporting] === true;
@@ -129,7 +132,7 @@ export function ErrorDisplayMessageRenderer({
             userSelect="text"
         >
             {prefixMessage && <>{prefixMessage} </>}
-            {(displayMessage ?? defaultErrorDisplayMessage).map((displayMessageSegment, index) => {
+            {displayMessage.map((displayMessageSegment, index) => {
                 switch (displayMessageSegment.type) {
                     // Split error message text into individual words and let any long words wrap onto
                     // multiple lines. For example, a long email address that overflows the current
@@ -200,7 +203,7 @@ export function ErrorDisplayMessageRenderer({
                         throw exhaustive(displayMessageSegment);
                 }
             })}
-            {!displayMessage && (
+            {!hasErrorDisplayMessage(error) && (
                 <>
                     {isSingleLine && " "}
                     <Box

@@ -13,7 +13,7 @@ ts_project(
         ],
     ),
     test_deps = [
-        "//shared/api/markdown",
+        "//shared/api/content",
     ],
     visibility = [
         "//admin/aws:__subpackages__",

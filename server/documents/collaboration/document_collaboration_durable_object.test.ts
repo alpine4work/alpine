@@ -39,7 +39,7 @@ import {getAccount} from "~/server/spaces/get_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {ApiContentPosition} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
@@ -49,6 +49,8 @@ import {
     DocumentCollaborationCreateCommentThreadForApiRequestBodySchema,
     DocumentCollaborationCreateCommentThreadForApiResponseBodySchema,
     DocumentCollaborationProtocol,
+    DocumentCollaborationSetCommentThreadResolvedRequestBodySchema,
+    DocumentCollaborationSetCommentThreadResolvedResponseBodySchema,
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
@@ -137,19 +139,54 @@ async function createDocumentManagerAndEditorConnectionsForTest() {
     return {document, managerConnection, editorConnection};
 }
 
-function createUpdateContentWithDiffRequest({version, text}: {version: number; text: string}) {
+function createUpdateContentWithDiffRequest({
+    version,
+    title,
+    text,
+}: {
+    version: number;
+    title?: string;
+    text?: string;
+}) {
     return new Request("https://cyberworlds.local/update-content-with-diff", {
         method: "POST",
         body: JSON.stringify(
             DocumentCollaborationUpdateContentWithDiffRequestBodySchema.serialize({
                 version,
-                content: [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, text.length > 0 ? [schema.text(text)] : []),
-                ],
+                title,
+                content:
+                    text === undefined
+                        ? undefined
+                        : [
+                              schema.node(
+                                  "paragraph",
+                                  {},
+                                  text.length > 0 ? [schema.text(text)] : [],
+                              ),
+                          ],
             }),
         ),
     });
+}
+
+function createSetCommentThreadResolvedRequest(
+    commentThreadId: DocumentCommentThreadId,
+    resolved: boolean,
+) {
+    return new Request(`https://cyberworlds.local/set-comment-thread-resolved/${commentThreadId}`, {
+        method: "POST",
+        body: JSON.stringify(
+            DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.serialize({
+                resolved,
+            }),
+        ),
+    });
+}
+
+async function readSetCommentThreadResolvedResponse(response: Response) {
+    return DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.deserialize(
+        await response.json(),
+    );
 }
 
 async function readUpdateContentWithDiffResponse(response: Response) {
@@ -6768,7 +6805,7 @@ describe("create-comment-thread-for-api route", () => {
         expect(response).toMatchObject({status: 405});
     });
 
-    test("returns the created thread, document snippet, and initial message", async () => {
+    test("returns the created thread details", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const document = await TestDocument.create(session);
@@ -6784,7 +6821,11 @@ describe("create-comment-thread-for-api route", () => {
         documentBeforeCreate.content.doc.descendants((node, pos) => {
             if (node.type.name !== "paragraph") return;
 
-            paragraphKey = encoder.encode({pos, nodeSize: node.nodeSize});
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
             return false;
         });
         assert(paragraphKey !== null);
@@ -6796,7 +6837,7 @@ describe("create-comment-thread-for-api route", () => {
             createCreateCommentThreadForApiRequest({
                 range: {
                     start: {type: "Inline", key: paragraphKey, index: 0},
-                    end: {type: "Inline", key: paragraphKey, index: 4},
+                    end: {type: "Inline", key: paragraphKey, index: 5},
                 },
                 content: commentContent,
             }),
@@ -6807,7 +6848,7 @@ describe("create-comment-thread-for-api route", () => {
         const responseBody = await readCreateCommentThreadForApiResponse(response);
         expect(responseBody.ok).toBe(true);
         assert(responseBody.ok);
-        const commentThreadId = responseBody.commentThreadId;
+        const commentThreadId = responseBody.commentThread.id;
         const expectedDocumentContent = schema.node(
             "doc",
             {accessPolicy: document.initialAccessPolicy},
@@ -6821,47 +6862,20 @@ describe("create-comment-thread-for-api route", () => {
         );
 
         expect(responseBody).toMatchObject({
-            newVersion: documentBeforeCreate.version + 1,
-            commentThreadId,
+            ok: true,
+            spaceId: space.id,
             commentThread: {
-                spaceId: space.id,
                 id: commentThreadId,
                 createdTime: expect.any(Date),
-                isResolved: false,
-                commentCount: 1,
-                firstCommentAuthorId: session.account.id,
-                fallbackContentSnippet: null,
-            },
-            documentContentSnippet: {
-                node: expect.objectContaining({textContent: "Hello world"}),
-                posOffset: expect.any(Number),
-            },
-            files: [],
-            message: {
-                index: 0,
-                version: 0,
-                createdTime: responseBody.commentThread.createdTime,
-                createdTimeZone: defaultTimeZone,
-                authorId: session.account.id,
-                payload: {
-                    type: "Content",
-                    parent: null,
-                    content: commentContent,
-                    contentUpdate: null,
-                    fileIds: [],
-                    reactionsByPos: emptyMap,
-                    filesReactions: emptyReactionSet,
-                },
-                stream: null,
             },
         });
         expect(massageDocument(await document.get())).toEqual({
-            version: responseBody.newVersion,
+            version: documentBeforeCreate.version + 1,
             content: expectedDocumentContent.toJSON(),
         });
     });
 
-    test("returns a document snippet that does not include the title", async () => {
+    test("creates a comment thread on a target paragraph", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const targetText = "Target paragraph";
@@ -6883,7 +6897,11 @@ describe("create-comment-thread-for-api route", () => {
         documentBeforeCreate.content.doc.descendants((node, pos) => {
             if (node.type.name !== "paragraph" || node.textContent !== targetText) return;
 
-            paragraphKey = encoder.encode({pos, nodeSize: node.nodeSize});
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
             return false;
         });
         assert(paragraphKey !== null);
@@ -6894,21 +6912,33 @@ describe("create-comment-thread-for-api route", () => {
             createCreateCommentThreadForApiRequest({
                 range: {
                     start: {type: "Inline", key: paragraphKey, index: 0},
-                    end: {type: "Inline", key: paragraphKey, index: targetText.length - 1},
+                    end: {type: "Inline", key: paragraphKey, index: targetText.length},
                 },
                 content: createSimpleMessageContent("Initial comment"),
             }),
         );
 
-        expect(await readCreateCommentThreadForApiResponse(response)).toMatchObject({
-            ok: true,
-            documentContentSnippet: {
-                node: expect.objectContaining({textContent: expect.stringContaining(targetText)}),
-            },
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        assert(responseBody.ok);
+
+        const commentedText: Array<string> = [];
+        (await document.get()).content.doc.descendants(node => {
+            if (
+                node.isText &&
+                node.marks.some(
+                    mark =>
+                        mark.type.name === "comment" &&
+                        mark.attrs.commentThreadId === responseBody.commentThread.id,
+                )
+            ) {
+                commentedText.push(node.textContent);
+            }
         });
+
+        expect(commentedText).toEqual(["Target paragraph"]);
     });
 
-    test("rejects a whitespace-only comment range", async () => {
+    test("creates a comment thread on a whitespace-only range", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const document = await TestDocument.create(session);
@@ -6923,7 +6953,11 @@ describe("create-comment-thread-for-api route", () => {
         documentBeforeCreate.content.doc.descendants((node, pos) => {
             if (node.type.name !== "paragraph") return;
 
-            paragraphKey = encoder.encode({pos, nodeSize: node.nodeSize});
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
             return false;
         });
         assert(paragraphKey !== null);
@@ -6940,12 +6974,24 @@ describe("create-comment-thread-for-api route", () => {
             }),
         );
 
-        expect(await readCreateCommentThreadForApiResponse(response)).toMatchObject({
-            ok: false,
-            error: expect.objectContaining({
-                message: "Item target range must include at least one non-space character",
-            }),
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        assert(responseBody.ok);
+
+        const commentedText: Array<string> = [];
+        (await document.get()).content.doc.descendants(node => {
+            if (
+                node.isText &&
+                node.marks.some(
+                    mark =>
+                        mark.type.name === "comment" &&
+                        mark.attrs.commentThreadId === responseBody.commentThread.id,
+                )
+            ) {
+                commentedText.push(node.textContent);
+            }
         });
+
+        expect(commentedText).toEqual([" "]);
     });
 
     test("creates a comment thread on a whole leaf node", async () => {
@@ -6963,7 +7009,11 @@ describe("create-comment-thread-for-api route", () => {
         let fileKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
         documentBeforeCreate.content.doc.descendants((node, pos) => {
             if (node.type.name !== "file") return;
-            fileKey = encoder.encode({pos, nodeSize: node.nodeSize});
+            fileKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
             return false;
         });
         assert(fileKey !== null);
@@ -6980,12 +7030,18 @@ describe("create-comment-thread-for-api route", () => {
             }),
         );
 
-        expect(await readCreateCommentThreadForApiResponse(response)).toMatchObject({
-            ok: true,
-            documentContentSnippet: {
-                node: expect.objectContaining({textContent: ""}),
-            },
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        assert(responseBody.ok);
+
+        let fileCommentThreadId: DocumentCommentThreadId | null = null;
+        (await document.get()).content.doc.descendants(node => {
+            if (node.type.name !== "file") return;
+            fileCommentThreadId =
+                node.marks.find(mark => mark.type.name === "comment")?.attrs.commentThreadId ??
+                null;
         });
+
+        expect(fileCommentThreadId).toBe(responseBody.commentThread.id);
     });
 
     test("creates a comment thread on multiple whole leaf nodes", async () => {
@@ -7024,7 +7080,13 @@ describe("create-comment-thread-for-api route", () => {
         const fileKeys: Array<ReturnType<ApiContentKeyEncoder["encode"]>> = [];
         documentBeforeCreate.content.doc.descendants((node, pos) => {
             if (node.type.name !== "file") return;
-            fileKeys.push(encoder.encode({pos, nodeSize: node.nodeSize}));
+            fileKeys.push(
+                encoder.encode({
+                    pos,
+                    nodeSize: node.nodeSize,
+                    inlineContent: node.inlineContent,
+                }),
+            );
         });
         const firstFileKey = fileKeys[0];
         const lastFileKey = fileKeys[2];
@@ -7054,9 +7116,9 @@ describe("create-comment-thread-for-api route", () => {
         });
 
         expect(commentThreadIds).toEqual([
-            responseBody.commentThreadId,
-            responseBody.commentThreadId,
-            responseBody.commentThreadId,
+            responseBody.commentThread.id,
+            responseBody.commentThread.id,
+            responseBody.commentThread.id,
         ]);
     });
 
@@ -7096,7 +7158,13 @@ describe("create-comment-thread-for-api route", () => {
         const paragraphKeys: Array<ReturnType<ApiContentKeyEncoder["encode"]>> = [];
         documentBeforeCreate.content.doc.descendants((node, pos) => {
             if (node.type.name !== "paragraph") return;
-            paragraphKeys.push(encoder.encode({pos, nodeSize: node.nodeSize}));
+            paragraphKeys.push(
+                encoder.encode({
+                    pos,
+                    nodeSize: node.nodeSize,
+                    inlineContent: node.inlineContent,
+                }),
+            );
         });
         const firstParagraphKey = paragraphKeys[0];
         const lastParagraphKey = paragraphKeys[1];
@@ -7108,7 +7176,7 @@ describe("create-comment-thread-for-api route", () => {
             createCreateCommentThreadForApiRequest({
                 range: {
                     start: {type: "Inline", key: firstParagraphKey, index: 0},
-                    end: {type: "Inline", key: lastParagraphKey, index: "After".length - 1},
+                    end: {type: "Inline", key: lastParagraphKey, index: "After".length},
                 },
                 content: createSimpleMessageContent("Initial comment"),
             }),
@@ -7122,7 +7190,7 @@ describe("create-comment-thread-for-api route", () => {
                 !node.marks.some(
                     mark =>
                         mark.type.name === "comment" &&
-                        mark.attrs.commentThreadId === responseBody.commentThreadId,
+                        mark.attrs.commentThreadId === responseBody.commentThread.id,
                 )
             ) {
                 return;
@@ -7160,7 +7228,11 @@ describe("create-comment-thread-for-api route", () => {
         let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
         documentBeforeCreate.content.doc.descendants((node, pos) => {
             if (node.type.name !== "paragraph") return;
-            paragraphKey = encoder.encode({pos, nodeSize: node.nodeSize});
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
             return false;
         });
         assert(paragraphKey !== null);
@@ -7174,7 +7246,7 @@ describe("create-comment-thread-for-api route", () => {
             createCreateCommentThreadForApiRequest({
                 range: {
                     start: {type: "Inline", key: paragraphKey, index: 0},
-                    end: {type: "Inline", key: paragraphKey, index: 4},
+                    end: {type: "Inline", key: paragraphKey, index: 5},
                 },
                 content: createSimpleMessageContent("Initial comment"),
                 fileIds: [fileId],
@@ -7194,13 +7266,12 @@ describe("create-comment-thread-for-api route", () => {
         expect({responseBody, attachedFile}).toMatchObject({
             responseBody: {
                 ok: true,
-                files: [{id: fileId}],
             },
             attachedFile: {id: fileId},
         });
     });
 
-    test("does not attach valid files when another attachment is invalid", async () => {
+    test("creates a comment without attachments when an attachment is invalid", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -7222,7 +7293,11 @@ describe("create-comment-thread-for-api route", () => {
         let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
         documentBeforeCreate.content.doc.descendants((node, pos) => {
             if (node.type.name !== "paragraph") return;
-            paragraphKey = encoder.encode({pos, nodeSize: node.nodeSize});
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
             return false;
         });
         assert(paragraphKey !== null);
@@ -7236,17 +7311,15 @@ describe("create-comment-thread-for-api route", () => {
             createCreateCommentThreadForApiRequest({
                 range: {
                     start: {type: "Inline", key: paragraphKey, index: 0},
-                    end: {type: "Inline", key: paragraphKey, index: 4},
+                    end: {type: "Inline", key: paragraphKey, index: 5},
                 },
                 content: createSimpleMessageContent("Initial comment"),
                 fileIds: [fileId, generateChronologicalId<FileId>()],
             }),
         );
 
-        expect(await readCreateCommentThreadForApiResponse(response)).toMatchObject({
-            ok: false,
-        });
-        await expect(
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        const attachmentResult = await captureResultPromise(
             getFileFromAttachment(
                 space.systemAction(),
                 fileId,
@@ -7256,10 +7329,18 @@ describe("create-comment-thread-for-api route", () => {
                 }),
                 {consistency: "Strong"},
             ),
-        ).rejects.toThrow("File isn\u2019t attached to target");
+        );
+
+        expect({responseBody, attachmentResult}).toMatchObject({
+            responseBody: {ok: true},
+            attachmentResult: {
+                ok: false,
+                error: {message: "File isn\u2019t attached to target"},
+            },
+        });
     });
 
-    test("does not attach files when target range validation fails", async () => {
+    test("does not attach files when the target range is reversed", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -7281,7 +7362,11 @@ describe("create-comment-thread-for-api route", () => {
         let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
         documentBeforeCreate.content.doc.descendants((node, pos) => {
             if (node.type.name !== "paragraph") return;
-            paragraphKey = encoder.encode({pos, nodeSize: node.nodeSize});
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
             return false;
         });
         assert(paragraphKey !== null);
@@ -7302,13 +7387,8 @@ describe("create-comment-thread-for-api route", () => {
             }),
         );
 
-        expect(await readCreateCommentThreadForApiResponse(response)).toMatchObject({
-            ok: false,
-            error: expect.objectContaining({
-                message: "Item target range start must be before the end",
-            }),
-        });
-        await expect(
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        const attachmentResult = await captureResultPromise(
             getFileFromAttachment(
                 space.systemAction(),
                 fileId,
@@ -7318,7 +7398,63 @@ describe("create-comment-thread-for-api route", () => {
                 }),
                 {consistency: "Strong"},
             ),
-        ).rejects.toThrow("File isn\u2019t attached to target");
+        );
+
+        expect({responseBody, attachmentResult}).toMatchObject({
+            responseBody: {
+                ok: false,
+                error: {
+                    message: "Range start position is greater than range end position",
+                },
+            },
+            attachmentResult: {
+                ok: false,
+                error: {message: "File isn\u2019t attached to target"},
+            },
+        });
+    });
+
+    test("rejects an empty target range", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+        await document.type(session, "Hello world");
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "paragraph") return;
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
+            return false;
+        });
+        assert(paragraphKey !== null);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Inline", key: paragraphKey, index: 1},
+                    end: {type: "Inline", key: paragraphKey, index: 1},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+            }),
+        );
+
+        expect(await readCreateCommentThreadForApiResponse(response)).toMatchObject({
+            ok: false,
+            error: {
+                message: "Range start position is equal to range end position",
+            },
+        });
     });
 
     test("authorizes before validating the target range", async () => {
@@ -7349,7 +7485,11 @@ describe("create-comment-thread-for-api route", () => {
         documentBeforeCreate.content.doc.descendants((node, pos) => {
             if (node.type.name !== "paragraph") return;
 
-            paragraphKey = encoder.encode({pos, nodeSize: node.nodeSize});
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
             return false;
         });
         assert(paragraphKey !== null);
@@ -7373,8 +7513,8 @@ describe("create-comment-thread-for-api route", () => {
     });
 });
 
-describe("update-content-with-diff route", () => {
-    test("updates document content", async () => {
+describe("set-comment-thread-resolved route", () => {
+    test("rejects non-POST requests", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const document = await TestDocument.create(session);
@@ -7382,15 +7522,134 @@ describe("update-content-with-diff route", () => {
         const response = await fetchForTest(
             context.action(session),
             document.id,
-            createUpdateContentWithDiffRequest({version: 0, text: "New notes"}),
+            new Request(
+                `https://cyberworlds.local/set-comment-thread-resolved/${generateId<DocumentCommentThreadId>()}`,
+                {method: "GET"},
+            ),
+        );
+
+        expect({status: response.status, body: await response.text()}).toEqual({
+            status: 405,
+            body: "405 Method Not Allowed",
+        });
+    });
+
+    test("returns a structured error", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createSetCommentThreadResolvedRequest(generateId(), true),
+        );
+
+        expect({
+            status: response.status,
+            body: await readSetCommentThreadResolvedResponse(response),
+        }).toMatchObject({
+            status: 400,
+            body: {ok: false, error: {message: "Document comment thread not found"}},
+        });
+    });
+
+    test("resolves a comment thread before responding", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        const oldVersion = (await document.get()).version;
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createSetCommentThreadResolvedRequest(commentThread.id, true),
+        );
+
+        expect({
+            response: await readSetCommentThreadResolvedResponse(response),
+            commentThread: await commentThread.get(),
+            documentVersion: (await document.get()).version,
+        }).toMatchObject({
+            response: {ok: true},
+            commentThread: {isResolved: true},
+            documentVersion: oldVersion + 1,
+        });
+    });
+
+    test("unresolves a comment thread before responding", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        await commentThread.resolve(session);
+        const oldVersion = (await document.get()).version;
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createSetCommentThreadResolvedRequest(commentThread.id, false),
+        );
+
+        expect({
+            response: await readSetCommentThreadResolvedResponse(response),
+            commentThread: await commentThread.get(),
+            documentVersion: (await document.get()).version,
+        }).toMatchObject({
+            response: {ok: true},
+            commentThread: {isResolved: false},
+            documentVersion: oldVersion + 1,
+        });
+    });
+});
+
+describe("update-content-with-diff route", () => {
+    test("updates the title without replacing document content", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session, {
+            title: "Original title",
+            body: "Original body",
+        });
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createUpdateContentWithDiffRequest({version: 0, title: "Updated title"}),
         );
 
         expect(await readUpdateContentWithDiffResponse(response)).toMatchObject({
             ok: true,
             spaceId: space.id,
             newVersion: 1,
+            newContent: expect.objectContaining({textContent: "Updated titleOriginal body"}),
+        });
+    });
+
+    test("updates document title and content", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createUpdateContentWithDiffRequest({
+                version: 0,
+                title: "New title",
+                text: "New notes",
+            }),
+        );
+
+        expect(await readUpdateContentWithDiffResponse(response)).toMatchObject({
+            ok: true,
+            spaceId: space.id,
+            newVersion: 2,
             newContent: expect.objectContaining({
-                textContent: "New notes",
+                textContent: "New titleNew notes",
             }),
         });
     });

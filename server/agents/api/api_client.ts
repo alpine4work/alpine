@@ -9,12 +9,13 @@ import {
 } from "openapi-typescript-helpers";
 import {
     ApiContent,
-    ApiErrorResponseBody,
-    ApiMentionResponse,
-    ApiMentionTarget,
+    ApiErrorResponse,
+    ApiMentionReference,
+    ApiMentionReferenceResponse,
+    ApiMessageContentPayloadFile,
     ApiMessageContentPayloadParent,
     ApiMessageExperimentalApprovalDecisionValue,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
@@ -69,13 +70,12 @@ export function createApiClient({
 }: {
     baseUrl: string;
     apiKey: string;
-    accessToken: string;
+    accessToken?: string;
 }): ApiClient {
     const routeBySchemaPath = new DefaultMap<string, string>(schemaPath => {
         // Convert path params from the OpenAPI format (`/hello/{name}`) to the format
-        // expected by `fetchWithTracer()` (`/hello/:name`). Right now we only support path
-        // params that are an entire path segment. Paths like `/report.{format}` aren't
-        // currently accepted.
+        // expected by `fetchWithTracer()` (`/hello/:name`). Parameters may have a static
+        // suffix, as in `/tasks/{id}-with-notes`, but must begin their path segment.
         const route = schemaPath
             .split("/")
             .map(pathSegment => {
@@ -84,12 +84,11 @@ export function createApiClient({
                     return pathSegment;
                 }
 
-                assert(pathSegment.endsWith("}"));
-
-                const pathParamName = pathSegment.slice(1, -1);
+                const match = assertExists(pathSegment.match(/^\{([^}]+)\}([^{}]*)$/));
+                const [, pathParamName = "", staticSuffix = ""] = match;
                 assert(isIdentifier(pathParamName));
 
-                return `:${pathParamName}`;
+                return `:${pathParamName}${staticSuffix}`;
             })
             .join("/");
 
@@ -99,19 +98,21 @@ export function createApiClient({
     const apiClient: Client<ApiSpecification.paths> = createClient({
         baseUrl,
         headers: {
-            authorization: `bearer ${apiKey}~${accessToken}`,
+            "Alpine-Version": "2026-07-29",
+            Authorization: `bearer ${apiKey}${accessToken === undefined ? "" : `~${accessToken}`}`,
         },
     });
 
     let currentTracer: TracerBase | null = null;
 
     apiClient.use({
-        onRequest: ({request, schemaPath, options}) => {
+        onRequest: async ({request, schemaPath, options}) => {
             const tracer = assertExists(currentTracer);
             currentTracer = null;
+            const requestBody = request.body === null ? null : await request.arrayBuffer();
 
             // Define the fetch operation
-            return retryWithExponentialBackoff(
+            return await retryWithExponentialBackoff(
                 retry =>
                     fetchWithTracer(
                         tracer,
@@ -121,14 +122,14 @@ export function createApiClient({
                             route: routeBySchemaPath.getOrSetDefault(schemaPath),
                             method: request.method,
                             headers: request.headers,
-                            body: request.body,
+                            body: requestBody,
                             signal: request.signal,
                         },
                         async response => {
                             // If the request failed, then throw an error. We want to mark this span as failed
                             // and we don't want to handle errors inline.
                             if (!response.ok) {
-                                const responseBody: ApiErrorResponseBody = await response.json();
+                                const responseBody: ApiErrorResponse = await response.json();
 
                                 // Our API doesn't share the internal `ErrorCode` we use, so infer an error code
                                 // from the HTTP status code.
@@ -202,7 +203,7 @@ export function createApiClient({
 export function getApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     index: number,
 ) {
     switch (room.type) {
@@ -211,12 +212,12 @@ export function getApiMessage(
                 params: {path: {id: room.id, index}},
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages/{index}", {
                 params: {
                     path: {
-                        id: room.id,
-                        threadId: room.threadId,
+                        id: room.document.id,
+                        threadId: room.id,
                         index,
                     },
                 },
@@ -240,7 +241,7 @@ export function getApiMessage(
 export function getApiMessagesFromStart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     {limit, cursor}: {limit: number; cursor: number | null},
 ) {
     switch (room.type) {
@@ -252,12 +253,12 @@ export function getApiMessagesFromStart(
                 },
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
-                        id: room.id,
-                        threadId: room.threadId,
+                        id: room.document.id,
+                        threadId: room.id,
                     },
                     query: {limit, cursor: cursor ?? undefined},
                 },
@@ -287,7 +288,7 @@ export function getApiMessagesFromStart(
 export function getApiMessagesFromEnd(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     {limit, cursor}: {limit: number; cursor: number | null},
 ) {
     switch (room.type) {
@@ -295,18 +296,18 @@ export function getApiMessagesFromEnd(
             return apiClient.get(tracer, "/chats/{id}/messages", {
                 params: {
                     path: {id: room.id},
-                    query: {limit, cursor: cursor ?? undefined, from: "end"},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
                 },
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
-                        id: room.id,
-                        threadId: room.threadId,
+                        id: room.document.id,
+                        threadId: room.id,
                     },
-                    query: {limit, cursor: cursor ?? undefined, from: "end"},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
                 },
             });
         }
@@ -314,7 +315,7 @@ export function getApiMessagesFromEnd(
             return apiClient.get(tracer, "/posts/{id}/messages", {
                 params: {
                     path: {id: room.id},
-                    query: {limit, cursor: cursor ?? undefined, from: "end"},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
                 },
             });
         }
@@ -322,7 +323,7 @@ export function getApiMessagesFromEnd(
             return apiClient.get(tracer, "/tasks/{id}/messages", {
                 params: {
                     path: {id: room.id},
-                    query: {limit, cursor: cursor ?? undefined, from: "end"},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
                 },
             });
         }
@@ -334,11 +335,12 @@ export function getApiMessagesFromEnd(
 export function createApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     body: {
         isStream?: boolean;
         parent?: ApiMessageContentPayloadParent;
         content: ApiContent;
+        files?: ReadonlyArray<ApiMessageContentPayloadFile>;
         createdTimeZone?: TimeZone;
     },
 ) {
@@ -349,9 +351,9 @@ export function createApiMessage(
                 body,
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.post(tracer, "/documents/{id}/threads/{threadId}/messages", {
-                params: {path: {id: room.id, threadId: room.threadId}},
+                params: {path: {id: room.document.id, threadId: room.id}},
                 body,
             });
         }
@@ -375,7 +377,7 @@ export function createApiMessage(
 export function createApiMessageStreamPart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
     body: {payload: ApiMessageStreamPartPayload},
 ) {
@@ -386,15 +388,15 @@ export function createApiMessageStreamPart(
                 body,
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.post(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts",
                 {
                     params: {
                         path: {
-                            id: room.id,
-                            threadId: room.threadId,
+                            id: room.document.id,
+                            threadId: room.id,
                             index: messageIndex,
                         },
                     },
@@ -426,7 +428,7 @@ export const putApiMessageStreamPartBeforeFetchTestCheckpoint = new TestCheckpoi
 export async function putApiMessageStreamPart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
     partIndex: number,
     body: {payload: ApiMessageStreamPartPayload},
@@ -453,15 +455,15 @@ export async function putApiMessageStreamPart(
                 },
             );
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return await apiClient.put(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}",
                 {
                     params: {
                         path: {
-                            id: room.id,
-                            threadId: room.threadId,
+                            id: room.document.id,
+                            threadId: room.id,
                             index: messageIndex,
                             partIndex,
                         },
@@ -498,7 +500,7 @@ export async function putApiMessageStreamPart(
 export async function patchApiMessageApprovals(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
     decisions: ReadonlyArray<{index: number; value: ApiMessageExperimentalApprovalDecisionValue}>,
 ) {
@@ -523,15 +525,15 @@ export async function patchApiMessageApprovals(
                 },
             );
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return await apiClient.patch(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals",
                 {
                     params: {
                         path: {
-                            id: room.id,
-                            threadId: room.threadId,
+                            id: room.document.id,
+                            threadId: room.id,
                             index: messageIndex,
                         },
                     },
@@ -567,7 +569,7 @@ export async function patchApiMessageApprovals(
 export function getApiMessageApprovals(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
 ) {
     switch (room.type) {
@@ -576,12 +578,14 @@ export function getApiMessageApprovals(
                 params: {path: {id: room.id, index: messageIndex}},
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.get(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals",
                 {
-                    params: {path: {id: room.id, threadId: room.threadId, index: messageIndex}},
+                    params: {
+                        path: {id: room.document.id, threadId: room.id, index: messageIndex},
+                    },
                 },
             );
         }
@@ -603,7 +607,7 @@ export function getApiMessageApprovals(
 export function completeApiMessageStream(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
 ) {
     switch (room.type) {
@@ -612,15 +616,15 @@ export function completeApiMessageStream(
                 params: {path: {id: room.id, index: messageIndex}},
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.put(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/completion",
                 {
                     params: {
                         path: {
-                            id: room.id,
-                            threadId: room.threadId,
+                            id: room.document.id,
+                            threadId: room.id,
                             index: messageIndex,
                         },
                     },
@@ -645,7 +649,7 @@ export function completeApiMessageStream(
 export function pingApiMessageStream(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
 ) {
     switch (room.type) {
@@ -656,15 +660,15 @@ export function pingApiMessageStream(
                 },
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.put(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/ping",
                 {
                     params: {
                         path: {
-                            id: room.id,
-                            threadId: room.threadId,
+                            id: room.document.id,
+                            threadId: room.id,
                             index: messageIndex,
                         },
                     },
@@ -690,53 +694,53 @@ export function pingApiMessageStream(
     }
 }
 
-export function getApiMention(
+export function getApiReference(
     tracer: TracerBase,
     apiClient: ApiClient,
-    target: ApiMentionTarget,
-): Promise<{data: {mention: ApiMentionResponse}}> {
-    switch (target.type) {
+    reference: ApiMentionReference,
+): Promise<{data: {reference: ApiMentionReferenceResponse}}> {
+    switch (reference.type) {
         case "Account": {
-            return apiClient.get(tracer, "/accounts/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/accounts/{id}-reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Document": {
-            return apiClient.get(tracer, "/documents/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/documents/{id}-reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Channel": {
-            return apiClient.get(tracer, "/channels/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/channels/{id}-reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Chat": {
-            return apiClient.get(tracer, "/chats/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/chats/{id}-reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Task":
-            return apiClient.get(tracer, "/tasks/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/tasks/{id}-reference", {
+                params: {path: {id: reference.id}},
             });
         case "TaskCollection": {
-            return apiClient.get(tracer, "/task-collections/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/task-collections/{id}-reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Post": {
-            return apiClient.get(tracer, "/posts/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/posts/{id}-reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Site": {
-            return apiClient.get(tracer, "/sites/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/sites/{id}-reference", {
+                params: {path: {id: reference.id}},
             });
         }
         default: {
-            throw exhaustive(target);
+            throw exhaustive(reference);
         }
     }
 }

@@ -415,7 +415,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     createdTime: post.createdTime,
                     title: "in Test Channel: Test post content",
                     titleVersion: {type: "Integers", versions: [0, 0]},
-                    body: "in Test Channel: Test post content.",
+                    body: "in Test Channel:\n\nTest post content.",
                     tags: [],
                     embeddingChunks: [
                         {

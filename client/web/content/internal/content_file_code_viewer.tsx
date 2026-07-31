@@ -17,7 +17,6 @@ import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {contentStyles, spinAnimationClassName} from "~/client/web/styles/styles.js";
-import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
     codeBlockClassName,
     codeBlockLineClassName,
@@ -27,6 +26,7 @@ import {
 import {spacing} from "~/shared/design/core/spacing.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.js";
 
 export function ContentFileCodeViewer({
     file,

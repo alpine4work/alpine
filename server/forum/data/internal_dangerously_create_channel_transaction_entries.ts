@@ -36,7 +36,7 @@ export function internalDangerouslyCreateChannelTransactionEntries(
                 channelId,
                 spaceId,
                 createdTime,
-                creatorId: ownerAccountId,
+                creator: {accountId: ownerAccountId, from: null},
                 name: channelName,
                 description: channelDescription,
                 accessPolicy: {
