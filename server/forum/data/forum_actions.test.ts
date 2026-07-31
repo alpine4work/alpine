@@ -194,10 +194,7 @@ function textSlice(text: string) {
 }
 
 function expectChannelPostsIndexes(channelPostsIndex: {partitionKey: unknown; cursor: unknown}) {
-    const channelPostsIndexes = new Map([
-        ["ChannelPosts", {partitionKey: expect.any(String), cursor: expect.any(String)}],
-        ["ChannelPosts2", channelPostsIndex],
-    ]);
+    const channelPostsIndexes = new Map([["ChannelPosts2", channelPostsIndex]]);
 
     return channelPostsIndexes;
 }

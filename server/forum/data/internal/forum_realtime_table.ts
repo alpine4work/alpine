@@ -627,21 +627,6 @@ export {FilePostAuthorizer as InternalFilePostAuthorizer};
 // to `addExpensiveFullEventualConsistencyIndex()`) and the read performance
 // sacrifice isn't that bad since most of the time posts will be viewed through
 // home feed or inbox anyway (vs querying a channel).
-ForumRealtimeTable.addEventualConsistencyIndexWithQueryJoin({
-    name: "ChannelPosts",
-    itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
-    partitionKeyAttributes: {
-        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
-    },
-    sortKeyAttributes: {
-        createdTime: DynamoKeyAttributeSchema.date,
-    },
-});
-
-// We use an index with join queries since it reduces write/storage costs (compared
-// to `addExpensiveFullEventualConsistencyIndex()`) and the read performance
-// sacrifice isn't that bad since most of the time posts will be viewed through
-// home feed or inbox anyway (vs querying a channel).
 //
 // We use a strong consistency index so we can query channel posts via the API with
 // strong read-after-write consistency. This increases the cost of writes but

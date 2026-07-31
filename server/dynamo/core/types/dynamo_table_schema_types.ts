@@ -182,18 +182,29 @@ export namespace DynamoTableSchemaTypes {
     export namespace Partition {
         export type ConfigBase = {
             readonly name: string;
+            readonly strongConsistencyIndex?: {
+                readonly itemTypes: ReadonlyArray<StrongConsistencyIndexItemType>;
+            };
             readonly partitionKeyAttributes: KeyAttributes.ConfigBase;
             readonly sortRanges: ReadonlyArray<SortRange.ConfigBase>;
         };
 
         export type Description = {
             readonly id: number;
+            readonly strongConsistencyIndex?: {
+                readonly itemTypes: ReadonlyArray<StrongConsistencyIndexItemType>;
+            };
             readonly partitionKeyAttributeByKey: {
                 readonly [key: string]: DynamoKeyAttributeSchemaDescription;
             };
             readonly sortRangeByType: {
                 readonly [type: string]: SortRange.Description;
             };
+        };
+
+        export type StrongConsistencyIndexItemType = {
+            readonly partitionType: string;
+            readonly sortRangeType: string;
         };
 
         /**

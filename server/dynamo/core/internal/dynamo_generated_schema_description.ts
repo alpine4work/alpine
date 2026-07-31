@@ -11051,6 +11051,14 @@ export const dynamoGeneratedSchemaDescription: {
                 },
                 "ChannelPosts2": {
                     "id": 4,
+                    "strongConsistencyIndex": {
+                        "itemTypes": [
+                            {
+                                "partitionType": "Post",
+                                "sortRangeType": "Attributes"
+                            }
+                        ]
+                    },
                     "partitionKeyAttributeByKey": {
                         "channelId": {
                             "type": "Id"
@@ -11102,34 +11110,7 @@ export const dynamoGeneratedSchemaDescription: {
                     }
                 }
             },
-            "indexes": [
-                {
-                    "projection": "KeysOnly",
-                    "partitionKeyBehavior": {
-                        "type": "Separate"
-                    },
-                    "overloadByName": {
-                        "ChannelPosts": {
-                            "itemTypes": [
-                                {
-                                    "partitionType": "Post",
-                                    "sortRangeType": "Attributes"
-                                }
-                            ],
-                            "partitionKeyAttributeByKey": {
-                                "channelId": {
-                                    "type": "Id"
-                                }
-                            },
-                            "sortKeyAttributeByKey": {
-                                "createdTime": {
-                                    "type": "Date"
-                                }
-                            }
-                        }
-                    }
-                }
-            ]
+            "indexes": []
         },
         "Inbox": {
             "name": "Inbox",

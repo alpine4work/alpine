@@ -3628,6 +3628,7 @@ export class RynamoTableSchema<
 
         this.#table._addPartitionBeforeInitialization({
             name: config.name,
+            strongConsistencyIndex: {itemTypes: config.itemTypes},
             partitionKeyAttributes: indexConfig.partitionKeyAttributes,
             sortRanges: [
                 {

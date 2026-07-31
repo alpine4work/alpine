@@ -1052,10 +1052,6 @@ Resources:
                           Type: double
                         - Name: dynamodb__consumed_capacity__files_index1__write_capacity_units
                           Type: double
-                        - Name: dynamodb__consumed_capacity__forum_realtime_index1__read_capacity_units
-                          Type: double
-                        - Name: dynamodb__consumed_capacity__forum_realtime_index1__write_capacity_units
-                          Type: double
                         - Name: dynamodb__consumed_capacity__inbox_index1__read_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__inbox_index1__write_capacity_units

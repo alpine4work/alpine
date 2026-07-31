@@ -371,6 +371,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
 
         for (const partitionConfig of config.partitions) {
+            assert(
+                !partitionConfig.strongConsistencyIndex,
+                "Strong consistency indexes can only be added by `RynamoTableSchema.addStrongConsistencyIndexWithQueryJoin()`",
+            );
             this.#addPartitionConfig(partitionConfig);
         }
 
@@ -5829,6 +5833,7 @@ function getDynamoTableSchemaPartitionDescriptionByType(
 
             const partitionDescription: DynamoTableSchemaTypes.Partition.Description = {
                 id: partitionId,
+                strongConsistencyIndex: partitionConfig.strongConsistencyIndex,
                 partitionKeyAttributeByKey: mapObjectValues(
                     partitionConfig.partitionKeyAttributes,
                     keyAttribute => keyAttribute.description,
@@ -6089,6 +6094,25 @@ function checkDynamoTableSchemaDescriptionBackwardsCompatibility(
                 lastDescription.partitionByType[partitionType]!,
                 nextPartitionSchemaDescription,
             );
+        } else {
+            if (nextPartitionSchemaDescription.strongConsistencyIndex) {
+                // TODO: We need to add backwards compatibility checking for adding item types and
+                // removing item types. The rule should be you can't add item types for existing
+                // partitions/sort ranges. But if we're also creating the partition/sort range in
+                // this update then it's fine. Similar to the rule here.
+                for (const nextStrongConsistencyIndexItemType of nextPartitionSchemaDescription
+                    .strongConsistencyIndex.itemTypes) {
+                    if (
+                        lastDescription.partitionByType[
+                            nextStrongConsistencyIndexItemType.partitionType
+                        ]?.sortRangeByType[nextStrongConsistencyIndexItemType.sortRangeType]
+                    ) {
+                        throw new InvalidArgumentError(
+                            quote`Strong consistency index ${partitionType} can\u2019t be added to existing items with partition type ${nextStrongConsistencyIndexItemType.partitionType} and sort range type ${nextStrongConsistencyIndexItemType.sortRangeType}`,
+                        );
+                    }
+                }
+            }
         }
     }
 
@@ -6105,6 +6129,10 @@ function checkDynamoTableSchemaDescriptionBackwardsCompatibility(
             for (const [nextIndexOverloadName, nextIndexOverloadDescription] of Object.entries(
                 nextIndexDescription.overloadByName,
             )) {
+                // TODO: We need to add backwards compatibility checking for adding item types and
+                // removing item types. The rule should be you can't add item types for existing
+                // partitions/sort ranges. But if we're also creating the partition/sort range in
+                // this update then it's fine. Similar to the rule here.
                 for (const nextIndexOverloadItemType of nextIndexOverloadDescription.itemTypes) {
                     if (
                         lastDescription.partitionByType[nextIndexOverloadItemType.partitionType]
