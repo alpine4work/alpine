@@ -72,8 +72,22 @@ export const getOurAccountSpaces = defineRpc({
             Schema.object({
                 space: SpaceModel.schema(),
                 inbox: createRynamoItemSchema(InboxModel.schema()).nullable(),
+                isInvitePending: Schema.boolean.default(false),
             }),
         ),
+    },
+});
+
+export const loadSpaceInviteContent = defineRpc({
+    name: "loadSpaceInviteContent",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+    },
+    output: {
+        allAccounts: Schema.array(AccountModel.schema),
+        currentAccount: AccountModel.schema,
+        space: SpaceModel.schema(),
     },
 });
 

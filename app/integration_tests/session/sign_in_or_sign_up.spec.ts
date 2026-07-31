@@ -621,6 +621,100 @@ test("can sign in", async ({browser, page: page1, isMobile}) => {
     await page2.close();
 });
 
+for (const {name, getPath} of [
+    {
+        name: "signed in sign-in invite link opens the pending space invite",
+        getPath: (spaceId: string, emailAddress: string) =>
+            `/auth/sign-in?email=${encodeURIComponent(emailAddress)}&invite=${spaceId}`,
+    },
+    {
+        name: "signed in sign-up invite link opens the pending space invite",
+        getPath: (spaceId: string) => `/auth/sign-up?invite=${spaceId}`,
+    },
+    {
+        name: "signed in direct invite link opens the pending space invite",
+        getPath: (spaceId: string) => `/invite/${spaceId}`,
+    },
+]) {
+    test(name, async ({page, context: browserContext}) => {
+        const currentSpace = await TestSpace.create(context, {name: "Current Space"});
+        const invitedSpace = await TestSpace.create(context, {name: "Invited Space"});
+        const currentSession = await currentSpace.createSession({role: "Owner"});
+        const inviterSession = await invitedSpace.createSession({role: "Owner"});
+        const emailAddress = await currentSession.account.createEmailAddress(
+            `test.${generateId()}@gmail.com`,
+        );
+        await invitedSpace.inviteEmailAddress(inviterSession, emailAddress);
+
+        await services.signIn(browserContext, currentSession);
+        await page.goto(getPath(invitedSpace.id, emailAddress));
+
+        await expectInvitePage(page, invitedSpace.id);
+        await expect(page.getByText("Invited Space", {exact: true})).toBeVisible();
+    });
+}
+
+test("pending invites appear in the space switcher and require a decision", async ({
+    page,
+    context: browserContext,
+    isMobile,
+}) => {
+    const currentSpace = await TestSpace.create(context, {name: "Current Space"});
+    const rejectedSpace = await TestSpace.create(context, {name: "Rejected Space"});
+    const acceptedSpace = await TestSpace.create(context, {name: "Accepted Space"});
+    const currentSession = await currentSpace.createSession({role: "Owner"});
+    const rejectedSpaceInviter = await rejectedSpace.createSession({role: "Owner"});
+    const acceptedSpaceInviter = await acceptedSpace.createSession({role: "Owner"});
+    const emailAddress = await currentSession.account.createEmailAddress(
+        `test.${generateId()}@gmail.com`,
+    );
+    await rejectedSpace.inviteEmailAddress(rejectedSpaceInviter, emailAddress);
+    await acceptedSpace.inviteEmailAddress(acceptedSpaceInviter, emailAddress);
+
+    await services.signIn(browserContext, currentSession);
+    await page.goto(`/home/${currentSpace.id}`);
+
+    async function openSpaceSwitcher() {
+        if (isMobile) {
+            await page.getByLabel("More").click();
+            await page.getByText("Switch", {exact: true}).click();
+        } else {
+            await page.getByLabel("Space").click();
+            await page.getByRole("menuitem", {name: "Switch space"}).hover();
+        }
+    }
+
+    await openSpaceSwitcher();
+    await page.getByText("Rejected Space", {exact: true}).click();
+
+    const rejectedSpaceDialog = page.getByRole("alertdialog", {
+        name: "Join Rejected Space?",
+    });
+    await expect(rejectedSpaceDialog).toBeVisible();
+    await rejectedSpaceDialog.getByRole("link", {name: "Report"}).click();
+    const reportConfirmationDialog = page.getByRole("alertdialog", {
+        name: "Report spam?",
+    });
+    await reportConfirmationDialog.getByRole("button", {name: "Report"}).click();
+    await expect(rejectedSpaceDialog).toBeHidden();
+
+    if (isMobile) {
+        await page.reload();
+    } else {
+        await openSpaceSwitcher();
+    }
+    await expect(page.getByText("Rejected Space", {exact: true})).toBeHidden();
+    await page.getByText("Accepted Space", {exact: true}).click();
+
+    const acceptedSpaceDialog = page.getByRole("alertdialog", {
+        name: "Join Accepted Space?",
+    });
+    await expect(acceptedSpaceDialog).toBeVisible();
+    await acceptedSpaceDialog.getByRole("button", {name: "Join Accepted Space"}).click();
+
+    await expect(page).toHaveURL(new RegExp(`/home/${acceptedSpace.id}(?:\\?|$)`));
+});
+
 test("sign up with document `to` search param redirects to document after accepting invite", async ({
     page,
     isMobile,

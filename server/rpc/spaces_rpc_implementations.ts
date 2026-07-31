@@ -11,6 +11,7 @@ import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.j
 import {getSpaceIfPossible} from "~/server/spaces/get_space.js";
 import {instantiateBotSpaceAccount} from "~/server/spaces/instantiate_bot_space_account.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
+import {loadSpaceInviteContent} from "~/server/spaces/load_space_invite_content.js";
 import {moveSpaceAccountOwnerRole} from "~/server/spaces/move_space_account_owner_role.js";
 import {rejectSpaceAccountInviteAsSpam} from "~/server/spaces/reject_space_account_invite_as_spam.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
@@ -20,6 +21,8 @@ import {updateSpaceName} from "~/server/spaces/update_space_name.js";
 import {updateSpaceThemeColor} from "~/server/spaces/update_space_theme_color.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import * as definitions from "~/shared/rpc/spaces_rpc_definitions.js";
 
@@ -100,20 +103,34 @@ export default implementRpcs(definitions, {
         execute: async unauthenticatedContext => {
             const context = unauthenticatedContext.actor.authorizeSession();
 
-            const {spaceIds} = await getOurAccountSpaceIds(context);
+            const {spaceIds, invitePendingSpaceIds} = await getOurAccountSpaceIds(context);
 
-            const [spaces, inboxes] = await runAllPromises([
+            const [spaceResults, inboxes] = await runAllPromises([
                 runAllPromises(
-                    Array.from(spaceIds, async spaceId => {
-                        // In case we read stale a stale list of `SpaceId`s that includes a space we lost
-                        // access to.
-                        const spaceResult = await getSpaceIfPossible(context, spaceId);
+                    mapIterable(
+                        concatIterables(
+                            mapIterable(spaceIds, spaceId => ({spaceId, isInvitePending: false})),
+                            mapIterable(invitePendingSpaceIds, spaceId => ({
+                                spaceId,
+                                isInvitePending: true,
+                            })),
+                        ),
+                        async ({spaceId, isInvitePending}) => {
+                            // In case we read stale a stale list of `SpaceId`s that includes a space we lost
+                            // access to.
+                            const spaceResult = await getSpaceIfPossible(context, spaceId, {
+                                allowInvitePending: isInvitePending,
+                            });
 
-                        if (!spaceResult) return null;
-                        if (!spaceResult.ok) return null;
+                            if (!spaceResult) return null;
+                            if (!spaceResult.ok) return null;
 
-                        return spaceResult.value;
-                    }),
+                            return {
+                                space: spaceResult.value,
+                                isInvitePending,
+                            };
+                        },
+                    ),
                 ),
                 getOurAccountInboxes(context, spaceIds),
             ]);
@@ -121,13 +138,25 @@ export default implementRpcs(definitions, {
             const inboxBySpaceId = new Map(inboxes.map(inbox => [inbox.model.spaceId, inbox]));
 
             return {
-                spaces: filterMapArray(spaces, space => {
-                    if (!space) return;
+                spaces: filterMapArray(spaceResults, spaceResult => {
+                    if (!spaceResult) return;
 
-                    const inbox = inboxBySpaceId.get(space.id) ?? null;
-                    return {space, inbox};
+                    const inbox = inboxBySpaceId.get(spaceResult.space.id) ?? null;
+
+                    return {
+                        space: spaceResult.space,
+                        inbox,
+                        isInvitePending: spaceResult.isInvitePending,
+                    };
                 }),
             };
+        },
+    },
+
+    loadSpaceInviteContent: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            return await loadSpaceInviteContent(context.actor.authorizeSession(), input.spaceId);
         },
     },
 

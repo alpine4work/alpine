@@ -15,7 +15,6 @@ import {
 import {getSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
 import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
-import {getOurAccountInvitePendingSpaceIds} from "~/server/spaces/get_our_account_invite_pending_space_ids.js";
 import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
 import {getSpace, getSpaceIfPossible} from "~/server/spaces/get_space.js";
@@ -102,10 +101,10 @@ const expectAccountSpaceIds = async (
     session: TestSession,
     expected: {spaceIds: ReadonlySet<SpaceId>; invitePendingSpaceIds: ReadonlySet<SpaceId>},
 ) => {
-    expect((await getOurAccountSpaceIds(session.action())).spaceIds).toEqual(expected.spaceIds);
-    expect(await getOurAccountInvitePendingSpaceIds(session.action())).toEqual(
-        expected.invitePendingSpaceIds,
-    );
+    expect(await getOurAccountSpaceIds(session.action())).toMatchObject({
+        spaceIds: expected.spaceIds,
+        invitePendingSpaceIds: expected.invitePendingSpaceIds,
+    });
 };
 
 test("can not get all accounts for a space we are not in", async () => {

@@ -41,9 +41,10 @@ export async function getSpace(
 export async function getSpaceIfPossible(
     context: ServerActionContext,
     spaceId: SpaceId,
+    options?: {allowInvitePending?: boolean},
 ): Promise<Result<SpaceModel, ErrorBase> | null> {
     const [authorizationResult, spaceItem] = await runAllPromises([
-        authorizeSpaceAccessIfPossible(context, spaceId),
+        authorizeSpaceAccessIfPossible(context, spaceId, "Member", options),
         getSpaceItemIfExists(context, spaceId),
     ]);
 

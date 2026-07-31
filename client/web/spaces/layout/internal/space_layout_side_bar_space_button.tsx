@@ -1,5 +1,5 @@
 import {ArrowsLeftRight, Gear, Plus, Robot, SquaresFour, Users} from "phosphor-react";
-import {useRef} from "react";
+import {useRef, useState} from "react";
 import {useButton} from "react-aria";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -10,18 +10,27 @@ import {OverlayTriggerButtonRef} from "~/client/web/design/overlay_trigger_butto
 import {LoudNotificationBadge} from "~/client/web/inbox/loud_notification_badge.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
+import {SpaceInviteDecisionModal} from "~/client/web/spaces/layout/space_invite_decision_modal.js";
 import {SpaceAvatar} from "~/client/web/spaces/space_avatar.js";
 import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
 import {buttonStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {neverPromise} from "~/shared/helpers/async/never_promise.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {getOurAccountSpaces, loadSpaceInviteContent} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
+import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export function SpaceLayoutSideBarSpaceButton() {
     const {space} = useSpaceContextAndRequireSpaceAccess();
     const rootNavigate = useRootNavigate();
     const context = useAppContext();
     const menuButtonRef = useRef<OverlayTriggerButtonRef>(null);
+
+    const [spaceInviteContent, setSpaceInviteContent] = useState<{
+        space: SpaceModel;
+        allAccounts: ReadonlyArray<AccountModel>;
+        currentAccount: AccountModel;
+    } | null>(null);
 
     const buttonRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton(
@@ -31,7 +40,7 @@ export function SpaceLayoutSideBarSpaceButton() {
         buttonRef,
     );
 
-    return (
+    const spaceMenuButton = (
         <MenuButton
             ref={menuButtonRef}
             placement="right-start"
@@ -95,8 +104,8 @@ export function SpaceLayoutSideBarSpaceButton() {
                             const {spaces: otherSpaces} = await getOurAccountSpaces(context, {});
 
                             const actions = otherSpaces.map(
-                                ({space: otherSpace, inbox}): MenuAction => ({
-                                    isSelected: otherSpace.id === space.id,
+                                ({space: otherSpace, inbox, isInvitePending}): MenuAction => ({
+                                    isSelected: !isInvitePending && otherSpace.id === space.id,
                                     label: otherSpace.name,
                                     labelFontSize: "100",
                                     labelFontStyle: "semi-bold",
@@ -117,8 +126,19 @@ export function SpaceLayoutSideBarSpaceButton() {
                                             )}
                                         </Box>
                                     ),
-                                    pressErrorTitle: "Couldn\u2019t switch to space",
+                                    pressErrorTitle: isInvitePending
+                                        ? "Couldn\u2019t open invite"
+                                        : "Couldn\u2019t switch to space",
                                     onPress: async () => {
+                                        if (isInvitePending) {
+                                            setSpaceInviteContent(
+                                                await loadSpaceInviteContent(context, {
+                                                    spaceId: otherSpace.id,
+                                                }),
+                                            );
+                                            return;
+                                        }
+
                                         if (otherSpace.id === space.id) return;
 
                                         // We must perform a full page navigation when switching spaces in order to reload
@@ -191,5 +211,20 @@ export function SpaceLayoutSideBarSpaceButton() {
                 </button>
             </FocusRing>
         </MenuButton>
+    );
+
+    return (
+        <>
+            {spaceMenuButton}
+            {spaceInviteContent && (
+                <SpaceInviteDecisionModal
+                    allAccounts={spaceInviteContent.allAccounts}
+                    currentAccount={spaceInviteContent.currentAccount}
+                    space={spaceInviteContent.space}
+                    onClose={() => setSpaceInviteContent(null)}
+                    onRejected={() => setSpaceInviteContent(null)}
+                />
+            )}
+        </>
     );
 }

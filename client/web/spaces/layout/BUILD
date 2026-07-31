@@ -31,6 +31,7 @@ ts_project(
         "//client/web/styles",
         "//client/web/tasks",
         "//client/web/virtualized",
+        "//shared/accounts",
         "//shared/design",
         "//shared/dynamo",
         "//shared/error",
@@ -40,5 +41,6 @@ ts_project(
         "//shared/notifications",
         "//shared/rpc",
         "//shared/spaces",
+        "//shared/store",
     ],
 )

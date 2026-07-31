@@ -16,6 +16,7 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
  */
 export function getOurAccountSpaceIds(context: ServerSessionActionContext): Promise<{
     spaceIds: ReadonlySet<SpaceId>;
+    invitePendingSpaceIds: ReadonlySet<SpaceId>;
     getConditionCheckTransactionEntry: () => DynamoTransactionEntry;
 }> {
     return getAccountSpaceIdsWithoutAuthorization(context, context.actor.getAccountId());
@@ -46,6 +47,7 @@ async function getAccountSpaceIdsWithoutAuthorization(
     accountId: AccountId,
 ): Promise<{
     spaceIds: ReadonlySet<SpaceId>;
+    invitePendingSpaceIds: ReadonlySet<SpaceId>;
     getConditionCheckTransactionEntry: () => DynamoTransactionEntry;
 }> {
     const spacesItem = await SpacesTable.getItemIfExists(context, {
@@ -56,8 +58,12 @@ async function getAccountSpaceIdsWithoutAuthorization(
 
     const spaceIds: ReadonlySet<SpaceId> = spacesItem?.spaceIds ?? new Set();
 
+    const invitePendingSpaceIds: ReadonlySet<SpaceId> =
+        spacesItem?.invitePendingSpaceIds ?? new Set();
+
     return {
         spaceIds,
+        invitePendingSpaceIds,
         getConditionCheckTransactionEntry: () =>
             spacesItem
                 ? SpacesTable.transactionUpdateLockVersionConditionCheck(
