@@ -1,12 +1,12 @@
 /* eslint-disable react-refresh/only-export-components -- co-located component factories bind API models for markdown generation. */
-import {
-    DocumentationApiModel,
-    DocumentationApiSchemaNode,
-} from "~/client/web/docs/documentation_api_model.js";
 import {useDocumentationApiModel} from "~/client/web/docs/internal/documentation_api_context.js";
 import {DocumentationApiDocBlock} from "~/client/web/docs/internal/documentation_api_doc_block.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {renderDocumentationApiSchemaNodeToMarkdown} from "~/client/web/docs/internal/markdown/render_api_documentation_to_markdown.js";
+import {renderDocumentationApiSchemaNodeToMarkdown} from "~/client/web/docs/render_api_documentation_to_markdown.js";
+import {
+    DocumentationApiModel,
+    DocumentationApiSchemaNode,
+} from "~/shared/docs/documentation_api_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**

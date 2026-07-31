@@ -1,5 +1,5 @@
-import {BlogAuthor} from "~/client/web/docs/internal/blog_author.js";
-import {BlogPostPageData, createBlogPostUrl} from "~/client/web/docs/internal/blog_post.js";
+import {BlogAuthor} from "~/shared/docs/blog_author.js";
+import {BlogPostPageData, createBlogPostUrl} from "~/shared/docs/blog_post.js";
 
 /** Build the BlogPosting JSON-LD object for an authored Alpine article. */
 export function createBlogPostingStructuredData({

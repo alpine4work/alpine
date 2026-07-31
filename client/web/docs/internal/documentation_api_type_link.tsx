@@ -2,24 +2,24 @@
 import {ReactNode, useEffect, useRef, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
+import {useDocumentationApiModelIfExists} from "~/client/web/docs/internal/documentation_api_context.js";
+import {DocumentationLink} from "~/client/web/docs/internal/documentation_link.js";
+import {DocumentationPill} from "~/client/web/docs/internal/documentation_pill.js";
+import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
     DocumentationApiSchemaNode,
     createDocumentationApiSchemaUrl,
     getDocumentationApiSchemaBaseName,
     getDocumentationApiSchemaNameVariant,
     getDocumentationApiSchemaRefName,
-} from "~/client/web/docs/documentation_api_model.js";
-import {useDocumentationApiModelIfExists} from "~/client/web/docs/internal/documentation_api_context.js";
-import {DocumentationLink} from "~/client/web/docs/internal/documentation_link.js";
-import {DocumentationPill} from "~/client/web/docs/internal/documentation_pill.js";
-import {getDocumentationApiSchemaKindLabel} from "~/client/web/docs/internal/get_api_documentation_schema_kind_label.js";
+} from "~/shared/docs/documentation_api_model.js";
 import {
     DocumentationMarkdownProps,
     flattenDocumentationMarkdownChildren,
-} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
-import {toDocumentationMarkdownLinkUrl} from "~/client/web/docs/internal/to_documentation_markdown_link_url.js";
-import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
-import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
+} from "~/shared/docs/documentation_markdown_component.js";
+import {getDocumentationApiSchemaKindLabel} from "~/shared/docs/get_api_documentation_schema_kind_label.js";
+import {toDocumentationMarkdownLinkUrl} from "~/shared/docs/to_documentation_markdown_link_url.js";
 
 // Debounced open/close so the popover isn't twitchy when the pointer crosses a
 // type link on its way somewhere else.

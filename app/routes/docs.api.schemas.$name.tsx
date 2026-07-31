@@ -6,16 +6,16 @@ import {
 } from "~/app/docs/documentation_response_headers.server.js";
 import {loadGeneratedDocumentationApiSchemaRouteData} from "~/app/docs/load_generated_docs.server.js";
 import {createDocumentationMetaFunction} from "~/app/docs/opengraph/create_documentation_meta.js";
-import {
-    DocumentationApiModel,
-    createDocumentationApiSchemaUrl,
-    getDocumentationApiSchemaBaseName,
-} from "~/client/web/docs/documentation_api_model.js";
 import {DocumentationApiReferenceView} from "~/client/web/docs/documentation_api_reference_view.js";
 import {DocumentationApiSchemaPage} from "~/client/web/docs/documentation_api_schema_page.js";
 import {DocumentationOnThisPage} from "~/client/web/docs/documentation_on_this_page.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {notFoundResponse} from "~/server/remix/not_found_response.js";
+import {
+    DocumentationApiModel,
+    createDocumentationApiSchemaUrl,
+    getDocumentationApiSchemaBaseName,
+} from "~/shared/docs/documentation_api_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /** Build metadata for a generated API schema reference page. */

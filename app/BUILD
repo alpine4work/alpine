@@ -54,8 +54,8 @@ ts_project(
     # are read from runfiles at request time.
     data = [
         "//app/sitemap:production_sitemap",
-        "//client/web/docs:docs_generated",
-        "//client/web/docs/internal/codegen:docs_markdown",
+        "//app/docs/codegen:docs_generated",
+        "//app/docs/codegen:docs_markdown",
     ],
     visibility = [
         "//app/documentation_meta_tests:__pkg__",
@@ -266,7 +266,7 @@ genrule(
 # server watches that directory and hot reloads the browser when relevant files
 # change. Open Graph images are deliberately excluded because regenerating the
 # complete tree on every documentation edit is expensive. Build
-# `//app/docs/opengraph:generate_open_graph_images` explicitly to refresh them.
+# `//app/docs/codegen/opengraph:generate_open_graph_images` explicitly to refresh them.
 filegroup(
     name = "app",
     # It's important that we use `data` instead of `srcs`! `data` puts our files in
@@ -290,8 +290,8 @@ js_binary(
         # Generated docs data and rendered markdown are read from runfiles at
         # request time. The wrapper doesn't get `app_lib`'s transitive runfiles,
         # so include them directly.
-        "//client/web/docs:docs_generated",
-        "//client/web/docs/internal/codegen:docs_markdown",
+        "//app/docs/codegen:docs_generated",
+        "//app/docs/codegen:docs_markdown",
     ],
     entry_point = "app_service_main.js",
 )
@@ -357,8 +357,8 @@ filegroup(
     name = "app_landing_static_generation",
     data = [
         ":app_build",
-        "//client/web/docs:docs_generated",
-        "//client/web/docs/internal/codegen:docs_markdown",
+        "//app/docs/codegen:docs_generated",
+        "//app/docs/codegen:docs_markdown",
     ],
     visibility = ["//admin/analysis:__pkg__"],
 )
@@ -367,7 +367,7 @@ filegroup(
     name = "app_static",
     srcs = [
         ":app_build_client",
-        "//app/docs/opengraph:generate_open_graph_images",
+        "//app/docs/codegen/opengraph:generate_open_graph_images",
     ],
     visibility = ["//visibility:public"],
 )
@@ -386,7 +386,7 @@ js_binary(
     data = [
         ":app_build",
         ":app_runfiles",
-        "//app/docs/opengraph:generate_open_graph_images",
+        "//app/docs/codegen/opengraph:generate_open_graph_images",
     ],
     entry_point = "build/server/app_service_main.js",
     no_copy_to_bin = [":app_runfiles"],

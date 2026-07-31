@@ -1,22 +1,22 @@
 import {Link} from "@remix-run/react";
 import {ArrowLeft, ArrowRight, EnvelopeSimple} from "phosphor-react";
 import {Box} from "~/client/web/design/box.js";
+import {documentationMdxComponents} from "~/client/web/docs/documentation_mdx_components.js";
 import {DocumentationResponsiveImage} from "~/client/web/docs/documentation_responsive_image.js";
-import {BlogAuthorById} from "~/client/web/docs/internal/blog_author.js";
-import {
-    BlogPostAdjacentArticle,
-    BlogPostPageData,
-    createBlogPostUrl,
-} from "~/client/web/docs/internal/blog_post.js";
 import {createBlogPostingStructuredData} from "~/client/web/docs/internal/create_blog_posting_structured_data.js";
 import {DocumentationHeader} from "~/client/web/docs/internal/documentation_header.js";
 import {formatBlogPublishDate} from "~/client/web/docs/internal/format_blog_publish_date.js";
 import {getDocumentationMdxContent} from "~/client/web/docs/internal/get_documentation_mdx_content.js";
-import {documentationMdxComponents} from "~/client/web/docs/internal/markdown/components/documentation_mdx_components.js";
-import {DocumentationSearchIndex} from "~/client/web/docs/search_documentation_entries.js";
 import {BlueskyLogo} from "~/client/web/icons/socials/bluesky_logo.js";
 import {LinkedInLogo} from "~/client/web/icons/socials/linkedin_logo.js";
 import {XLogo} from "~/client/web/icons/socials/x_logo.js";
+import {BlogAuthorById} from "~/shared/docs/blog_author.js";
+import {
+    BlogPostAdjacentArticle,
+    BlogPostPageData,
+    createBlogPostUrl,
+} from "~/shared/docs/blog_post.js";
+import {DocumentationSearchIndex} from "~/shared/docs/search_documentation_entries.js";
 
 const blogPostCss = `
 .blogPostProse img {

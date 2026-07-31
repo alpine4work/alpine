@@ -3,7 +3,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_run_binary"
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("//admin/typescript:typescript.bzl", "ts_project")
-load("//app/static:responsive_documentation_images.bzl", "responsive_documentation_images")
+load("//app/docs/codegen/images:responsive_documentation_images.bzl", "responsive_documentation_images")
 
 documentation_image_source_patterns = [
     "files/api/**/*.avif",
@@ -46,7 +46,7 @@ filegroup(
         documentation_image_source_patterns,
         allow_empty = True,
     ),
-    visibility = ["//client/web/docs:__subpackages__"],
+    visibility = ["//app/docs/codegen:__subpackages__"],
 )
 
 copy_file(
@@ -93,19 +93,19 @@ js_run_binary(
     name = "manifest_paths",
     srcs = [
         ":static",
-        "//client/web/docs:open_graph_images_api.json",
-        "//client/web/docs:open_graph_images_blog.json",
-        "//client/web/docs:open_graph_images_guides.json",
-        "//client/web/docs:open_graph_images_schemas.json",
+        "//app/docs/codegen:open_graph_images_api.json",
+        "//app/docs/codegen:open_graph_images_blog.json",
+        "//app/docs/codegen:open_graph_images_guides.json",
+        "//app/docs/codegen:open_graph_images_schemas.json",
     ],
     outs = ["app_static_manifest_paths_output.ts"],
     args = [
         "$(rootpath app_static_manifest_paths_output.ts)",
         "$(rootpaths :static)",
-        "$(rootpath //client/web/docs:open_graph_images_api.json)",
-        "$(rootpath //client/web/docs:open_graph_images_blog.json)",
-        "$(rootpath //client/web/docs:open_graph_images_guides.json)",
-        "$(rootpath //client/web/docs:open_graph_images_schemas.json)",
+        "$(rootpath //app/docs/codegen:open_graph_images_api.json)",
+        "$(rootpath //app/docs/codegen:open_graph_images_blog.json)",
+        "$(rootpath //app/docs/codegen:open_graph_images_guides.json)",
+        "$(rootpath //app/docs/codegen:open_graph_images_schemas.json)",
     ],
     tool = ":generate_manifest_paths",
 )
@@ -206,10 +206,7 @@ ts_project(
         ],
         allow_empty = True,
     ),
-    test_srcs = [
-        "generate_responsive_documentation_image.test.ts",
-        "merge_responsive_documentation_image_manifests.test.ts",
-    ],
+    test_srcs = [],
     deps = [
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/opentype.js",
@@ -240,32 +237,16 @@ ts_project(
     ],
 )
 
-js_binary(
-    name = "generate_responsive_documentation_images",
-    data = [
-        ":static_lib",
-    ],
-    entry_point = "generate_responsive_documentation_images_main.js",
-)
-
-js_binary(
-    name = "merge_responsive_documentation_image_manifests",
-    data = [
-        ":static_lib",
-    ],
-    entry_point = "merge_responsive_documentation_image_manifests_main.js",
-)
-
 responsive_documentation_images(
     name = "responsive_documentation_images",
-    generator = ":generate_responsive_documentation_images",
+    generator = "//app/docs/codegen/images:generate_responsive_documentation_images",
     manifest = "responsive_documentation_image_manifest.json",
-    merger = ":merge_responsive_documentation_image_manifests",
+    merger = "//app/docs/codegen/images:merge_responsive_documentation_image_manifests",
     srcs = glob(
         documentation_image_source_patterns,
         allow_empty = True,
     ),
-    visibility = ["//client/web/docs:__subpackages__"],
+    visibility = ["//app/docs/codegen:__subpackages__"],
 )
 
 # Just the manifest source files. This library can be imported by

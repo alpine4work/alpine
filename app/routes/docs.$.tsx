@@ -11,11 +11,11 @@ import {
     DocumentationMdxPage,
     GeneratedDocumentationPageData,
 } from "~/client/web/docs/documentation_mdx_page.js";
-import {createDocumentationDocUrl} from "~/client/web/docs/documentation_nav.js";
 import {DocumentationOnThisPage} from "~/client/web/docs/documentation_on_this_page.js";
 import {DocumentationPageLayout} from "~/client/web/docs/documentation_page_layout.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {notFoundResponse} from "~/server/remix/not_found_response.js";
+import {createDocumentationDocUrl} from "~/shared/docs/documentation_nav.js";
 
 export const meta = createDocumentationMetaFunction<{page: GeneratedDocumentationPageData}>(
     data => ({

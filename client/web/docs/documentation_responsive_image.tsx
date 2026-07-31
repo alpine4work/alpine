@@ -1,5 +1,5 @@
 import {ImgHTMLAttributes} from "react";
-import {DocumentationImageData} from "~/client/web/docs/documentation_image_data.js";
+import {DocumentationImageData} from "~/shared/docs/documentation_image_data.js";
 
 /**
  * Render generated responsive image candidates for the browser's layout size.

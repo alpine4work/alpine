@@ -1,14 +1,14 @@
 import {useEffect, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
+import {DocumentationChevron} from "~/client/web/docs/internal/documentation_chevron.js";
+import {DocumentationNavRow} from "~/client/web/docs/internal/documentation_nav_row.js";
+import {DocumentationUnstyledButton} from "~/client/web/docs/internal/documentation_unstyled_button.js";
 import {
     DocumentationNavGroup,
     DocumentationNavNode,
     createDocumentationDocUrl,
     documentationGroupContainsSlug,
-} from "~/client/web/docs/documentation_nav.js";
-import {DocumentationChevron} from "~/client/web/docs/internal/documentation_chevron.js";
-import {DocumentationNavRow} from "~/client/web/docs/internal/documentation_nav_row.js";
-import {DocumentationUnstyledButton} from "~/client/web/docs/internal/documentation_unstyled_button.js";
+} from "~/shared/docs/documentation_nav.js";
 
 /**
  * The docs content sidebar, rendered from the directory-driven navigation tree.

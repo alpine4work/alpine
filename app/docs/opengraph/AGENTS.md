@@ -1,17 +1,17 @@
 # Documentation Open Graph images
 
-This package owns route metadata helpers, the server-only Open Graph image renderer, and rendering
-assets for Alpine's blog, documentation, and API reference.
+This package owns browser-safe route metadata helpers. The server-only Open Graph image renderer,
+generator, and rendering assets live under `app/docs/codegen/opengraph`.
 
 Keep `create_documentation_meta.ts` browser-safe because Remix route modules import it in both
 browser and server builds. Do not import the Node.js image renderer or rendering dependencies from
 the metadata helper.
 
-Keep the four image variants visually consistent and implement shared behavior in
-`render_documentation_open_graph_image.ts`. Preserve the `DocumentationOpenGraphImageDocument`
-discriminated union so each variant accepts only its relevant data: blog posts require an author and
-avatar, the blog home does not accept one, and documentation and API documents may include
-descriptions while API documents may include an HTTP method.
+Keep the four generated image variants visually consistent and implement shared behavior in
+`app/docs/codegen/opengraph/render_documentation_open_graph_image.ts`. Preserve the
+`DocumentationOpenGraphImageDocument` discriminated union so each variant accepts only its relevant
+data: blog posts require an author and avatar, the blog home does not accept one, and documentation
+and API documents may include descriptions while API documents may include an HTTP method.
 
 Descriptions come from real documentation content and must remain optional. Keep description
 wrapping bounded so long content cannot overflow the 1200×630 image. API titles use Commit Mono;
@@ -24,7 +24,7 @@ Rendering every image is resource-intensive. Refresh the images explicitly only 
 inspecting them:
 
 ```sh
-bazel build //app/docs/opengraph:generate_open_graph_images
+bazel build //app/docs/codegen/opengraph:generate_open_graph_images
 ```
 
 The running local app reads this target directly from `bazel-bin`, so it does not need to be
@@ -47,7 +47,7 @@ and schema URLs with short, long, and multiline content.
 Before finishing, also build the complete generated image tree and run the package checks:
 
 ```sh
-bazel build //app/docs/opengraph:generate_open_graph_images
+bazel build //app/docs/codegen/opengraph:generate_open_graph_images
 bazel test //app/docs/opengraph:opengraph_typecheck_test \
   //app/docs/opengraph:opengraph_lint_test \
   //app/docs/opengraph:opengraph_format_test \

@@ -1,33 +1,33 @@
 import fs from "fs/promises";
 import {join, normalize} from "path";
-import {documentationApiHomeUrl} from "~/client/web/docs/documentation_api_home_url.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
+import {documentationApiHomeUrl} from "~/shared/docs/documentation_api_home_url.js";
 import {
     DocumentationApiModel,
     DocumentationApiOperation,
-} from "~/client/web/docs/documentation_api_model.js";
+} from "~/shared/docs/documentation_api_model.js";
 import {
     DocumentationApiPageData,
     GeneratedDocumentationPageData,
-} from "~/client/web/docs/documentation_mdx_page.js";
+} from "~/shared/docs/documentation_mdx_page_data.js";
 import {
     DocumentationNavTree,
     createDocumentationDocUrl,
     getFirstDocumentationSlug,
-} from "~/client/web/docs/documentation_nav.js";
-import {GeneratedDocumentationApiNav} from "~/client/web/docs/generated_documentation.js";
+} from "~/shared/docs/documentation_nav.js";
+import {GeneratedDocumentationApiNav} from "~/shared/docs/generated_documentation.js";
 import {
     DocumentationSearchIndex,
     parseDocumentationSearchIndex,
-} from "~/client/web/docs/search_documentation_entries.js";
-import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
+} from "~/shared/docs/search_documentation_entries.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
 const generatedDocumentationDirectoryPath = join(
     runfilesPath,
-    "cyberworlds/client/web/docs/generated",
+    "cyberworlds/app/docs/codegen/generated",
 );
 
 const generatedPagesDirectoryPath = join(generatedDocumentationDirectoryPath, "pages");
@@ -39,8 +39,8 @@ const generatedOpenGraphImageDirectoryNames = [
 ];
 const generatedOpenGraphImagesDirectoryPaths = generatedOpenGraphImageDirectoryNames.map(name =>
     process.env.NODE_ENV === "development"
-        ? join(getWorkspacePath(), "bazel-bin/app/docs/opengraph", name)
-        : join(runfilesPath, "cyberworlds/app/docs/opengraph", name),
+        ? join(getWorkspacePath(), "bazel-bin/app/docs/codegen/opengraph", name)
+        : join(runfilesPath, "cyberworlds/app/docs/codegen/opengraph", name),
 );
 
 /** Load a code-generated Open Graph PNG for its public page path. */

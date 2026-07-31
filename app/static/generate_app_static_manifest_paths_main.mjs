@@ -9,7 +9,7 @@ async function main() {
     const [outputPath, ...appStaticManifestInputs] = process.argv.slice(2);
 
     const newAppStaticManifestPathPrefix = "app/static/files/";
-    const openGraphImageManifestPathPrefix = "client/web/docs/open_graph_images_";
+    const openGraphImageManifestPathPrefix = "app/docs/codegen/open_graph_images_";
     const newAppStaticManifestPaths = [];
 
     for (const path of appStaticManifestInputs) {

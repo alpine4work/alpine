@@ -55,10 +55,8 @@ async function main() {
         );
         const documentationMarkdownPath = path.join(
             runfilesWorkspacePath,
-            "client",
-            "web",
+            "app",
             "docs",
-            "internal",
             "codegen",
             "pages",
         );

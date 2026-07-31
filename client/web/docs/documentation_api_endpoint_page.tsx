@@ -1,12 +1,5 @@
 import {Fragment, ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
-import {DocumentationApiCodeSamples} from "~/client/web/docs/build_api_documentation_code_samples.js";
-import {createDocumentationApiPageUrl} from "~/client/web/docs/create_documentation_api_page_url.js";
-import {
-    DocumentationApiOperation,
-    DocumentationApiParameter,
-    DocumentationApiSchemaNode,
-} from "~/client/web/docs/documentation_api_model.js";
 import {DocumentationAnchorHeading} from "~/client/web/docs/internal/documentation_anchor_heading.js";
 import {useDocumentationApiModel} from "~/client/web/docs/internal/documentation_api_context.js";
 import {DocumentationApiDocBlock} from "~/client/web/docs/internal/documentation_api_doc_block.js";
@@ -21,6 +14,13 @@ import {
     setDocumentationCodeSampleLanguage,
     useDocumentationCodeSampleLanguage,
 } from "~/client/web/docs/internal/use_documentation_code_sample_language.js";
+import {DocumentationApiCodeSamples} from "~/shared/docs/build_api_documentation_code_samples.js";
+import {createDocumentationApiPageUrl} from "~/shared/docs/create_documentation_api_page_url.js";
+import {
+    DocumentationApiOperation,
+    DocumentationApiParameter,
+    DocumentationApiSchemaNode,
+} from "~/shared/docs/documentation_api_model.js";
 
 /**
  * One endpoint page: method pill + path header, a base URL / auth strip, then

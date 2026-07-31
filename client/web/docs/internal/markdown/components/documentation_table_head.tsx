@@ -1,6 +1,6 @@
 import {ReactNode} from "react";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {documentationMarkdownChildItems} from "~/client/web/docs/internal/markdown/documentation_markdown_child_items.js";
+import {documentationMarkdownChildItems} from "~/shared/docs/documentation_markdown_child_items.js";
 
 /**
  * A table header. In markdown it emits the header row followed by the GFM

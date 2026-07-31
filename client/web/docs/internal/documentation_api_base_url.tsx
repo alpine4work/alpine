@@ -1,11 +1,9 @@
-/* eslint-disable react-refresh/only-export-components -- co-located component factories bind API models for markdown generation. */
-import {DocumentationApiModel} from "~/client/web/docs/documentation_api_model.js";
 import {useDocumentationApiModel} from "~/client/web/docs/internal/documentation_api_context.js";
-import {
-    DocumentationCodeBlock,
-    toDocumentationMarkdownCodeBlock,
-} from "~/client/web/docs/internal/documentation_code_block.js";
+import {DocumentationCodeBlock} from "~/client/web/docs/internal/documentation_code_block.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
+/* eslint-disable react-refresh/only-export-components -- co-located component factories bind API models for markdown generation. */
+import {DocumentationApiModel} from "~/shared/docs/documentation_api_model.js";
+import {toDocumentationMarkdownCodeBlock} from "~/shared/docs/to_documentation_markdown_code_block.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**

@@ -1,12 +1,9 @@
 import {useEffect, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {DocumentationOnThisPageItem} from "~/shared/docs/documentation_on_this_page_item.js";
 
-export type DocumentationOnThisPageItem = {
-    id: string;
-    text: string;
-    level: 2 | 3;
-};
+export type {DocumentationOnThisPageItem} from "~/shared/docs/documentation_on_this_page_item.js";
 
 type DocumentationOnThisPageSection = {
     item: DocumentationOnThisPageItem;

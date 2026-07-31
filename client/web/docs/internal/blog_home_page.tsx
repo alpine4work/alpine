@@ -2,11 +2,11 @@ import {Link} from "@remix-run/react";
 import {Info} from "phosphor-react";
 import {Box} from "~/client/web/design/box.js";
 import {DocumentationResponsiveImage} from "~/client/web/docs/documentation_responsive_image.js";
-import {BlogAuthorById} from "~/client/web/docs/internal/blog_author.js";
-import {BlogPostListItem, createBlogPostUrl} from "~/client/web/docs/internal/blog_post.js";
 import {DocumentationHeader} from "~/client/web/docs/internal/documentation_header.js";
 import {formatBlogPublishDate} from "~/client/web/docs/internal/format_blog_publish_date.js";
-import {DocumentationSearchIndex} from "~/client/web/docs/search_documentation_entries.js";
+import {BlogAuthorById} from "~/shared/docs/blog_author.js";
+import {BlogPostListItem, createBlogPostUrl} from "~/shared/docs/blog_post.js";
+import {DocumentationSearchIndex} from "~/shared/docs/search_documentation_entries.js";
 
 const blogLayoutCss = `
 .blogFeaturedGrid { grid-template-columns: minmax(0, 1fr); }

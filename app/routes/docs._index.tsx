@@ -4,8 +4,8 @@ import {
     getDocumentationResponseHeaders,
 } from "~/app/docs/documentation_response_headers.server.js";
 import {loadFirstGeneratedDocumentationUrl} from "~/app/docs/load_generated_docs.server.js";
-import {documentationHomeUrl} from "~/client/web/docs/documentation_home_url.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
+import {documentationHomeUrl} from "~/shared/docs/documentation_home_url.js";
 
 export function meta() {
     return [

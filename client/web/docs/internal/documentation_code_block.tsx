@@ -1,16 +1,9 @@
-/* eslint-disable react-refresh/only-export-components -- co-located markdown variants (plain functions) live beside these components. */
 import {Box} from "~/client/web/design/box.js";
 import {DocumentationCopyButton} from "~/client/web/docs/internal/documentation_copy_button.js";
 import {
     DocumentationCodeLanguage,
     highlightDocumentationCode,
 } from "~/client/web/docs/internal/documentation_syntax_highlight.js";
-
-/** Renders a fenced markdown code block with an optional language label. */
-export function toDocumentationMarkdownCodeBlock(code: string, language?: string): string {
-    const info = language !== undefined && language.length > 0 ? language : "";
-    return `\`\`\`${info}\n${code.replace(/\n+$/, "")}\n\`\`\`\n\n`;
-}
 
 /**
  * A docs code block: hairline card with an optional header carrying a small

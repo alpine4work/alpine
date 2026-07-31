@@ -7,23 +7,26 @@ import {
     BlogPostPageData,
     createBlogPostUrl,
 } from "~/client/web/docs/blog.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     DocumentationSearchIndex,
     parseDocumentationSearchIndex,
-} from "~/client/web/docs/search_documentation_entries.js";
-import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+} from "~/shared/docs/search_documentation_entries.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
 const generatedDocumentationDirectoryPath = join(
     runfilesPath,
-    "cyberworlds/client/web/docs/generated",
+    "cyberworlds/app/docs/codegen/generated",
 );
-const generatedBlogDirectoryPath = join(runfilesPath, "cyberworlds/client/web/docs/generated/blog");
+const generatedBlogDirectoryPath = join(
+    runfilesPath,
+    "cyberworlds/app/docs/codegen/generated/blog",
+);
 const generatedBlogPagesDirectoryPath = join(
     runfilesPath,
-    "cyberworlds/client/web/docs/generated/pages",
+    "cyberworlds/app/docs/codegen/generated/pages",
 );
 
 /**

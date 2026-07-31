@@ -9,13 +9,7 @@ import {
     loadGeneratedDocumentationApiOperationRouteData,
 } from "~/app/docs/load_generated_docs.server.js";
 import {createDocumentationMetaFunction} from "~/app/docs/opengraph/create_documentation_meta.js";
-import {buildDocumentationApiCodeSamples} from "~/client/web/docs/build_api_documentation_code_samples.js";
-import {createDocumentationApiPageUrl} from "~/client/web/docs/create_documentation_api_page_url.js";
 import {DocumentationApiEndpointPage} from "~/client/web/docs/documentation_api_endpoint_page.js";
-import {
-    DocumentationApiOperation,
-    createDocumentationApiOperationUrl,
-} from "~/client/web/docs/documentation_api_model.js";
 import {DocumentationApiReferenceView} from "~/client/web/docs/documentation_api_reference_view.js";
 import {
     DocumentationApiPageData,
@@ -27,6 +21,12 @@ import {
 } from "~/client/web/docs/documentation_on_this_page.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {notFoundResponse} from "~/server/remix/not_found_response.js";
+import {buildDocumentationApiCodeSamples} from "~/shared/docs/build_api_documentation_code_samples.js";
+import {createDocumentationApiPageUrl} from "~/shared/docs/create_documentation_api_page_url.js";
+import {
+    DocumentationApiOperation,
+    createDocumentationApiOperationUrl,
+} from "~/shared/docs/documentation_api_model.js";
 
 type DocumentationApiRouteMetaData =
     | {type: "operation"; operation: DocumentationApiOperation}

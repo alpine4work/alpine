@@ -2,13 +2,10 @@ import fs from "fs/promises";
 import {join, normalize} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
-// The pre-rendered markdown tree built by
-// `//client/web/docs/internal/codegen:docs_markdown`. Files mirror their page URL,
-// so a `/docs/....md` or `/blog/....md` request maps straight to a file.
-const documentationMarkdownDirectory = join(
-    runfilesPath,
-    "cyberworlds/client/web/docs/internal/codegen/pages",
-);
+// The pre-rendered markdown tree built by `//app/docs/codegen:docs_markdown`.
+// Files mirror their page URL, so a `/docs/....md` or `/blog/....md` request maps
+// straight to a file.
+const documentationMarkdownDirectory = join(runfilesPath, "cyberworlds/app/docs/codegen/pages");
 
 /**
  * The rendered markdown for a `/docs/....md` or `/blog/....md` request path, or

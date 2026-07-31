@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import {ReactNode, createContext, useContext} from "react";
-import {DocumentationApiModel} from "~/client/web/docs/documentation_api_model.js";
+import {DocumentationApiModel} from "~/shared/docs/documentation_api_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 const DocumentationApiModelContext = createContext<DocumentationApiModel | null>(null);

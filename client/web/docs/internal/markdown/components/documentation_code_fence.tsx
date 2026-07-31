@@ -3,8 +3,8 @@ import {Box} from "~/client/web/design/box.js";
 import {DocumentationCodeBlock} from "~/client/web/docs/internal/documentation_code_block.js";
 import {DocumentationCodeLanguage} from "~/client/web/docs/internal/documentation_syntax_highlight.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {flattenDocumentationMarkdownChildren} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
 import {getDocumentationNodeText} from "~/client/web/docs/internal/markdown/get_documentation_node_text.js";
+import {flattenDocumentationMarkdownChildren} from "~/shared/docs/documentation_markdown_component.js";
 
 /**
  * A fenced code block. MDX renders it as `<pre><code className="language-x">…`, so

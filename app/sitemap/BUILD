@@ -10,7 +10,7 @@ js_library(
 
 ts_project(
     name = "sitemap",
-    data = ["//client/web/docs:docs_generated"],
+    data = ["//app/docs/codegen:docs_generated"],
     visibility = [
         "//app:__pkg__",
         "//app/sitemap/generate:__pkg__",

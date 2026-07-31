@@ -112,10 +112,10 @@ export async function uploadAppStaticFilesBeforeDeploy(
     await runAllPromises(
         [
             "cyberworlds/app/build/client",
-            "cyberworlds/app/docs/opengraph/generated_api",
-            "cyberworlds/app/docs/opengraph/generated_blog",
-            "cyberworlds/app/docs/opengraph/generated_guides",
-            "cyberworlds/app/docs/opengraph/generated_schemas",
+            "cyberworlds/app/docs/codegen/opengraph/generated_api",
+            "cyberworlds/app/docs/codegen/opengraph/generated_blog",
+            "cyberworlds/app/docs/codegen/opengraph/generated_guides",
+            "cyberworlds/app/docs/codegen/opengraph/generated_schemas",
         ].map(rootPath => traverse("", joinPath(runfilesPath, rootPath))),
     );
 

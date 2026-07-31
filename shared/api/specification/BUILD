@@ -35,7 +35,7 @@ ts_project(
 filegroup(
     name = "api_specification_final",
     srcs = ["api_specification_final.yaml"],
-    visibility = ["//client/web/docs:__subpackages__"],
+    visibility = ["//app/docs/codegen:__subpackages__"],
 )
 
 ts_project(

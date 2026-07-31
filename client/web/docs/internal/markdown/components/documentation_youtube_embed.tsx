@@ -1,7 +1,7 @@
 import {Box} from "~/client/web/design/box.js";
 import {getDocumentationYoutubeEmbedUrl} from "~/client/web/docs/internal/markdown/components/get_documentation_youtube_embed_url.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {documentationMarkdownStringProp} from "~/client/web/docs/internal/markdown/documentation_markdown_string_prop.js";
+import {documentationMarkdownStringProp} from "~/shared/docs/documentation_markdown_string_prop.js";
 
 type DocumentationYoutubeEmbedProps = {
     url: string;

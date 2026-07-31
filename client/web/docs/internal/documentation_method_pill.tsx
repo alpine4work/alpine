@@ -1,6 +1,6 @@
 import {Box} from "~/client/web/design/box.js";
-import {DocumentationApiMethod} from "~/client/web/docs/documentation_api_model.js";
 import {ColorSchemeVar} from "~/client/web/styles/styles.js";
+import {DocumentationApiMethod} from "~/shared/docs/documentation_api_model.js";
 
 // Each method gets a hue: a pale tinted background with darker text of the same
 // hue. The grey ramp inversion flips these automatically in dark mode.

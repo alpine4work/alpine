@@ -2,9 +2,9 @@ import {ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {DocumentationLink} from "~/client/web/docs/internal/documentation_link.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {flattenDocumentationMarkdownChildren} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
-import {documentationMarkdownStringProp} from "~/client/web/docs/internal/markdown/documentation_markdown_string_prop.js";
-import {toDocumentationMarkdownLinkUrl} from "~/client/web/docs/internal/to_documentation_markdown_link_url.js";
+import {flattenDocumentationMarkdownChildren} from "~/shared/docs/documentation_markdown_component.js";
+import {documentationMarkdownStringProp} from "~/shared/docs/documentation_markdown_string_prop.js";
+import {toDocumentationMarkdownLinkUrl} from "~/shared/docs/to_documentation_markdown_link_url.js";
 
 /**
  * An inline link in prose. Internal links (starting with `/`) route client-side;
