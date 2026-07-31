@@ -215,8 +215,118 @@ const context = createTestContext({
                     DocumentCollaborationCreateCommentThreadForApiRequestBodySchema.deserialize(
                         request.body ?? null,
                     );
+                const decoder = new ApiContentKeyDecoder(`Document:${documentId}`);
+                const startDecodedKey = decoder.decode(requestBody.range.start.key);
+                const endDecodedKey = decoder.decode(requestBody.range.end.key);
 
-                throw new UnimplementedError("TODO: Codex you need to implement this");
+                if (startDecodedKey.version !== endDecodedKey.version) {
+                    throw new InvalidArgumentError(
+                        "Range content keys are for different document versions",
+                        {
+                            displayMessage: errorDisplayMessage`Range content keys are for different document versions. Try again with range start/end keys from the same document version.`,
+                        },
+                    );
+                }
+
+                const document = await getDocumentContent(context, documentId);
+                const version = startDecodedKey.version;
+                if (version > document.version) {
+                    throw new InvalidArgumentError(
+                        "Range content key document version is higher than the current document version",
+                        {
+                            displayMessage: errorDisplayMessage`Range content key document version is higher than the current document version. Try again with range start/end keys from the current document version.`,
+                        },
+                    );
+                }
+
+                const invertedSteps =
+                    version < document.version
+                        ? await getDocumentContentSteps(context, {
+                              id: documentId,
+                              startVersion: version,
+                              endVersion: document.version,
+                          })
+                        : [];
+                let content = document.content;
+                for (let index = invertedSteps.length - 1; index >= 0; index--) {
+                    const stepResult = invertedSteps[index]!.invertedStep.apply(content);
+                    if (!stepResult.doc) throw new InternalError(stepResult.failed!);
+                    content = assertDocumentContent(stepResult.doc);
+                }
+
+                const from = getApiContentPositionPosWithDecodedKey(
+                    startDecodedKey,
+                    requestBody.range.start,
+                );
+                const to = getApiContentPositionPosWithDecodedKey(
+                    endDecodedKey,
+                    requestBody.range.end,
+                );
+
+                if (from > to) {
+                    throw new InvalidArgumentError(
+                        "Range start position is greater than range end position",
+                        {
+                            displayMessage: errorDisplayMessage`Range start position is greater than range end position. Try again but swap the order of the start/end positions.`,
+                        },
+                    );
+                }
+
+                if (from === to) {
+                    throw new InvalidArgumentError(
+                        "Range start position is equal to range end position",
+                        {
+                            displayMessage: errorDisplayMessage`Range is empty because the start position is equal to the range end position. Try again but with a non-empty range.`,
+                        },
+                    );
+                }
+
+                const commentThreadId = generateId<DocumentCommentThreadId>();
+                const commentMark = schema.marks.comment.create({commentThreadId});
+                const steps: Array<AddMarkStep | AddNodeMarkStep> = [];
+                let hasInlineContent = false;
+
+                content.nodesBetween(from, to, (node, pos) => {
+                    if (node.isInline) hasInlineContent = true;
+
+                    if (
+                        !node.isInline &&
+                        node.isLeaf &&
+                        node.type.allowsMarkType(commentMark.type) &&
+                        from <= pos &&
+                        pos + node.nodeSize <= to
+                    ) {
+                        steps.push(new AddNodeMarkStep(pos, commentMark));
+                    }
+                });
+
+                if (hasInlineContent) {
+                    steps.unshift(new AddMarkStep(from, to, commentMark));
+                }
+
+                const createdTime = new Date();
+                await updateDocumentContent(context, {
+                    id: documentId,
+                    version,
+                    steps,
+                    clientId: generateId(),
+                    createCommentThreads: [
+                        {
+                            commentThreadId,
+                            createdTime,
+                            createdTimeZone: requestBody.createdTimeZone,
+                            initialCommentContent: requestBody.content,
+                            initialCommentFileIds: requestBody.fileIds,
+                            attachInitialCommentFilesAsBot: true,
+                        },
+                    ],
+                });
+
+                return DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.serialize({
+                    ok: true,
+                    spaceId: document.spaceId,
+                    commentThread: {id: commentThreadId, createdTime},
+                });
             }
             default:
                 throw new InternalError(quote`Unknown route: ${route}`);
