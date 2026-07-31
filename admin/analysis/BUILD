@@ -70,7 +70,7 @@ js_test(
         "//app:app_landing_static_generation",
     ],
     entry_point = "generate_landing_html.cjs",
-    size = "small",
+    size = "medium",
 )
 
 js_binary(

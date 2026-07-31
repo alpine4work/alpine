@@ -112,7 +112,7 @@ export function createApiClient({
             const requestBody = request.body === null ? null : await request.arrayBuffer();
 
             // Define the fetch operation
-            return retryWithExponentialBackoff(
+            return await retryWithExponentialBackoff(
                 retry =>
                     fetchWithTracer(
                         tracer,
