@@ -7,6 +7,7 @@ import {NotificationsTable} from "~/server/notifications/data/internal/notificat
 import {clearPendingSubtleNotificationsForInbox} from "~/server/notifications/data/internal/push/clear_pending_subtle_notifications_for_inbox.js";
 import {getAllPushNotificationTargetsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_all_push_notification_targets_without_authorization.js";
 import {PendingSubtleNotificationStub} from "~/server/notifications/data/internal/push/pending_subtle_notification_stub.js";
+import {printInboxEntryDisplayContentLatestMessageAsText} from "~/server/notifications/data/print_inbox_entry_display_content_latest_message_as_text.js";
 import {getAccountSearchAffinityEntitiesInRange} from "~/server/search/data/table/get_search_entity_affinity_points.js";
 import {
     getAccountWithoutAvatar,
@@ -286,7 +287,10 @@ export async function getPendingSubtleNotificationSummaryContent({
     if (distinctInboxEntryCount === 1) {
         return {
             title: inboxEntryTitleText,
-            body: inboxEntryDisplay.latestMessage?.contentTextSnippet ?? "",
+            body:
+                printInboxEntryDisplayContentLatestMessageAsText(inboxEntryDisplay, {
+                    excludeAuthorWhenPresentInTitle: true,
+                }) ?? "",
         };
     }
 

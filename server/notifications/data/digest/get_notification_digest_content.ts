@@ -1,5 +1,6 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {InboxEntriesIndex} from "~/server/notifications/data/internal/inbox_table.js";
+import {printInboxEntryDisplayContentLatestMessageAsText} from "~/server/notifications/data/print_inbox_entry_display_content_latest_message_as_text.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
@@ -70,20 +71,13 @@ export async function getNotificationDigestContent(
                 }
             });
 
-            const showLatestMessage =
-                entryDisplay.latestMessage &&
-                entryDisplay.latestMessage.contentTextSnippet.length > 0;
             return {
                 url: new URL(
                     `/inbox/${entry.model.spaceId}?selected=${selectedSearchParam}`,
                     context.constants.edgeServiceUrl,
                 ),
                 title,
-                preview: showLatestMessage
-                    ? `${getAccountShortNameWithoutFullNameTooltip(
-                          entryDisplay.latestMessage.author.initialData,
-                      )}: ${entryDisplay.latestMessage.contentTextSnippet}`
-                    : null,
+                preview: printInboxEntryDisplayContentLatestMessageAsText(entryDisplay) ?? null,
                 brandIconType: entryDisplay.brandIconType,
                 time: entryDisplay.time,
                 loudNotificationCount: entry.model.loudNotificationCount,
