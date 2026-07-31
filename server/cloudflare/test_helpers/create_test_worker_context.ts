@@ -56,7 +56,12 @@ export function createTestWorkerContext(
     options?: Parameters<typeof createTestContext>[0],
 ): TestWorkerContext {
     const baseContext = createTestContext(options);
+    return createTestWorkerContextFromBaseContext(baseContext);
+}
 
+export function createTestWorkerContextFromBaseContext(
+    baseContext: TestActualContext,
+): TestWorkerContext {
     const context: TestWorkerContext = Object.assign(baseContext.cloneWithHelpers({}), {
         action: ((session, options) => {
             return baseContext.action(session, options).clone({

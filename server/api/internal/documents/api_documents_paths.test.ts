@@ -5,17 +5,15 @@ import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_servi
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {createTestWorkerContextFromBaseContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
+import {SearchInjection} from "~/server/context/injection_context_module.js";
+import {DocumentCollaborationDurableObject} from "~/server/documents/collaboration/document_collaboration_durable_object.js";
 import {
     FileDocumentAuthorizer,
-    getDocumentContent,
-    getDocumentContentSteps,
     getDocumentPreviewIfPossible,
-    getResolvedDocumentCommentThreadRanges,
-    updateDocumentContent,
     updateDocumentSnapshotForTest,
 } from "~/server/documents/data/documents_actions.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
-import {handleUpdateContentWithoutOptimisticBroadcastForTest} from "~/server/documents/test_helpers/handle_update_content_without_optimistic_broadcast_for_test.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_actions.js";
@@ -24,315 +22,72 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {
-    DocumentCollaborationCreateCommentThreadForApiRequestBodySchema,
-    DocumentCollaborationSetCommentThreadResolvedRequestBodySchema,
-    DocumentCollaborationSetCommentThreadResolvedResponseBodySchema,
-    DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
-    DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
-} from "~/shared/documents/document_collaboration_protocol.js";
-import {
-    assertDocumentContent,
-    DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
-import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
-import {
-    AddMarksAfterRemoveAllStep,
-    RemoveAllMarksStep,
-} from "~/shared/prosemirror/remove_all_marks_step.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+
+const searchInjection: Partial<SearchInjection> = {
+    getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
+        assert(entityId.startsWith("Document:"));
+        const documentId = assertId<DocumentId>(entityId.slice("Document:".length));
+
+        const documentResult = await getDocumentPreviewIfPossible(context, documentId, {
+            consistency: "StrongWithinCache",
+        });
+        if (!documentResult) return null;
+        if (!documentResult.ok) return {isPrivate: true};
+        const document = documentResult.value;
+
+        return {
+            isPrivate: false,
+            entity: new SearchEntityModel({
+                type: "Document",
+                title: document.getTitle(),
+                document: {
+                    id: documentId,
+                    version: document.version,
+                },
+            }),
+        };
+    },
+};
 
 const context = createTestContext({
     chatInjection,
     documentsInjection,
     tasksInjection,
+    searchInjection,
 
-    searchInjection: {
-        getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
-            assert(entityId.startsWith("Document:"));
-            const documentId = assertId<DocumentId>(entityId.slice("Document:".length));
-
-            const documentResult = await getDocumentPreviewIfPossible(context, documentId, {
-                consistency: "StrongWithinCache",
-            });
-            if (!documentResult) return null;
-            if (!documentResult.ok) return {isPrivate: true};
-            const document = documentResult.value;
-
-            return {
-                isPrivate: false,
-                entity: new SearchEntityModel({
-                    type: "Document",
-                    title: document.getTitle(),
-                    document: {
-                        id: documentId,
-                        version: document.version,
-                    },
-                }),
-            };
-        },
-    },
-
-    // Reimplement the Durable Object `/update-content-with-diff` route in tests so we
-    // can test the API endpoint. The actual route in
-    // `DocumentCollaborationDurableObject` isn't that dissimilar from what you see
-    // here.
     sendRequestToDurableObject: async (actualContext, request) => {
+        const match = request.url.match(/^\/api\/durable-objects\/documents\/([^/]+)\//);
+        if (!match) return;
+
         const context = (actualContext as ApiServiceBotActionContext).dynamo
             // Strong consistency isn't required since this logic is test-only. So all requests
             // will be strong consistency implicitly.
             .unexpectStrongReadConsistency();
 
-        const match = request.url.match(
-            /^\/api\/durable-objects\/documents\/([^/]+)\/([^/]+)(?:\/(.*))?/,
+        return await TestDocumentCollaborationDurableObject.fetchForTest(
+            workerContext.botAction(context.actor.getSpaceId(), context.actor.getBotAccountId()),
+            match[1]!,
+            new Request(request.url, {
+                method: "POST",
+                body: request.body != null ? JSON.stringify(request.body) : request.body,
+            }),
         );
-        if (!match) return;
-
-        const updateContentResponse = await handleUpdateContentWithoutOptimisticBroadcastForTest(
-            actualContext,
-            request,
-        );
-        if (updateContentResponse !== undefined) return updateContentResponse;
-
-        const documentId = assertId<DocumentId>(match[1]!);
-        const route = match[2]!;
-
-        switch (route) {
-            case "update-content-with-diff": {
-                const requestBody =
-                    DocumentCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
-                        request.body ?? null,
-                    );
-                const document = await getDocumentContent(context, documentId);
-                const invertedSteps =
-                    requestBody.version < document.version
-                        ? await getDocumentContentSteps(context, {
-                              id: documentId,
-                              startVersion: requestBody.version,
-                              endVersion: document.version,
-                          })
-                        : [];
-                let oldContent = document.content;
-
-                for (let index = invertedSteps.length - 1; index >= 0; index--) {
-                    const step = invertedSteps[index]!;
-                    const stepResult = step.invertedStep.apply(oldContent);
-                    if (!stepResult.doc) throw new InternalError(stepResult.failed!);
-                    oldContent = assertDocumentContent(stepResult.doc);
-                }
-
-                const titleNode =
-                    requestBody.title === undefined
-                        ? oldContent.child(0)
-                        : schema.nodes.title.create(
-                              null,
-                              requestBody.title.length > 0 ? schema.text(requestBody.title) : null,
-                          );
-
-                const requestContent = schema.nodes.doc.create(oldContent.attrs, [
-                    titleNode,
-                    ...(requestBody.content ?? oldContent.content.content.slice(1)),
-                ]);
-
-                const steps = diffProsemirrorNodes(oldContent, requestContent);
-
-                const {newVersion, newContent} = await updateDocumentContent(context, {
-                    id: documentId,
-                    version: requestBody.version,
-                    steps,
-                    clientId: generateId(),
-                });
-
-                return DocumentCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
-                    ok: true,
-                    spaceId: document.spaceId,
-                    creatorId: document.creator.id,
-                    newVersion,
-                    newContent,
-                });
-            }
-            case "set-comment-thread-resolved": {
-                const commentThreadId = assertId<DocumentCommentThreadId>(match[3]!);
-
-                const {resolved} =
-                    DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.deserialize(
-                        request.body ?? null,
-                    );
-
-                const document = await getDocumentContent(context, documentId);
-                if (resolved) {
-                    await updateDocumentContent(context, {
-                        id: documentId,
-                        version: document.version,
-                        steps: [
-                            new RemoveAllMarksStep(
-                                schema.marks.comment.create({
-                                    commentThreadId,
-                                }),
-                            ),
-                        ],
-                        clientId: generateId(),
-                        resolveCommentThreadIds: [commentThreadId],
-                    });
-                } else {
-                    const {version, ranges} = await getResolvedDocumentCommentThreadRanges(
-                        context,
-                        {
-                            documentId,
-                            commentThreadId,
-                        },
-                    );
-
-                    await updateDocumentContent(context, {
-                        id: documentId,
-                        version,
-                        steps: [
-                            new AddMarksAfterRemoveAllStep(
-                                schema.marks.comment.create({
-                                    commentThreadId,
-                                }),
-                                ranges,
-                            ),
-                        ],
-                        clientId: generateId(),
-                        unresolveCommentThreadIds: [commentThreadId],
-                    });
-                }
-
-                return DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.serialize({
-                    ok: true,
-                });
-            }
-            case "create-comment-thread-for-api": {
-                const requestBody =
-                    DocumentCollaborationCreateCommentThreadForApiRequestBodySchema.deserialize(
-                        request.body ?? null,
-                    );
-                const decoder = new ApiContentKeyDecoder(`Document:${documentId}`);
-                const startDecodedKey = decoder.decode(requestBody.range.start.key);
-                const endDecodedKey = decoder.decode(requestBody.range.end.key);
-
-                if (startDecodedKey.version !== endDecodedKey.version) {
-                    throw new InvalidArgumentError(
-                        "Range content keys are for different document versions",
-                        {
-                            displayMessage: errorDisplayMessage`Range content keys are for different document versions. Try again with range start/end keys from the same document version.`,
-                        },
-                    );
-                }
-
-                const document = await getDocumentContent(context, documentId);
-                const version = startDecodedKey.version;
-                if (version > document.version) {
-                    throw new InvalidArgumentError(
-                        "Range content key document version is higher than the current document version",
-                        {
-                            displayMessage: errorDisplayMessage`Range content key document version is higher than the current document version. Try again with range start/end keys from the current document version.`,
-                        },
-                    );
-                }
-
-                const invertedSteps =
-                    version < document.version
-                        ? await getDocumentContentSteps(context, {
-                              id: documentId,
-                              startVersion: version,
-                              endVersion: document.version,
-                          })
-                        : [];
-                let content = document.content;
-                for (let index = invertedSteps.length - 1; index >= 0; index--) {
-                    const stepResult = invertedSteps[index]!.invertedStep.apply(content);
-                    if (!stepResult.doc) throw new InternalError(stepResult.failed!);
-                    content = assertDocumentContent(stepResult.doc);
-                }
-
-                const from = getApiContentPositionPosWithDecodedKey(
-                    startDecodedKey,
-                    requestBody.range.start,
-                );
-                const to = getApiContentPositionPosWithDecodedKey(
-                    endDecodedKey,
-                    requestBody.range.end,
-                );
-
-                if (from > to) {
-                    throw new InvalidArgumentError(
-                        "Range start position is greater than range end position",
-                        {
-                            displayMessage: errorDisplayMessage`Range start position is greater than range end position. Try again but swap the order of the start/end positions.`,
-                        },
-                    );
-                }
-
-                if (from === to) {
-                    throw new InvalidArgumentError(
-                        "Range start position is equal to range end position",
-                        {
-                            displayMessage: errorDisplayMessage`Range is empty because the start position is equal to the range end position. Try again but with a non-empty range.`,
-                        },
-                    );
-                }
-
-                const commentThreadId = generateId<DocumentCommentThreadId>();
-                const commentMark = schema.marks.comment.create({commentThreadId});
-                const steps: Array<AddMarkStep | AddNodeMarkStep> = [];
-                let hasInlineContent = false;
-
-                content.nodesBetween(from, to, (node, pos) => {
-                    if (node.isInline) hasInlineContent = true;
-
-                    if (
-                        !node.isInline &&
-                        node.isLeaf &&
-                        node.type.allowsMarkType(commentMark.type) &&
-                        from <= pos &&
-                        pos + node.nodeSize <= to
-                    ) {
-                        steps.push(new AddNodeMarkStep(pos, commentMark));
-                    }
-                });
-
-                if (hasInlineContent) {
-                    steps.unshift(new AddMarkStep(from, to, commentMark));
-                }
-
-                const createdTime = new Date();
-                await updateDocumentContent(context, {
-                    id: documentId,
-                    version,
-                    steps,
-                    clientId: generateId(),
-                    createCommentThreads: [
-                        {
-                            commentThreadId,
-                            createdTime,
-                            createdTimeZone: requestBody.createdTimeZone,
-                            initialCommentContent: requestBody.content,
-                            initialCommentFileIds: requestBody.fileIds,
-                            attachInitialCommentFilesAsBot: true,
-                        },
-                    ],
-                });
-
-                return DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.serialize({
-                    ok: true,
-                    spaceId: document.spaceId,
-                    commentThread: {id: commentThreadId, createdTime},
-                });
-            }
-            default:
-                throw new InternalError(quote`Unknown route: ${route}`);
-        }
     },
 });
+
+const workerContext = createTestWorkerContextFromBaseContext(context);
+
+const TestDocumentCollaborationDurableObject =
+    DocumentCollaborationDurableObject.test(workerContext);
 
 // Mock content conversion so an individual test can force it to throw and assert
 // the document endpoints translate the failure into a 400 instead of a 500. This
