@@ -25,7 +25,7 @@ ts_project(
         "//:node_modules/@types/node",
         "//server/lambda",
         "//shared/accounts",
-        "//shared/api/markdown",
+        "//shared/api/content",
         "//shared/api/specification",
         "//shared/helpers",
         "//shared/id",

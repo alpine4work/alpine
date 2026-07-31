@@ -648,6 +648,8 @@ paths:
                                         - firstMessage
                                     additionalProperties: false
                                     properties:
+                                        range:
+                                            $ref: "#/components/schemas/ContentRange"
                                         firstMessage:
                                             type: object
                                             required:
@@ -662,8 +664,6 @@ paths:
                                                     type: array
                                                     items:
                                                         $ref: "#/components/schemas/MessageContentPayloadFile"
-                                        range:
-                                            $ref: "#/components/schemas/ContentRange"
             responses:
                 "200":
                     content:

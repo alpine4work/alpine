@@ -638,7 +638,13 @@ paths:
                                     required: [range, firstMessage]
                                     additionalProperties: false
                                     properties:
-                                        # TODO(#agent-web): Reuse the create-message
+                                        # TODO(#agents-web): Revisit representing thread
+                                        # targets as `range: ContentRange | null` and
+                                        # `additionalRanges: Array<ContentRange>` once document
+                                        # thread responses can represent ranges.
+                                        range:
+                                            $ref: "#/components/schemas/ContentRange"
+                                        # TODO(#agents-web): Reuse the create-message
                                         # input type here after `CreateMessage` is updated to match
                                         # message output, including nesting content and files in
                                         # `payload`.
@@ -655,12 +661,6 @@ paths:
                                                     type: array
                                                     items:
                                                         $ref: "#/components/schemas/MessageContentPayloadFile"
-                                        # TODO(#agent-web): Revisit representing thread
-                                        # targets as `range: ContentRange | null` and
-                                        # `additionalRanges: Array<ContentRange>` once document
-                                        # thread responses can represent ranges.
-                                        range:
-                                            $ref: "#/components/schemas/ContentRange"
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200":

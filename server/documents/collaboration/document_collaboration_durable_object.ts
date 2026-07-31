@@ -21,7 +21,8 @@ import {
     hasAccessLevel,
     isAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {getApiContentRange} from "~/shared/api/content/get_api_content_range.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {getApiContentPositionPosWithDecodedKey} from "~/shared/api/content/closed_source/get_api_content_position_pos.js";
 import {
     DocumentCollaborationCreateCommentThreadForApiRequestBodySchema,
     DocumentCollaborationCreateCommentThreadForApiResponseBodySchema,
@@ -43,18 +44,17 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {
     AccountId,
     DocumentCommentThreadId,
     DocumentId,
-    FileId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {
@@ -63,8 +63,6 @@ import {
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -74,16 +72,9 @@ import {
     getDocumentContentForCollaborationServiceInitialization,
     getResolvedDocumentCommentThreadRanges,
 } from "~/shared/rpc/documents_rpc_definitions.js";
-import {getFileWithoutSignedUrlFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
-import {
-    getApiContentPositionPos,
-    getApiContentPositionPosWithDecodedKey,
-} from "~/shared/api/content/closed_source/get_api_content_position_pos.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 
 type DocumentCollaborationDurableObjectRoute =
     | {type: "Main"; accessLevel: AccessLevel | null}

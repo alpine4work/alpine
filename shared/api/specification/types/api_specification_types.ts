@@ -979,12 +979,12 @@ export namespace ApiSpecification {
                     readonly content: {
                         readonly "application/json": {
                             readonly thread: {
+                                readonly range: components["schemas"]["ContentRange"];
                                 readonly firstMessage: {
                                     readonly createdTimeZone?: components["schemas"]["TimeZone"];
                                     readonly content: components["schemas"]["Content"];
                                     readonly files?: readonly components["schemas"]["MessageContentPayloadFile"][];
                                 };
-                                readonly range: components["schemas"]["ContentRange"];
                             };
                         };
                     };

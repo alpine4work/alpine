@@ -8,13 +8,12 @@ import {getFathomMeetingNotesMonthDocumentIds} from "~/admin/lambda/fathom_meeti
 import {getFathomMeetingNotesParentDocumentId} from "~/admin/lambda/fathom_meeting_notes/internal/get_fathom_meeting_notes_parent_document_id.js";
 import {insertFathomMeetingNotesMention} from "~/admin/lambda/fathom_meeting_notes/internal/insert_fathom_meeting_notes_mention.js";
 import {isPublicFathomMeeting} from "~/admin/lambda/fathom_meeting_notes/internal/is_public_fathom_meeting.js";
-import {
-    ApiCreateDocumentRequestBody,
-    ApiGetDocumentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiGetDocumentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
+type ApiCreateDocumentRequestBody =
+    ApiSpecification.paths["/documents"]["post"]["requestBody"]["content"]["application/json"];
 type ApiPatchDocumentRequestBody =
     ApiSpecification.paths["/documents/{id}"]["patch"]["requestBody"]["content"]["application/json"];
 
@@ -121,15 +120,16 @@ export async function processFathomMeetingNotes(
     const insertion = insertFathomMeetingNotesMention({
         content: parentResult.value.document.content,
         documentId: createResult.value.document.id,
-        title: meetingNotes.title,
         scheduledStartTime: payload.scheduled_start_time,
     });
     const patchRequest: ApiPatchDocumentRequestBody = {
-        document: {
-            version: parentResult.value.document.version,
-            title: parentResult.value.document.title,
-            content: insertion.content,
-        },
+        patches: [
+            {
+                type: "SetContent",
+                version: parentResult.value.document.version,
+                content: insertion.content,
+            },
+        ],
     };
     const patchResult = await fetchFathomMeetingNotesAlpineApi<ApiGetDocumentResponse>(
         `/documents/${parentDocumentId}`,

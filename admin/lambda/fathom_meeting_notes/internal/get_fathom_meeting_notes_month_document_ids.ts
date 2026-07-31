@@ -41,8 +41,8 @@ export function getFathomMeetingNotesMonthDocumentIds({
 
         if (!isMatchingMonth || element.type !== "Paragraph") continue;
         for (const inlineElement of element.elements) {
-            if (inlineElement.type === "Mention" && inlineElement.target.type === "Document") {
-                documentIds.push(inlineElement.target.id);
+            if (inlineElement.type === "Mention" && inlineElement.reference.type === "Document") {
+                documentIds.push(inlineElement.reference.id);
             }
         }
     }

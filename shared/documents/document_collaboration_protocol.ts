@@ -12,7 +12,6 @@ import {
     DocumentContentNodeSchema,
     DocumentContentSchema,
     DocumentContentStepSchema,
-    DocumentWithOptionalTitleContentSchema,
 } from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
@@ -21,7 +20,6 @@ import {
 import {createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {
     AccountId,
     ContentEditorClientId,
@@ -30,11 +28,7 @@ import {
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
-import {
-    MessageContentPayloadParentSchema,
-    MessagePayloadSchema,
-    MessageStreamSchema,
-} from "~/shared/messaging/message_schema.js";
+import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
     MessagingTypingStateSchema,
     createMessageUpdatesBackfillResultSchema,

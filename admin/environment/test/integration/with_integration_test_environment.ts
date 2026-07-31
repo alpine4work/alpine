@@ -923,7 +923,7 @@ export function actuallyCreateIntegrationTestEnvironment(
 
         if (shouldStartAgentService) {
             agentServiceSubprocess = spawn(
-                joinPath(runfilesPath, "cyberworlds/server/agents/bots/agents.sh"),
+                joinPath(runfilesPath, "cyberworlds/server/agents/bots/bots.sh"),
                 [
                     `--port=${agentServicePort}`,
                     `--cacheLocalDataPath=${agentsCacheLocalDataPath}`,

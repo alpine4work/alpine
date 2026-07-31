@@ -221,7 +221,7 @@ async function actuallyCallAgentWebUpdateTool(
         // the update succeeded then we need to delete our entry from `readResponseByPath`
         // since it's invalid. The agent will need to re-read the path.
         //
-        // TODO(calebmer, #agent-web): Once we have an update that might have a partial
+        // TODO(calebmer, #agents-web): Once we have an update that might have a partial
         // success then write a test to make sure in the partial success case we clean
         // `readResponseByPath`!
         let isPartialSuccess = false;

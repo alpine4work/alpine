@@ -11,7 +11,7 @@ import {emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 function createTaskEntry(
     task:
-        | {isPrivate: true; taskId: TaskId}
+        | {isPrivate: true; isDeleted: boolean; taskId: TaskId}
         | {isPrivate: false; taskId: TaskId; taskOwner: AccountModel},
 ): InboxTaskEntryModel {
     return new InboxTaskEntryModel({
@@ -84,7 +84,7 @@ describe("intoApiInboxEntry()", () => {
 
         test("flags a private task with a placeholder title", () => {
             const taskId = generateId<TaskId>();
-            const entry = createTaskEntry({isPrivate: true, taskId});
+            const entry = createTaskEntry({isPrivate: true, isDeleted: false, taskId});
 
             const result = intoApiInboxEntry(entry, {isPrivate: true});
 

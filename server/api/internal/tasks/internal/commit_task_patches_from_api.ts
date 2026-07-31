@@ -118,7 +118,7 @@ export async function commitTaskPatchesFromApi(
     const seenUpdateTaskIds = new Set<TaskId>();
     const steps: Array<ApiTaskCommitStep> = [];
     const extraTransactionEntries: Array<DynamoTransactionEntry> = [];
-    const fileAttachmentPromises: Array<Promise<void>> = [];
+    const fileAttachmentPromises: Array<Promise<unknown>> = [];
     let hasCreates = false;
 
     // The patch results each batch patch's steps write into, indexed by batch patch.

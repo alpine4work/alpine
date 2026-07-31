@@ -24,8 +24,11 @@ const content: ApiContent = {
             elements: [
                 {
                     type: "Mention",
-                    target: {type: "Document", id: julyDocumentId},
-                    title: "Tea Time - July 28, 2026",
+                    reference: {
+                        type: "Document",
+                        id: julyDocumentId,
+                        title: "Tea Time - July 28, 2026",
+                    },
                 },
             ],
         },
@@ -39,8 +42,11 @@ const content: ApiContent = {
             elements: [
                 {
                     type: "Mention",
-                    target: {type: "Document", id: juneDocumentId},
-                    title: "Tea Time - June 30, 2026",
+                    reference: {
+                        type: "Document",
+                        id: juneDocumentId,
+                        title: "Tea Time - June 30, 2026",
+                    },
                 },
             ],
         },
@@ -59,8 +65,11 @@ const content: ApiContent = {
             elements: [
                 {
                     type: "Mention",
-                    target: {type: "Document", id: previousYearDocumentId},
-                    title: "Tea Time - July 29, 2025",
+                    reference: {
+                        type: "Document",
+                        id: previousYearDocumentId,
+                        title: "Tea Time - July 29, 2025",
+                    },
                 },
             ],
         },

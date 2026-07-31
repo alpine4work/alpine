@@ -3345,7 +3345,7 @@ test("deleted document mention in a post title", async () => {
         version: expect.any(Object),
         fields: {
             title: [`in Updates: Review Important Doc today`],
-            body: [`in Updates: Review Important Doc today`],
+            body: [`in Updates:\n\nReview Important Doc today`],
         },
     });
 
@@ -3369,7 +3369,7 @@ test("deleted document mention in a post title", async () => {
         version: expect.any(Object),
         fields: {
             title: [`in Updates: Review Deleted document today`],
-            body: [`in Updates: Review Deleted document today`],
+            body: [`in Updates:\n\nReview Deleted document today`],
         },
     });
 });

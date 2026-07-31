@@ -19,7 +19,7 @@ test("derives a slug from the heading text", () => {
         paragraph("Body."),
     ]);
 
-    expect(getContentHeadingSections(doc)).toMatchObject([{slug: "rollout-plan-timeline"}]);
+    expect(getContentHeadingSections(doc)).toMatchObject([{slug: "rollout-plan-and-timeline"}]);
 });
 
 test("dedupes duplicate slugs with numeric suffixes in document order", () => {

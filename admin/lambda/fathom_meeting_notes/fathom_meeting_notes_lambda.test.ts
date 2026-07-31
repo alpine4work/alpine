@@ -180,8 +180,7 @@ function createParentResponseWithMention(title: string, documentId: string) {
             elements: [
                 {
                     type: "Mention",
-                    title,
-                    target: {type: "Document", id: documentId},
+                    reference: {type: "Document", id: documentId, title},
                 },
             ],
         },
@@ -354,29 +353,30 @@ describe("Fathom meeting notes Lambda", () => {
             },
             parentUpdate: {
                 body: {
-                    document: {
-                        version: 10,
-                        title: "Meeting Notes",
-                        content: {
-                            elements: [
-                                {},
-                                {},
-                                {
-                                    type: "Paragraph",
-                                    elements: [
-                                        {
-                                            type: "Mention",
-                                            title,
-                                            target: {
-                                                type: "Document",
-                                                id: "new-meeting-document",
+                    patches: [
+                        {
+                            type: "SetContent",
+                            version: 10,
+                            content: {
+                                elements: [
+                                    {},
+                                    {},
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Mention",
+                                                reference: {
+                                                    type: "Document",
+                                                    id: "new-meeting-document",
+                                                },
                                             },
-                                        },
-                                    ],
-                                },
-                            ],
+                                        ],
+                                    },
+                                ],
+                            },
                         },
-                    },
+                    ],
                 },
             },
         });
@@ -400,32 +400,38 @@ describe("Fathom meeting notes Lambda", () => {
         expect(fetchCalls[2]).toMatchObject({
             method: "PATCH",
             body: {
-                document: {
-                    content: {
-                        elements: [
-                            {},
-                            {
-                                type: "Heading",
-                                level: 3,
-                                elements: [{type: "Text", text: "August"}],
-                            },
-                            {
-                                type: "Paragraph",
-                                elements: [
-                                    {
-                                        type: "Mention",
-                                        title,
-                                    },
-                                ],
-                            },
-                            {
-                                type: "Heading",
-                                level: 3,
-                                elements: [{type: "Text", text: "July"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        content: {
+                            elements: [
+                                {},
+                                {
+                                    type: "Heading",
+                                    level: 3,
+                                    elements: [{type: "Text", text: "August"}],
+                                },
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Mention",
+                                            reference: {
+                                                type: "Document",
+                                                id: "new-meeting-document",
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "Heading",
+                                    level: 3,
+                                    elements: [{type: "Text", text: "July"}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
     });

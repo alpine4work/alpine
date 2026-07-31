@@ -18,7 +18,7 @@ function summarizeContent(content: ApiContent): Array<string> {
             const mention = element.elements.find(
                 inlineElement => inlineElement.type === "Mention",
             );
-            return mention?.type === "Mention" ? `P:${mention.title}` : "P";
+            return mention?.type === "Mention" ? `P:${mention.reference.id}` : "P";
         }
 
         return element.type;
@@ -43,8 +43,11 @@ test("adds the newest mention immediately after an existing month heading", () =
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Document", id: oldDocumentId},
-                        title: "Tea Time - July 21, 2026",
+                        reference: {
+                            type: "Document",
+                            id: oldDocumentId,
+                            title: "Tea Time - July 21, 2026",
+                        },
                     },
                 ],
             },
@@ -54,7 +57,6 @@ test("adds the newest mention immediately after an existing month heading", () =
 
     const result = insertFathomMeetingNotesMention({
         content,
-        title: "Tea Time - July 28, 2026",
         documentId: newDocumentId,
         scheduledStartTime: "2026-07-28T17:00:00Z",
     });
@@ -64,11 +66,11 @@ test("adds the newest mention immediately after an existing month heading", () =
         summary: summarizeContent(result.content),
     }).toEqual({
         inserted: true,
-        summary: ["H2:2026", "H3:July", "P:Tea Time - July 28, 2026", "P:Tea Time - July 21, 2026"],
+        summary: ["H2:2026", "H3:July", `P:${newDocumentId}`, `P:${oldDocumentId}`],
     });
 });
 
-test("allows a different document with the same title", () => {
+test("allows a different document", () => {
     const content: ApiContent = {
         elements: [
             {
@@ -86,8 +88,11 @@ test("allows a different document with the same title", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Document", id: oldDocumentId},
-                        title: "Tea Time - July 28, 2026",
+                        reference: {
+                            type: "Document",
+                            id: oldDocumentId,
+                            title: "Tea Time - July 28, 2026",
+                        },
                     },
                 ],
             },
@@ -96,7 +101,6 @@ test("allows a different document with the same title", () => {
 
     const result = insertFathomMeetingNotesMention({
         content,
-        title: "Tea Time - July 28, 2026",
         documentId: newDocumentId,
         scheduledStartTime: "2026-07-28T17:00:00Z",
     });
@@ -106,7 +110,7 @@ test("allows a different document with the same title", () => {
         summary: summarizeContent(result.content),
     }).toEqual({
         inserted: true,
-        summary: ["H2:2026", "H3:July", "P:Tea Time - July 28, 2026", "P:Tea Time - July 28, 2026"],
+        summary: ["H2:2026", "H3:July", `P:${newDocumentId}`, `P:${oldDocumentId}`],
     });
 });
 
@@ -128,8 +132,11 @@ test("returns the original content when the document is already mentioned", () =
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Document", id: oldDocumentId},
-                        title: "Tea Time - July 28, 2026",
+                        reference: {
+                            type: "Document",
+                            id: oldDocumentId,
+                            title: "Tea Time - July 28, 2026",
+                        },
                     },
                 ],
             },
@@ -138,7 +145,6 @@ test("returns the original content when the document is already mentioned", () =
 
     const result = insertFathomMeetingNotesMention({
         content,
-        title: "Tea Time - July 28, 2026",
         documentId: oldDocumentId,
         scheduledStartTime: "2026-07-28T17:00:00Z",
     });
@@ -169,7 +175,6 @@ test("creates a missing month in descending chronological order", () => {
 
     const result = insertFathomMeetingNotesMention({
         content,
-        title: "Sprint Review - June 10, 2026",
         documentId: newDocumentId,
         scheduledStartTime: "2026-06-10T17:00:00Z",
     });
@@ -178,7 +183,7 @@ test("creates a missing month in descending chronological order", () => {
         "H2:2026",
         "H3:July",
         "H3:June",
-        "P:Sprint Review - June 10, 2026",
+        `P:${newDocumentId}`,
         "H3:May",
     ]);
 });
@@ -206,7 +211,6 @@ test("creates a missing year in descending chronological order", () => {
 
     const result = insertFathomMeetingNotesMention({
         content,
-        title: "Sprint Check-in - December 10, 2025",
         documentId: newDocumentId,
         scheduledStartTime: "2025-12-10T17:00:00Z",
     });
@@ -216,7 +220,7 @@ test("creates a missing year in descending chronological order", () => {
         "H3:January",
         "H2:2025",
         "H3:December",
-        "P:Sprint Check-in - December 10, 2025",
+        `P:${newDocumentId}`,
         "H2:2024",
     ]);
 });
@@ -239,14 +243,9 @@ test("uses the default time zone to choose the month section", () => {
 
     const result = insertFathomMeetingNotesMention({
         content,
-        title: "Tea Time - July 31, 2026",
         documentId: newDocumentId,
         scheduledStartTime: "2026-08-01T02:00:00Z",
     });
 
-    expect(summarizeContent(result.content)).toEqual([
-        "H2:2026",
-        "H3:July",
-        "P:Tea Time - July 31, 2026",
-    ]);
+    expect(summarizeContent(result.content)).toEqual(["H2:2026", "H3:July", `P:${newDocumentId}`]);
 });
