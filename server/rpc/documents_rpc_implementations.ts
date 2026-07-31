@@ -115,7 +115,9 @@ export default implementRpcs(definitions, {
     getDocumentContentSteps: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
-            const steps = await getDocumentContentSteps(context.actor.authorizeSession(), {
+            // Bot actors may call this RPC indirectly through the document collaboration
+            // Durable Object when an API update needs to rebase over persisted steps.
+            const steps = await getDocumentContentSteps(context.actor.authorizeAccount(), {
                 id: input.documentId,
                 startVersion: input.startVersion,
                 endVersion: input.endVersion,

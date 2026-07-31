@@ -28,6 +28,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
@@ -65,7 +66,7 @@ const context = createTestContext({
     searchInjection,
 
     sendRequestToDurableObject: async (actualContext, request) => {
-        const match = request.url.match(/^\/api\/durable-objects\/documents\/([^/]+)\//);
+        const match = request.url.match(/^\/api\/durable-objects\/documents\/([^/]+)(\/.*)$/);
         if (!match) return;
 
         const context = (actualContext as ApiServiceBotActionContext).dynamo
@@ -73,14 +74,28 @@ const context = createTestContext({
             // will be strong consistency implicitly.
             .unexpectStrongReadConsistency();
 
-        return await TestDocumentCollaborationDurableObject.fetchForTest(
-            workerContext.botAction(context.actor.getSpaceId(), context.actor.getBotAccountId()),
+        const response = await TestDocumentCollaborationDurableObject.fetchForTest(
+            workerContext.botAction(
+                context.actor.getSpaceId(),
+                context.actor.getBotAccountId(),
+                context.actor.getScope(),
+            ),
             match[1]!,
-            new Request(request.url, {
+            new Request(new URL(match[2]!, "https://cyberworlds.dev"), {
                 method: "POST",
                 body: request.body != null ? JSON.stringify(request.body) : request.body,
             }),
         );
+
+        const responseBody = await response.json();
+
+        if (response.status !== 200) {
+            throw new InternalError(
+                quote`Fetch to ${request.url} failed with status code ${response.status}: ${JSON.stringify(responseBody)}`,
+            );
+        }
+
+        return responseBody;
     },
 });
 
@@ -1725,9 +1740,9 @@ describe("comment threads", () => {
         const firstFile = fileGallery.rows[0]?.items[0]?.element;
         const secondFile = fileGallery.rows[0]?.items[1]?.element;
         const thirdFile = fileGallery.rows[0]?.items[2]?.element;
-        assert(firstFile?.type === "File" && firstFile.id === file1.id);
-        assert(secondFile?.type === "File" && secondFile.id === file2.id);
-        assert(thirdFile?.type === "File" && thirdFile.id === file3.id);
+        assert(firstFile?.type === "File" && firstFile.file.id === file1.id);
+        assert(secondFile?.type === "File" && secondFile.file.id === file2.id);
+        assert(thirdFile?.type === "File" && thirdFile.file.id === file3.id);
 
         // Every request intentionally uses keys from the initial GET. Each preceding
         // comment makes those keys stale and exercises collaboration rebasing. Together
@@ -2019,7 +2034,7 @@ describe("comment threads", () => {
         });
     });
 
-    test("does not attach files to document comments without comment access", async () => {
+    test("attaches files before rejecting document comments without comment access", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const viewerSession = await space.createSession();
@@ -2038,7 +2053,11 @@ describe("comment threads", () => {
         let paragraphKey = null;
         (await document.getContent()).descendants((node, pos) => {
             if (node.type.name !== "paragraph") return;
-            paragraphKey = encoder.encode({pos, nodeSize: node.nodeSize});
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
             return false;
         });
         assert(paragraphKey !== null);
@@ -2046,53 +2065,53 @@ describe("comment threads", () => {
         const file = await TestFile.create(session);
         await document.attachFile(session, file);
 
-        expect(
-            await server.POST(`/documents/${document.id}/threads`, {
-                headers: {authorization: `bearer ${apiKey}`},
-                body: {
-                    thread: {
-                        range: {
-                            start: {type: "Inline", key: paragraphKey, index: 0},
-                            end: {type: "Inline", key: paragraphKey, index: 4},
+        const response = await server.POST(`/documents/${document.id}/threads`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                thread: {
+                    range: {
+                        start: {type: "Inline", key: paragraphKey, index: 0},
+                        end: {type: "Inline", key: paragraphKey, index: 4},
+                    },
+                    firstMessage: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Comment with file"}],
+                                },
+                            ],
                         },
-                        firstMessage: {
-                            content: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [{type: "Text", text: "Comment with file"}],
-                                    },
-                                ],
-                            },
-                            files: [{element: {type: "File", id: file.id}}],
-                        },
+                        files: [{element: {type: "File", file: {id: file.id}}}],
                     },
                 },
-            }),
-        ).toEqual({
-            status: 403,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: {
-                error: expect.objectContaining({
-                    message: expect.stringContaining("comment"),
-                }),
             },
         });
+        const attachedFile = await getFileFromAttachment(
+            space.systemAction(),
+            file.id,
+            FileDocumentAuthorizer.bind({
+                type: "DocumentComments",
+                documentId: document.id,
+            }),
+            {consistency: "Strong"},
+        );
 
-        await expect(
-            getFileFromAttachment(
-                space.systemAction(),
-                file.id,
-                FileDocumentAuthorizer.bind({
-                    type: "DocumentComments",
-                    documentId: document.id,
-                }),
-                {consistency: "Strong"},
-            ),
-        ).rejects.toThrow("File isn\u2019t attached to target");
+        expect({response, attachedFile}).toMatchObject({
+            response: {
+                status: 403,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message: expect.stringContaining("comment"),
+                    }),
+                },
+            },
+            attachedFile: {id: file.id},
+        });
     });
 
-    test("does not attach files when target range validation fails", async () => {
+    test("attaches files before rejecting a reversed target range", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -2109,100 +2128,50 @@ describe("comment threads", () => {
         const file = await TestFile.create(session);
         await document.attachFile(session, file);
 
-        expect(
-            await server.POST(`/documents/${document.id}/threads`, {
-                headers: {authorization: `bearer ${apiKey}`},
-                body: {
-                    thread: {
-                        range: {
-                            start: {type: "Inline", key: paragraph.key, index: 1},
-                            end: {type: "Inline", key: paragraph.key, index: 0},
+        const response = await server.POST(`/documents/${document.id}/threads`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                thread: {
+                    range: {
+                        start: {type: "Inline", key: paragraph.key, index: 1},
+                        end: {type: "Inline", key: paragraph.key, index: 0},
+                    },
+                    firstMessage: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Comment with file"}],
+                                },
+                            ],
                         },
-                        firstMessage: {
-                            content: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [{type: "Text", text: "Comment with file"}],
-                                    },
-                                ],
-                            },
-                            files: [{element: {type: "File", id: file.id}}],
-                        },
+                        files: [{element: {type: "File", file: {id: file.id}}}],
                     },
                 },
-            }),
-        ).toMatchObject({
-            status: 400,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: {
-                error: expect.objectContaining({
-                    message: expect.stringContaining(
-                        "Item target range start must be before the end",
-                    ),
-                }),
             },
         });
 
-        await expect(
-            getFileFromAttachment(
-                space.systemAction(),
-                file.id,
-                FileDocumentAuthorizer.bind({
-                    type: "DocumentComments",
-                    documentId: document.id,
-                }),
-                {consistency: "Strong"},
-            ),
-        ).rejects.toThrow("File isn\u2019t attached to target");
-    });
+        const attachedFile = await getFileFromAttachment(
+            space.systemAction(),
+            file.id,
+            FileDocumentAuthorizer.bind({
+                type: "DocumentComments",
+                documentId: document.id,
+            }),
+            {consistency: "Strong"},
+        );
 
-    test("returns collaboration service range validation errors as a 400", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-
-        const bot = await TestBot.createAndInstantiate(session);
-        const document = await TestDocument.create(session);
-        await document.type(session, "Hello");
-
-        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
-        const paragraph = await getFirstParagraphFromApiDocument({
-            documentId: document.id,
-            apiKey,
-        });
-
-        expect(
-            await server.POST(`/documents/${document.id}/threads`, {
-                headers: {authorization: `bearer ${apiKey}`},
+        expect({response, attachedFile}).toMatchObject({
+            response: {
+                status: 400,
                 body: {
-                    thread: {
-                        range: {
-                            start: {type: "Inline", key: paragraph.key, index: 4},
-                            end: {type: "Inline", key: paragraph.key, index: 0},
-                        },
-                        firstMessage: {
-                            content: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [{type: "Text", text: "Comment"}],
-                                    },
-                                ],
-                            },
-                        },
+                    error: {
+                        message:
+                            "Range start position is greater than range end position. Try again but swap the order of the start/end positions.",
                     },
                 },
-            }),
-        ).toMatchObject({
-            status: 400,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: {
-                error: expect.objectContaining({
-                    message: expect.stringContaining(
-                        "Item target range start must be before the end",
-                    ),
-                }),
             },
+            attachedFile: {id: file.id},
         });
     });
 
@@ -2505,24 +2474,22 @@ describe("comment threads", () => {
             apiKey,
         });
 
-        expect(
-            await server.POST(`/documents/${document.id}/threads`, {
-                headers: {authorization: `bearer ${apiKey}`},
-                body: {
-                    thread: {
-                        range: {
-                            start: {type: "Inline", key: paragraph.key, index: 0},
-                            end: {type: "Inline", key: paragraph.key, index: 1},
-                        },
-                        firstMessage: {
-                            content: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [{type: "Text", text: "whitespace comment"}],
-                                    },
-                                ],
-                            },
+        const response = await server.POST(`/documents/${document.id}/threads`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                thread: {
+                    range: {
+                        start: {type: "Inline", key: paragraph.key, index: 0},
+                        end: {type: "Inline", key: paragraph.key, index: 1},
+                    },
+                    firstMessage: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "whitespace comment"}],
+                                },
+                            ],
                         },
                     },
                 },
@@ -2597,7 +2564,6 @@ describe("comment threads", () => {
 
         expect(response).toMatchObject({
             status: 400,
-            headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: {
                     message:

@@ -1073,7 +1073,10 @@ export async function createApiServiceRequestListener(
                 return createApiErrorResponse({
                     status,
                     message: renderErrorDisplayMessage(displayMessage),
-                    stack: error instanceof Error ? error.stack : undefined,
+                    stack:
+                        isObject(error) && "stack" in error && typeof error.stack === "string"
+                            ? error.stack
+                            : undefined,
                     isRetryable: isTransientError(error),
                 });
             }
