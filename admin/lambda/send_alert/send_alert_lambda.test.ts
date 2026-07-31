@@ -226,4 +226,19 @@ describe("send alert lambda", () => {
             fetchCalls: 1,
         });
     });
+
+    test("pins the Alpine API version for requests", async () => {
+        await callHandler(createEvent());
+
+        expect(mockFetch).toHaveBeenCalledWith(
+            "https://api.test.cyberworlds.com/posts",
+            expect.objectContaining({
+                headers: {
+                    "Alpine-Version": "2026-07-29",
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer test-api-key",
+                },
+            }),
+        );
+    });
 });
