@@ -799,6 +799,24 @@ class DocumentCollaborationDurableObject {
                                     requestBody.range.end,
                                 );
 
+                                if (from > to) {
+                                    throw new InvalidArgumentError(
+                                        "Range start position is greater than range end position",
+                                        {
+                                            displayMessage: errorDisplayMessage`Range start position is greater than range end position. Try again but swap the order of the start/end positions.`,
+                                        },
+                                    );
+                                }
+
+                                if (from === to) {
+                                    throw new InvalidArgumentError(
+                                        "Range start position is equal to range end position",
+                                        {
+                                            displayMessage: errorDisplayMessage`Range is empty because the start position is equal to the range end position. Try again but with a non-empty range.`,
+                                        },
+                                    );
+                                }
+
                                 const commentThreadId = generateId<DocumentCommentThreadId>();
                                 const commentMark =
                                     DocumentContentProsemirrorSchema.marks.comment.create({
