@@ -1536,8 +1536,8 @@ describe("comment threads", () => {
         expect(paragraph.type).toBe("Paragraph");
         expect(paragraph.key).toEqual(expect.any(String));
 
-        const emojiStartIndex = Array.from("A").length;
-        const emojiEndIndex = emojiStartIndex + Array.from(emoji).length - 1;
+        const emojiStartIndex = "A".length;
+        const emojiEndIndex = emojiStartIndex + emoji.length;
 
         const createThreadResponse = await server.POST(`/documents/${document.id}/threads`, {
             headers: {authorization: `bearer ${apiKey}`},
@@ -1566,37 +1566,14 @@ describe("comment threads", () => {
             expect.objectContaining({"content-type": "application/json"}),
         );
         expect(createThreadResponse.body.spaceId).toBe(space.id);
-        expect(createThreadResponse.body.document).toEqual({
-            id: document.id,
-            version: expect.any(Number),
-        });
         expect(createThreadResponse.body.thread).toEqual(
             expect.objectContaining({
                 id: expect.any(String),
                 isResolved: false,
-                commentCount: 1,
-                documentContentSnippet: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            key: expect.any(String),
-                            elements: [
-                                {type: "Text", text: "A"},
-                                {
-                                    type: "Text",
-                                    text: emoji,
-                                    marks: [
-                                        {
-                                            type: "Comment",
-                                            threadId: expect.any(String),
-                                        },
-                                    ],
-                                },
-                                {type: "Text", text: "B"},
-                            ],
-                        },
-                    ],
-                },
+                totalMessageCount: 1,
+                firstMessage: expect.objectContaining({
+                    createdTime: expect.any(String),
+                }),
             }),
         );
         expect(createThreadResponse.body.message).toEqual(
@@ -1618,6 +1595,42 @@ describe("comment threads", () => {
         );
 
         const createdCommentThreadId = createThreadResponse.body.thread.id;
+        const getThreadWithPreviewResponse = await server.GET(
+            `/documents/${document.id}/threads/${createdCommentThreadId}-with-preview`,
+            {headers: {authorization: `bearer ${apiKey}`}},
+        );
+
+        expect(getThreadWithPreviewResponse).toMatchObject({
+            status: 200,
+            body: {
+                thread: {
+                    id: createdCommentThreadId,
+                    preview: {
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {type: "Text", text: "A"},
+                                        {
+                                            type: "Text",
+                                            text: emoji,
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: createdCommentThreadId},
+                                                },
+                                            ],
+                                        },
+                                        {type: "Text", text: "B"},
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        });
 
         expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
@@ -1855,6 +1868,16 @@ describe("comment threads", () => {
                 fileToTextId !== undefined,
         );
 
+        const previewResponses = await runAllPromises(
+            responses.map(response =>
+                server.GET(
+                    `/documents/${document.id}/threads/${response.body.thread.id}-with-preview`,
+                    {headers: {authorization: `bearer ${apiKey}`}},
+                ),
+            ),
+        );
+        for (const response of previewResponses) assert(response.status === 200);
+
         const commentThreadIdsByText = new Map<string, Set<DocumentCommentThreadId>>();
         const commentThreadIdsByFileId = new Map<FileId, Set<DocumentCommentThreadId>>();
         (await document.get()).content.doc.descendants((node, _pos, parent) => {
@@ -1888,7 +1911,11 @@ describe("comment threads", () => {
             responses: responses.map(response => ({
                 status: response.status,
                 messageIndex: response.body.message.index,
-                hasSnippet: response.body.thread.documentContentSnippet.elements.length > 0,
+                totalMessageCount: response.body.thread.totalMessageCount,
+            })),
+            previews: previewResponses.map(response => ({
+                status: response.status,
+                hasSnippet: response.body.thread.preview.contentSnippet.elements.length > 0,
             })),
             text: Object.fromEntries(
                 Array.from(commentThreadIdsByText, ([text, ids]) => [text, sortedIds(ids)]),
@@ -1900,8 +1927,9 @@ describe("comment threads", () => {
             responses: comments.map(() => ({
                 status: 200,
                 messageIndex: 0,
-                hasSnippet: true,
+                totalMessageCount: 1,
             })),
+            previews: comments.map(() => ({status: 200, hasSnippet: true})),
             text: {
                 "Section heading": [headingId],
                 "First paragraph": sortedIds([
@@ -1958,7 +1986,7 @@ describe("comment threads", () => {
                                 },
                             ],
                         },
-                        files: [{element: {type: "File", id: file.id}}],
+                        files: [{element: {type: "File", file: {id: file.id}}}],
                     },
                 },
             },
@@ -1977,9 +2005,11 @@ describe("comment threads", () => {
                                 width: 1,
                                 element: {
                                     type: "File",
-                                    id: file.id,
-                                    contentType: expect.any(String),
-                                    contentLength: expect.any(Number),
+                                    file: {
+                                        id: file.id,
+                                        contentType: expect.any(String),
+                                        contentLength: expect.any(Number),
+                                    },
                                 },
                             }),
                         ],
@@ -2195,7 +2225,7 @@ describe("comment threads", () => {
 
         let fileElement = null;
         for (const element of getDocumentResponse.body.document.content.elements) {
-            if (element.type === "File" && element.id === file.id) {
+            if (element.type === "File" && element.file.id === file.id) {
                 fileElement = element;
                 break;
             }
@@ -2263,7 +2293,7 @@ describe("comment threads", () => {
                 thread: {
                     range: {
                         start: {type: "Inline", key: staleParagraph.key, index: 0},
-                        end: {type: "Inline", key: staleParagraph.key, index: 4},
+                        end: {type: "Inline", key: staleParagraph.key, index: 5},
                     },
                     firstMessage: {
                         content: {
@@ -2300,7 +2330,7 @@ describe("comment threads", () => {
         );
     });
 
-    test("trims whitespace from a document comment range", async () => {
+    test("preserves whitespace in a document comment range", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -2346,13 +2376,12 @@ describe("comment threads", () => {
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
                     schema.node("paragraph", {}, [
-                        schema.text("  "),
-                        schema.text("hello", [
+                        schema.text("  hello ", [
                             schema.mark("comment", {
                                 commentThreadId: createdCommentThreadId,
                             }),
                         ]),
-                        schema.text("  "),
+                        schema.text(" "),
                     ]),
                 ])
                 .toJSON(),
@@ -2408,7 +2437,7 @@ describe("comment threads", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringContaining("same item version"),
+                    message: expect.stringContaining("different document versions"),
                 }),
             },
         });
@@ -2461,7 +2490,7 @@ describe("comment threads", () => {
         });
     });
 
-    test("rejects whitespace-only document comment ranges", async () => {
+    test("creates document comments on whitespace-only ranges", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -2497,13 +2526,34 @@ describe("comment threads", () => {
                         },
                     },
                 },
-            }),
-        ).toMatchObject({
-            status: 400,
-            body: {
-                error: expect.objectContaining({
-                    message: expect.stringContaining("non-space character"),
-                }),
+            },
+        });
+
+        expect({
+            response,
+            content: (await document.get()).content.doc.toJSON(),
+        }).toMatchObject({
+            response: {status: 200},
+            content: {
+                content: [
+                    {},
+                    {
+                        content: [
+                            {
+                                text: " ",
+                                marks: [
+                                    {
+                                        type: "comment",
+                                        attrs: {
+                                            commentThreadId: response.body.thread.id,
+                                        },
+                                    },
+                                ],
+                            },
+                            {text: " hello"},
+                        ],
+                    },
+                ],
             },
         });
     });
@@ -2523,35 +2573,84 @@ describe("comment threads", () => {
             apiKey,
         });
 
-        expect(
-            await server.POST(`/documents/${document.id}/threads`, {
-                headers: {authorization: `bearer ${apiKey}`},
-                body: {
-                    thread: {
-                        range: {
-                            start: {type: "Inline", key: paragraph.key, index: 2},
-                            end: {type: "Inline", key: paragraph.key, index: 1},
-                        },
-                        firstMessage: {
-                            content: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [{type: "Text", text: "collapsed range comment"}],
-                                    },
-                                ],
-                            },
+        const response = await server.POST(`/documents/${document.id}/threads`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                thread: {
+                    range: {
+                        start: {type: "Inline", key: paragraph.key, index: 2},
+                        end: {type: "Inline", key: paragraph.key, index: 1},
+                    },
+                    firstMessage: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "collapsed range comment"}],
+                                },
+                            ],
                         },
                     },
                 },
-            }),
-        ).toEqual({
+            },
+        });
+
+        expect(response).toMatchObject({
             status: 400,
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
-                error: expect.objectContaining({
-                    message: expect.stringContaining("start must be before the end"),
-                }),
+                error: {
+                    message:
+                        "Range start position is greater than range end position. Try again but swap the order of the start/end positions.",
+                },
+            },
+        });
+    });
+
+    test("rejects empty document comment target ranges", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const document = await TestDocument.create(session);
+        await document.type(session, "Hello");
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
+
+        const paragraph = await getFirstParagraphFromApiDocument({
+            documentId: document.id,
+            apiKey,
+        });
+
+        const response = await server.POST(`/documents/${document.id}/threads`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                thread: {
+                    range: {
+                        start: {type: "Inline", key: paragraph.key, index: 1},
+                        end: {type: "Inline", key: paragraph.key, index: 1},
+                    },
+                    firstMessage: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "empty range comment"}],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: {
+                    message:
+                        "Range is empty because the start position is equal to the range end position. Try again but with a non-empty range.",
+                },
             },
         });
     });
@@ -2632,8 +2731,9 @@ describe("comment threads", () => {
             apiKey,
         });
 
-        expect(paragraph.elements[0]!.type).toBe("Mention");
-        expect(paragraph.elements[0]!.title!.length).toBeGreaterThan(2);
+        const firstElement = paragraph.elements[0]!;
+        assert(firstElement.type === "Mention");
+        expect(firstElement.reference.title.length).toBeGreaterThan(2);
 
         const createThreadResponse = await server.POST(`/documents/${document.id}/threads`, {
             headers: {authorization: `bearer ${apiKey}`},
@@ -2641,7 +2741,7 @@ describe("comment threads", () => {
                 thread: {
                     range: {
                         start: {type: "Inline", key: paragraph.key, index: 0},
-                        end: {type: "Inline", key: paragraph.key, index: 0},
+                        end: {type: "Inline", key: paragraph.key, index: 1},
                     },
                     firstMessage: {
                         content: {
