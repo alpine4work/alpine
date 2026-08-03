@@ -17,6 +17,7 @@ ts_project(
         "//client/web/context",
         "//client/web/design",
         "//client/web/dynamo",
+        "//client/web/inbox/context",
         "//client/web/navigation",
         "//client/web/peek",
         "//client/web/spaces",

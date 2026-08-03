@@ -27,7 +27,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {ChatCircleWithCaretUpIcon} from "~/client/web/icons/chat_circle_with_caret_up_icon.js";
-import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {InlineEditorToolbar} from "~/client/web/messaging/inline_editor_toolbar.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";

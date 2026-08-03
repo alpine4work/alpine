@@ -6,7 +6,7 @@ import {Box} from "~/client/web/design/box.js";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
-import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
 import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {RouteShimmer} from "~/client/web/shimmer/route_shimmer.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";

@@ -179,14 +179,12 @@ announcement?
         });
     }
 
-    await runner.drainBackgroundWork();
-
     // The status channel subscription and launch room messages above leave Cass with
     // unread loud notifications, and the tab bar's inbox badge is realtime-delivered
     // so whether it shows depends on how quickly notification processing settles —
     // flaking every mobile screenshot in this suite. Clear the inbox before pass 1 so
     // the tab bar renders at inbox zero with no badge.
-    await clearAccountInbox(cass);
+    await clearAccountInbox(cass, runner);
     await runner.drainBackgroundWork();
 
     // ======================================================================== Pass 1:

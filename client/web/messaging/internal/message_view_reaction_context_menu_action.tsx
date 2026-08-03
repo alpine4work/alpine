@@ -1,6 +1,6 @@
 import {Memo} from "react";
 import {MenuCustomAction} from "~/client/web/design/menu.js";
-import {InboxContext} from "~/client/web/inbox/inbox_context_types.js";
+import {InboxContext} from "~/client/web/inbox/context/inbox_context_types.js";
 import {MessageViewContextMenuReactionButton} from "~/client/web/messaging/internal/message_view_context_menu_reaction_button.js";
 import {
     OnDeleteMessageReactionFunction,

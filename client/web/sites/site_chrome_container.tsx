@@ -48,10 +48,10 @@ export function SiteChromeContainer({children}: {children: ReactElement}) {
     }
 
     if (routeLayout === "narrow") {
-        // Narrow layouts (mobile, peeks) don't render persistent site chrome. Each
-        // entity's detail view instead renders a `SiteBreadcrumbChip` above its title
-        // (matching the file-entity preview), which opens the site's `navigate` route to
-        // browse the tree.
+        // We don't render the site chrome in narrow layouts or in the inbox. Each entity's
+        // detail view instead renders a `SiteBreadcrumbChip` above its title (matching the
+        // file-entity preview), which opens the site's `navigate` route to browse the
+        // tree.
         return children;
     }
 

@@ -55,7 +55,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
-import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/web/messaging/format_message_view_timestamp_divider_date.js";
 import {getMessageTextForBigEmojiMessage} from "~/client/web/messaging/internal/get_message_text_for_big_emoji_message.js";
 import {getMessageViewMarginBottom} from "~/client/web/messaging/internal/get_message_view_margin_bottom.js";

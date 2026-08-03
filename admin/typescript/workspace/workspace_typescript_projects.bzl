@@ -75,6 +75,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/web/icons:icons",
     "//client/web/importers/notion:notion",
     "//client/web/inbox:inbox",
+    "//client/web/inbox/context:context",
     "//client/web/messaging:messaging",
     "//client/web/navigation:navigation",
     "//client/web/notifications:notifications",

@@ -346,7 +346,7 @@ instance sees a ramp, not a wall. Writing it up in the reliability doc.
     // notifications, and the nav-rail badge count is delivered over realtime so it
     // climbs as the page settles — flaking every screenshot. Clear the inbox so the
     // badge is deterministically absent, then drain the archive writes.
-    await clearAccountInbox(accounts.cassCade);
+    await clearAccountInbox(accounts.cassCade, runner);
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 
@@ -498,7 +498,7 @@ instance sees a ramp, not a wall. Writing it up in the reliability doc.
 
     // The site-add actions can land their own loud notifications in Cass's inbox.
     // Clear them so the nav-rail badge stays deterministically absent.
-    await clearAccountInbox(accounts.cassCade);
+    await clearAccountInbox(accounts.cassCade, runner);
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 

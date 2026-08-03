@@ -106,6 +106,7 @@ ts_project(
         "//client/web/helpers",
         "//client/web/importers/notion",
         "//client/web/inbox",
+        "//client/web/inbox/context",
         "//client/web/messaging",
         "//client/web/navigation",
         "//client/web/notifications",

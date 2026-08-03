@@ -36,9 +36,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     const showcase = await createShowcaseSite({accounts, runner});
 
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-    await clearAccountInbox(accounts.cassCade);
+    await clearAccountInbox(accounts.cassCade, runner);
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 
@@ -1853,12 +1851,7 @@ async function runViewerAccessScenario(
         urlGrant: null,
     });
 
-    // This is the first time the suite signs in as Holly, so her inbox still holds
-    // every notification the earlier scenarios generated — clear it so the nav-rail
-    // badge doesn't flake these screenshots (same reasoning as the cassCade clear in
-    // `run`).
-    await runner.drainBackgroundWork();
-    await clearAccountInbox(accounts.hollyEvergreen);
+    await clearAccountInbox(accounts.hollyEvergreen, runner);
     await runner.drainBackgroundWork();
 
     await runner.goto(accounts.hollyEvergreen, `/site/${site.id}`);

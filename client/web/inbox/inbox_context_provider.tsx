@@ -3,11 +3,11 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {archiveInboxChannelPostsEntryPostOptimistically} from "~/client/web/inbox/archive_inbox_channel_posts_entry_post_optimistically.js";
 import {archiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically} from "~/client/web/inbox/archive_inbox_document_new_comment_threads_entry_comment_thread_optimistically.js";
 import {archiveInboxEntryOptimistically} from "~/client/web/inbox/archive_inbox_entry_optimistically.js";
+import {InboxContextDefinition} from "~/client/web/inbox/context/inbox_context_definition.js";
 import {
     InboxContextCreateMessageOptimisticallyRoom,
     InboxContextNavigation,
-} from "~/client/web/inbox/inbox_context_types.js";
-import {InboxContextDefinition} from "~/client/web/inbox/internal/inbox_context_definition.js";
+} from "~/client/web/inbox/context/inbox_context_types.js";
 import {
     decodePossiblyDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,

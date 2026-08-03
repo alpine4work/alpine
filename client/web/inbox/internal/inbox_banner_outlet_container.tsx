@@ -21,8 +21,8 @@ import {
     useArchiveInboxEntry,
     useUnarchiveInboxEntry,
 } from "~/client/web/inbox/archive_inbox_entry_optimistically.js";
+import {InboxContextNavigation} from "~/client/web/inbox/context/inbox_context_types.js";
 import {InboxContextProvider} from "~/client/web/inbox/inbox_context_provider.js";
-import {InboxContextNavigation} from "~/client/web/inbox/inbox_context_types.js";
 import {printInboxEntryDisplayContentSummaryWithoutInteractivityStore} from "~/client/web/inbox/internal/print_inbox_entry_display_content_summary_without_interactivity_store.js";
 import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";

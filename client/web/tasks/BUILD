@@ -39,6 +39,7 @@ ts_project(
         "//client/web/context",
         "//client/web/design",
         "//client/web/helpers",
+        "//client/web/inbox/context",
         "//client/web/messaging",
         "//client/web/navigation",
         "//client/web/remix",

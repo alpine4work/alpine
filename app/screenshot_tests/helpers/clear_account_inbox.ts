@@ -1,3 +1,4 @@
+import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {createTestPushContextModules} from "~/server/dynamo/test_helpers/create_test_push_context_modules.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
 import {getInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
@@ -18,10 +19,15 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
  * before the screenshot phase, then drain jobs once more so the archive writes
  * propagate.
  */
-export async function clearAccountInbox(session: TestSpaceSession): Promise<void> {
+export async function clearAccountInbox(
+    session: TestSpaceSession,
+    runner: ScreenshotTestRunner,
+): Promise<void> {
     const spaceId = session.space.id;
     const readContext = session.action();
     const archiveContext = session.action().clone(createTestPushContextModules());
+
+    await runner.drainBackgroundWork();
 
     // Re-query from the start on each pass: archiving moves entries out of the "New"
     // filter, so the next query returns the remaining entries until none are left.

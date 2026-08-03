@@ -1,15 +1,63 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 
 const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
 const session2 = createTestSession(context, space, {name: "Siobahn Roy"});
 const session3 = createTestSession(context, space, {name: "Kendall Roy"});
+
+test("site breadcrumb opens site chrome around a chat from inbox", async ({
+    page,
+    context: browserContext,
+}) => {
+    const testSpace = await TestSpace.create(context);
+    const recipient = await testSpace.createSession({name: "Inbox Recipient"});
+    const sender = await testSpace.createSession({name: "Inbox Sender"});
+    const siteName = "Inbox Site";
+    const documentTitle = "Lorem ipsum";
+    const chatName = "Inbox Site Chat";
+
+    const site = await TestSite.create(recipient, {name: siteName, access: "Public"});
+    const document = await TestDocument.create(recipient, {title: documentTitle});
+    await site.addEntity(recipient, {
+        entityId: `Document:${document.id}`,
+        parentId: site.initialRootContainerId,
+        orderKey: initialOrderKey,
+    });
+
+    const chat = await TestChat.createRoom(recipient, {name: chatName, access: "Public"});
+    await site.addEntity(recipient, {
+        entityId: `Chat:${chat.id}`,
+        parentId: site.initialRootContainerId,
+        orderKey: generateOrderKeyBetween(initialOrderKey, null),
+    });
+
+    await chat.sendMessage(sender, "Message from the second site entity");
+    await ProcessContextModule.waitForTestTasks();
+    await context.waitForSqsProcessJobs();
+
+    await services.signIn(browserContext, recipient);
+    await page.goto(`/inbox/${testSpace.id}`);
+    await page.waitForFunction("dev.ready");
+
+    const chatTopBar = page.getByTestId("ChatViewTopBar");
+    await chatTopBar.getByRole("button", {name: siteName}).click();
+
+    await expect(chatTopBar.getByText(chatName, {exact: true})).toBeVisible();
+    await expect(page.getByTestId("SiteSideBarNavigationBar")).toBeVisible();
+    await expect(page.getByTestId("InboxViewEntries")).toHaveCount(0);
+});
 
 test("can see new chat notifications on inbox button and preview", async ({
     page: page1,

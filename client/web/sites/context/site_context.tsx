@@ -348,7 +348,7 @@ export type SiteSideBarState = {
     readonly clearInitialScrollTarget: () => void;
 };
 
-type SiteDataContextValue = {
+export type SiteDataContextValue = {
     readonly siteId: SiteId;
     readonly tree: SiteTreeForClient;
     readonly activeState: SiteActiveState;

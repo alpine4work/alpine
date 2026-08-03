@@ -8,6 +8,8 @@ import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {shouldRenderSiteBreadcrumb} from "~/client/web/sites/breadcrumb/should_render_site_breadcumb.js";
+import {useOpenSiteBreadcrumb} from "~/client/web/sites/breadcrumb/use_open_site_breadcrumb.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
@@ -15,9 +17,8 @@ import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/c
 import {isTaskClientStoreTaskEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_task_entry_deleted.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
@@ -33,6 +34,7 @@ export function TaskDetailViewParentBreadcrumbs({
     const navigate = useNavigate();
     const routeLayout = useRouteLayout();
     const siteContext = useSiteContextIfExists();
+    const openSite = useOpenSiteBreadcrumb();
     const peekContext = usePeekContext();
 
     const nodeStore = useMemo(() => {
@@ -140,12 +142,14 @@ export function TaskDetailViewParentBreadcrumbs({
             // above the parent-task breadcrumb into a single chain — the site reads as just
             // another ancestor of the current task, no extra row.
             if (
-                routeLayout === "narrow" &&
-                siteContext &&
-                taskAccessPolicy?.type === "Site" &&
-                taskAccessPolicy.siteId === siteContext.tree.site.id
+                shouldRenderSiteBreadcrumb({
+                    routeLayout,
+                    peekContext,
+                    siteContext,
+                    accessPolicy: taskAccessPolicy ?? null,
+                })
             ) {
-                const {activeState} = siteContext;
+                assert(siteContext);
                 const site = siteContext.tree.site;
 
                 // IMPORTANT: This design also exists in `navigation_bar_content.tsx` under
@@ -158,22 +162,7 @@ export function TaskDetailViewParentBreadcrumbs({
                             height="5"
                             paddingX="1.5"
                             pressErrorTitle="Couldn&#x2019;t open site"
-                            onPress={async () => {
-                                const path = {
-                                    pathname: `/site/${site.id}/navigate`,
-                                    search: `activeEntityId=${encodeURIComponent(assertExists(activeState.activeEntityId))}`,
-                                    hash: "",
-                                };
-                                const to = peekContext
-                                    ? (convertSpacePathToPeekPath(path) ?? path)
-                                    : path;
-                                await navigate(to, {
-                                    stopPropagation: true,
-                                    unstable_headers: {
-                                        "cyberworlds-active-site-id": site.id,
-                                    },
-                                });
-                            }}
+                            onPress={openSite}
                         >
                             {site.name}
                         </Button>
@@ -209,9 +198,10 @@ export function TaskDetailViewParentBreadcrumbs({
     }, [
         initialFields?.parentTaskSubscription,
         navigate,
-        peekContext,
+        openSite,
         routeLayout,
         siteContext,
+        peekContext,
         task,
         taskSubscription,
     ]);

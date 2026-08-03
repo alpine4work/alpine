@@ -415,7 +415,7 @@ async function screenshotMessages(
         fixedTime: Date;
     },
 ) {
-    await clearAccountInbox(session);
+    await clearAccountInbox(session, runner);
 
     if (path) {
         await runner.goto(session, path, {fixedTime});

@@ -5,7 +5,7 @@ import {useOutsideInteraction} from "~/client/web/design/helpers/use_outside_int
 import {Menu, MenuAction} from "~/client/web/design/menu.js";
 import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
-import {InboxContext} from "~/client/web/inbox/inbox_context_types.js";
+import {InboxContext} from "~/client/web/inbox/context/inbox_context_types.js";
 import {MessageViewMenuStateUpdatedTime} from "~/client/web/messaging/internal/message_view_menu_state_updated_time.js";
 import {messageViewReactionContextMenuAction} from "~/client/web/messaging/internal/message_view_reaction_context_menu_action.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";

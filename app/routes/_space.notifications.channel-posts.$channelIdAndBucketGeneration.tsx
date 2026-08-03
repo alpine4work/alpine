@@ -12,8 +12,8 @@ import {
     archiveInboxChannelPostsEntryPostOptimistically,
     subscribeToArchiveInboxChannelPostsEntryPostOptimistically,
 } from "~/client/web/inbox/archive_inbox_channel_posts_entry_post_optimistically.js";
-import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
-import {InboxContextNavigation} from "~/client/web/inbox/inbox_context_types.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
+import {InboxContextNavigation} from "~/client/web/inbox/context/inbox_context_types.js";
 import {shouldRenderPostAsArchivedInInboxChannelPostsEntry} from "~/client/web/inbox/should_render_post_as_archived_in_inbox_channel_posts_entry.js";
 import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";

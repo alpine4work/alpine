@@ -94,12 +94,16 @@ function createNavigateFunction(
         options?: NavigateOptions & {stopPropagation?: boolean},
     ): SafeFloatingPromise<void> {
         if (context === null) return unsupportedNavigateForTest();
-        const headersWithSpaceId = spaceId
-            ? {...options?.unstable_headers, "cyberworlds-space-id": spaceId}
-            : options?.unstable_headers;
+
+        // NOTE(ifitzsimmons, 2026-07-27): `HeadersInit` accepts `Headers`, tuple arrays,
+        // and Record<string, string>s, so we standardize to a `Headers` object before
+        // adding the space header.
+        const unstableHeaders = new Headers(options?.unstable_headers);
+        if (spaceId) unstableHeaders.set("cyberworlds-space-id", spaceId);
+
         const navigateOptions = {
             ...options,
-            unstable_headers: headersWithSpaceId,
+            unstable_headers: unstableHeaders,
         };
 
         const {

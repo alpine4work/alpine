@@ -30,10 +30,11 @@ import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
-import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
 import {MessagingView, MessagingViewRef} from "~/client/web/messaging/messaging_view.js";
 import {NavigationBarContentMoreButton} from "~/client/web/navigation/navigation_bar_content.js";
 import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
+import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentlyViewingSearchEntityId} from "~/client/web/remix/use_currently_viewing_search_entity_id.js";
@@ -41,6 +42,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {shouldRenderSiteBreadcrumb} from "~/client/web/sites/breadcrumb/should_render_site_breadcumb.js";
 import {SiteBreadcrumbChip} from "~/client/web/sites/breadcrumb/site_breadcrumb_chip.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
@@ -265,6 +267,7 @@ function ChatViewTopBar({
     const navigationState = useNavigationState();
     const siteContext = useSiteContextIfExists();
     const routeLayout = useRouteLayout();
+    const peekContext = usePeekContext();
 
     const accessLevel = useMemo((): AccessLevel | null => {
         switch (chatAccessPolicy.type) {
@@ -388,12 +391,14 @@ function ChatViewTopBar({
         chat.definition.type === "Room" && currentAccount ? {spaceId: space.id} : null,
     );
 
-    const shouldRenderSiteBreadcrumb =
-        !!siteContext &&
-        routeLayout === "narrow" &&
+    const withSiteBreadcrumb =
         chatAccessPolicy.type === "Room" &&
-        chatAccessPolicy.accessPolicy.type === "Site" &&
-        chatAccessPolicy.accessPolicy.siteId === siteContext.tree.site.id;
+        shouldRenderSiteBreadcrumb({
+            routeLayout,
+            peekContext,
+            siteContext,
+            accessPolicy: chatAccessPolicy.accessPolicy,
+        });
 
     return (
         <Box
@@ -429,7 +434,7 @@ function ChatViewTopBar({
             />
             <Box
                 style={{
-                    height: shouldRenderSiteBreadcrumb
+                    height: withSiteBreadcrumb
                         ? navigationBarHeightWithTitleBreadcrumb[platform]
                         : spacing[navigationBarHeight],
                 }}
@@ -468,14 +473,10 @@ function ChatViewTopBar({
                     // Desktop peek only: chip stacks above the chat name in a column, so bottom-align
                     // this column so the name sits at the visual bottom of the top bar (aligned with
                     // the bottom-aligned subscribe / more menu below).
-                    alignSelf={
-                        shouldRenderSiteBreadcrumb && platform !== "mobile" ? "flex-end" : undefined
-                    }
-                    paddingBottom={
-                        shouldRenderSiteBreadcrumb && platform !== "mobile" ? "3" : undefined
-                    }
+                    alignSelf={withSiteBreadcrumb && platform !== "mobile" ? "flex-end" : undefined}
+                    paddingBottom={withSiteBreadcrumb && platform !== "mobile" ? "3" : undefined}
                 >
-                    {shouldRenderSiteBreadcrumb && <SiteBreadcrumbChip />}
+                    {withSiteBreadcrumb && <SiteBreadcrumbChip />}
                     <Box
                         width="full"
                         minWidth="0"
@@ -491,7 +492,7 @@ function ChatViewTopBar({
                         // supratitle. Desktop + site: left-align so the name reads next to the stacked
                         // chip rather than recentered.
                         justifyContent={
-                            shouldRenderSiteBreadcrumb
+                            withSiteBreadcrumb
                                 ? platform === "mobile"
                                     ? "center"
                                     : "flex-start"
@@ -643,8 +644,8 @@ function ChatViewTopBar({
                             // The subscribe button only renders on desktop (see condition above), so when
                             // there's a site context the chip is stacked above the chat name — bottom-align
                             // this so the subscribe button sits on the same visual row as the name.
-                            alignSelf={shouldRenderSiteBreadcrumb ? "flex-end" : undefined}
-                            paddingBottom={shouldRenderSiteBreadcrumb ? "3" : undefined}
+                            alignSelf={withSiteBreadcrumb ? "flex-end" : undefined}
+                            paddingBottom={withSiteBreadcrumb ? "3" : undefined}
                         >
                             <Tooltip
                                 placement="bottom-end"
@@ -687,12 +688,8 @@ function ChatViewTopBar({
                     paddingRight={platform === "mobile" ? navigationBarMobileGap : "5"}
                     // Match the title column's bottom alignment when the chip stacks above the name on
                     // desktop peek so the more menu lines up with the chat name.
-                    alignSelf={
-                        shouldRenderSiteBreadcrumb && platform !== "mobile" ? "flex-end" : undefined
-                    }
-                    paddingBottom={
-                        shouldRenderSiteBreadcrumb && platform !== "mobile" ? "3" : undefined
-                    }
+                    alignSelf={withSiteBreadcrumb && platform !== "mobile" ? "flex-end" : undefined}
+                    paddingBottom={withSiteBreadcrumb && platform !== "mobile" ? "3" : undefined}
                 >
                     <NavigationBarContentMoreButton
                         // Move the menu further away from the subscribe button. It's quite large and the

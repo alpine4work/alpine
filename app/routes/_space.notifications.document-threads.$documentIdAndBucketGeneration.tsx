@@ -17,8 +17,8 @@ import {
     archiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
     subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
 } from "~/client/web/inbox/archive_inbox_document_new_comment_threads_entry_comment_thread_optimistically.js";
-import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
-import {InboxContextNavigation} from "~/client/web/inbox/inbox_context_types.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
+import {InboxContextNavigation} from "~/client/web/inbox/context/inbox_context_types.js";
 import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";

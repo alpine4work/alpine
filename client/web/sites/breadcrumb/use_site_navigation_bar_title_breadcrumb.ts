@@ -1,47 +1,36 @@
-import {useCallback, useMemo} from "react";
+import {useMemo} from "react";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
-import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {shouldRenderSiteBreadcrumb} from "~/client/web/sites/breadcrumb/should_render_site_breadcumb.js";
+import {useOpenSiteBreadcrumb} from "~/client/web/sites/breadcrumb/use_open_site_breadcrumb.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export function useSiteNavigationBarTitleBreadcrumb({accessPolicy}: {accessPolicy: AccessPolicy}) {
     const routeLayout = useRouteLayout();
     const siteContext = useSiteContextIfExists();
+    const openSite = useOpenSiteBreadcrumb();
     const peekContext = usePeekContext();
-    const navigate = useNavigate();
-
-    const openSite = useCallback(async () => {
-        const context = assertExists(siteContext);
-        const {activeEntityId} = context.activeState;
-
-        const site = context.tree.site;
-        const path = {
-            pathname: `/site/${site.id}/navigate`,
-            search: `activeEntityId=${encodeURIComponent(assertExists(activeEntityId))}`,
-            hash: "",
-        };
-        const to = peekContext ? (convertSpacePathToPeekPath(path) ?? path) : path;
-        await navigate(to, {
-            unstable_headers: {
-                "cyberworlds-active-site-id": site.id,
-            },
-        });
-    }, [navigate, peekContext, siteContext]);
 
     return useMemo(() => {
-        if (accessPolicy.type !== "Site" || accessPolicy.siteId !== siteContext?.tree.site.id) {
+        if (
+            !shouldRenderSiteBreadcrumb({
+                routeLayout,
+                peekContext,
+                siteContext,
+                accessPolicy,
+            })
+        ) {
             return undefined;
         }
 
-        if (routeLayout !== "narrow" || !siteContext) return undefined;
+        assert(siteContext);
 
         return {
             title: siteContext.tree.site.name,
             onPress: openSite,
             pressErrorTitle: "Couldn\u2019t open site",
         };
-    }, [accessPolicy, openSite, routeLayout, siteContext]);
+    }, [accessPolicy, openSite, routeLayout, siteContext, peekContext]);
 }

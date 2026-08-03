@@ -78,8 +78,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         Date.now = realDateNow;
     }
 
-    await clearAccountInbox(accounts.cassCade);
-    await runner.drainBackgroundWork();
+    await clearAccountInbox(accounts.cassCade, runner);
 
     await runner.goto(accounts.cassCade, `/chat/${chat.id}`, {
         fixedTime: screenshotTime,

@@ -725,13 +725,7 @@ last open design question is how column resizing should feel.
         orderKey: assertOrderKey("a3"),
     });
 
-    // The chat room and status channel above leave Cass with unread loud
-    // notifications, and the nav-rail badge count is realtime-delivered so it climbs
-    // as the page settles — flaking every screenshot in this suite. Clear the inbox
-    // before loading the page so it mounts at inbox zero with no badge.
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-    await clearAccountInbox(accounts.cassCade);
+    await clearAccountInbox(accounts.cassCade, runner);
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 

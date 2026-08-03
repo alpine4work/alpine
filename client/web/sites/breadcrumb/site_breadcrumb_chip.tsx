@@ -8,14 +8,12 @@ import {
     navigationBarTitleBreadcrumbColor,
     navigationBarTitleBreadcrumbFontSize,
 } from "~/client/web/design/navigation_bar_helpers.js";
-import {usePeekContext} from "~/client/web/remix/peek_context.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
-import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {useOpenSiteBreadcrumb} from "~/client/web/sites/breadcrumb/use_open_site_breadcrumb.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 
 /**
  * IMPORTANT: This design also exists in `navigation_bar_content.tsx` under
@@ -44,30 +42,16 @@ export function SiteBreadcrumbChip({withoutCaret}: {withoutCaret?: boolean}) {
     // self-gate to `null` when the entity isn't in a site (instead of crashing the
     // peek/page).
     const siteContext = useSiteContextIfExists();
-    const peekContext = usePeekContext();
-    const navigate = useNavigate();
+    const inboxContext = useInboxContext();
+    const openSite = useOpenSiteBreadcrumb();
 
-    if (routeLayout !== "narrow" || !siteContext) return null;
+    if (!siteContext) return null;
 
-    // If we're rendering this breadcrumb chip, then we are rendering a site entity.
-    // It's impossible for `activeEntityId` to be `null` here.
-    const {activeEntityId} = siteContext.activeState;
+    // We only render the site breadcrumb if we are rendering the entity in a narrow
+    // layout or in the inbox.
+    if (routeLayout !== "narrow" && inboxContext === null) return null;
 
     const site = siteContext.tree.site;
-
-    const openSite = async () => {
-        const path = {
-            pathname: `/site/${site.id}/navigate`,
-            search: `activeEntityId=${encodeURIComponent(assertExists(activeEntityId))}`,
-            hash: "",
-        };
-        const to = peekContext ? (convertSpacePathToPeekPath(path) ?? path) : path;
-        await navigate(to, {
-            unstable_headers: {
-                "cyberworlds-active-site-id": site.id,
-            },
-        });
-    };
 
     // We don't want to render the caret in the mobile nav bar. However, there are some
     // cases (e.g. documents) that render the breadcrumb chip on mobile outside of the

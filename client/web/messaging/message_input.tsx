@@ -27,7 +27,7 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {isElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
-import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
 import {applyServerMessageDraftToInputState} from "~/client/web/messaging/apply_server_message_draft_to_input_state.js";
 import {createInitialMessageInputState} from "~/client/web/messaging/create_initial_message_input_state.js";
 import {hasMessageInputContent} from "~/client/web/messaging/has_message_input_content.js";
