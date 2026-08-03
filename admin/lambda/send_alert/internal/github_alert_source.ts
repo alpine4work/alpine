@@ -22,14 +22,17 @@ import {
 import {
     ApiContent,
     ApiContentParagraphBlockElement,
+    ApiGetChannelResponse,
+    ApiGetMessageResponse,
     ApiPostResponse,
-    ApiSearchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 
 type ApiContentElement = ApiContent["elements"][number];
 type ApiCreatePostMessageRequestBody =
     ApiSpecification.components["requestBodies"]["CreateMessage"]["content"]["application/json"];
+type ApiSearchResponse =
+    ApiSpecification.paths["/spaces/{id}/search"]["get"]["responses"]["200"]["content"]["application/json"];
 type ApiPostId = ApiPostResponse["id"];
 
 // You can find the GitHub `workflow_id` with the CLI command `gh workflow list`.
@@ -191,16 +194,7 @@ export class GitHubAlertSource extends AlertSource {
                 },
             ];
 
-            const postResult = await this.fetchAlpineApi<{
-                post: ApiPostResponse;
-                spaceId: string;
-            }>("/posts", {
-                method: "POST",
-                body: {
-                    channelId: sendAlertAvailableChannels[channel],
-                    content: {elements},
-                },
-            });
+            const postResult = await this.createPostInAlpine(channel, {elements});
 
             if (!postResult.ok) {
                 return postResult;
@@ -255,11 +249,12 @@ export class GitHubAlertSource extends AlertSource {
             }
 
             const searchQuery = shortHash;
-            const searchResult = await this.fetchAlpineApi<{
-                results: ReadonlyArray<ApiSearchResult>;
-            }>(`/spaces/${spaceId}/search?query=${encodeURIComponent(searchQuery)}`, {
-                method: "GET",
-            });
+            const searchResult = await this.fetchAlpineApi<ApiSearchResponse>(
+                `/spaces/${spaceId}/search?query=${encodeURIComponent(searchQuery)}`,
+                {
+                    method: "GET",
+                },
+            );
 
             if (!searchResult.ok) {
                 console.error("Failed to search for posts with commit hash:", searchResult.error);
@@ -338,7 +333,7 @@ export class GitHubAlertSource extends AlertSource {
                     };
                 }
 
-                const commentResult = await this.fetchAlpineApi<unknown>(
+                const commentResult = await this.fetchAlpineApi<ApiGetMessageResponse>(
                     `/posts/${post.id}/messages`,
                     {
                         method: "POST",
@@ -359,12 +354,13 @@ export class GitHubAlertSource extends AlertSource {
 
     private async getSpaceIdFromChannel(
         channel: SendAlertAvailableChannel,
-    ): Promise<string | null> {
+    ): Promise<ApiGetChannelResponse["spaceId"] | null> {
         try {
             const channelId = sendAlertAvailableChannels[channel];
-            const result = await this.fetchAlpineApi<{spaceId: string}>(`/channels/${channelId}`, {
-                method: "GET",
-            });
+            const result = await this.fetchAlpineApi<ApiGetChannelResponse>(
+                `/channels/${channelId}`,
+                {method: "GET"},
+            );
 
             if (!result.ok) {
                 console.error("Failed to get space ID from channel:", result.error);

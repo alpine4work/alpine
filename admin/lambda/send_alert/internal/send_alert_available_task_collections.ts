@@ -1,3 +1,4 @@
+import {assertId} from "~/shared/id/id.js";
 import type {TaskCollectionId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -5,8 +6,9 @@ import type {TaskCollectionId} from "~/shared/id/types/id_types.js";
  * collection ids.
  */
 export const sendAlertAvailableTaskCollections = {
-    honeycomb: (process.env.SEND_ALERT_HONEYCOMB_TASK_COLLECTION_ID ||
-        "cnw0ck1egftx53xv9b1cvben6r") as TaskCollectionId,
+    honeycomb: assertId<TaskCollectionId>(
+        process.env.SEND_ALERT_HONEYCOMB_TASK_COLLECTION_ID || "cnw0ck1egftx53xv9b1cvben6r",
+    ),
 };
 
 /**

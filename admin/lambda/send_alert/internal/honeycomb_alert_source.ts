@@ -24,6 +24,7 @@ import {
 import {nameToAlpineId} from "~/admin/lambda/send_alert/internal/send_alert_user_mappings.js";
 import {
     ApiContent,
+    ApiGetMessageResponse,
     ApiGetTaskWithNotesResponse,
     ApiPatchTaskResponse,
     ApiTaskPriority,
@@ -565,10 +566,13 @@ export class HoneycombAlertSource extends AlertSource {
         } satisfies ApiCreateTaskMessageRequestBody;
 
         console.log(`Commenting on existing Honeycomb task: ${task.title}`);
-        const result = await this.fetchAlpineApi<unknown>(`/tasks/${task.id}/messages`, {
-            method: "POST",
-            body,
-        });
+        const result = await this.fetchAlpineApi<ApiGetMessageResponse>(
+            `/tasks/${task.id}/messages`,
+            {
+                method: "POST",
+                body,
+            },
+        );
         if (!result.ok) {
             return result;
         }

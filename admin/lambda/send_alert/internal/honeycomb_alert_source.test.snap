@@ -286,129 +286,134 @@ POST /posts returned HTTP 400: Bad Request.
 
 \`\`\`json
 {
-  "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-  "content": {
-    "elements": [
-      {
-        "type": "Heading",
-        "level": 2,
-        "elements": [
-          {
-            "type": "Text",
-            "text": "🚨 Trigger: Database Connection Error"
-          }
-        ]
-      },
-      {
-        "type": "Paragraph",
-        "elements": [
-          {
-            "type": "Text",
-            "text": "View Result",
-            "marks": [
-              {
-                "type": "Link",
-                "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "type": "Paragraph",
-        "elements": [
-          {
-            "type": "Text",
-            "text": "High error rate detected in database connections",
-            "marks": [
-              {
-                "type": "Italic"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "type": "Table",
-        "width": 1,
-        "hasHeaderRow": true,
-        "columns": [
-          {
-            "width": 1
-          },
-          {
-            "width": 0.000001
-          }
-        ],
-        "rows": [
-          {
-            "cells": [
-              {
-                "elements": [
-                  {
-                    "type": "Paragraph",
-                    "elements": [
-                      {
-                        "type": "Text",
-                        "text": "exception.message"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "elements": [
-                  {
-                    "type": "Paragraph",
-                    "elements": [
-                      {
-                        "type": "Text",
-                        "text": "Count"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "cells": [
-              {
-                "elements": [
-                  {
-                    "type": "Paragraph",
-                    "elements": [
-                      {
-                        "type": "Text",
-                        "text": "Connection refused",
-                        "marks": [
-                          {
-                            "type": "Code"
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "elements": [
-                  {
-                    "type": "Paragraph",
-                    "elements": [
-                      {
-                        "type": "Text",
-                        "text": "1"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }
-    ]
+  "spaceId": "test-space-id",
+  "post": {
+    "channel": {
+      "id": "6dvn4zd99fwvzehdcjhmb0h1s0"
+    },
+    "content": {
+      "elements": [
+        {
+          "type": "Heading",
+          "level": 2,
+          "elements": [
+            {
+              "type": "Text",
+              "text": "🚨 Trigger: Database Connection Error"
+            }
+          ]
+        },
+        {
+          "type": "Paragraph",
+          "elements": [
+            {
+              "type": "Text",
+              "text": "View Result",
+              "marks": [
+                {
+                  "type": "Link",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Paragraph",
+          "elements": [
+            {
+              "type": "Text",
+              "text": "High error rate detected in database connections",
+              "marks": [
+                {
+                  "type": "Italic"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Table",
+          "width": 1,
+          "hasHeaderRow": true,
+          "columns": [
+            {
+              "width": 1
+            },
+            {
+              "width": 0.000001
+            }
+          ],
+          "rows": [
+            {
+              "cells": [
+                {
+                  "elements": [
+                    {
+                      "type": "Paragraph",
+                      "elements": [
+                        {
+                          "type": "Text",
+                          "text": "exception.message"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "elements": [
+                    {
+                      "type": "Paragraph",
+                      "elements": [
+                        {
+                          "type": "Text",
+                          "text": "Count"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "cells": [
+                {
+                  "elements": [
+                    {
+                      "type": "Paragraph",
+                      "elements": [
+                        {
+                          "type": "Text",
+                          "text": "Connection refused",
+                          "marks": [
+                            {
+                              "type": "Code"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "elements": [
+                    {
+                      "type": "Paragraph",
+                      "elements": [
+                        {
+                          "type": "Text",
+                          "text": "1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
   }
 }
 \`\`\`

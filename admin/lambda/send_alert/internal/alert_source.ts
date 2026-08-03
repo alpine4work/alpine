@@ -9,7 +9,11 @@ import {
     SendAlertAvailableChannel,
     sendAlertAvailableChannels,
 } from "~/admin/lambda/send_alert/internal/send_alert_available_channels.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiContent,
+    ApiGetChannelResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 
 type FetchAlpineApiResult<T> =
     | {ok: true; value: T}
@@ -20,6 +24,11 @@ type FetchAlpineApiOptions = {
     body?: unknown;
     reportApiFailureToAlerts?: boolean;
 };
+
+type ApiCreatePostRequestBody =
+    ApiSpecification.paths["/posts"]["post"]["requestBody"]["content"]["application/json"];
+type ApiCreatePostResponse =
+    ApiSpecification.paths["/posts"]["post"]["responses"]["200"]["content"]["application/json"];
 
 /**
  * Base class for an external service that can send alert webhook payloads into
@@ -58,25 +67,41 @@ export abstract class AlertSource {
         channel: SendAlertAvailableChannel,
         content: ApiContent,
     ): Promise<SendAlertResult> {
+        const result = await this.createPostInAlpine(channel, content);
+        return result.ok ? {ok: true} : result;
+    }
+
+    /**
+     * Creates a post in a configured Alpine channel and returns the created post.
+     */
+    protected async createPostInAlpine(
+        channel: SendAlertAvailableChannel,
+        content: ApiContent,
+    ): Promise<FetchAlpineApiResult<ApiCreatePostResponse>> {
         const channelId = sendAlertAvailableChannels[channel];
+        const channelResult = await this.fetchAlpineApi<ApiGetChannelResponse>(
+            `/channels/${channelId}`,
+            {method: "GET"},
+        );
+        if (!channelResult.ok) {
+            return channelResult;
+        }
+
         const body = {
-            channelId,
-            content,
-        };
+            spaceId: channelResult.value.spaceId,
+            post: {
+                channel: {id: channelResult.value.channel.id},
+                content,
+            },
+        } satisfies ApiCreatePostRequestBody;
 
         console.log(`Sending to ${channel}`);
         console.log(JSON.stringify(body, null, 2));
 
-        const result = await this.fetchAlpineApi<unknown>("/posts", {
+        return await this.fetchAlpineApi<ApiCreatePostResponse>("/posts", {
             method: "POST",
             body,
         });
-
-        if (!result.ok) {
-            return result;
-        }
-
-        return {ok: true};
     }
 
     /**
@@ -150,7 +175,15 @@ export abstract class AlertSource {
             }
 
             const responseText = await response.text();
-            const value = responseText ? (JSON.parse(responseText) as T) : (undefined as T);
+            if (!responseText) {
+                return {
+                    ok: false,
+                    error: "Alpine API returned an empty response body",
+                    statusCode: response.status,
+                };
+            }
+
+            const value: T = JSON.parse(responseText);
             return {ok: true, value};
         } catch (error) {
             console.error("Error sending alert:", error);
@@ -217,80 +250,92 @@ export abstract class AlertSource {
         );
 
         const channelId = sendAlertAvailableChannels.alerts;
+        const channelResult = await this.fetchAlpineApi<ApiGetChannelResponse>(
+            `/channels/${channelId}`,
+            {method: "GET", reportApiFailureToAlerts: false},
+        );
+        if (!channelResult.ok) {
+            console.error("Failed to get alerts channel while reporting Alpine API failure");
+            console.error(channelResult.error);
+            return;
+        }
 
         const body = {
-            channelId,
-            content: {
-                elements: [
-                    {
-                        type: "Heading" as const,
-                        level: 2,
-                        elements: [
-                            {
-                                type: "Text" as const,
-                                text: "Alpine API error while processing alert",
-                            },
-                        ],
-                    },
-                    {
-                        type: "Paragraph" as const,
-                        elements: [
-                            {
-                                type: "Text" as const,
-                                text: `${options.method} ${path} returned HTTP ${responseStatus}: ${responseStatusText}.`,
-                            },
-                        ],
-                    },
-                    createLabel("Data received:"),
-                    createCodeBlock(
-                        JSON.stringify(
-                            {
-                                body: parseJsonIfPossible(this.request.body ?? ""),
-                                headers,
-                                httpMethod: this.request.httpMethod,
-                                isBase64Encoded: this.request.isBase64Encoded,
-                                queryStringParameters: this.request.queryStringParameters,
-                                requestContext: this.request.requestContext,
-                            },
-                            null,
-                            2,
-                        ),
-                    ),
-                    createLabel("API request:"),
-                    createCodeBlock(
-                        JSON.stringify(
-                            {
-                                method: options.method,
-                                endpoint: path,
-                                url: apiUrl,
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    Authorization: "[REDACTED]",
+            spaceId: channelResult.value.spaceId,
+            post: {
+                channel: {id: channelResult.value.channel.id},
+                content: {
+                    elements: [
+                        {
+                            type: "Heading" as const,
+                            level: 2,
+                            elements: [
+                                {
+                                    type: "Text" as const,
+                                    text: "Alpine API error while processing alert",
                                 },
-                            },
-                            null,
-                            2,
+                            ],
+                        },
+                        {
+                            type: "Paragraph" as const,
+                            elements: [
+                                {
+                                    type: "Text" as const,
+                                    text: `${options.method} ${path} returned HTTP ${responseStatus}: ${responseStatusText}.`,
+                                },
+                            ],
+                        },
+                        createLabel("Data received:"),
+                        createCodeBlock(
+                            JSON.stringify(
+                                {
+                                    body: parseJsonIfPossible(this.request.body ?? ""),
+                                    headers,
+                                    httpMethod: this.request.httpMethod,
+                                    isBase64Encoded: this.request.isBase64Encoded,
+                                    queryStringParameters: this.request.queryStringParameters,
+                                    requestContext: this.request.requestContext,
+                                },
+                                null,
+                                2,
+                            ),
                         ),
-                    ),
-                    createLabel("API response:"),
-                    createCodeBlock(
-                        JSON.stringify(
-                            {
-                                status: responseStatus,
-                                statusText: responseStatusText,
-                                body: parseJsonIfPossible(responseText),
-                            },
-                            null,
-                            2,
+                        createLabel("API request:"),
+                        createCodeBlock(
+                            JSON.stringify(
+                                {
+                                    method: options.method,
+                                    endpoint: path,
+                                    url: apiUrl,
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: "[REDACTED]",
+                                    },
+                                },
+                                null,
+                                2,
+                            ),
                         ),
-                    ),
-                    createLabel("Data sent:"),
-                    createCodeBlock(stringifyForCodeBlock(options.body)),
-                ],
+                        createLabel("API response:"),
+                        createCodeBlock(
+                            JSON.stringify(
+                                {
+                                    status: responseStatus,
+                                    statusText: responseStatusText,
+                                    body: parseJsonIfPossible(responseText),
+                                },
+                                null,
+                                2,
+                            ),
+                        ),
+                        createLabel("Data sent:"),
+                        createCodeBlock(stringifyForCodeBlock(options.body)),
+                    ],
+                },
             },
-        };
+        } satisfies ApiCreatePostRequestBody;
 
-        const result = await this.fetchAlpineApi<unknown>("/posts", {
+        const result = await this.fetchAlpineApi<ApiCreatePostResponse>("/posts", {
             method: "POST",
             body,
             reportApiFailureToAlerts: false,

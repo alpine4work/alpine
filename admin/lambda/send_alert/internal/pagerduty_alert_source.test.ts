@@ -2,7 +2,10 @@ import {createHmac} from "crypto";
 import {PagerDutyAlertSource} from "~/admin/lambda/send_alert/internal/pagerduty_alert_source.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/internal/pagerduty_alert_source_types.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
+
+type ApiCreatePostRequestBody =
+    ApiSpecification.paths["/posts"]["post"]["requestBody"]["content"]["application/json"];
 
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
@@ -26,7 +29,19 @@ const mockFetch = import.meta.jest.fn().mockImplementation((_url: string, option
         ok: true,
         status: 200,
         statusText: "OK",
-        text: () => Promise.resolve(""),
+        text: () =>
+            Promise.resolve(
+                options?.method === "GET"
+                    ? JSON.stringify({
+                          spaceId: "test-space-id",
+                          channel: {
+                              id: "qt3xsqhh2fed7t8fyqnbfw0m3g",
+                              name: "Alerts",
+                              description: {elements: []},
+                          },
+                      })
+                    : JSON.stringify({spaceId: "test-space-id", post: {id: "generated-post-id"}}),
+            ),
     });
 });
 
@@ -42,10 +57,10 @@ function restoreAlertSourceTestEnvironment(): void {
 }
 
 function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): string {
-    const body = fetchCall.body as {channelId: string; content: ApiContent};
-    const markdown = printApiContentToMarkdown(body.content);
+    const body = fetchCall.body as ApiCreatePostRequestBody;
+    const markdown = printApiContentToMarkdown(body.post.content);
     return `URL: ${fetchCall.url}
-Channel: ${body.channelId}
+Channel: ${body.post.channel.id}
 
 ${markdown}`;
 }

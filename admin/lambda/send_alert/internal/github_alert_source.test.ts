@@ -8,6 +8,10 @@ import {
 import {sendAlertAvailableChannels} from "~/admin/lambda/send_alert/internal/send_alert_available_channels.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
+
+type ApiCreatePostRequestBody =
+    ApiSpecification.paths["/posts"]["post"]["requestBody"]["content"]["application/json"];
 
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
@@ -23,6 +27,9 @@ const nonDeployGithubWorkflowId = 789;
 let mockFetchCalls: Array<{url: string; body: unknown}> = [];
 
 const mockFetch = import.meta.jest.fn().mockImplementation((_url: string, options?: any) => {
+    if (_url.endsWith("/posts") && mockFetchCalls.at(-1)?.url.includes("/channels/")) {
+        mockFetchCalls.pop();
+    }
     mockFetchCalls.push({
         url: _url,
         body: options?.body ? JSON.parse(options.body) : null,
@@ -32,7 +39,19 @@ const mockFetch = import.meta.jest.fn().mockImplementation((_url: string, option
         ok: true,
         status: 200,
         statusText: "OK",
-        text: () => Promise.resolve(JSON.stringify({post: {id: "generated-post-id"}})),
+        text: () =>
+            Promise.resolve(
+                _url.includes("/channels/")
+                    ? JSON.stringify({
+                          spaceId: "test-space-id",
+                          channel: {
+                              id: _url.split("/").at(-1),
+                              name: "Alert Channel",
+                              description: {elements: []},
+                          },
+                      })
+                    : JSON.stringify({post: {id: "generated-post-id"}}),
+            ),
     });
 });
 
@@ -51,7 +70,17 @@ function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): st
     if (!fetchCall.body) {
         return `URL: ${fetchCall.url}`;
     }
-    const body = fetchCall.body as {channelId?: string; content?: ApiContent};
+    const body = fetchCall.body as Partial<ApiCreatePostRequestBody> & {
+        channelId?: string;
+        content?: ApiContent;
+    };
+    if (body.post?.content) {
+        const markdown = printApiContentToMarkdown(body.post.content);
+        return `URL: ${fetchCall.url}
+Channel: ${body.post.channel.id}
+
+${markdown}`;
+    }
     if (body.content) {
         const markdown = printApiContentToMarkdown(body.content);
         return `URL: ${fetchCall.url}
@@ -1323,6 +1352,24 @@ describe("GitHubAlertSource", () => {
                         text: () =>
                             Promise.resolve(
                                 JSON.stringify({
+                                    spaceId,
+                                    channel: {id: sendAlertAvailableChannels.builds},
+                                }),
+                            ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
                                     post: {id: "builds-post-id"},
                                     spaceId,
                                 }),
@@ -1409,15 +1456,15 @@ describe("GitHubAlertSource", () => {
 
             await handleGitHubWorkflowRunPayload(payload);
 
-            expect(mockFetchCalls.length).toBe(5);
+            expect(mockFetchCalls.length).toBe(6);
 
-            expect(mockFetchCalls[0]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
+            expect(mockFetchCalls[1]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
 
-            const commentCallIndex = 3;
+            const commentCallIndex = 4;
             expect(mockFetchCalls[commentCallIndex]?.url).toBe(
                 `https://api.test.cyberworlds.com/posts/${postId}/messages`,
             );
-            expect(mockFetchCalls[4]?.url).toBe(
+            expect(mockFetchCalls[5]?.url).toBe(
                 "https://api.test.cyberworlds.com/posts/builds-post-id/messages",
             );
 
@@ -1516,6 +1563,24 @@ describe("GitHubAlertSource", () => {
                         text: () =>
                             Promise.resolve(
                                 JSON.stringify({
+                                    spaceId,
+                                    channel: {id: sendAlertAvailableChannels.builds},
+                                }),
+                            ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
                                     post: {id: "builds-post-id"},
                                     spaceId,
                                 }),
@@ -1602,15 +1667,15 @@ describe("GitHubAlertSource", () => {
 
             await handleGitHubWorkflowRunPayload(payload);
 
-            expect(mockFetchCalls.length).toBe(5);
+            expect(mockFetchCalls.length).toBe(6);
 
-            expect(mockFetchCalls[0]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
+            expect(mockFetchCalls[1]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
 
-            const commentCallIndex = 3;
+            const commentCallIndex = 4;
             expect(mockFetchCalls[commentCallIndex]?.url).toBe(
                 `https://api.test.cyberworlds.com/posts/${postId}/messages`,
             );
-            expect(mockFetchCalls[4]?.url).toBe(
+            expect(mockFetchCalls[5]?.url).toBe(
                 "https://api.test.cyberworlds.com/posts/builds-post-id/messages",
             );
 

@@ -26,7 +26,19 @@ const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options
         ok: true,
         status: 200,
         statusText: "OK",
-        text: () => Promise.resolve(""),
+        text: () =>
+            Promise.resolve(
+                options?.method === "GET" && url.includes("/channels/")
+                    ? JSON.stringify({
+                          spaceId: "test-space-id",
+                          channel: {
+                              id: url.split("/").at(-1),
+                              name: "Alert Channel",
+                              description: {elements: []},
+                          },
+                      })
+                    : "{}",
+            ),
     });
 });
 

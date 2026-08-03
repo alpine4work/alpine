@@ -45,6 +45,8 @@ type HoneycombTaskFixtureOverrides = Partial<HoneycombTaskPayload> &
 
 type ApiCreateTaskRequestBody =
     ApiSpecification.paths["/tasks"]["post"]["requestBody"]["content"]["application/json"];
+type ApiCreatePostRequestBody =
+    ApiSpecification.paths["/posts"]["post"]["requestBody"]["content"]["application/json"];
 
 const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options?: any) => {
     const method = options?.method ?? "GET";
@@ -53,11 +55,13 @@ const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options
         mockHoneycombApiCalls.push(url);
     }
 
-    mockFetchCalls.push({
-        url,
-        method,
-        body: options?.body ? JSON.parse(options.body) : null,
-    });
+    if (!(method === "GET" && url.includes("/channels/"))) {
+        mockFetchCalls.push({
+            url,
+            method,
+            body: options?.body ? JSON.parse(options.body) : null,
+        });
+    }
 
     const responseIndex = mockFetchResponses.findIndex(
         response => response.url === url && response.method === method,
@@ -65,12 +69,28 @@ const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options
     const responseEntry =
         responseIndex === -1 ? undefined : mockFetchResponses.splice(responseIndex, 1)[0]!;
 
+    const defaultResponseBody =
+        responseEntry === undefined && method === "GET" && url.includes("/channels/")
+            ? {
+                  spaceId: "test-space-id",
+                  channel: {
+                      id: url.split("/").at(-1),
+                      name: "Alert Channel",
+                      description: {elements: []},
+                  },
+              }
+            : {};
+
     return Promise.resolve({
         ok: responseEntry?.ok ?? true,
         status: responseEntry?.status ?? 200,
         statusText: responseEntry?.statusText ?? "OK",
         text: () =>
-            Promise.resolve(responseEntry === undefined ? "" : JSON.stringify(responseEntry.body)),
+            Promise.resolve(
+                responseEntry === undefined
+                    ? JSON.stringify(defaultResponseBody)
+                    : JSON.stringify(responseEntry.body),
+            ),
     });
 });
 
@@ -90,10 +110,10 @@ function restoreAlertSourceTestEnvironment(): void {
 }
 
 function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): string {
-    const body = fetchCall.body as {channelId: string; content: ApiContent};
-    const markdown = printApiContentToMarkdown(body.content);
+    const body = fetchCall.body as ApiCreatePostRequestBody;
+    const markdown = printApiContentToMarkdown(body.post.content);
     return `URL: ${fetchCall.url}
-Channel: ${body.channelId}
+Channel: ${body.post.channel.id}
 
 ${markdown}`;
 }
