@@ -4,6 +4,7 @@ import {APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Handler} from
 import {parseFathomWebhookPayload} from "~/admin/lambda/fathom_meeting_notes/internal/parse_fathom_webhook_payload.js";
 import {processFathomMeetingNotes} from "~/admin/lambda/fathom_meeting_notes/internal/process_fathom_meeting_notes.js";
 import {verifyFathomWebhook} from "~/admin/lambda/fathom_meeting_notes/internal/verify_fathom_webhook.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export const handler: Handler<
     APIGatewayProxyEventV2,
@@ -99,17 +100,36 @@ export const handler: Handler<
             };
         }
 
-        return {
-            statusCode: 200,
-            headers: responseHeaders,
-            body: JSON.stringify({
-                ok: true,
-                message: result.alreadyProcessed
-                    ? "Meeting notes already processed"
-                    : "Meeting notes created",
-                documentId: result.documentId,
-            }),
-        };
+        switch (result.outcome) {
+            case "ignored":
+                return {
+                    statusCode: 200,
+                    headers: responseHeaders,
+                    body: JSON.stringify({ok: true, message: "Meeting notes skipped"}),
+                };
+            case "already_processed":
+                return {
+                    statusCode: 200,
+                    headers: responseHeaders,
+                    body: JSON.stringify({
+                        ok: true,
+                        message: "Meeting notes already processed",
+                        documentId: result.documentId,
+                    }),
+                };
+            case "created":
+                return {
+                    statusCode: 200,
+                    headers: responseHeaders,
+                    body: JSON.stringify({
+                        ok: true,
+                        message: "Meeting notes created",
+                        documentId: result.documentId,
+                    }),
+                };
+            default:
+                throw exhaustive(result);
+        }
     } catch (error) {
         console.error("Failed to process Fathom meeting notes", error);
         return {

@@ -451,42 +451,25 @@ describe("Fathom meeting notes Lambda", () => {
         });
     });
 
-    test("creates private notes without adding them to the public index", async () => {
+    test("ignores non-public meetings without calling the Alpine API", async () => {
         const payload = createFathomPayload({
             title: "Customer planning",
             meeting_title: "Customer planning",
             share_url: "https://fathom.video/share/customer-planning",
         });
-        const title = "Customer planning - July 29, 2026";
-        mockResponses.push(
-            {status: 200, statusText: "OK", body: createParentResponse()},
-            {status: 200, statusText: "OK", body: createChildResponse(title)},
-        );
 
         const result = await callHandler(createEvent(payload));
 
-        expect({
-            result,
-            requests: fetchCalls.map(({url, method}) => ({url, method})),
-        }).toMatchObject({
+        expect({result, fetchCalls}).toEqual({
             result: {
                 statusCode: 200,
+                headers: {"content-type": "application/json"},
                 body: {
                     ok: true,
-                    message: "Meeting notes created",
-                    documentId: "new-meeting-document",
+                    message: "Meeting notes skipped",
                 },
             },
-            requests: [
-                {
-                    url: "https://api.test.cyberworlds.com/documents/ygfnxa6n51gcg07c3jx01vyqwc",
-                    method: "GET",
-                },
-                {
-                    url: "https://api.test.cyberworlds.com/documents",
-                    method: "POST",
-                },
-            ],
+            fetchCalls: [],
         });
     });
 
@@ -534,11 +517,6 @@ describe("Fathom meeting notes Lambda", () => {
                 markdown_formatted: "PRIVATE_SUMMARY_CONTENT",
             },
         });
-        const title = "Customer planning - July 29, 2026";
-        mockResponses.push(
-            {status: 200, statusText: "OK", body: createParentResponse()},
-            {status: 200, statusText: "OK", body: createChildResponse(title)},
-        );
         const logSpy = import.meta.jest.spyOn(console, "log").mockImplementation(() => undefined);
 
         try {
@@ -592,9 +570,9 @@ describe("Fathom meeting notes Lambda", () => {
     });
 
     test("recognizes a completed delivery when Alpine truncates its mention title", async () => {
-        const meetingTitle = "A".repeat(105);
+        const meetingTitle = `Tea Time ${"A".repeat(96)}`;
         const title = `${meetingTitle} - July 29, 2026`;
-        const mentionTitle = `${"A".repeat(104)} […]`;
+        const mentionTitle = `Tea Time ${"A".repeat(95)} […]`;
         mockResponses.push(
             {
                 status: 200,

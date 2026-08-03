@@ -3,11 +3,11 @@
 ## What this package does
 
 This package receives Fathom’s meeting-content-ready webhook in a Lambda deployed by
-`CyberworldsInternalToolsStack`. The handler verifies the webhook signature, turns Fathom’s
-transcript and default summary into an Alpine document, and writes it through the Alpine REST API.
-Tea Time, Sprint Check-in, and Sprint Review documents are also added beneath the appropriate month
-in the hard-coded meeting-notes parent document; other meetings are created without being added to
-that public index. The local runner below sends signed fixtures through the same handler.
+`CyberworldsInternalToolsStack`. The handler verifies the webhook signature and ignores meetings
+other than Tea Time, Sprint Check-in, and Sprint Review. It turns those public-facing meetings into
+Alpine documents through the REST API and adds them beneath the appropriate month in the hard-coded
+meeting-notes parent document. The local runner below sends signed fixtures through the same
+handler.
 
 ## Local Fathom meeting-note simulation
 
@@ -43,8 +43,9 @@ admin/lambda/fathom_meeting_notes/fixtures/<fixture_key>.json
 Available fixtures:
 
 - `tea_time_public`: a public Tea Time with a transcript and default summary.
-- `customer_meeting_private_next_month`: a private customer meeting in the next month.
-- `null_content_private`: a private meeting whose transcript and default summary are `null`.
+- `customer_meeting_private_next_month`: a private customer meeting that the Lambda ignores.
+- `null_content_private`: an ignored private meeting whose transcript and default summary are
+  `null`.
 
 The runner loads `.env`, `.env.development`, and `.env.development.local`. Configure local-only
 values in `.env.development.local`, not committed env files.

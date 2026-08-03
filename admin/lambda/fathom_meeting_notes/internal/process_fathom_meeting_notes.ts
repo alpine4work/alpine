@@ -20,21 +20,30 @@ type ApiPatchDocumentRequestBody =
 export type ProcessFathomMeetingNotesResult =
     | {
           readonly ok: true;
+          readonly outcome: "created";
           readonly documentId: string;
-          readonly alreadyProcessed: boolean;
       }
+    | {
+          readonly ok: true;
+          readonly outcome: "already_processed";
+          readonly documentId: string;
+      }
+    | {readonly ok: true; readonly outcome: "ignored"}
     | {readonly ok: false; readonly error: string; readonly statusCode: number};
 
 /**
- * Creates one meeting-notes document and adds public meetings to the hard-coded
- * notes index.
+ * Creates and indexes meeting notes for public-facing Alpine meetings.
  */
 export async function processFathomMeetingNotes(
     payload: FathomWebhookPayload,
 ): Promise<ProcessFathomMeetingNotesResult> {
+    if (!isPublicFathomMeeting(payload)) {
+        console.log("Ignoring non-public Fathom meeting");
+        return {ok: true, outcome: "ignored"};
+    }
+
     const parentDocumentId = getFathomMeetingNotesParentDocumentId();
     const meetingNotes = createFathomMeetingNotesContent(payload);
-    const isPublicMeeting = isPublicFathomMeeting(payload);
     const parentResult = await fetchFathomMeetingNotesAlpineApi<ApiGetDocumentResponse>(
         `/documents/${parentDocumentId}`,
         {method: "GET"},
@@ -74,24 +83,16 @@ export async function processFathomMeetingNotes(
         if (hasMatchingRecordingLink) {
             return {
                 ok: true,
+                outcome: "already_processed",
                 documentId,
-                alreadyProcessed: true,
             };
         }
     }
 
-    if (isPublicMeeting) {
-        console.log("Creating public meeting notes", {
-            transcript: payload.transcript ?? null,
-            summary: payload.default_summary?.markdown_formatted ?? null,
-        });
-        // TODO: Set a public access policy once the documents API supports access
-        // policies. Until then, the Josh-scoped API key keeps this document private.
-    } else {
-        console.log("Creating private meeting notes");
-        // TODO: Share only with Josh Johnson once the documents API supports access
-        // policies. The creator field is attribution, not an access policy.
-    }
+    console.log("Creating public meeting notes", {
+        transcript: payload.transcript ?? null,
+        summary: payload.default_summary?.markdown_formatted ?? null,
+    });
 
     const createRequest: ApiCreateDocumentRequestBody = {
         spaceId: parentResult.value.spaceId,
@@ -106,16 +107,6 @@ export async function processFathomMeetingNotes(
         {method: "POST", body: createRequest},
     );
     if (!createResult.ok) return createResult;
-
-    if (!isPublicMeeting) {
-        // TODO: Persist Fathom webhook IDs so a retry of a private meeting can find the
-        // document without exposing it in the public index.
-        return {
-            ok: true,
-            documentId: createResult.value.document.id,
-            alreadyProcessed: false,
-        };
-    }
 
     const insertion = insertFathomMeetingNotesMention({
         content: parentResult.value.document.content,
@@ -139,7 +130,7 @@ export async function processFathomMeetingNotes(
 
     return {
         ok: true,
+        outcome: "created",
         documentId: createResult.value.document.id,
-        alreadyProcessed: false,
     };
 }
