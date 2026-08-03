@@ -30,33 +30,35 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // `inline-style-parser@0.2.7` for parsing CSS in the markdown parser.
     ["inline-style-parser", ["0.1.1", "0.2.7"]],
 
-    // Our `wrangler` dependency has an old version of `esbuild` we allow since we
-    // should be bundling our code with a newer version of `esbuild` before it gets to
-    // `wrangler`.
-    ["esbuild", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/android-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/android-arm", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/android-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/darwin-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/darwin-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/freebsd-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/freebsd-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-arm", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-ia32", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-loong64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-mips64el", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-ppc64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-riscv64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-s390x", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/netbsd-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/openbsd-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/sunos-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/win32-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/win32-ia32", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/win32-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
-    ["@esbuild/aix-ppc64", ["0.21.5", "0.25.10"]],
+    // `wrangler` depends on its own version of `esbuild`. We bundle our code before
+    // passing it to `wrangler`, so using multiple versions here should be safe.
+    ["esbuild", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/android-arm64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/android-arm", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/android-x64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/darwin-arm64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/darwin-x64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/freebsd-arm64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/freebsd-x64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/linux-arm64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/linux-arm", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/linux-ia32", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/linux-loong64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/linux-mips64el", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/linux-ppc64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/linux-riscv64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/linux-s390x", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/linux-x64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/netbsd-arm64", ["0.25.10", "0.28.1"]],
+    ["@esbuild/netbsd-x64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/openbsd-arm64", ["0.25.10", "0.28.1"]],
+    ["@esbuild/openbsd-x64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/openharmony-arm64", ["0.25.10", "0.28.1"]],
+    ["@esbuild/sunos-x64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/win32-arm64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/win32-ia32", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/win32-x64", ["0.18.20", "0.21.5", "0.25.10", "0.28.1"]],
+    ["@esbuild/aix-ppc64", ["0.21.5", "0.25.10", "0.28.1"]],
     ["@jridgewell/gen-mapping", ["0.1.1", "0.3.13"]],
 
     // Incompatible versions from AWS dependencies. Mostly stemming from
@@ -69,7 +71,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // Node.js environment instead of a custom JavaScript VM (backed by `workerd`).
     // This makes programs running with Miniflare v2 easier to debug since we can use
     // the usual Node.js debugging processes.
-    ["miniflare", ["2.14.4", "3.20241106.0"]],
+    ["miniflare", ["2.14.4", "5.20260730.0-alpha"]],
 
     // NOTE(calebmer, 2024-08-13): Duplicate packages after adding dependencies for
     // `aws-cdk` to `packageExtensions` that we can't easily resolve but shouldn't
@@ -202,7 +204,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["cookie-signature", ["1.0.6", "1.2.1"]],
     ["cookie", ["0.4.1", "0.4.2", "0.5.0", "0.6.0", "0.7.2", "1.1.1"]],
     ["cssom", ["0.3.8", "0.5.0"]],
-    ["data-uri-to-buffer", ["2.0.2", "3.0.1", "6.0.2"]],
+    ["data-uri-to-buffer", ["3.0.1", "6.0.2"]],
     ["debug", ["2.6.9", "3.2.7", "4.3.7", "4.4.3"]],
     ["dedent", ["0.7.0", "1.5.3"]],
     ["doctrine", ["2.1.0", "3.0.0"]],
@@ -261,7 +263,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["micromark-util-symbol", ["1.0.1", "2.0.0"]],
     ["micromark-util-types", ["1.0.2", "2.0.0"]],
     ["micromark", ["3.1.0", "4.0.0"]],
-    ["mime", ["1.6.0", "2.6.0", "3.0.0"]],
+    ["mime", ["1.6.0", "2.6.0"]],
     ["mimic-fn", ["2.1.0", "4.0.0"]],
     ["minimatch", ["3.1.5", "5.1.1", "9.0.5", "10.0.1"]],
     ["minipass", ["3.3.4", "7.1.2"]],
@@ -296,7 +298,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["tslib", ["2.4.0", "2.6.3"]],
     ["type-fest", ["0.20.2", "0.21.3", "2.19.0", "4.41.0"]],
     ["type", ["1.2.0", "2.7.2"]],
-    ["undici", ["5.28.4", "6.17.0"]],
+    ["undici", ["5.28.4", "6.17.0", "7.28.0"]],
     ["unique-filename", ["1.1.1", "3.0.0"]],
     ["unique-slug", ["2.0.2", "4.0.0"]],
     ["unist-util-is", ["5.1.1", "6.0.0"]],
@@ -308,11 +310,11 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["validate-npm-package-name", ["4.0.0", "5.0.1"]],
     ["which", ["2.0.2", "3.0.1"]],
     ["wrap-ansi", ["6.2.0", "7.0.0", "8.1.0"]],
-    ["ws", ["7.5.9", "8.17.1", "8.18.0"]],
+    ["ws", ["7.5.9", "8.17.1", "8.18.0", "8.21.0"]],
     ["yallist", ["3.1.1", "4.0.0"]],
     ["yargs-parser", ["20.2.9", "21.1.1"]],
     ["yargs", ["16.2.0", "17.7.2"]],
-    ["youch", ["2.2.2", "3.2.3"]],
+    ["youch", ["2.2.2", "4.1.0-beta.10"]],
 
     // Duplicate packages after adding drizzle for agent limits.
     ["strip-json-comments", ["2.0.1", "3.1.1"]],
