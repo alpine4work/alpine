@@ -172,7 +172,6 @@ export async function uploadFileForNotionImport(
                         const {jobType, reason} = routeFileToProcessor({
                             contentType,
                             contentLength,
-                            spaceId,
                         });
 
                         await impersonatedContext.jobs.sendAndWait({

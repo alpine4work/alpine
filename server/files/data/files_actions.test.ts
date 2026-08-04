@@ -43,14 +43,8 @@ import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 import {PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
-import {hasFileAnalysisFeature} from "~/shared/spaces/has_file_analysis_feature.js";
 
 const context = createTestContext();
-const originalNodeEnv = process.env.NODE_ENV;
-
-afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
-});
 
 const fileImagePreviewPlaceholder1 = new FileImagePreviewPlaceholder([
     [
@@ -162,11 +156,8 @@ class FileModel extends SharedFileModel {
 function fileAnalysisAndTranscriptDefaultsForTest({
     analysis,
     contentType,
-    spaceId,
     transcript,
 }: ConstructorParameters<typeof SharedFileModel>[0]) {
-    if (!hasFileAnalysisFeature(spaceId)) return {};
-
     const analysisDefault = {isProcessing: true} as const;
     const transcriptDefault = {isProcessing: true} as const;
     const hasAnalysis =
@@ -363,37 +354,6 @@ test("can start uploading and processing files", async () => {
             }),
         );
     }
-});
-
-test("does not create analysis or transcript slots outside the feature flag", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-    process.env.NODE_ENV = "production";
-
-    const {fileId} = await startUploadingFile(session.action(), {
-        spaceId: space.id,
-        contentType: "audio/mpeg",
-        contentLength: 100,
-    });
-
-    expect(await getFileAsUploader(space.systemAction(), fileId)).toEqual(
-        new FileModel({
-            spaceId: space.id,
-            id: fileId,
-            contentType: "audio/mpeg",
-            contentLength: 100,
-            isUploading: true,
-            alternative: null,
-            preview: {
-                type: "Audio",
-                isProcessing: true,
-                duration: "Processing",
-                metadata: "Processing",
-            },
-            analysis: null,
-            transcript: null,
-        }),
-    );
 });
 
 test("can finish processing file analysis", async () => {

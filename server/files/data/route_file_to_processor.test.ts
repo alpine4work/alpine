@@ -1,7 +1,5 @@
 import {routeFileToProcessor} from "~/server/files/data/route_file_to_processor.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 const oneKb = 1024;
 const oneMb = 1024 * oneKb;
@@ -9,12 +7,6 @@ const tenMb = 10 * oneMb;
 const twentyFiveMb = 25 * oneMb;
 const fiftyMb = 50 * oneMb;
 const oneHundredMb = 100 * oneMb;
-const originalNodeEnv = process.env.NODE_ENV;
-const nonInternalSpaceId = "space-id-not-internal" as SpaceId;
-
-afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
-});
 
 describe("routeFileToProcessor", () => {
     describe("large files rule", () => {
@@ -241,45 +233,6 @@ describe("routeFileToProcessor", () => {
 
             expect(result.jobType).toEqual("ProcessFileHeavy");
             expect(result.reason).toEqual("large_files_always_heavy");
-        });
-
-        test("routes MP3 files over 25MB to light compute in non-internal production spaces", () => {
-            process.env.NODE_ENV = "production";
-
-            const result = routeFileToProcessor({
-                contentType: "audio/mpeg",
-                contentLength: twentyFiveMb + oneKb,
-                spaceId: nonInternalSpaceId,
-            });
-
-            expect(result.jobType).toEqual("ProcessFileLight");
-            expect(result.reason).toEqual("default");
-        });
-
-        test("routes 50MB MP3 files to heavy compute in non-internal production spaces", () => {
-            process.env.NODE_ENV = "production";
-
-            const result = routeFileToProcessor({
-                contentType: "audio/mpeg",
-                contentLength: fiftyMb,
-                spaceId: nonInternalSpaceId,
-            });
-
-            expect(result.jobType).toEqual("ProcessFileHeavy");
-            expect(result.reason).toEqual("large_web_safe_audio_heavy");
-        });
-
-        test("routes MP3 files over 25MB to heavy compute in internal production spaces", () => {
-            process.env.NODE_ENV = "production";
-
-            const result = routeFileToProcessor({
-                contentType: "audio/mpeg",
-                contentLength: twentyFiveMb + oneKb,
-                spaceId: alpineCompanyKnownSpaceId,
-            });
-
-            expect(result.jobType).toEqual("ProcessFileHeavy");
-            expect(result.reason).toEqual("analysis_web_safe_audio_heavy");
         });
     });
 

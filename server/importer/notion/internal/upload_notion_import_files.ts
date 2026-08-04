@@ -127,7 +127,6 @@ export async function uploadNotionImportFiles(
             const {jobType} = routeFileToProcessor({
                 contentType,
                 contentLength: sizeInBytes,
-                spaceId,
             });
             if (jobType === "ProcessFileHeavy") {
                 heavyFiles.push(file);

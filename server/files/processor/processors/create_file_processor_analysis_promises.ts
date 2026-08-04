@@ -8,7 +8,6 @@ import {FileAnalysisResult} from "~/shared/files/file_analysis.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {hasFileAnalysisFeature} from "~/shared/spaces/has_file_analysis_feature.js";
 
 export type FileProcessorAnalysisPromises = {
     readonly analysisPromise: Promise<FileAnalysisResult | null>;
@@ -51,16 +50,6 @@ export function createFileProcessorAnalysisPromises(
         spaceId,
     }: CreateFileProcessorAnalysisPromisesOptions & {readonly hasTranscript: boolean},
 ): FileProcessorAnalysisPromises {
-    if (!hasFileAnalysisFeature(spaceId)) {
-        const analysisPromise = Promise.resolve(null);
-        const transcriptPromise: Promise<ProcessFileAnalysisTranscriptResult | null> =
-            Promise.resolve(null);
-        return {
-            analysisPromise,
-            ...(hasTranscript ? {transcriptPromise} : {}),
-        };
-    }
-
     const transcriptPromiseResolver = hasTranscript
         ? createPromiseResolver<ProcessFileAnalysisTranscriptResult>()
         : null;
