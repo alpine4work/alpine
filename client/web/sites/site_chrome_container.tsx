@@ -1,5 +1,6 @@
 import {ReactElement} from "react";
 import {Box} from "~/client/web/design/box.js";
+import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {SiteChrome} from "~/client/web/sites/site_chrome.js";
@@ -22,13 +23,15 @@ import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
  * navigation, so the chrome highlights where you're going while the shimmer shows.
  *
  * Renders `children` without chrome when there's no active site, the active entity
- * isn't in the site tree, or the layout is narrow (mobile/peeks render a
- * `SiteBreadcrumbChip` instead of persistent chrome).
+ * isn't in the site tree, the layout is narrow, or we're inside a peek (mobile /
+ * narrow peeks / wide inbox peeks render a `SiteBreadcrumbChip` instead of
+ * persistent chrome).
  */
 export function SiteChromeContainer({children}: {children: ReactElement}) {
     const siteContext = useSiteContextIfExists();
     const {space} = useSpaceContext();
     const routeLayout = useRouteLayout();
+    const peekContext = usePeekContext();
 
     // TODO(#sites): Remove this gate once we release sites publically.
     if (process.env.NODE_ENV === "production" && space.id !== alpineCompanyKnownSpaceId) {
@@ -47,11 +50,11 @@ export function SiteChromeContainer({children}: {children: ReactElement}) {
         return children;
     }
 
-    if (routeLayout === "narrow") {
-        // We don't render the site chrome in narrow layouts or in the inbox. Each entity's
-        // detail view instead renders a `SiteBreadcrumbChip` above its title (matching the
-        // file-entity preview), which opens the site's `navigate` route to browse the
-        // tree.
+    // Mirror `shouldRenderSiteBreadcrumb`: skip chrome for narrow layouts and for any
+    // peek context (including wide inbox peeks). Peeks / mobile use the breadcrumb
+    // chip instead; chrome also depends on `<PeekStackContext>` which search-modal
+    // peeks lack.
+    if (routeLayout === "narrow" || peekContext) {
         return children;
     }
 
