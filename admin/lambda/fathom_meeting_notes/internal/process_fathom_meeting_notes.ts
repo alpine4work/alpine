@@ -3,7 +3,6 @@
 import {createFathomMeetingNotesContent} from "~/admin/lambda/fathom_meeting_notes/internal/create_fathom_meeting_notes_content.js";
 import {FathomWebhookPayload} from "~/admin/lambda/fathom_meeting_notes/internal/fathom_webhook_payload_types.js";
 import {fetchFathomMeetingNotesAlpineApi} from "~/admin/lambda/fathom_meeting_notes/internal/fetch_fathom_meeting_notes_alpine_api.js";
-import {getFathomMeetingNotesCreatorAccountId} from "~/admin/lambda/fathom_meeting_notes/internal/get_fathom_meeting_notes_creator_account_id.js";
 import {getFathomMeetingNotesMonthDocumentIds} from "~/admin/lambda/fathom_meeting_notes/internal/get_fathom_meeting_notes_month_document_ids.js";
 import {getFathomMeetingNotesParentDocumentId} from "~/admin/lambda/fathom_meeting_notes/internal/get_fathom_meeting_notes_parent_document_id.js";
 import {insertFathomMeetingNotesMention} from "~/admin/lambda/fathom_meeting_notes/internal/insert_fathom_meeting_notes_mention.js";
@@ -98,7 +97,6 @@ export async function processFathomMeetingNotes(
         spaceId: parentResult.value.spaceId,
         document: {
             title: meetingNotes.title,
-            creator: {id: getFathomMeetingNotesCreatorAccountId()},
             content: meetingNotes.content,
         },
     };

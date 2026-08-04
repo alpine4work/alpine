@@ -61,13 +61,12 @@ Optional overrides:
 ```bash
 EDGE_SERVICE_URL=http://localhost:3000
 FATHOM_WEBHOOK_SECRET=whsec_<base64-secret>
-FATHOM_MEETING_NOTES_CREATOR_ACCOUNT_ID=<account-id>
 FATHOM_MEETING_NOTES_PARENT_DOCUMENT_ID=<document-id>
 ```
 
-The parent and creator overrides apply only in development.
+The parent override applies only in development.
 
-Production uses the "Meeting Notes" document ID and Josh’s known account ID.
+Production uses the "Meeting Notes" document ID.
 
 If unset, `EDGE_SERVICE_URL` defaults to `http://localhost:3000`. The runner also supplies a
 deterministic development-only webhook secret. It signs the exact fixture bytes using a fresh

@@ -24,7 +24,6 @@ ts_project(
         "//:node_modules/@types/aws-lambda",
         "//:node_modules/@types/node",
         "//server/lambda",
-        "//shared/accounts",
         "//shared/api/content",
         "//shared/api/specification",
         "//shared/helpers",

@@ -314,10 +314,11 @@ describe("Fathom meeting notes Lambda", () => {
         const createBody = assertExists(fetchCalls[1]).body as {
             document: {
                 title: string;
-                creator: {id: string};
                 content: {elements: Array<unknown>};
             };
         };
+
+        expect(createBody.document).not.toHaveProperty("creator");
 
         expect({
             result,
@@ -325,7 +326,6 @@ describe("Fathom meeting notes Lambda", () => {
             requestHeaders: fetchCalls[0]?.headers,
             createdDocument: {
                 title: createBody.document.title,
-                creator: createBody.document.creator,
                 firstElement: createBody.document.content.elements[0],
             },
             parentUpdate: fetchCalls[2],
@@ -359,7 +359,6 @@ describe("Fathom meeting notes Lambda", () => {
             },
             createdDocument: {
                 title,
-                creator: {id: "7dw297xezx6rs6qy4gjh6h5xx4"},
                 firstElement: {
                     type: "Heading",
                     level: 1,

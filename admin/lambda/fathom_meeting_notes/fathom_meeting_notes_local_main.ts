@@ -224,7 +224,6 @@ function printUsage() {
             "Optional overrides:",
             "  EDGE_SERVICE_URL=http://localhost:3000",
             "  FATHOM_WEBHOOK_SECRET=whsec_<base64-secret>",
-            "  FATHOM_MEETING_NOTES_CREATOR_ACCOUNT_ID=<account-id>",
             "  FATHOM_MEETING_NOTES_PARENT_DOCUMENT_ID=<document-id>",
         ].join("\n"),
     );
