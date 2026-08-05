@@ -48,8 +48,10 @@ import {
     createBot,
     createScopedApiKeyForBot,
     createUnscopedApiKeyForBot,
+    deleteApiKeyForBot,
     deleteBot,
     getBotAccountIdForSpaceIfExists,
+    rotateApiKeyForBot,
 } from "~/shared/rpc/bots_rpc_definitions.js";
 import {instantiateBotSpaceAccount} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -520,11 +522,13 @@ function BotRow({
                             {bot.apiKeys.map(({apiKey, name, spaceId, scope}, index) => (
                                 <ApiKeyRow
                                     key={index}
+                                    botId={bot.id}
                                     apiKey={apiKey}
                                     name={name}
                                     spaceId={spaceId}
                                     scope={scope}
                                     iconColor={iconColor}
+                                    onChanged={() => navigate(0)}
                                 />
                             ))}
                         </Box>
@@ -537,25 +541,66 @@ function BotRow({
 }
 
 function ApiKeyRow({
+    botId,
     apiKey,
     name,
     spaceId,
     scope,
     iconColor,
+    onChanged,
 }: {
+    botId: BotId;
     apiKey: string;
     name: string | null;
     spaceId: string | null;
     scope: unknown;
     iconColor: string;
+    onChanged: () => void;
 }) {
+    const context = useAppContext();
+    const [confirmAction, setConfirmAction] = useState<"Revoke" | "Rotate" | null>(null);
+
     const scopeLabel =
         spaceId === null
             ? "Unscoped"
             : `Scoped · ${(scope as {type: string} | null)?.type ?? "Unknown"}`;
 
     return (
-        <Box padding="3" border="grey-5" borderRadius="2" backgroundColor="grey-40">
+        <Box
+            padding="3"
+            border="grey-5"
+            borderRadius="2"
+            backgroundColor="grey-40"
+            position="relative"
+        >
+            {confirmAction === "Revoke" && (
+                <ModalDialog
+                    title="Revoke this API key?"
+                    description="This permanently revokes the key. Any integration using it will immediately lose access. This action cannot be undone."
+                    primaryButtonLabel="Revoke"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t revoke API key"
+                    onPrimaryButtonPress={async () => {
+                        await deleteApiKeyForBot(context, {botId, apiKey});
+                        onChanged();
+                    }}
+                    onClose={() => setConfirmAction(null)}
+                    initiallyFocus="Cancel"
+                />
+            )}
+            {confirmAction === "Rotate" && (
+                <ModalDialog
+                    title="Rotate this API key?"
+                    description="This issues a new key with the same scope and permanently revokes the current one. Any integration using the current key will immediately lose access until you give it the new key. This action cannot be undone."
+                    primaryButtonLabel="Rotate"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t rotate API key"
+                    onPrimaryButtonPress={async () => {
+                        await rotateApiKeyForBot(context, {botId, apiKey});
+                        onChanged();
+                    }}
+                    onClose={() => setConfirmAction(null)}
+                    initiallyFocus="Cancel"
+                />
+            )}
             <Box display="flex" alignItems="center" gap="2" paddingBottom="2">
                 <Box fontSize="75" fontStyle="semi-bold">
                     {name || "Unnamed API Key"}
@@ -572,6 +617,28 @@ function ApiKeyRow({
                         {spaceId}
                     </Box>
                 )}
+                <Box flexGrow="1" />
+                <Button
+                    type="button"
+                    variant="quiet"
+                    fontSize="75"
+                    height="6"
+                    paddingX="2"
+                    onPress={() => setConfirmAction("Rotate")}
+                >
+                    Rotate
+                </Button>
+                <Button
+                    type="button"
+                    variant="quiet"
+                    color="red-80"
+                    fontSize="75"
+                    height="6"
+                    paddingX="2"
+                    onPress={() => setConfirmAction("Revoke")}
+                >
+                    Revoke
+                </Button>
             </Box>
             <Box display="flex" gap="2" alignItems="flex-end">
                 <Box flexGrow="1" minWidth="flex-fit">

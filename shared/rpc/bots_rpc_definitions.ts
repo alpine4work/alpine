@@ -5,44 +5,6 @@ import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-export const finishUploadingBotAvatar = defineRpc({
-    name: "finishUploadingBotAvatar",
-    isIdempotent: true,
-    input: {
-        avatarContent: Schema.bytes,
-        avatarId: Schema.id<AvatarId>(),
-        botId: Schema.id<BotId>(),
-    },
-    output: {
-        bot: BotSchema,
-    },
-});
-
-export const updateBotSpaceSettingsPropertyValue = defineRpc({
-    name: "updateBotSpaceSettingsPropertyValue",
-    isIdempotent: true,
-    input: {
-        spaceId: Schema.id<SpaceId>(),
-        botId: Schema.id<BotId>(),
-        propertyKey: IdentifierStringSchema,
-        propertyValue: Schema.unknown(),
-    },
-    output: {
-        valuesVersion: Schema.integer,
-        values: Schema.map(Schema.string, Schema.unknown()),
-        secretPropertyKeysWithValues: Schema.set(Schema.string),
-    },
-});
-
-export const deleteBot = defineRpc({
-    name: "deleteBot",
-    isIdempotent: false,
-    input: {
-        botId: Schema.id<BotId>(),
-    },
-    output: {},
-});
-
 export const createBot = defineRpc({
     name: "createBot",
     isIdempotent: false,
@@ -55,6 +17,15 @@ export const createBot = defineRpc({
     output: {
         botId: Schema.id<BotId>(),
     },
+});
+
+export const deleteBot = defineRpc({
+    name: "deleteBot",
+    isIdempotent: true,
+    input: {
+        botId: Schema.id<BotId>(),
+    },
+    output: {},
 });
 
 export const createUnscopedApiKeyForBot = defineRpc({
@@ -81,6 +52,61 @@ export const createScopedApiKeyForBot = defineRpc({
     },
     output: {
         apiKey: Schema.string,
+    },
+});
+
+export const deleteApiKeyForBot = defineRpc({
+    name: "deleteApiKeyForBot",
+    isIdempotent: true,
+    input: {
+        botId: Schema.id<BotId>(),
+        apiKey: Schema.string,
+    },
+    output: {},
+});
+
+export const rotateApiKeyForBot = defineRpc({
+    name: "rotateApiKeyForBot",
+    // Each call mints a brand new random `apiKey` via `generateApiKey()` and returns
+    // it, so repeated calls with the same input produce different outputs. A retry
+    // also can't converge because the first call deletes the original key, so the
+    // second call will throw a `NotFoundError`.
+    isIdempotent: false,
+    input: {
+        botId: Schema.id<BotId>(),
+        apiKey: Schema.string,
+    },
+    output: {
+        apiKey: Schema.string,
+    },
+});
+
+export const finishUploadingBotAvatar = defineRpc({
+    name: "finishUploadingBotAvatar",
+    isIdempotent: true,
+    input: {
+        avatarContent: Schema.bytes,
+        avatarId: Schema.id<AvatarId>(),
+        botId: Schema.id<BotId>(),
+    },
+    output: {
+        bot: BotSchema,
+    },
+});
+
+export const updateBotSpaceSettingsPropertyValue = defineRpc({
+    name: "updateBotSpaceSettingsPropertyValue",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        botId: Schema.id<BotId>(),
+        propertyKey: IdentifierStringSchema,
+        propertyValue: Schema.unknown(),
+    },
+    output: {
+        valuesVersion: Schema.integer,
+        values: Schema.map(Schema.string, Schema.unknown()),
+        secretPropertyKeysWithValues: Schema.set(Schema.string),
     },
 });
 

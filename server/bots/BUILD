@@ -8,6 +8,7 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/spaces",
         "//server/spaces/test_helpers",
+        "//shared/content",
         "//shared/test_helpers",
     ],
     visibility = [
