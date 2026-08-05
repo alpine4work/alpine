@@ -174,7 +174,7 @@ export class DatabaseServer {
               fileSizes: Map<DatabaseTableId, number>;
           }
         | undefined;
-    private lastWriteVersion: number | undefined;
+    private lastSnapshotVersion: number | undefined;
 
     private constructor(storage: DurableObjectStorage) {
         this.storage = storage;
@@ -353,17 +353,17 @@ export class DatabaseServer {
             sqliteIds: new Map<DatabaseTableId, number>(),
             fileSizes: new Map<DatabaseTableId, number>(),
         };
-        const lastWriteVersion = this.lastWriteVersion;
+        const lastSnapshotVersion = this.lastSnapshotVersion;
         this.currentTransaction = currentTransaction;
         try {
             let result: T;
             try {
                 result = this.storage.transactionSync(fn);
             } catch (error) {
-                // `_nextVersion` advances before writes so every row in a batch receives one
-                // stamp. A rolled-back stamp must not escape through `snapshotVersion`: after a
-                // restart, storage could otherwise reuse it.
-                this.lastWriteVersion = lastWriteVersion;
+                // `_nextSnapshotVersion` advances before writes so every row in a batch receives
+                // one stamp. A rolled-back stamp must not escape through `snapshotVersion`: after
+                // a restart, storage could otherwise reuse it.
+                this.lastSnapshotVersion = lastSnapshotVersion;
                 throw error;
             }
             for (const [tableId, sqliteId] of currentTransaction.sqliteIds) {
@@ -520,7 +520,7 @@ export class DatabaseServer {
             return this.transactionSync(() => this.writePages(pages, truncates));
         }
 
-        const version = this._nextVersion();
+        const version = this._nextSnapshotVersion();
 
         const finalPagesByTable = new Map<DatabaseTableId, Map<number, Uint8Array | null>>();
         const finalFileSizeByTable = new Map<DatabaseTableId, number>();
@@ -625,7 +625,19 @@ export class DatabaseServer {
 
     /** Current global page snapshot version. */
     getSnapshotVersion(): number {
-        return this._currentVersion();
+        if (this.lastSnapshotVersion === undefined) {
+            // Cold load deliberately scans the compact per-table metadata, rather than all
+            // retained page images, so the next global stamp is strictly greater than any
+            // persisted table version.
+            this.lastSnapshotVersion =
+                sql`
+                    SELECT
+                        MAX(last_version)
+                    FROM
+                        database_tables
+                `.selectValue(this.sql, Schema.integer.nullable()) ?? 0;
+        }
+        return this.lastSnapshotVersion;
     }
 
     /**
@@ -755,26 +767,10 @@ export class DatabaseServer {
         );
     }
 
-    private _nextVersion(): number {
-        const nextVersion = this._currentVersion() + 1;
-        this.lastWriteVersion = nextVersion;
-        return nextVersion;
-    }
-
-    private _currentVersion(): number {
-        if (this.lastWriteVersion === undefined) {
-            // Cold load deliberately scans the compact per-table metadata, rather than all
-            // retained page images, so the next global stamp is strictly greater than any
-            // persisted table version.
-            this.lastWriteVersion =
-                sql`
-                    SELECT
-                        MAX(last_version)
-                    FROM
-                        database_tables
-                `.selectValue(this.sql, Schema.integer.nullable()) ?? 0;
-        }
-        return this.lastWriteVersion;
+    private _nextSnapshotVersion(): number {
+        const nextSnapshotVersion = this.getSnapshotVersion() + 1;
+        this.lastSnapshotVersion = nextSnapshotVersion;
+        return nextSnapshotVersion;
     }
 
     /**
@@ -1052,7 +1048,7 @@ export class DatabaseServer {
             result,
             readPages,
             changedPages,
-            snapshotVersion: this._currentVersion(),
+            snapshotVersion: this.getSnapshotVersion(),
         };
     }
 
