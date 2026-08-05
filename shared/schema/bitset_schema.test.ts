@@ -38,6 +38,32 @@ test("uses unsigned little-endian words", () => {
     ]);
 });
 
+test("serialized bytes are independent from later bitset mutations", () => {
+    const bitset = new TypedFastBitSet([0]);
+    const serialized = BitsetSchema.serialize(bitset);
+
+    bitset.add(1);
+
+    expect(Array.from(Schema.bytes.deserialize(serialized))).toEqual([1, 0, 0, 0]);
+});
+
+test("deserializes an unaligned byte view", () => {
+    const source = new Uint8Array([255, 1, 0, 0, 0]);
+    const bytes = source.subarray(1);
+    const bitset = BitsetSchema.deserialize(Schema.bytes.serialize(bytes));
+
+    expect(bitset.array()).toEqual([0]);
+});
+
+test("deserialized bitset is independent from later byte mutations", () => {
+    const bytes = new Uint8Array([1, 0, 0, 0]);
+    const bitset = BitsetSchema.deserialize(Schema.bytes.serialize(bytes));
+
+    bytes[0] = 0;
+
+    expect(bitset.array()).toEqual([0]);
+});
+
 test("round-trips the maximum SQLite page index", () => {
     const maximumPageIndex = 262_143;
     const serialized = BitsetSchema.serialize(new TypedFastBitSet([maximumPageIndex]));
