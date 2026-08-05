@@ -2,6 +2,7 @@ import {TypedFastBitSet} from "typedfastbitset";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 const bytesPerWord = 4;
+const isLittleEndian = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
 
 /**
  * A compact wire representation of a {@link TypedFastBitSet}.
@@ -14,6 +15,14 @@ export const BitsetSchema = Schema.bytes.transform<TypedFastBitSet>({
         let wordCount = bitset.words.length;
         while (wordCount > 0 && bitset.words[wordCount - 1] === 0) {
             wordCount--;
+        }
+
+        if (isLittleEndian) {
+            return new Uint8Array(
+                bitset.words.buffer,
+                bitset.words.byteOffset,
+                wordCount * bytesPerWord,
+            ).slice();
         }
 
         const bytes = new Uint8Array(wordCount * bytesPerWord);
@@ -32,6 +41,11 @@ export const BitsetSchema = Schema.bytes.transform<TypedFastBitSet>({
             throw new SchemaDeserializationError(
                 "Expected bitset bytes to contain complete 32-bit words",
             );
+        }
+
+        if (isLittleEndian) {
+            const copiedBytes = bytes.slice();
+            return TypedFastBitSet.fromWords(new Uint32Array(copiedBytes.buffer));
         }
 
         const words = new Uint32Array(bytes.byteLength / bytesPerWord);
