@@ -912,10 +912,10 @@ test("a mutation through the HTTP action route reaches realtime subscribers", as
 // Known desync issues
 // ---
 //
-// Failing tests that pin down ways the realtime protocol lets a client fall out of
-// sync with the canonical database without healing on its own. Each test asserts
-// the _correct_ behavior and is marked `test.failing()` until the underlying bug
-// is fixed.
+// Regression tests that pin down ways the realtime protocol can let a client fall
+// out of sync with the canonical database without healing on its own. Each test
+// asserts the _correct_ behavior and is marked `test.failing()` until the
+// underlying bug is fixed.
 //
 // ---
 
@@ -1096,14 +1096,12 @@ test.failing(
 
 // When the fire-and-forget send of an optimistic mutation fails (a transient
 // network error, or a server-side rejection), `removeOptimisticMutation` discards
-// the write buffer and replays the remaining queue — but never invalidates
-// reactive queries whose read set covered the reverted pages.
-// `Database.discardBuffer` doesn't notify tracked executions (only `markCommitted`
-// does), so a reactive query that already rendered the optimistic row keeps
-// rendering it indefinitely: the row exists in neither the local durable cache nor
-// the server, and no page write ever re-runs the query unless an unrelated
-// mutation happens to touch the same page.
-test.failing("a reactive query reverts when an optimistic mutation fails to send", async () => {
+// the write buffer and replays the remaining queue. Reactive queries whose read
+// set covered the reverted pages must be invalidated too: `Database.discardBuffer`
+// doesn't own client notifications, and without an explicit invalidation the query
+// can keep rendering a row that exists in neither the durable cache nor the
+// server.
+test("a reactive query reverts when an optimistic mutation fails to send", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const table = await createTableOnServer(databaseGroupId);
     const client = await createWarmClient(databaseGroupId, table);
@@ -1120,16 +1118,18 @@ test.failing("a reactive query reverts when an optimistic mutation fails to send
         client.tabConnection,
     );
 
-    // The optimistic insert executes locally and notifies the watcher; the background
-    // send then fails, which drops the mutation from the queue and reverts its
-    // buffered pages.
+    // The optimistic insert executes locally and invalidates the watcher; the
+    // background send then fails immediately, which can coalesce that invalidation
+    // with the rollback before the asynchronous reactive read runs.
     client.gates.failNextExecuteAction = new UnavailableError("synthetic network failure");
     const rowId = generateChronologicalId<DatabaseRowId>();
     await executeAction(client, "createRow", {tableId: table.tableId, rowId});
     await settle();
 
     // Direct reads serve the durable truth (no row); the watcher must converge to the
-    // same result instead of keeping the phantom optimistic row.
+    // same result instead of keeping the phantom optimistic row. A delayed failure is
+    // covered by the client unit test, where the watcher emits both the optimistic and
+    // reverted states.
     expect({
         directRowIds: await selectRowIds(client, table),
         reactiveRowIds: client.reactiveUpdates.map(
@@ -1138,7 +1138,7 @@ test.failing("a reactive query reverts when an optimistic mutation fails to send
         reportedErrors: client.reportedErrors,
     }).toEqual({
         directRowIds: [],
-        reactiveRowIds: [[{_id: rowId}], []],
+        reactiveRowIds: [[]],
         reportedErrors: ["synthetic network failure"],
     });
 });

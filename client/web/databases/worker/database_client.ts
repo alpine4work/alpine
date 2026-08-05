@@ -661,12 +661,28 @@ export class DatabaseClient {
     }
 
     private removeOptimisticMutation(mutationId: DatabaseMutationId): void {
+        // Capture every page in the current overlay before throwing it away. Replaying the
+        // remaining queue marks its new after-images, but pages changed only by the failed
+        // mutation are reverting to durable storage and must invalidate reactive reads
+        // too.
+        const buffered = this.database.getBufferedWrites();
+        let anyRevertedPageMarked = false;
+        if (buffered !== null) {
+            const revertedPages = new Map<DatabaseTableId, Set<number>>();
+            for (const [tableId, pages] of buffered.pages) {
+                revertedPages.set(tableId, new Set(pages.keys()));
+            }
+            anyRevertedPageMarked = this.markWrittenPages(revertedPages);
+        }
         this.optimisticQueue = this.optimisticQueue.filter(m => m.mutationId !== mutationId);
         // The buffer still holds writes from the failed mutation (and any subsequent
         // queued mutations that ran on top of it). Drop it and rebuild from the remaining
         // queue.
         this.database.discardBuffer();
         this.replayOptimisticQueue();
+        if (anyRevertedPageMarked) {
+            this.scheduleInvalidation();
+        }
     }
 
     private replayOptimisticQueue(): void {

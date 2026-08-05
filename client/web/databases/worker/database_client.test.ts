@@ -2262,6 +2262,56 @@ describe("registerReactiveAction", () => {
         ]);
     });
 
+    test("failed optimistic mutation invalidates its reactive action again", async () => {
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+
+        const notifications: Array<{rows: ReadonlyArray<Record<string, unknown>>}> = [];
+        await client.registerReactiveAction(
+            "q1",
+            {
+                name: "readonlyRawSql",
+                input: rawSqlInput(sql`
+                    SELECT
+                        id
+                    FROM
+                        t
+                    ORDER BY
+                        id
+                `),
+            },
+            testConn,
+            output => {
+                notifications.push(output as {rows: ReadonlyArray<Record<string, unknown>>});
+            },
+            () => {},
+        );
+
+        let rejectRequest!: (error: Error) => void;
+        const failingConn = makeDatabaseClientConnection({
+            executeActionServer: () =>
+                new Promise((_, reject) => {
+                    rejectRequest = reject;
+                }),
+        });
+        await execute(
+            client,
+            failingConn,
+            sql`
+                INSERT INTO
+                    t (id)
+                VALUES
+                    (1)
+            `,
+        );
+        await new Promise(resolve => setTimeout(resolve, 0));
+        rejectRequest(new InternalError("server rejected mutation"));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(notifications.map(notification => notification.rows)).toEqual([[{id: 1}], []]);
+    });
+
     test("notify fires when overlapping pages are written", async () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
