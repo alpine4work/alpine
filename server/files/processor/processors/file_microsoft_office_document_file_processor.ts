@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
+import {createFileProcessorAnalysisPromises} from "~/server/files/processor/processors/create_file_processor_analysis_promises.js";
 import {processPdfDocumentFile} from "~/server/files/processor/processors/file_pdf_document_processor.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
@@ -79,7 +80,7 @@ export function createFileMicrosoftOfficeDocumentProcessor(
     return {
         type: "MicrosoftOfficeDocument",
         hasAlternative: true,
-        hasAnalysis: false,
+        hasAnalysis: true,
         hasPreview: {
             type: "Image",
             hasContent: true,
@@ -231,6 +232,15 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                 imagePreviewSizePromise,
                 imagePreviewPlaceholderPromise,
                 imagePreviewContentPromise,
+                ...createFileProcessorAnalysisPromises(context, {
+                    contentType,
+                    fileId,
+                    hasTranscript: false,
+                    inputPathIfExists: outputPath,
+                    parentTemporaryDirectoryPath,
+                    signal,
+                    spaceId,
+                }),
             };
         },
     };

@@ -53,13 +53,13 @@ export type FileProcessor =
     | FileProcessorTemplate<
           false,
           {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false},
-          false,
+          true,
           false
       >
     | FileProcessorTemplate<
           true,
           {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false},
-          false,
+          true,
           false
       >
     | FileProcessorTemplate<
@@ -82,7 +82,7 @@ export type FileProcessor =
       >
     | FileProcessorTemplate<false, {readonly type: "Audio"}, true, true>
     | FileProcessorTemplate<true, {readonly type: "Audio"}, true, true>
-    | FileProcessorTemplate<false, {readonly type: "Code"}, false, false>;
+    | FileProcessorTemplate<false, {readonly type: "Code"}, true, false>;
 
 export interface NoopFileProcessor {
     readonly type: "Noop";

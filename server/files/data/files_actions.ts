@@ -1284,6 +1284,22 @@ export class FileUploader {
                         throw new InternalError("File does not have analysis");
                     }
 
+                    if (!item.analysis.isProcessing && !item.analysis.ok) {
+                        // Concurrent file processors can race to save an analysis error. Keep a specific
+                        // error once we have one, but allow a later specific error to replace `Unknown`.
+                        if (item.analysis.error.type !== "Unknown" || error.type === "Unknown") {
+                            return item;
+                        }
+
+                        return {
+                            ...item,
+                            analysis: {
+                                ...item.analysis,
+                                error,
+                            },
+                        };
+                    }
+
                     // No-op if we've already finished processing analysis. This makes the function
                     // idempotent.
                     if (!item.analysis.isProcessing) return item;

@@ -346,17 +346,15 @@ export async function processFile(
               })()
             : null;
 
-        const analysisPromise = promises.analysisPromise
-            ? (async () => {
-                  const analysis = await promises.analysisPromise;
+        const analysisPromise = (async () => {
+            const analysis = await promises.analysisPromise;
 
-                  if (analysis !== null) {
-                      await fileUploader.finishProcessingAnalysis(context, analysis);
-                  }
+            if (analysis !== null) {
+                await fileUploader.finishProcessingAnalysis(context, analysis);
+            }
 
-                  return analysis;
-              })()
-            : null;
+            return analysis;
+        })();
 
         const transcriptPromise = promises.transcriptPromise
             ? (async () => {
@@ -383,9 +381,7 @@ export async function processFile(
               })()
             : null;
 
-        const analysisResultPromise = analysisPromise
-            ? captureResultPromise(analysisPromise)
-            : null;
+        const analysisResultPromise = captureResultPromise(analysisPromise);
 
         const transcriptResultPromise = transcriptPromise
             ? captureResultPromise(transcriptPromise)
@@ -536,7 +532,7 @@ export async function processFile(
                 );
             }),
             runAllPromises([
-                analysisResultPromise?.finally(() => {
+                analysisResultPromise.finally(() => {
                     const endTime = span.clock.now();
 
                     span.addData({
@@ -553,10 +549,10 @@ export async function processFile(
             ]),
         ]);
 
-        const analysisResult = analysisResultPromise ? await analysisResultPromise : null;
+        const analysisResult = await analysisResultPromise;
         const transcriptResult = transcriptResultPromise ? await transcriptResultPromise : null;
         const analysisErrors = [
-            ...(analysisResult?.ok === false ? [analysisResult.error] : []),
+            ...(analysisResult.ok === false ? [analysisResult.error] : []),
             ...(transcriptResult?.ok === false ? [transcriptResult.error] : []),
         ];
 
@@ -574,7 +570,7 @@ export async function processFile(
             caughtErrors.push(analysisError);
 
             const analysisProcessorError =
-                analysisResult?.ok === false
+                analysisResult.ok === false
                     ? (getFileProcessorErrors(analysisResult.error)[0] ?? {
                           type: "Unknown" as const,
                       })

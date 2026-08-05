@@ -5,6 +5,7 @@ import sharp from "sharp";
 import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
 import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
+import {createFileProcessorAnalysisPromises} from "~/server/files/processor/processors/create_file_processor_analysis_promises.js";
 import {processFileImagePreviewPlaceholder} from "~/server/files/processor/processors/file_image_processor_base.js";
 import {
     FileProcessor,
@@ -36,13 +37,12 @@ import {quote} from "~/shared/helpers/string/quote.js";
  * [2]: https://pdfium.googlesource.com/pdfium
  */
 export function createFilePdfDocumentProcessor(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     contentType: FilePdfDocumentContentType,
 ): FileProcessor {
     return {
         type: "PdfDocument",
         hasAlternative: false,
-        hasAnalysis: false,
+        hasAnalysis: true,
         hasPreview: {
             type: "Image",
             hasContent: true,
@@ -51,7 +51,14 @@ export function createFilePdfDocumentProcessor(
         hasTranscript: false,
         process: async (
             context,
-            {spaceId, fileId, signal, contentLength, withTemporaryDirectory},
+            {
+                spaceId,
+                fileId,
+                signal,
+                contentLength,
+                parentTemporaryDirectoryPath,
+                withTemporaryDirectory,
+            },
         ) => {
             const [temporaryDirectoryPath, object] = await runAllPromises([
                 withTemporaryDirectory(),
@@ -71,11 +78,27 @@ export function createFilePdfDocumentProcessor(
 
             await finished(object.Body.pipe(inputWriteStream));
 
-            return processPdfDocumentFile(context, inputPath, {
+            const pdfDocumentPromises = processPdfDocumentFile(context, inputPath, {
                 signal,
                 contentLength,
                 temporaryDirectoryPath,
             });
+
+            return {
+                ...pdfDocumentPromises,
+                ...createFileProcessorAnalysisPromises(context, {
+                    contentType,
+                    fileId,
+                    hasTranscript: false,
+                    inputPathIfExists: async () => {
+                        await pdfDocumentPromises.imagePreviewSizePromise;
+                        return inputPath;
+                    },
+                    parentTemporaryDirectoryPath,
+                    signal,
+                    spaceId,
+                }),
+            };
         },
     };
 }
@@ -166,10 +189,11 @@ export function processPdfDocumentFile(
                 // message for password protected PDFs. Our
                 // `py_pdf_sample_libreoffice_write_password.pdf` test in
                 // `file_processor_content_types.test.ts` observes occasional failures where we get
-                // the truncated error message "Input buffer has corrupt header: " instead of the
-                // full "Input buffer has corrupt header: pdfload: password required or incorrect
-                // password". So when we detect a truncated error message from `sharp` let's retry
-                // the `metadata()` call up to 10 times until we get a real error message.
+                // a truncated error message such as "Input buffer has corrupt header: " or "Input
+                // file has corrupt header: " instead of the full "Input buffer has corrupt header:
+                // pdfload: password required or incorrect password". So when we detect a truncated
+                // error message from `sharp` let's retry the `metadata()` call up to 10 times
+                // until we get a real error message.
                 //
                 // `previewContentPromise`'s `sharp` call is also flaky in this regard. We don't
                 // add a retry there because if we throw a proper `PermissionDeniedError` here
@@ -182,7 +206,7 @@ export function processPdfDocumentFile(
                 if (
                     retryCount <= 10 &&
                     error instanceof Error &&
-                    /^Input buffer has corrupt header: *$/.test(error.message)
+                    /^Input (?:buffer|file) has corrupt header: *$/.test(error.message)
                 ) {
                     await wait(100);
                     continue;

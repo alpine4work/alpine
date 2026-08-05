@@ -34,6 +34,8 @@ import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.j
 import {
     FileContentType,
     isFileAudioContentType,
+    isFileCodeContentType,
+    isFileDocumentContentType,
     isFileImageContentType,
     isFileVideoContentType,
 } from "~/shared/files/file_content_type.js";
@@ -163,7 +165,9 @@ function fileAnalysisAndTranscriptDefaultsForTest({
     const hasAnalysis =
         isFileImageContentType(contentType) ||
         isFileAudioContentType(contentType) ||
-        isFileVideoContentType(contentType);
+        isFileVideoContentType(contentType) ||
+        isFileDocumentContentType(contentType) ||
+        isFileCodeContentType(contentType);
     const hasTranscript =
         isFileAudioContentType(contentType) || isFileVideoContentType(contentType);
 
@@ -496,13 +500,73 @@ test("can finish processing file analysis with an error", async () => {
     );
 });
 
+test("can upgrade file analysis error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    fileUploader = await markFileAnalysisAsProcessingForTest(session.action(), fileUploader);
+
+    await fileUploader.finishProcessingAnalysisWithError(session.action(), {
+        type: "Unknown",
+    });
+    await fileUploader.finishProcessingAnalysisWithError(session.action(), {
+        type: "PasswordProtected",
+    });
+
+    const file = await getFileAsUploader(space.systemAction(), fileUploader.fileId, {
+        consistency: "Strong",
+    });
+
+    expect(file.initialData.analysis).toEqual({
+        isProcessing: false,
+        ok: false,
+        error: {type: "PasswordProtected"},
+    });
+});
+
+test("does not downgrade file analysis error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    fileUploader = await markFileAnalysisAsProcessingForTest(session.action(), fileUploader);
+
+    await fileUploader.finishProcessingAnalysisWithError(session.action(), {
+        type: "PasswordProtected",
+    });
+    await fileUploader.finishProcessingAnalysisWithError(session.action(), {
+        type: "Unknown",
+    });
+
+    const file = await getFileAsUploader(space.systemAction(), fileUploader.fileId, {
+        consistency: "Strong",
+    });
+
+    expect(file.initialData.analysis).toEqual({
+        isProcessing: false,
+        ok: false,
+        error: {type: "PasswordProtected"},
+    });
+});
+
 test("throws when finishing file analysis that was not declared", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "text/plain",
+        contentType: "application/octet-stream",
         contentLength: 100,
     });
 

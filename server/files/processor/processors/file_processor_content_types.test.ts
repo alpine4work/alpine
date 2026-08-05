@@ -377,6 +377,9 @@ const testCases: {
         },
         {
             path: "py_pdf_sample_libreoffice_write_password.pdf",
+            analysisError: {
+                type: "PasswordProtected",
+            },
             previewError: {
                 type: "PasswordProtected",
             },

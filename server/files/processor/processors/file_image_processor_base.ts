@@ -227,18 +227,18 @@ export function processImageFile(
             } catch (error) {
                 // NOTE(calebmer, 2024-11-13): `sharp` is flaky when it comes to returning an error
                 // message. Our "can't upload invalid image data" test in `upload_file.test.ts`
-                // observes occasional failures where we get the truncated error message "Input
-                // buffer has corrupt header: " instead of the full "Input buffer has corrupt
-                // header: x2vips: libX error: Improper image header...". So when we detect a
-                // truncated error message from `sharp` let's retry the `metadata()` call up to 10
-                // times until we get a real error message.
+                // observes occasional failures where we get a truncated error message such as
+                // "Input buffer has corrupt header: " or "Input file has corrupt header: " instead
+                // of the full "Input buffer has corrupt header: x2vips: libX error: Improper image
+                // header...". So when we detect a truncated error message from `sharp` let's retry
+                // the `metadata()` call up to 10 times until we get a real error message.
                 //
                 // Code in `sharp` where this error message is created:
                 // https://github.com/lovell/sharp/blob/1533bf995acda779313fc178d2b9d46791349961/src/common.cc#L417
                 if (
                     retryCount <= 10 &&
                     error instanceof Error &&
-                    /^Input buffer has corrupt header: *$/.test(error.message)
+                    /^Input (?:buffer|file) has corrupt header: *$/.test(error.message)
                 ) {
                     await wait(100);
                     continue;

@@ -133,6 +133,19 @@ const fileMicrosoftOfficeDocumentContentTypes: {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true,
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": true,
 };
+
+const fileDocumentContentTypes: {
+    [Key in FileDocumentContentType]: true;
+} = {
+    "application/pdf": true,
+    ...fileMicrosoftOfficeDocumentContentTypes,
+};
+
+export function isFileDocumentContentType(
+    contentType: FileContentType,
+): contentType is FileDocumentContentType {
+    return contentType in fileDocumentContentTypes;
+}
 /**
  * Video files we support. We support all the same video types as Canva. See
  * [Canva's upload formats][1]. Many common video types do not have good browser

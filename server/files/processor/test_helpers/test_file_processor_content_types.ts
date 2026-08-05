@@ -97,6 +97,7 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
     audioPreviewErrorWhenProcessedConcurrently?: FileProcessorError;
     codePreviewContentLength?: number;
     codePreviewContent?: string;
+    analysisError?: FileProcessorError;
     previewError?: FileProcessorError;
     transcriptUnavailable?: true;
     looksSameTolerance?: number;
@@ -316,6 +317,7 @@ export function testFileProcessorContentTypes(
                         expectedAudioPreviewErrorWhenProcessedConcurrently,
                     codePreviewContentLength: expectedCodePreviewContentLength,
                     codePreviewContent: expectedCodePreviewContent,
+                    analysisError: expectedAnalysisError,
                     previewError: expectedPreviewError,
                     transcriptUnavailable: expectedTranscriptUnavailable,
                     looksSameTolerance = 35,
@@ -419,11 +421,17 @@ export function testFileProcessorContentTypes(
                                     isUploading: false,
                                     alternative: expectedAlternativeResult,
                                     analysis: file.hasAnalysis
-                                        ? {
-                                              isProcessing: false,
-                                              ok: true,
-                                              result: testFileProcessorAnalysisResult,
-                                          }
+                                        ? expectedAnalysisError
+                                            ? {
+                                                  isProcessing: false,
+                                                  ok: false,
+                                                  error: expectedAnalysisError,
+                                              }
+                                            : {
+                                                  isProcessing: false,
+                                                  ok: true,
+                                                  result: testFileProcessorAnalysisResult,
+                                              }
                                         : null,
                                     preview: expectedPreviewError
                                         ? {
