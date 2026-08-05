@@ -81,7 +81,7 @@ Make the event callbacks return promises and await `sendEventToAllAndWait()`/`se
 returning the procedure response. The empty self-confirmation path needs the same ordering
 guarantee.
 
-### [ ] Do not insert a tombstone and replacement page under the same primary key
+### [x] Do not insert a tombstone and replacement page under the same primary key
 
 `server/databases/database_server.ts:445`
 
@@ -141,7 +141,7 @@ includes only the user table whose Dynamo metadata changed. When both sides are 
 later reconnect. Query joins touching each changed table and include their newly derived levels in
 the delta.
 
-### [ ] Merge loader page seeds instead of replacing earlier route data
+### [x] Merge loader page seeds instead of replacing earlier route data
 
 `client/web/databases/worker/database_connection_manager.ts:108`
 
@@ -235,7 +235,7 @@ write creates permanent storage, log, broadcast, OPFS, and revalidation work.
 
 ## Async Orchestration
 
-### [ ] Open independent per-table OPFS stores in parallel
+### [x] Open independent per-table OPFS stores in parallel
 
 `client/web/databases/worker/database_client.ts:110`
 
@@ -266,7 +266,7 @@ serialize the remaining independent table opens.
 
 ## Call-Site Impact
 
-### [ ] Filter realtime page diffs by the pages each browser can actually hold
+### [x] Filter realtime page diffs by the pages each browser can actually hold
 
 `server/databases/database_durable_object_connection.ts:317`
 
@@ -300,7 +300,7 @@ described below so the remaining per-connection filter does not query `database_
 Resolve each changed table's access once per account for the broadcast and reuse it across that
 account's connections, so access fan-out scales with accounts rather than tabs/connections.
 
-### [ ] Replace per-page reconnect validation with a bounded/batched protocol
+### [x] Replace per-page reconnect validation with a bounded/batched protocol
 
 `server/databases/database_durable_object_connection.ts:228`
 
@@ -335,7 +335,7 @@ version-map fallback when necessary.
 
 ## Runtime Cost
 
-### [ ] Store only the latest page image, or garbage-collect superseded versions
+### [x] Store only the latest page image, or garbage-collect superseded versions
 
 `server/databases/database_server.ts:473`
 
