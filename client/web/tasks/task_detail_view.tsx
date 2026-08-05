@@ -74,6 +74,7 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {NavigationBarShareButtonProps} from "~/client/web/navigation/navigation_bar_types.js";
 import {usePeekStackContextIfExists} from "~/client/web/peek/peek_stack_context.js";
 import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
+import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
@@ -349,6 +350,7 @@ export function TaskDetailView({
     const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
     const peekStackContext = usePeekStackContextIfExists();
+    const peekContext = usePeekContext();
     const currentDate = useCurrentDate();
     const isInitialAppRender = useIsInitialAppRender();
     const siteContext = useSiteContextIfExists();
@@ -2074,7 +2076,8 @@ export function TaskDetailView({
                 label: "Delete",
                 onPress: () => {
                     if (!taskSubscription) {
-                        // If the task is open in a peek this will close the peek.
+                        // A task without a subscription is a ghost task, so there is no entity deletion
+                        // for a search modal to handle.
                         void navigate(-1);
                         return;
                     }
@@ -2085,9 +2088,15 @@ export function TaskDetailView({
                         store,
                         undoManager,
                         taskId: possiblyGhostTaskId,
-                        // Close the detail view (if this is in a peek we navigate back) before deleting
-                        // the task so we don't flash the `<TaskDetailView>` deleted state.
-                        onBeforeDelete: () => navigate(-1),
+                        // Start leaving the detail view before deleting the task so we don't flash the
+                        // `<TaskDetailView>` deleted state.
+                        onBeforeDelete: () => {
+                            if (peekContext?.onBeforeEntityDelete) {
+                                peekContext.onBeforeEntityDelete(`Task:${possiblyGhostTaskId}`);
+                            } else {
+                                return navigate(-1);
+                            }
+                        },
                     });
                 },
             });
@@ -2119,6 +2128,7 @@ export function TaskDetailView({
         notesEditorStateStore,
         doNotShowDuplicationInstructionalModalAgain,
         context,
+        peekContext,
         peekStackContext,
         platform,
         navigate,

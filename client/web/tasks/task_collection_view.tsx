@@ -23,6 +23,7 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
+import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
@@ -156,6 +157,7 @@ export function TaskCollectionView({
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
     const siteContext = useSiteContextIfExists();
+    const peekContext = usePeekContext();
 
     const accessPolicy = useStore(
         useMemo((): Store<ResolvedAccessPolicyWithGenerations> => {
@@ -586,8 +588,16 @@ export function TaskCollectionView({
                                 primaryButtonPressErrorTitle:
                                     "Couldn\u2019t delete task collection",
                                 onPrimaryButtonPress: async () => {
-                                    // Wait until navigation has finished to actually delete the collection.
-                                    await navigate(-1);
+                                    // Start leaving the detail view before deleting so we don't flash a deleted state.
+                                    // Search modal peeks begin advancing without waiting for the adjacent result's
+                                    // route data.
+                                    if (peekContext?.onBeforeEntityDelete) {
+                                        peekContext.onBeforeEntityDelete(
+                                            `TaskCollection:${collectionId}`,
+                                        );
+                                    } else {
+                                        await navigate(-1);
+                                    }
 
                                     store.commitTaskActionTransaction(
                                         context,
@@ -624,6 +634,7 @@ export function TaskCollectionView({
         favoriteMenuAction,
         hasEditAccessLevel,
         navigate,
+        peekContext,
         platform,
         redoEvent,
         reporter,

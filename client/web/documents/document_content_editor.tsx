@@ -111,6 +111,7 @@ import {
 } from "~/client/web/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {SiteBreadcrumbChip} from "~/client/web/sites/breadcrumb/site_breadcrumb_chip.js";
 import {useSiteNavigationBarTitleBreadcrumb} from "~/client/web/sites/breadcrumb/use_site_navigation_bar_title_breadcrumb.js";
@@ -208,6 +209,7 @@ import {createDocument, duplicateDocument} from "~/shared/rpc/documents_rpc_defi
 import {getMessageDraft} from "~/shared/rpc/message_drafts_rpc_definitions.js";
 import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
@@ -333,6 +335,7 @@ export function DocumentContentEditor({
     const navigate = useNavigate();
     const isMounted = useIsMounted();
     const siteContext = useSiteContextIfExists();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -2046,10 +2049,18 @@ export function DocumentContentEditor({
                                                   // Use `disconnectMutex` to prevent the document WebSocket from disconnecting until
                                                   // after the deleted document state is persisted.
                                                   await disconnectMutex.withLock(async () => {
-                                                      if (withinPeekStackOverlay) {
-                                                          await navigate(-1);
+                                                      // Search modal peeks start advancing to an adjacent result without waiting for
+                                                      // that result's route data to load.
+                                                      if (peekContext?.onBeforeEntityDelete) {
+                                                          peekContext.onBeforeEntityDelete(
+                                                              `Document:${documentId}`,
+                                                          );
                                                       } else {
-                                                          await navigate(`/home/${spaceId}`);
+                                                          if (withinPeekStackOverlay) {
+                                                              await navigate(-1);
+                                                          } else {
+                                                              await navigate(`/home/${spaceId}`);
+                                                          }
                                                       }
 
                                                       const editorState = getIsGhostDocument()
@@ -2059,9 +2070,22 @@ export function DocumentContentEditor({
                                                             );
 
                                                       if (editorState) {
+                                                          const persistedVersion =
+                                                              editorState.getVersion() + 1;
                                                           onEditorStateChange(editorState);
+                                                          searchEntityRegistry.getAndImmediatelyUpdateEntityStore(
+                                                              new SearchEntityModel({
+                                                                  type: "Document",
+                                                                  document: {
+                                                                      id: documentId,
+                                                                      version: persistedVersion,
+                                                                  },
+                                                                  // TODO(#null-title-means-deleted)
+                                                                  title: null,
+                                                              }),
+                                                          );
                                                           await waitForPersistedVersion(
-                                                              editorState.getVersion() + 1,
+                                                              persistedVersion,
                                                           );
                                                       }
                                                   });
@@ -2090,9 +2114,11 @@ export function DocumentContentEditor({
                 navigate,
                 onCopyLink,
                 onEditorStateChange,
+                peekContext,
                 peekStackContext,
                 platform,
                 reporter,
+                searchEntityRegistry,
                 spaceId,
                 waitForPersistedVersion,
                 withinPeekStackOverlay,

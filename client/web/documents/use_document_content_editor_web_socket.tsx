@@ -591,21 +591,25 @@ export function useDocumentContentEditorWebSocket(
 
     // Update `SearchEntityRegistry` with the latest document title. Now as the title
     // changes in realtime, any `SearchEntityModel`s rendered elsewhere in the product
-    // will also update.
+    // will also update. Soft-deleted documents publish `title: null` so search can
+    // filter them out immediately.
     //
-    // Optimization: Only updates `SearchEntityRegistry` when `title` changes. Not on
-    // any arbitrary update to the document. Otherwise we'd put this in `useMemo()`.
+    // Optimization: Only updates `SearchEntityRegistry` when `title` or deletion state
+    // changes. Not on any arbitrary update to the document. Otherwise we'd put this in
+    // `useMemo()`.
     {
+        const persistedSearchTitle = persistedContent.attrs.deletedTime ? null : persistedTitle;
+
         const searchEntityRef = useRef<{
-            title: string;
+            title: string | null;
             store: Store<SearchEntityModelData>;
         } | null>(null);
 
         useEffect(() => {
-            if (searchEntityRef.current?.title === persistedTitle) return;
+            if (searchEntityRef.current?.title === persistedSearchTitle) return;
 
             searchEntityRef.current = {
-                title: persistedTitle,
+                title: persistedSearchTitle,
                 store: searchEntityRegistry.getEntityStore(
                     new SearchEntityModel({
                         type: "Document",
@@ -613,11 +617,11 @@ export function useDocumentContentEditorWebSocket(
                             id: documentId,
                             version: state.persistedVersion,
                         },
-                        title: persistedTitle,
+                        title: persistedSearchTitle,
                     }),
                 ),
             };
-        }, [documentId, persistedTitle, searchEntityRegistry, state.persistedVersion]);
+        }, [documentId, persistedSearchTitle, searchEntityRegistry, state.persistedVersion]);
     }
 
     return {
