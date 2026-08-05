@@ -9,9 +9,14 @@ import {sendAlertAvailableChannels} from "~/admin/lambda/send_alert/internal/sen
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
+import {assertDateString} from "~/shared/helpers/date/date_string.js";
+import {assertId} from "~/shared/id/id.js";
+import {AccountId, BotId, PostId} from "~/shared/id/types/id_types.js";
 
 type ApiCreatePostRequestBody =
     ApiSpecification.paths["/posts"]["post"]["requestBody"]["content"]["application/json"];
+type ApiSearchResponse =
+    ApiSpecification.paths["/spaces/{id}/search"]["get"]["responses"]["200"]["content"]["application/json"];
 
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
@@ -1328,6 +1333,73 @@ describe("GitHubAlertSource", () => {
             );
             expect(mockFetchCalls[4]?.url).toBe(
                 `https://api.test.cyberworlds.com/posts/${humanPostId}/messages`,
+            );
+        });
+
+        test("comments when the commit hash is only in the post title", async () => {
+            const commitHash = "abc123def456";
+            const shortHash = commitHash.substring(0, 7);
+            const spaceId = "test-space-id";
+            const postId = assertId<PostId>("11111111111111111111111111");
+            const searchResponse = {
+                results: [
+                    {
+                        type: "Post",
+                        id: postId,
+                        title: `in GitHub: cursor pushed a commit (${shortHash})`,
+                        titleMatches: [],
+                        bodySnippet: null,
+                        author: {
+                            id: assertId<AccountId>("22222222222222222222222222"),
+                            name: "Paul",
+                            shortName: "Paul",
+                            bot: {id: assertId<BotId>("33333333333333333333333333")},
+                            space: {
+                                role: "Member",
+                                addedTime: assertDateString("2025-10-29T22:36:02.933Z"),
+                            },
+                        },
+                    },
+                ],
+            } satisfies ApiSearchResponse;
+
+            mockFetch.mockClear();
+            mockFetchCalls = [];
+
+            mockFetch
+                .mockImplementationOnce((_url: string) => {
+                    mockFetchCalls.push({url: _url, body: null});
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify({spaceId, channel: {}})),
+                    });
+                })
+                .mockImplementationOnce((_url: string) => {
+                    mockFetchCalls.push({url: _url, body: null});
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify(searchResponse)),
+                    });
+                });
+
+            const payload = createGitHubFixture({
+                workflow_run: {
+                    ...createGitHubFixture().workflow_run,
+                    head_sha: commitHash,
+                    conclusion: "success",
+                    workflow_id: deployGithubWorkflowId,
+                },
+            });
+
+            await handleGitHubWorkflowRunPayload(payload);
+
+            expect(mockFetchCalls).toHaveLength(3);
+            expect(mockFetchCalls[2]?.url).toBe(
+                `https://api.test.cyberworlds.com/posts/${postId}/messages`,
             );
         });
 
