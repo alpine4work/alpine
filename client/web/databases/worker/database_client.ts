@@ -28,7 +28,7 @@ import {
 } from "~/shared/databases/page_diff.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
-import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
+import {DatabaseTableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -309,16 +309,17 @@ export class DatabaseClient {
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
-            const executed = this.executeDatabaseAction(actionObject);
+            const executed = this.executeActionLocally(actionObject);
             output = executed.result;
             writtenPages = executed.writtenPages;
         } catch (error) {
-            if (
-                error instanceof TableNotAttachedError &&
-                (await this.registerCachedTablesForFallback(conn, error.tableId))
-            ) {
+            const couldAttachLocalTables =
+                error instanceof DatabaseTableNotAttachedError &&
+                (await this.registerCachedTablesForFallback(conn, error.tableId));
+
+            if (couldAttachLocalTables) {
                 try {
-                    const executed = this.executeDatabaseAction(actionObject);
+                    const executed = this.executeActionLocally(actionObject);
                     output = executed.result;
                     writtenPages = executed.writtenPages;
                 } catch (retryError) {
@@ -388,11 +389,11 @@ export class DatabaseClient {
         let serverFallbackCount = 0;
         for (;;) {
             try {
-                return this.executeReadOnly(actionObject);
+                return this.executeActionLocallyReadOnly(actionObject);
             } catch (error) {
                 if (!isServerFallbackError(error)) throw error;
                 if (
-                    error instanceof TableNotAttachedError &&
+                    error instanceof DatabaseTableNotAttachedError &&
                     (await this.registerCachedTablesForFallback(conn, error.tableId))
                 ) {
                     continue;
@@ -412,20 +413,31 @@ export class DatabaseClient {
         }
     }
 
-    private executeReadOnly<N extends DatabaseActionName>(
+    private executeActionLocallyReadOnly<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
-        const {result, readPages, writtenPages} = this.executeDatabaseAction(actionObject);
+        assert(
+            databaseActions[actionObject.name].writeLevel === "none",
+            "read-only actions must have writeLevel none",
+        );
+        const {result, readPages, writtenPages} = this.executeActionLocally(actionObject);
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output: result, readPages};
     }
 
-    private executeDatabaseAction<N extends DatabaseActionName>(
+    private executeActionLocally<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
     ) {
-        return this.database.executeAction(actionObject, {
-            getTableAccessLevel: this.getTableAccessLevel,
-        });
+        for (;;) {
+            try {
+                return this.database.executeAction(actionObject, {
+                    getTableAccessLevel: this.getTableAccessLevel,
+                });
+            } catch (error) {
+                if
+            }
+        }
+
     }
 
     // -- Reactive actions ----------------------------------------------------
@@ -467,7 +479,7 @@ export class DatabaseClient {
         this.unregisterReactiveAction(id);
 
         const execution = this.database.createTrackedExecution(
-            () => this.executeReadOnly(actionObject).output,
+            () => this.executeActionLocallyReadOnly(actionObject).output,
             {getTableAccessLevel: this.getTableAccessLevel},
         );
         let reExecuting = false;
@@ -679,7 +691,7 @@ export class DatabaseClient {
                 return true;
             } catch (error) {
                 if (
-                    error instanceof TableNotAttachedError &&
+                    error instanceof DatabaseTableNotAttachedError &&
                     !this.registeredTables.has(error.tableId) &&
                     this.getTableAccessLevel(error.tableId) !== null
                 ) {
@@ -1042,6 +1054,6 @@ export class DatabaseClient {
  */
 function isServerFallbackError(error: unknown): boolean {
     return (
-        error instanceof DatabaseActionRequiresServerError || error instanceof TableNotAttachedError
+        error instanceof DatabaseActionRequiresServerError || error instanceof DatabaseTableNotAttachedError
     );
 }

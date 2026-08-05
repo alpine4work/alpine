@@ -11,7 +11,7 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
  * again locally" — only falling back to the server when the table's pages aren't
  * cached locally.
  */
-export class TableNotAttachedError extends Error {
+export class DatabaseTableNotAttachedError extends Error {
     constructor(public readonly tableId: DatabaseTableId) {
         super(`Table ${tableId} is not attached`);
     }

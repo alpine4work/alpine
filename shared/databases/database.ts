@@ -45,7 +45,7 @@ import {
     tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
 import {installTracing} from "~/shared/databases/sqlite_tracing.js";
-import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
+import {DatabaseTableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -853,8 +853,8 @@ export class Database {
      * Client: only attaches files whose header page is locally cached — under
      * `locking_mode = EXCLUSIVE`, attaching a headerless store would permanently cache
      * an empty schema. An unrecoverable miss keeps the original error, which {@link
-     * runTracked} converts to {@link TableNotAttachedError} for the server-fallback
-     * path.
+     * runTracked} converts to {@link DatabaseTableNotAttachedError} for the
+     * server-fallback path.
      */
     private tryAttachUnattachedTable(tableId: DatabaseTableId): boolean {
         this.inAttachRecovery = true;
@@ -1039,7 +1039,7 @@ export class Database {
             if (this.serverContext === null && error instanceof Error) {
                 const tableId = parseUnattachedTableMessage(error.message);
                 if (tableId !== null && !this.tables.has(tableId)) {
-                    const notAttached = new TableNotAttachedError(tableId);
+                    const notAttached = new DatabaseTableNotAttachedError(tableId);
                     notAttached.cause = error;
                     throw notAttached;
                 }
