@@ -1,4 +1,3 @@
-import {reportError} from "ajv/dist/compile/errors.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {OpfsDatabaseStorage} from "~/client/web/databases/worker/opfs_database_storage.js";
 import type {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
