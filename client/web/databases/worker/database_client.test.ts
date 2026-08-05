@@ -706,6 +706,60 @@ describe("optimistic mutations", () => {
 });
 
 describe("connection epochs", () => {
+    test("initial connect eagerly registers every cached table with no prior working set", async () => {
+        // Build a populated DB, then reopen its pages in a fresh client so `main` is
+        // cached but unregistered, with no `beginDisconnectedConnectionEpoch` to seed a
+        // reconnect working set. `registerTablesAfterReconnect` would register nothing
+        // here; initial connect registers the cached table so the first local read needs
+        // no server fallback.
+        const sourceDir = createInMemoryOpfsDirectoryHandle();
+        const source = await DatabaseClient.create(sourceDir);
+        source.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        source.commitOptimisticPagesForTests();
+        const {fileSizeInPages, pages} = await extractOpfsPages(sourceDir);
+
+        const dir = createInMemoryOpfsDirectoryHandle();
+        await prepopulateOpfsPages(dir, fileSizeInPages, pages);
+        const client = await DatabaseClient.create(dir);
+
+        let registeredTableIds: Array<DatabaseTableId> = [];
+        await client.registerTablesOnInitialConnect(
+            makeDatabaseClientConnection({
+                async registerTables(tables) {
+                    registeredTableIds = [...tables.keys()];
+                    return {
+                        tables: new Map([
+                            [
+                                databaseMainTableId,
+                                {
+                                    watermark: 1,
+                                    fileSizeInPages,
+                                    catchUp: {type: "current"},
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map(),
+                    };
+                },
+            }),
+        );
+        const rows = await execute(
+            client,
+            testConn,
+            sql`
+                SELECT
+                    id
+                FROM
+                    t
+            `,
+        );
+
+        expect({registeredTableIds, rows}).toEqual({
+            registeredTableIds: [databaseMainTableId],
+            rows: [],
+        });
+    });
+
     test("replays an in-flight optimistic mutation after registration catch-up", async () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
@@ -1019,8 +1073,7 @@ describe("connection epochs", () => {
         await oldRegistration;
 
         let newEpochRegistrations = 0;
-        const rows = await execute(
-            client,
+        await client.registerTablesAfterReconnect(
             makeDatabaseClientConnection({
                 async registerTables() {
                     newEpochRegistrations++;
@@ -1039,6 +1092,10 @@ describe("connection epochs", () => {
                     };
                 },
             }),
+        );
+        const rows = await execute(
+            client,
+            testConn,
             sql`
                 SELECT
                     id
@@ -1093,8 +1150,7 @@ describe("connection epochs", () => {
         await oldAction;
 
         let newEpochRegistrations = 0;
-        const rows = await execute(
-            client,
+        await client.registerTablesAfterReconnect(
             makeDatabaseClientConnection({
                 async registerTables() {
                     newEpochRegistrations++;
@@ -1113,6 +1169,10 @@ describe("connection epochs", () => {
                     };
                 },
             }),
+        );
+        const rows = await execute(
+            client,
+            testConn,
             sql`
                 SELECT
                     id

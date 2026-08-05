@@ -263,15 +263,19 @@ export class DatabaseConnectionManager {
             client.state.subscribe(() => {
                 const state = client.state.getSnapshot();
 
-                // Realtime events broadcast while the socket was down are gone for good, so after
-                // every REconnect the previous epoch's working set must re-register before local
-                // reads can be trusted again. Initial registration remains lazy at first touch.
-                if (state.isConnected && !wasConnected && hasEverConnected) {
-                    this.withExistingClient(databaseGroupId, client =>
-                        client.registerTablesAfterReconnect(
-                            this.getOrCreateRealtimeConnection(databaseGroupId),
-                        ),
-                    );
+                // On the initial connect, eagerly register every cached table so a returning
+                // account with a warm OPFS cache serves its first reads locally. Realtime events
+                // broadcast while the socket was down are gone for good, so after every REconnect
+                // the previous epoch's working set must re-register before local reads can be
+                // trusted again.
+                if (state.isConnected && !wasConnected) {
+                    const afterReconnect = hasEverConnected;
+                    this.withExistingClient(databaseGroupId, client => {
+                        const conn = this.getOrCreateRealtimeConnection(databaseGroupId);
+                        return afterReconnect
+                            ? client.registerTablesAfterReconnect(conn)
+                            : client.registerTablesOnInitialConnect(conn);
+                    });
                 } else if (!state.isConnected && wasConnected) {
                     this.withExistingClient(databaseGroupId, client =>
                         client.beginDisconnectedConnectionEpoch(),

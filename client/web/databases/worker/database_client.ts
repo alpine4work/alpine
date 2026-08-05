@@ -209,6 +209,22 @@ export class DatabaseClient {
     }
 
     /**
+     * Eagerly register every cached table on the initial connect so a returning
+     * account with a warm OPFS cache serves its first reads locally instead of paying
+     * a server fallback to discover and register each table one at a time. Reconnects
+     * go through {@link registerTablesAfterReconnect} instead, which re-registers only
+     * the previous epoch's working set to catch up on missed realtime events.
+     */
+    async registerTablesOnInitialConnect(conn: DatabaseClientConnection): Promise<void> {
+        await this.openCachedStores();
+        const connectionEpoch = this.connectionEpoch;
+        const registrations = this.getUnregisteredCachedTables();
+        if (registrations.size === 0) return;
+        const result = await conn.registerTables(registrations);
+        await this.applyStandaloneRegistrationResult(result, connectionEpoch);
+    }
+
+    /**
      * Merge a `TableMetadataChanged` access delta into the map (see {@link
      * tableAccessLevelByTableId}) and purge any table the delta revoked. Registration
      * catch-up disables immediate optimistic replay so it can replay once, after all
@@ -313,24 +329,13 @@ export class DatabaseClient {
             output = executed.result;
             writtenPages = executed.writtenPages;
         } catch (error) {
-            const couldAttachLocalTables =
-                error instanceof DatabaseTableNotAttachedError &&
-                (await this.registerCachedTablesForFallback(conn, error.tableId));
-
-            if (couldAttachLocalTables) {
-                try {
-                    const executed = this.executeActionLocally(actionObject);
-                    output = executed.result;
-                    writtenPages = executed.writtenPages;
-                } catch (retryError) {
-                    if (!isServerFallbackError(retryError)) throw retryError;
-                    return await this.executeActionViaServer(conn, actionObject, mutationId);
-                }
-            } else if (isServerFallbackError(error)) {
-                return await this.executeActionViaServer(conn, actionObject, mutationId);
-            } else {
-                throw error;
-            }
+            // Cached tables are registered eagerly at connect (see
+            // `registerTablesOnInitialConnect` / `registerTablesAfterReconnect`), so a local
+            // miss here means the action needs a table this client has no cached pages for (or
+            // needs server-only work). Route it to the server, which registers any newly
+            // discovered tables in the same round trip.
+            if (!isServerFallbackError(error)) throw error;
+            return await this.executeActionViaServer(conn, actionObject, mutationId);
         }
 
         if (writtenPages.size === 0) {
@@ -392,12 +397,6 @@ export class DatabaseClient {
                 return this.executeActionLocallyReadOnly(actionObject);
             } catch (error) {
                 if (!isServerFallbackError(error)) throw error;
-                if (
-                    error instanceof DatabaseTableNotAttachedError &&
-                    (await this.registerCachedTablesForFallback(conn, error.tableId))
-                ) {
-                    continue;
-                }
                 // A server execution can discover only the first edge of a join/table dependency
                 // graph. Permit one additional round for the local retry to name the newly exposed
                 // dependency, but fail after that bounded fan-out.
@@ -758,25 +757,6 @@ export class DatabaseClient {
             });
         }
         return registrations;
-    }
-
-    private async registerCachedTablesForFallback(
-        conn: DatabaseClientConnection,
-        requestedTableId: DatabaseTableId,
-    ): Promise<boolean> {
-        await this.openCachedStores();
-        const requestedStore = this.storage.get(requestedTableId);
-        if (requestedStore === undefined || requestedStore.getHeldPagesBitset().isEmpty()) {
-            return false;
-        }
-        const registrations = this.getUnregisteredCachedTables();
-        if (registrations.size === 0) return false;
-        const connectionEpoch = this.connectionEpoch;
-        const result = await conn.registerTables(registrations);
-        if (!(await this.applyStandaloneRegistrationResult(result, connectionEpoch))) {
-            return false;
-        }
-        return this.registeredTables.has(requestedTableId);
     }
 
     private async applyStandaloneRegistrationResult(
