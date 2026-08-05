@@ -1143,13 +1143,12 @@ test.failing("a reactive query reverts when an optimistic mutation fails to send
     });
 });
 
-// Reconnect catch-up is the only mechanism that revalidates the previous epoch's
-// working set after missed realtime events, but `registerTablesAfterReconnect` is
-// fired exactly once per reconnect and its failure is only reported, never
-// retried. After a transient registration failure the client is stuck: reactive
-// queries' pages never change locally, so they keep serving the pre-disconnect
-// state indefinitely — until the user happens to trigger a read that falls back to
-// the server.
+// Reconnect catch-up is the only mechanism that revalidates cached tables after
+// missed realtime events, but `ensureCachedTablesRegistered` is primed exactly
+// once per reconnect and its failure is only reported, never retried. After a
+// transient registration failure the client is stuck: reactive queries' pages
+// never change locally, so they keep serving the pre-disconnect state indefinitely
+// — until the user happens to trigger a read that falls back to the server.
 test.failing(
     "a reactive query catches up after a transient reconnect registration failure",
     async () => {

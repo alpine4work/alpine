@@ -259,30 +259,26 @@ export class DatabaseConnectionManager {
             }
 
             let wasConnected = false;
-            let hasEverConnected = false;
             client.state.subscribe(() => {
                 const state = client.state.getSnapshot();
 
-                // On the initial connect, eagerly register every cached table so a returning
-                // account with a warm OPFS cache serves its first reads locally. Realtime events
-                // broadcast while the socket was down are gone for good, so after every REconnect
-                // the previous epoch's working set must re-register before local reads can be
-                // trusted again.
+                // Prime cached-table registration on every (re)connect so a warm OPFS cache serves
+                // reads locally: on the initial connect it registers what's cached, and after a
+                // reconnect it re-registers to catch up on realtime events broadcast (and lost)
+                // while the socket was down. Actions await the same memoized promise (see
+                // `DatabaseClient.ensureCachedTablesRegistered`), so this only primes it.
                 if (state.isConnected && !wasConnected) {
-                    const afterReconnect = hasEverConnected;
-                    this.withExistingClient(databaseGroupId, client => {
-                        const conn = this.getOrCreateRealtimeConnection(databaseGroupId);
-                        return afterReconnect
-                            ? client.registerTablesAfterReconnect(conn)
-                            : client.registerTablesOnInitialConnect(conn);
-                    });
+                    this.withExistingClient(databaseGroupId, client =>
+                        client.ensureCachedTablesRegistered(
+                            this.getOrCreateRealtimeConnection(databaseGroupId),
+                        ),
+                    );
                 } else if (!state.isConnected && wasConnected) {
                     this.withExistingClient(databaseGroupId, client =>
                         client.beginDisconnectedConnectionEpoch(),
                     );
                 }
                 wasConnected = state.isConnected;
-                if (state.isConnected) hasEverConnected = true;
 
                 if (!state.hasError) return;
                 if (state !== lastReportedState) {

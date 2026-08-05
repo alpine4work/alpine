@@ -90,10 +90,9 @@ export class DatabaseClient {
     // connection epoch. `storage`'s read gate rejects any unregistered table,
     // diverting its reads to a server fallback.
     private readonly registeredTables: Set<DatabaseTableId>;
-    // Working set carried across a disconnect: `beginDisconnectedConnectionEpoch`
-    // moves the registered tables here so `registerTablesAfterReconnect` can
-    // re-register them.
-    private tablesToReregister = new Set<DatabaseTableId>();
+    // Memoized cached-table registration for the current connection epoch (reset in
+    // `beginDisconnectedConnectionEpoch`). See {@link ensureCachedTablesRegistered}.
+    private pendingRegistration: Promise<void> | undefined;
     // Bumped on every disconnect. Async work captures it up front and bails if it no
     // longer matches, so results that span a reconnect are discarded, not applied.
     private connectionEpoch = 0;
@@ -177,9 +176,7 @@ export class DatabaseClient {
      */
     beginDisconnectedConnectionEpoch(): void {
         this.connectionEpoch++;
-        for (const tableId of this.registeredTables) {
-            this.tablesToReregister.add(tableId);
-        }
+        this.pendingRegistration = undefined;
         this.registeredTables.clear();
         this.database.discardBuffer();
         for (const [tableId] of this.storage) {
@@ -190,32 +187,27 @@ export class DatabaseClient {
     }
 
     /**
-     * Re-register the previous epoch's working set and replay optimistic writes.
+     * Register every cached table with the server for the current connection epoch so
+     * local reads can be trusted, catching each table up on any realtime events missed
+     * while the socket was down (events broadcast while disconnected are gone for
+     * good).
+     *
+     * Memoized per epoch (reset in {@link beginDisconnectedConnectionEpoch}): the
+     * connection manager primes it on every (re)connect and every action execution
+     * awaits the same promise, so a burst of cold reads collapses into a single
+     * registration round trip instead of each racing ahead into its own server
+     * fallback. Best-effort — a failed registration is reported and swallowed so the
+     * promise never rejects; the tables stay unregistered and the next action's server
+     * fallback re-registers them alongside the action. Callers await this to close the
+     * connect race, not to gate on its success.
      */
-    async registerTablesAfterReconnect(conn: DatabaseClientConnection): Promise<void> {
-        await this.openCachedStores();
-        const connectionEpoch = this.connectionEpoch;
-        const registrations = this.getUnregisteredCachedTables(this.tablesToReregister);
-        if (registrations.size === 0) {
-            if (connectionEpoch === this.connectionEpoch) {
-                this.tablesToReregister.clear();
-            }
-            return;
-        }
-        const result = await conn.registerTables(registrations);
-        if (await this.applyStandaloneRegistrationResult(result, connectionEpoch)) {
-            this.tablesToReregister.clear();
-        }
+    ensureCachedTablesRegistered(conn: DatabaseClientConnection): Promise<void> {
+        return (this.pendingRegistration ??= this.registerCachedTables(conn).catch(error => {
+            conn.reportError(error);
+        }));
     }
 
-    /**
-     * Eagerly register every cached table on the initial connect so a returning
-     * account with a warm OPFS cache serves its first reads locally instead of paying
-     * a server fallback to discover and register each table one at a time. Reconnects
-     * go through {@link registerTablesAfterReconnect} instead, which re-registers only
-     * the previous epoch's working set to catch up on missed realtime events.
-     */
-    async registerTablesOnInitialConnect(conn: DatabaseClientConnection): Promise<void> {
+    private async registerCachedTables(conn: DatabaseClientConnection): Promise<void> {
         await this.openCachedStores();
         const connectionEpoch = this.connectionEpoch;
         const registrations = this.getUnregisteredCachedTables();
@@ -238,7 +230,6 @@ export class DatabaseClient {
             this.tableAccessLevelByTableId.set(tableId, level);
             if (level === null) {
                 this.registeredTables.delete(tableId);
-                this.tablesToReregister.delete(tableId);
             }
         }
         await this.purgeRevokedTables({
@@ -322,6 +313,11 @@ export class DatabaseClient {
 
         const mutationId = generateId<DatabaseMutationId>();
 
+        // Await the epoch's cached-table registration so an action issued right after
+        // connect runs locally instead of racing ahead into a redundant server fallback
+        // (resolves instantly once primed).
+        await this.ensureCachedTablesRegistered(conn);
+
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
@@ -329,11 +325,10 @@ export class DatabaseClient {
             output = executed.result;
             writtenPages = executed.writtenPages;
         } catch (error) {
-            // Cached tables are registered eagerly at connect (see
-            // `registerTablesOnInitialConnect` / `registerTablesAfterReconnect`), so a local
-            // miss here means the action needs a table this client has no cached pages for (or
-            // needs server-only work). Route it to the server, which registers any newly
-            // discovered tables in the same round trip.
+            // Cached tables are registered above, so a local miss here means the action needs
+            // a table this client has no cached pages for (or needs server-only work). Route
+            // it to the server, which registers any newly discovered tables in the same round
+            // trip.
             if (!isServerFallbackError(error)) throw error;
             return await this.executeActionViaServer(conn, actionObject, mutationId);
         }
@@ -391,6 +386,10 @@ export class DatabaseClient {
             databaseActions[actionObject.name].writeLevel === "none",
             "executeActionWithTracking only supports read-only actions",
         );
+        // Await the epoch's cached-table registration so a read issued right after connect
+        // runs locally instead of racing ahead into a redundant server fallback (resolves
+        // instantly once primed).
+        await this.ensureCachedTablesRegistered(conn);
         let serverFallbackCount = 0;
         for (;;) {
             try {
@@ -742,13 +741,10 @@ export class DatabaseClient {
         await runAllPromises([...tableIds].map(tableId => this.openStore(tableId)));
     }
 
-    private getUnregisteredCachedTables(
-        limitToTableIds?: ReadonlySet<DatabaseTableId>,
-    ): DatabaseTableRegistrations {
+    private getUnregisteredCachedTables(): DatabaseTableRegistrations {
         const registrations = new Map<DatabaseTableId, DatabaseTableRegistration>();
         for (const [tableId, store] of this.storage) {
             if (this.registeredTables.has(tableId)) continue;
-            if (limitToTableIds !== undefined && !limitToTableIds.has(tableId)) continue;
             const heldPages = store.getHeldPagesBitset();
             if (heldPages.isEmpty()) continue;
             registrations.set(tableId, {

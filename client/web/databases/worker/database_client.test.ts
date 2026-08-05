@@ -706,12 +706,10 @@ describe("optimistic mutations", () => {
 });
 
 describe("connection epochs", () => {
-    test("initial connect eagerly registers every cached table with no prior working set", async () => {
+    test("registers every cached table on connect so the first read runs locally", async () => {
         // Build a populated DB, then reopen its pages in a fresh client so `main` is
-        // cached but unregistered, with no `beginDisconnectedConnectionEpoch` to seed a
-        // reconnect working set. `registerTablesAfterReconnect` would register nothing
-        // here; initial connect registers the cached table so the first local read needs
-        // no server fallback.
+        // cached but unregistered. Registration on connect covers the cached table, so the
+        // first local read needs no server fallback.
         const sourceDir = createInMemoryOpfsDirectoryHandle();
         const source = await DatabaseClient.create(sourceDir);
         source.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
@@ -723,7 +721,7 @@ describe("connection epochs", () => {
         const client = await DatabaseClient.create(dir);
 
         let registeredTableIds: Array<DatabaseTableId> = [];
-        await client.registerTablesOnInitialConnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables(tables) {
                     registeredTableIds = [...tables.keys()];
@@ -782,7 +780,7 @@ describe("connection epochs", () => {
             `,
         );
         client.beginDisconnectedConnectionEpoch();
-        await client.registerTablesAfterReconnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables() {
                     return {
@@ -839,7 +837,7 @@ describe("connection epochs", () => {
             `,
         );
         client.beginDisconnectedConnectionEpoch();
-        await client.registerTablesAfterReconnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables() {
                     return {
@@ -884,7 +882,7 @@ describe("connection epochs", () => {
         const replacement = makePage(0x7a);
 
         client.beginDisconnectedConnectionEpoch();
-        await client.registerTablesAfterReconnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables() {
                     return {
@@ -933,7 +931,7 @@ describe("connection epochs", () => {
         const smallerFileSize = before.fileSizeInPages - 1;
 
         client.beginDisconnectedConnectionEpoch();
-        await client.registerTablesAfterReconnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables() {
                     return {
@@ -974,7 +972,7 @@ describe("connection epochs", () => {
         const stalePage = before.pages.at(-1)!;
 
         client.beginDisconnectedConnectionEpoch();
-        await client.registerTablesAfterReconnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables() {
                     return {
@@ -1045,7 +1043,7 @@ describe("connection epochs", () => {
         });
 
         client.beginDisconnectedConnectionEpoch();
-        const oldRegistration = client.registerTablesAfterReconnect(
+        const oldRegistration = client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 registerTables() {
                     markRegistrationStarted();
@@ -1073,7 +1071,7 @@ describe("connection epochs", () => {
         await oldRegistration;
 
         let newEpochRegistrations = 0;
-        await client.registerTablesAfterReconnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables() {
                     newEpochRegistrations++;
@@ -1150,7 +1148,7 @@ describe("connection epochs", () => {
         await oldAction;
 
         let newEpochRegistrations = 0;
-        await client.registerTablesAfterReconnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables() {
                     newEpochRegistrations++;
@@ -1222,7 +1220,7 @@ describe("connection epochs", () => {
         client.beginDisconnectedConnectionEpoch();
         rejectRequests[0]!(new InternalError("socket closed"));
         await new Promise(resolve => setTimeout(resolve, 0));
-        await client.registerTablesAfterReconnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables() {
                     return {
@@ -1270,7 +1268,7 @@ describe("connection epochs", () => {
         });
 
         client.beginDisconnectedConnectionEpoch();
-        const registration = client.registerTablesAfterReconnect(
+        const registration = client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 registerTables() {
                     markRegistrationStarted();
@@ -2734,7 +2732,7 @@ describe("DatabaseClient — table access levels", () => {
         const hiddenTableId = generateChronologicalId<DatabaseTableId>();
         const tablePages = await extractOpfsTablePages(dir, tableId);
         client.beginDisconnectedConnectionEpoch();
-        await client.registerTablesAfterReconnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables() {
                     return {
@@ -2794,7 +2792,7 @@ describe("DatabaseClient — table access levels", () => {
         client.commitOptimisticPagesForTests();
         const tablePages = await extractOpfsTablePages(dir, tableId);
         client.beginDisconnectedConnectionEpoch();
-        await client.registerTablesAfterReconnect(
+        await client.ensureCachedTablesRegistered(
             makeDatabaseClientConnection({
                 async registerTables() {
                     return {
