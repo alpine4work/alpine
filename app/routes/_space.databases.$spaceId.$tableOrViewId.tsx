@@ -8,7 +8,6 @@ import {DatabaseGridView} from "~/client/web/databases/grid_view/database_grid_v
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {useRynamoItem} from "~/client/web/dynamo/use_rynamo_item.js";
-import {useBrowserId} from "~/client/web/remix/client_info_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
@@ -113,7 +112,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
             name: "getViewSchema",
             input: {tableOrViewId},
             output: schemaResult.result,
-            readPages: schemaResult.readPages,
         },
         tableMetadataItem,
         accessPolicySiteById,
@@ -127,7 +125,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
                     endCursor: cursorResult.result.endCursor,
                 },
                 output: pageResult.result,
-                readPages: pageResult.readPages,
             },
         },
     });
@@ -138,8 +135,7 @@ export default function DatabaseViewRoute() {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
     const {tableOrViewId} = loaderData.schema.input;
     const input = useMemo(() => ({tableOrViewId}), [tableOrViewId]);
-    const browserId = useBrowserId();
-    const metadataWebSocketUrl = `/api/durable-objects/database-groups/${loaderData.databaseGroupId}?browserId=${browserId}&trackPages=false`;
+    const metadataWebSocketUrl = `/api/durable-objects/database-groups/${loaderData.databaseGroupId}`;
     const {isConnected, subscribeToEvents} = useWebSocket(
         "DatabaseGroupService",
         DatabaseRealtimeProtocol,
@@ -233,9 +229,9 @@ function useDatabaseQuery(
 
     useEffect(() => {
         if (conn == null) return;
-        query.listen({conn, readPages: firstPage.pageResult.readPages});
+        query.listen(conn);
         return () => query.dispose();
-    }, [query, conn]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [query, conn]);
 
     return query;
 }

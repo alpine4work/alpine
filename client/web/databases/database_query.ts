@@ -4,7 +4,6 @@ import type {
 } from "~/client/web/databases/connect_to_database.js";
 import {DatabaseQueryPage, DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {VirtualizedTree} from "~/client/web/virtualized/helpers/virtualized_tree.js";
-import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {PromiseQueue} from "~/shared/helpers/async/promise_queue.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -101,15 +100,11 @@ export class DatabaseQuery {
 
     /**
      * Start reactive subscriptions. Call from an effect after the connection is
-     * available. Seeds OPFS pages from SSR data and begins watching the initial page.
+     * available and begins watching the initial page.
      */
-    listen(options: {conn: DatabaseWorkerConnection; readPages?: DatabasePages}): void {
-        this.conn = options.conn;
+    listen(connection: DatabaseWorkerConnection): void {
+        this.conn = connection;
         this._disposed = false;
-
-        if (options.readPages && options.readPages.size > 0) {
-            void this.conn.call("writeInitialPages", {pages: options.readPages});
-        }
 
         // If an initial page was provided, start watching the first page reactively. Reuse
         // the constructor's pageId so the watch's onUpdate updates the existing tree node

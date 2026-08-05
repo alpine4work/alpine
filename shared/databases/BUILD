@@ -4,6 +4,7 @@ ts_project(
     name = "databases",
     visibility = ["//visibility:public"],
     test_deps = [
+        "//:node_modules/typedfastbitset",
         "//shared/databases/test_helpers",
     ],
     deps = [

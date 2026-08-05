@@ -1,6 +1,8 @@
+import {TypedFastBitSet} from "typedfastbitset";
 import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
+    extractOpfsTablePages,
     prepopulateOpfsPages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {makeDatabaseClientConnection} from "~/client/web/databases/test_helpers/make_database_client_connection.js";
@@ -11,19 +13,35 @@ import type {
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/worker/opfs.js";
-import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {
     DatabaseActionObject,
     DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
+import type {
+    DatabaseExecuteActionResponse,
+    DatabasePageDiffs,
+    DatabaseRegisterTablesResult,
+} from "~/shared/databases/database_protocol_schemas.js";
+import {diffPage} from "~/shared/databases/page_diff.js";
 import {SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
-import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
+import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 const testConn = makeDatabaseClientConnection();
+const emptyExecuteActionRegistrationFields = {
+    registeredTables: {tables: new Map(), tableAccess: new Map()},
+    readPagesSnapshotVersion: new Map(),
+};
+// A `PagesChanged` payload that confirms a mutation without carrying any page
+// change: a single empty stub for the main table. Read-only in
+// `writePageDiffsFromRealtime`, so the same instance is safe to reuse across
+// confirmations.
+const emptyMainConfirmationDiffs: DatabasePageDiffs = new Map([
+    [databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}],
+]);
 
 async function execute(
     client: DatabaseClient,
@@ -47,6 +65,16 @@ function pagesToMap(
     return new Map(pages.map(p => [p.pageIndex, {version: p.version, data: p.data}]));
 }
 
+function pageDiffsVersion(pageDiffs: ReadonlyMap<number, {version: number}>): number {
+    return Math.max(0, ...Array.from(pageDiffs.values(), pageDiff => pageDiff.version));
+}
+
+function makePage(byte: number): Uint8Array {
+    const page = new Uint8Array(sqlitePageSize);
+    page.fill(byte);
+    return page;
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---
@@ -56,6 +84,8 @@ function pagesToMap(
 describe("DatabaseClient", () => {
     test("SELECT 1 + 1", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        client.executeLocallyForTests(sql`PRAGMA user_version = 1`);
+        client.commitOptimisticPagesForTests();
         const rows = await execute(
             client,
             testConn,
@@ -240,14 +270,12 @@ describe("execute — mutations", () => {
                 capturedMutationId = options.mutationId;
                 // Simulate realtime confirmation arriving before server response (same as
                 // production).
-                client.writePageDiffsFromRealtime(
-                    new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
-                    options.mutationId,
-                );
+                client.writePageDiffsFromRealtime(emptyMainConfirmationDiffs, options.mutationId);
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -305,6 +333,7 @@ describe("execute — mutations", () => {
                     result: {name: "rawSql", output: {rows: [{inserted: true}]}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -336,6 +365,7 @@ describe("execute — mutations", () => {
                     result: {name: "rawSql", output: {rows: [{ok: 1}]}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -366,14 +396,12 @@ describe("execute — mutations", () => {
             async executeActionServer(_action, options) {
                 serverCallCount++;
                 // Simulate realtime confirmation arriving before server response.
-                client.writePageDiffsFromRealtime(
-                    new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
-                    options.mutationId,
-                );
+                client.writePageDiffsFromRealtime(emptyMainConfirmationDiffs, options.mutationId);
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -403,6 +431,8 @@ describe("execute — mutations", () => {
 
     test("propagates local execution errors", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        client.executeLocallyForTests(sql`CREATE TABLE bootstrap (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
 
         await expect(
             execute(
@@ -446,10 +476,7 @@ describe("optimistic mutations", () => {
         expect(capturedMutationId).not.toBeNull();
 
         // Confirm the mutation — should not throw
-        client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
-            capturedMutationId!,
-        );
+        client.writePageDiffsFromRealtime(emptyMainConfirmationDiffs, capturedMutationId!);
     });
 
     test("replays remaining mutations after confirmation", async () => {
@@ -487,10 +514,7 @@ describe("optimistic mutations", () => {
         );
 
         // Confirm first mutation
-        client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
-            mutationIds[0]!,
-        );
+        client.writePageDiffsFromRealtime(emptyMainConfirmationDiffs, mutationIds[0]!);
 
         // Second mutation should still be visible via replay
         const rows = await execute(
@@ -543,10 +567,7 @@ describe("optimistic mutations", () => {
         );
 
         expect(() =>
-            client.writePageDiffsFromRealtime(
-                new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
-                mutationIds[1]!,
-            ),
+            client.writePageDiffsFromRealtime(emptyMainConfirmationDiffs, mutationIds[1]!),
         ).toThrow("unexpected mutation confirmation order");
     });
 
@@ -557,7 +578,7 @@ describe("optimistic mutations", () => {
 
         // No optimistic mutations queued — just apply pages
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
+            emptyMainConfirmationDiffs,
             "unknown-mutation-id" as DatabaseMutationId,
         );
 
@@ -657,6 +678,7 @@ describe("optimistic mutations", () => {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
             reportError(error) {
@@ -683,169 +705,953 @@ describe("optimistic mutations", () => {
     });
 });
 
-describe("writeLoaderPages", () => {
-    // `writeLoaderPages` must not await between dropping the optimistic buffer and
-    // replaying the queue: worker RPC handlers aren't serialized, so an optimistic
-    // action arriving in that window executes against a discarded-but-not-replayed
-    // state and is then applied a second time by the replay.
-    test("concurrent optimistic action during writeLoaderPages is not applied twice", async () => {
+describe("connection epochs", () => {
+    test("registers every cached table on connect so the first read runs locally", async () => {
+        // Build a populated DB, then reopen its pages in a fresh client so `main` is
+        // cached but unregistered. Registration on connect covers the cached table, so the
+        // first local read needs no server fallback.
+        const sourceDir = createInMemoryOpfsDirectoryHandle();
+        const source = await DatabaseClient.create(sourceDir);
+        source.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        source.commitOptimisticPagesForTests();
+        const {fileSizeInPages, pages} = await extractOpfsPages(sourceDir);
+
         const dir = createInMemoryOpfsDirectoryHandle();
+        await prepopulateOpfsPages(dir, fileSizeInPages, pages);
         const client = await DatabaseClient.create(dir);
-        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`);
-        client.commitOptimisticPagesForTests();
 
-        const conn = makeDatabaseClientConnection({
-            executeActionServer() {
-                return new Promise(() => {});
-            },
-        });
-        await execute(
-            client,
-            conn,
-            sql`
-                INSERT INTO
-                    t (val)
-                VALUES
-                    ('first')
-            `,
+        let registeredTableIds: Array<DatabaseTableId> = [];
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables(tables) {
+                    registeredTableIds = [...tables.keys()];
+                    return {
+                        tables: new Map([
+                            [
+                                databaseMainTableId,
+                                {
+                                    watermark: 1,
+                                    fileSizeInPages,
+                                    catchUp: {type: "current"},
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map(),
+                    };
+                },
+            }),
         );
-
-        // Loader pages snapshotted before the optimistic mutation — the store already has
-        // these versions, so applying them changes nothing.
-        const {pages} = await extractOpfsPages(dir);
-        const loaderPages = new Map([[databaseMainTableId, pagesToMap(pages)]]);
-
-        // Fire a second optimistic action inside writeLoaderPages' await window.
-        const writePromise = client.writeLoaderPages(loaderPages);
-        const insertPromise = execute(
-            client,
-            conn,
-            sql`
-                INSERT INTO
-                    t (val)
-                VALUES
-                    ('second')
-            `,
-        );
-        await writePromise;
-        await insertPromise;
-
         const rows = await execute(
             client,
             testConn,
             sql`
                 SELECT
-                    val
+                    id
                 FROM
                     t
-                ORDER BY
-                    id
             `,
         );
-        expect(rows).toMatchObject([{val: "first"}, {val: "second"}]);
+
+        expect({registeredTableIds, rows}).toEqual({
+            registeredTableIds: [databaseMainTableId],
+            rows: [],
+        });
     });
-});
 
-describe("ensureCacheIsUpToDate", () => {
-    // A cache-validation response can race a newer realtime diff: the diff mismatches
-    // its base (tombstoning the page at the diff's version), and the validation
-    // response — snapshotted before the diff was broadcast — then offers the page at
-    // an older version, which the tombstone rightly rejects. The client must not
-    // acknowledge a page it rejected: a lying ack marks the page "confirmed" in the
-    // server's per-browser tracker, which then filters it out of every future
-    // `executeAction` response — so the cache can never heal and every read of that
-    // page falls back to the server forever.
-    test("does not acknowledge pages a tombstone rejected", async () => {
-        const serverDir = createInMemoryOpfsDirectoryHandle();
-        const server = await DatabaseClient.create(serverDir);
-        server.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)`);
-        server.commitOptimisticPagesForTests();
-        const {fileSizeInPages, pages} = await extractOpfsPages(serverDir);
-
-        const localDir = createInMemoryOpfsDirectoryHandle();
-        await prepopulateOpfsPages(localDir, fileSizeInPages, pages);
-        const local = await DatabaseClient.create(localDir);
-
-        const page = pages[pages.length - 1]!;
-        let resolveValidation: (result: {
-            tables: Map<
-                DatabaseTableId,
-                {
-                    updatedPages: Map<number, {version: number; data: Uint8Array}>;
-                    stalePageIndexes: Array<number>;
-                    fileSizeInPages: number;
-                }
-            >;
-            tableAccess: Map<DatabaseTableId, AccessLevel | null>;
-        }) => void;
-        const validationGate = new Promise<{
-            tables: Map<
-                DatabaseTableId,
-                {
-                    updatedPages: Map<number, {version: number; data: Uint8Array}>;
-                    stalePageIndexes: Array<number>;
-                    fileSizeInPages: number;
-                }
-            >;
-            tableAccess: Map<DatabaseTableId, AccessLevel | null>;
-        }>(resolve => {
-            resolveValidation = resolve;
-        });
-        const acknowledged: Array<ReadonlyMap<DatabaseTableId, ReadonlyArray<number>>> = [];
-        const conn = makeDatabaseClientConnection({
-            ensureCacheIsUpToDate: () => validationGate,
-            acknowledgePages(pageIndexes) {
-                acknowledged.push(pageIndexes);
-            },
+    test("replays an in-flight optimistic mutation after registration catch-up", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        client.registerTableForTests(databaseMainTableId);
+        const before = await extractOpfsPages(dir);
+        const pendingConn = makeDatabaseClientConnection({
+            executeActionServer: () => new Promise(() => {}),
         });
 
-        const validation = local.ensureCacheIsUpToDate(conn);
+        await execute(
+            client,
+            pendingConn,
+            sql`
+                INSERT INTO
+                    t (id)
+                VALUES
+                    (1)
+            `,
+        );
+        client.beginDisconnectedConnectionEpoch();
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    return {
+                        tables: new Map([
+                            [
+                                databaseMainTableId,
+                                {
+                                    watermark: 7,
+                                    fileSizeInPages: before.fileSizeInPages,
+                                    catchUp: {type: "current"},
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map(),
+                    };
+                },
+            }),
+        );
 
-        // While the validation response is in flight, a diff for the page arrives whose
-        // base the client never saw — the page is dropped and tombstoned at the diff's
-        // version.
-        local.writePageDiffsFromRealtime(
+        expect(
+            await execute(
+                client,
+                testConn,
+                sql`
+                    SELECT
+                        id
+                    FROM
+                        t
+                `,
+            ),
+        ).toEqual([{id: 1}]);
+    });
+
+    test("does not drop optimistic mutations when registration also revokes a table", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        const revokedTableId = generateChronologicalId<DatabaseTableId>();
+        await client.attachTableForTests(revokedTableId);
+        const before = await extractOpfsPages(dir);
+        const pendingConn = makeDatabaseClientConnection({
+            executeActionServer: () => new Promise(() => {}),
+        });
+
+        await execute(
+            client,
+            pendingConn,
+            sql`
+                INSERT INTO
+                    t (id)
+                VALUES
+                    (1)
+            `,
+        );
+        client.beginDisconnectedConnectionEpoch();
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    return {
+                        tables: new Map([
+                            [
+                                databaseMainTableId,
+                                {
+                                    watermark: 8,
+                                    fileSizeInPages: before.fileSizeInPages,
+                                    catchUp: {type: "current"},
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map([[revokedTableId, null]]),
+                    };
+                },
+            }),
+        );
+
+        expect(
+            await execute(
+                client,
+                testConn,
+                sql`
+                    SELECT
+                        id
+                    FROM
+                        t
+                `,
+            ),
+        ).toEqual([{id: 1}]);
+    });
+
+    test("applies inline page catch-up before marking the table current", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        client.registerTableForTests(databaseMainTableId);
+        const before = await extractOpfsPages(dir);
+        const page = before.pages.at(-1)!;
+        const replacement = makePage(0x7a);
+
+        client.beginDisconnectedConnectionEpoch();
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    return {
+                        tables: new Map([
+                            [
+                                databaseMainTableId,
+                                {
+                                    watermark: 12,
+                                    fileSizeInPages: before.fileSizeInPages,
+                                    catchUp: {
+                                        type: "pages",
+                                        pages: new Map([
+                                            [
+                                                page.pageIndex,
+                                                {version: page.version + 1, data: replacement},
+                                            ],
+                                        ]),
+                                    },
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map(),
+                    };
+                },
+            }),
+        );
+
+        const after = await extractOpfsPages(dir);
+        expect({
+            page: after.pages.find(entry => entry.pageIndex === page.pageIndex),
+            watermark: after.watermark,
+        }).toEqual({
+            page: {pageIndex: page.pageIndex, version: page.version + 1, data: replacement},
+            watermark: 12,
+        });
+    });
+
+    test("tombstones stale pages and applies a smaller file size on reconnect", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        client.registerTableForTests(databaseMainTableId);
+        const before = await extractOpfsPages(dir);
+        const pageIndex = before.pages.at(-1)!.pageIndex;
+        const smallerFileSize = before.fileSizeInPages - 1;
+
+        client.beginDisconnectedConnectionEpoch();
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    return {
+                        tables: new Map([
+                            [
+                                databaseMainTableId,
+                                {
+                                    watermark: 15,
+                                    fileSizeInPages: smallerFileSize,
+                                    catchUp: {
+                                        type: "stale",
+                                        pageIndexes: new TypedFastBitSet([pageIndex]),
+                                    },
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map(),
+                    };
+                },
+            }),
+        );
+
+        const after = await extractOpfsPages(dir);
+        expect({
+            containsStalePage: after.pages.some(page => page.pageIndex === pageIndex),
+            fileSizeInPages: after.fileSizeInPages,
+            watermark: after.watermark,
+        }).toEqual({containsStalePage: false, fileSizeInPages: smallerFileSize, watermark: 15});
+    });
+
+    test("accepts a canonical page older than the stale catch-up watermark", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        client.registerTableForTests(databaseMainTableId);
+        const before = await extractOpfsPages(dir);
+        const stalePage = before.pages.at(-1)!;
+
+        client.beginDisconnectedConnectionEpoch();
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    return {
+                        tables: new Map([
+                            [
+                                databaseMainTableId,
+                                {
+                                    watermark: 30,
+                                    fileSizeInPages: before.fileSizeInPages,
+                                    catchUp: {
+                                        type: "stale",
+                                        pageIndexes: new TypedFastBitSet([stalePage.pageIndex]),
+                                    },
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map(),
+                    };
+                },
+            }),
+        );
+
+        const healedPages = pagesToMap(before.pages);
+        healedPages.set(stalePage.pageIndex, {
+            version: stalePage.version + 1,
+            data: stalePage.data,
+        });
+        await execute(
+            client,
+            makeDatabaseClientConnection({
+                async executeActionServer() {
+                    return {
+                        result: {name: "rawSql", output: {rows: []}},
+                        readPages: new Map([[databaseMainTableId, healedPages]]),
+                        fileSizesInPages: new Map([[databaseMainTableId, before.fileSizeInPages]]),
+                        registeredTables: {tables: new Map(), tableAccess: new Map()},
+                        readPagesSnapshotVersion: new Map([[databaseMainTableId, 30]]),
+                    };
+                },
+            }),
+            sql`
+                SELECT
+                    id
+                FROM
+                    t
+            `,
+        );
+
+        const after = await extractOpfsPages(dir);
+        expect(after.pages.find(page => page.pageIndex === stalePage.pageIndex)).toEqual({
+            pageIndex: stalePage.pageIndex,
+            version: stalePage.version + 1,
+            data: stalePage.data,
+        });
+    });
+
+    test("ignores a registration result from an earlier connection epoch", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        client.registerTableForTests(databaseMainTableId);
+        const before = await extractOpfsPages(dir);
+        let releaseRegistration!: (result: DatabaseRegisterTablesResult) => void;
+        let markRegistrationStarted!: () => void;
+        const registrationStarted = new Promise<void>(resolve => {
+            markRegistrationStarted = resolve;
+        });
+
+        client.beginDisconnectedConnectionEpoch();
+        const oldRegistration = client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                registerTables() {
+                    markRegistrationStarted();
+                    return new Promise(resolve => {
+                        releaseRegistration = resolve;
+                    });
+                },
+            }),
+        );
+        await registrationStarted;
+        client.beginDisconnectedConnectionEpoch();
+        releaseRegistration({
+            tables: new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        watermark: 40,
+                        fileSizeInPages: before.fileSizeInPages,
+                        catchUp: {type: "current"},
+                    },
+                ],
+            ]),
+            tableAccess: new Map(),
+        });
+        await oldRegistration;
+
+        let newEpochRegistrations = 0;
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    newEpochRegistrations++;
+                    return {
+                        tables: new Map([
+                            [
+                                databaseMainTableId,
+                                {
+                                    watermark: 41,
+                                    fileSizeInPages: before.fileSizeInPages,
+                                    catchUp: {type: "current"},
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map(),
+                    };
+                },
+            }),
+        );
+        const rows = await execute(
+            client,
+            testConn,
+            sql`
+                SELECT
+                    id
+                FROM
+                    t
+            `,
+        );
+
+        expect({newEpochRegistrations, rows}).toEqual({newEpochRegistrations: 1, rows: []});
+    });
+
+    test("does not apply a fallback action response from an earlier connection epoch", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        client.registerTableForTests(databaseMainTableId);
+        const before = await extractOpfsPages(dir);
+        let releaseAction!: (result: DatabaseExecuteActionResponse) => void;
+        let markActionStarted!: () => void;
+        const actionStarted = new Promise<void>(resolve => {
+            markActionStarted = resolve;
+        });
+
+        client.beginDisconnectedConnectionEpoch();
+        const oldAction = execute(
+            client,
+            makeDatabaseClientConnection({
+                executeActionServer() {
+                    markActionStarted();
+                    return new Promise(resolve => {
+                        releaseAction = resolve;
+                    });
+                },
+            }),
+            sql`
+                SELECT
+                    id
+                FROM
+                    t
+            `,
+        );
+        await actionStarted;
+        client.beginDisconnectedConnectionEpoch();
+        releaseAction({
+            result: {name: "rawSql", output: {rows: []}},
+            readPages: new Map([[databaseMainTableId, pagesToMap(before.pages)]]),
+            fileSizesInPages: new Map([[databaseMainTableId, before.fileSizeInPages]]),
+            registeredTables: {tables: new Map(), tableAccess: new Map()},
+            readPagesSnapshotVersion: new Map([[databaseMainTableId, 45]]),
+        });
+        await oldAction;
+
+        let newEpochRegistrations = 0;
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    newEpochRegistrations++;
+                    return {
+                        tables: new Map([
+                            [
+                                databaseMainTableId,
+                                {
+                                    watermark: 46,
+                                    fileSizeInPages: before.fileSizeInPages,
+                                    catchUp: {type: "current"},
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map(),
+                    };
+                },
+            }),
+        );
+        const rows = await execute(
+            client,
+            testConn,
+            sql`
+                SELECT
+                    id
+                FROM
+                    t
+            `,
+        );
+
+        expect({newEpochRegistrations, rows}).toEqual({newEpochRegistrations: 1, rows: []});
+    });
+
+    test("preserves later optimistic mutations when an earlier request rejects offline", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        client.registerTableForTests(databaseMainTableId);
+        const before = await extractOpfsPages(dir);
+        const rejectRequests: Array<(error: Error) => void> = [];
+        const pendingConn = makeDatabaseClientConnection({
+            executeActionServer: () =>
+                new Promise((_, reject) => {
+                    rejectRequests.push(reject);
+                }),
+        });
+
+        await execute(
+            client,
+            pendingConn,
+            sql`
+                INSERT INTO
+                    t (id)
+                VALUES
+                    (1)
+            `,
+        );
+        await execute(
+            client,
+            pendingConn,
+            sql`
+                INSERT INTO
+                    t (id)
+                VALUES
+                    (2)
+            `,
+        );
+        client.beginDisconnectedConnectionEpoch();
+        rejectRequests[0]!(new InternalError("socket closed"));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    return {
+                        tables: new Map([
+                            [
+                                databaseMainTableId,
+                                {
+                                    watermark: 50,
+                                    fileSizeInPages: before.fileSizeInPages,
+                                    catchUp: {type: "current"},
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map(),
+                    };
+                },
+            }),
+        );
+
+        expect(
+            await execute(
+                client,
+                testConn,
+                sql`
+                    SELECT
+                        id
+                    FROM
+                        t
+                `,
+            ),
+        ).toEqual([{id: 2}]);
+    });
+
+    test("does not roll file size back when registration loses a realtime race", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        client.registerTableForTests(databaseMainTableId);
+        const before = await extractOpfsPages(dir);
+        let releaseRegistration!: (result: DatabaseRegisterTablesResult) => void;
+        let markRegistrationStarted!: () => void;
+        const registrationStarted = new Promise<void>(resolve => {
+            markRegistrationStarted = resolve;
+        });
+
+        client.beginDisconnectedConnectionEpoch();
+        const registration = client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                registerTables() {
+                    markRegistrationStarted();
+                    return new Promise(resolve => {
+                        releaseRegistration = resolve;
+                    });
+                },
+            }),
+        );
+        await registrationStarted;
+        client.writePageDiffsFromRealtime(
             new Map([
                 [
                     databaseMainTableId,
                     {
+                        version: 60,
+                        diffs: new Map(),
+                        fileSizeInPages: before.fileSizeInPages + 5,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+        releaseRegistration({
+            tables: new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        watermark: 59,
+                        fileSizeInPages: before.fileSizeInPages - 1,
+                        catchUp: {type: "current"},
+                    },
+                ],
+            ]),
+            tableAccess: new Map(),
+        });
+        await registration;
+
+        const after = await extractOpfsPages(dir);
+        expect({fileSizeInPages: after.fileSizeInPages, watermark: after.watermark}).toEqual({
+            fileSizeInPages: before.fileSizeInPages + 5,
+            watermark: 60,
+        });
+    });
+});
+
+describe("writePageDiffsFromRealtime", () => {
+    test("advances the watermark for applied, skipped, and stub events", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        client.registerTableForTests(databaseMainTableId);
+        const before = await extractOpfsPages(dir);
+        const page = before.pages[0]!;
+        const appliedVersion = page.version + 1;
+
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: appliedVersion,
                         diffs: new Map([
                             [
                                 page.pageIndex,
                                 {
-                                    previousVersion: page.version + 1,
-                                    version: page.version + 2,
+                                    previousVersion: page.version,
+                                    version: appliedVersion,
                                     diff: [],
                                 },
                             ],
                         ]),
-                        fileSizeInPages,
+                        fileSizeInPages: before.fileSizeInPages,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+        const afterApplied = await extractOpfsPages(dir);
+
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: appliedVersion + 1,
+                        // This page result is already held at the same version, so it is skipped while the
+                        // event watermark still advances.
+                        diffs: new Map([
+                            [
+                                page.pageIndex,
+                                {
+                                    previousVersion: page.version,
+                                    version: appliedVersion,
+                                    diff: [],
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: before.fileSizeInPages,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+        const afterSkipped = await extractOpfsPages(dir);
+
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: appliedVersion + 2,
+                        diffs: new Map(),
+                        fileSizeInPages: before.fileSizeInPages - 1,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+        const afterStub = await extractOpfsPages(dir);
+
+        expect({
+            applied: afterApplied.watermark,
+            skipped: afterSkipped.watermark,
+            stub: afterStub.watermark,
+            stubFileSize: afterStub.fileSizeInPages,
+        }).toEqual({
+            applied: appliedVersion,
+            skipped: appliedVersion + 1,
+            stub: appliedVersion + 2,
+            stubFileSize: before.fileSizeInPages - 1,
+        });
+    });
+
+    test("leaves a resized table detached when a stale diff tombstones its header", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        await client.attachTableForTests(tableId);
+        client.executeLocallyForTests(sql`
+            CREATE TABLE ${sql.tableRef(tableId, "items")} (id INTEGER PRIMARY KEY)
+        `);
+        client.commitOptimisticPagesForTests();
+        const before = await extractOpfsTablePages(dir, tableId);
+        const page0 = before.pages.find(page => page.pageIndex === 0)!;
+
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    tableId,
+                    {
+                        version: page0.version + 2,
+                        diffs: new Map([
+                            [
+                                0,
+                                {
+                                    previousVersion: page0.version + 1,
+                                    version: page0.version + 2,
+                                    diff: [],
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: before.fileSizeInPages + 1,
                     },
                 ],
             ]),
             generateId<DatabaseMutationId>(),
         );
 
-        // The validation response offers the page at a version below the tombstone; the
-        // write is rejected, so the page must not be acknowledged.
-        resolveValidation!({
-            tables: new Map([
+        const after = await extractOpfsTablePages(dir, tableId);
+        expect({hasPage0: after.pages.some(page => page.pageIndex === 0)}).toEqual({
+            hasPage0: false,
+        });
+    });
+
+    test("materializes appended pages without a fallback on the next read", async () => {
+        const serverDir = createInMemoryOpfsDirectoryHandle();
+        const server = await DatabaseClient.create(serverDir);
+        server.executeLocallyForTests(sql`
+            CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT NOT NULL)
+        `);
+        server.commitOptimisticPagesForTests();
+        const before = await extractOpfsPages(serverDir);
+
+        const localDir = createInMemoryOpfsDirectoryHandle();
+        await prepopulateOpfsPages(localDir, before.fileSizeInPages, before.pages);
+        const local = await DatabaseClient.create(localDir);
+        local.registerTableForTests(databaseMainTableId);
+
+        for (let i = 0; i < 80; i++) {
+            server.executeLocallyForTests(sql`
+                INSERT INTO
+                    t (data)
+                VALUES
+                    (${"x".repeat(300)})
+            `);
+        }
+        server.commitOptimisticPagesForTests();
+        const after = await extractOpfsPages(serverDir);
+        const beforeByPageIndex = pagesToMap(before.pages);
+        const realtimeDiffs = new Map(
+            after.pages.map(page => {
+                const previous = beforeByPageIndex.get(page.pageIndex);
+                return [
+                    page.pageIndex,
+                    {
+                        previousVersion: previous?.version ?? 0,
+                        version: page.version,
+                        diff: diffPage(previous?.data ?? new Uint8Array(sqlitePageSize), page.data),
+                    },
+                ] as const;
+            }),
+        );
+        const appendedPageIndexes = after.pages
+            .filter(page => !beforeByPageIndex.has(page.pageIndex))
+            .map(page => page.pageIndex);
+
+        local.writePageDiffsFromRealtime(
+            new Map([
                 [
                     databaseMainTableId,
                     {
-                        updatedPages: new Map([
-                            [page.pageIndex, {version: page.version + 1, data: page.data}],
-                        ]),
-                        stalePageIndexes: [],
-                        fileSizeInPages,
+                        version: pageDiffsVersion(realtimeDiffs),
+                        diffs: realtimeDiffs,
+                        fileSizeInPages: after.fileSizeInPages,
                     },
                 ],
             ]),
-            tableAccess: new Map(),
-        });
-        await validation;
+            generateId<DatabaseMutationId>(),
+        );
 
-        expect(acknowledged).toEqual([]);
+        let fallbackCount = 0;
+        const conn = makeDatabaseClientConnection({
+            async executeActionServer() {
+                fallbackCount++;
+                return {
+                    result: {name: "rawSql", output: {rows: [{count: -1}]}},
+                    readPages: new Map(),
+                    fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
+                };
+            },
+        });
+        const rows = await execute(
+            local,
+            conn,
+            sql`
+                SELECT
+                    COUNT(*) AS count
+                FROM
+                    t
+            `,
+        );
+        const localPages = pagesToMap((await extractOpfsPages(localDir)).pages);
+
+        expect({
+            appendedPagesExist: appendedPageIndexes.length > 0,
+            fallbackCount,
+            materialized: appendedPageIndexes.every(pageIndex => localPages.has(pageIndex)),
+            rows,
+        }).toEqual({
+            appendedPagesExist: true,
+            fallbackCount: 0,
+            materialized: true,
+            rows: [{count: 80}],
+        });
+    });
+
+    test("a newer tombstone rejects a late zero-base diff", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        const before = await extractOpfsPages(dir);
+        const page = before.pages[before.pages.length - 1]!;
+        const tombstoneVersion = page.version + 3;
+
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: tombstoneVersion,
+                        diffs: new Map([
+                            [
+                                page.pageIndex,
+                                {
+                                    previousVersion: page.version + 1,
+                                    version: tombstoneVersion,
+                                    diff: [],
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: before.fileSizeInPages,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: tombstoneVersion - 1,
+                        diffs: new Map([
+                            [
+                                page.pageIndex,
+                                {
+                                    previousVersion: 0,
+                                    version: tombstoneVersion - 1,
+                                    diff: diffPage(new Uint8Array(sqlitePageSize), page.data),
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: before.fileSizeInPages,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+
+        const after = await extractOpfsPages(dir);
+        expect(after.pages.some(entry => entry.pageIndex === page.pageIndex)).toBe(false);
+    });
+
+    test("page-0 noise filtering is unchanged", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        const before = await extractOpfsPages(dir);
+        const page0 = before.pages.find(page => page.pageIndex === 0)!;
+        const notifications: Array<unknown> = [];
+        await client.registerReactiveAction(
+            "page-0-noise",
+            {
+                name: "readonlyRawSql",
+                input: rawSqlInput(sql`
+                    SELECT
+                        *
+                    FROM
+                        t
+                `),
+            },
+            testConn,
+            output => notifications.push(output),
+            () => {},
+        );
+
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: page0.version + 1,
+                        diffs: new Map([
+                            [
+                                0,
+                                {
+                                    previousVersion: page0.version,
+                                    version: page0.version + 1,
+                                    diff: [
+                                        {offset: 24, data: new Uint8Array([0xff])},
+                                        {offset: 92, data: new Uint8Array([0xff])},
+                                    ],
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: before.fileSizeInPages,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const afterPage0 = (await extractOpfsPages(dir)).pages.find(page => page.pageIndex === 0);
+
+        expect({notifications, version: afterPage0?.version}).toEqual({
+            notifications: [],
+            version: page0.version + 1,
+        });
     });
 });
 
@@ -887,6 +1693,8 @@ describe("server fallback", () => {
                     result: {name: action.name, output: {rows}} as DatabaseActionResult,
                     readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
                     fileSizesInPages: new Map([[databaseMainTableId, fileSizeInPages]]),
+                    ...emptyExecuteActionRegistrationFields,
+                    readPagesSnapshotVersion: new Map([[databaseMainTableId, 1]]),
                 };
             },
         });
@@ -940,6 +1748,8 @@ describe("server fallback", () => {
                     result: {name: action.name, output: {rows}} as DatabaseActionResult,
                     readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
                     fileSizesInPages: new Map([[databaseMainTableId, fileSizeInPages]]),
+                    ...emptyExecuteActionRegistrationFields,
+                    readPagesSnapshotVersion: new Map([[databaseMainTableId, 1]]),
                 };
             },
         });
@@ -972,6 +1782,78 @@ describe("server fallback", () => {
 });
 
 describe("executeActionWithTracking", () => {
+    test("converges after one extra fallback reveals a second table dependency", async () => {
+        const firstTableId = generateChronologicalId<DatabaseTableId>();
+        const secondTableId = generateChronologicalId<DatabaseTableId>();
+        const sourceDir = createInMemoryOpfsDirectoryHandle();
+        const source = await DatabaseClient.create(sourceDir);
+        await source.attachTableForTests(firstTableId);
+        source.executeLocallyForTests(sql`
+            CREATE TABLE ${sql.tableRef(firstTableId, "items")} (id INTEGER PRIMARY KEY)
+        `);
+        source.executeLocallyForTests(sql`
+            INSERT INTO
+                ${sql.tableRef(firstTableId, "items")}
+            VALUES
+                (1)
+        `);
+        source.commitOptimisticPagesForTests();
+        await source.attachTableForTests(secondTableId);
+        source.executeLocallyForTests(sql`
+            CREATE TABLE ${sql.tableRef(secondTableId, "items")} (id INTEGER PRIMARY KEY)
+        `);
+        source.executeLocallyForTests(sql`
+            INSERT INTO
+                ${sql.tableRef(secondTableId, "items")}
+            VALUES
+                (1)
+        `);
+        source.commitOptimisticPagesForTests();
+        const firstPages = await extractOpfsTablePages(sourceDir, firstTableId);
+        const secondPages = await extractOpfsTablePages(sourceDir, secondTableId);
+
+        const local = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        local.registerTableForTests(databaseMainTableId);
+        const discoveredTables = [
+            {tableId: firstTableId, ...firstPages},
+            {tableId: secondTableId, ...secondPages},
+        ];
+        let serverFallbackCount = 0;
+        const conn = makeDatabaseClientConnection({
+            async executeActionServer(action) {
+                const discovered = discoveredTables[serverFallbackCount++]!;
+                return {
+                    result: {name: action.name, output: {rows: []}} as DatabaseActionResult,
+                    readPages: new Map([[discovered.tableId, pagesToMap(discovered.pages)]]),
+                    fileSizesInPages: new Map([[discovered.tableId, discovered.fileSizeInPages]]),
+                    registeredTables: {tables: new Map(), tableAccess: new Map()},
+                    readPagesSnapshotVersion: new Map([[discovered.tableId, 80]]),
+                };
+            },
+        });
+
+        const {output, readPages} = await local.executeActionWithTracking(conn, {
+            name: "readonlyRawSql",
+            input: rawSqlInput(sql`
+                SELECT
+                    first.id
+                FROM
+                    ${sql.tableRef(firstTableId, "items")} FIRST
+                    JOIN ${sql.tableRef(secondTableId, "items")} second USING (id)
+            `),
+        });
+
+        expect({
+            output,
+            readTableIds: [...readPages.keys()].sort(),
+            serverFallbackCount,
+        }).toEqual({
+            output: {rows: [{id: 1}]},
+            readTableIds: [firstTableId, secondTableId].sort(),
+            serverFallbackCount: 2,
+        });
+    });
+
     test("returns output and read page set", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
@@ -1143,6 +2025,7 @@ describe("executeActionWithTracking", () => {
                     result: {name: "readonlyRawSql", output: {rows: []}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -1207,6 +2090,8 @@ describe("executeActionWithTracking", () => {
                     result: {name: action.name, output: {rows}} as DatabaseActionResult,
                     readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
                     fileSizesInPages: new Map([[databaseMainTableId, fileSizeInPages]]),
+                    ...emptyExecuteActionRegistrationFields,
+                    readPagesSnapshotVersion: new Map([[databaseMainTableId, 1]]),
                 };
             },
         });
@@ -1433,7 +2318,16 @@ describe("registerReactiveAction", () => {
             ]),
         );
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: pageDiffsVersion(newerPageDiffs),
+                        diffs: newerPageDiffs,
+                        fileSizeInPages: 0,
+                    },
+                ],
+            ]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -1525,7 +2419,16 @@ describe("registerReactiveAction", () => {
         );
 
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: changedPageDiffs, fileSizeInPages: 0}]]),
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: pageDiffsVersion(changedPageDiffs),
+                        diffs: changedPageDiffs,
+                        fileSizeInPages: 0,
+                    },
+                ],
+            ]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -1537,6 +2440,8 @@ describe("registerReactiveAction", () => {
     test("initial failure still registers action, re-executes on page write", async () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE bootstrap (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
 
         // Register an action against a table that doesn't exist yet — initial evaluation
         // will fail.
@@ -1585,7 +2490,16 @@ describe("registerReactiveAction", () => {
             ]),
         );
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: pageDiffsVersion(newerPageDiffs),
+                        diffs: newerPageDiffs,
+                        fileSizeInPages: 0,
+                    },
+                ],
+            ]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -1642,7 +2556,16 @@ describe("registerReactiveAction", () => {
             ]),
         );
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: pageDiffsVersion(newerPageDiffs),
+                        diffs: newerPageDiffs,
+                        fileSizeInPages: 0,
+                    },
+                ],
+            ]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -1765,6 +2688,8 @@ describe("DatabaseClient handle release", () => {
         // Without DatabaseClient.close() closing every page store, this would reject with
         // "access handle already open" (see the test above).
         const reopened = await DatabaseClient.create(dir);
+        reopened.executeLocallyForTests(sql`PRAGMA user_version = 1`);
+        reopened.commitOptimisticPagesForTests();
         const rows = await execute(
             reopened,
             testConn,
@@ -1800,31 +2725,138 @@ describe("DatabaseClient — table access levels", () => {
         return tableId;
     }
 
-    test("stores the map from ensureCacheIsUpToDate and merges event deltas", async () => {
-        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
-        const readableTableId = generateChronologicalId<DatabaseTableId>();
+    test("merges access levels from a registration response", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        const tableId = await attachItemsTable(client);
         const hiddenTableId = generateChronologicalId<DatabaseTableId>();
-        const conn = makeDatabaseClientConnection({
-            ensureCacheIsUpToDate: () =>
-                Promise.resolve({
-                    tables: new Map(),
-                    tableAccess: new Map<DatabaseTableId, AccessLevel | null>([
-                        [readableTableId, "View"],
-                        [hiddenTableId, null],
-                    ]),
-                }),
-        });
-        await client.ensureCacheIsUpToDate(conn);
-
-        await client.applyTableAccessLevels(new Map([[hiddenTableId, "Edit"]]));
+        const tablePages = await extractOpfsTablePages(dir, tableId);
+        client.beginDisconnectedConnectionEpoch();
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    return {
+                        tables: new Map([
+                            [
+                                tableId,
+                                {
+                                    watermark: 70,
+                                    fileSizeInPages: tablePages.fileSizeInPages,
+                                    catchUp: {type: "current"},
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map([
+                            [tableId, "View"],
+                            [hiddenTableId, null],
+                        ]),
+                    };
+                },
+            }),
+        );
 
         expect({
-            readable: client.getTableAccessLevel(readableTableId),
-            granted: client.getTableAccessLevel(hiddenTableId),
+            readable: client.getTableAccessLevel(tableId),
+            hidden: client.getTableAccessLevel(hiddenTableId),
             unknown: client.getTableAccessLevel(generateChronologicalId<DatabaseTableId>()),
-        }).toEqual({readable: "View", granted: "Edit", unknown: "Manage"});
+        }).toEqual({readable: "View", hidden: null, unknown: "Manage"});
 
         client.close();
+    });
+
+    test("drops an optimistic mutation against a table whose access is revoked", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        const tableId = await attachItemsTable(client);
+        const pendingConn = makeDatabaseClientConnection({
+            executeActionServer: () => new Promise(() => {}),
+        });
+
+        await execute(
+            client,
+            pendingConn,
+            sql`
+                INSERT INTO
+                    ${sql.tableRef(tableId, "items")} (id)
+                VALUES
+                    (2)
+            `,
+        );
+        await client.applyTableAccessLevels(new Map([[tableId, null]]));
+        await client.applyTableAccessLevels(new Map([[tableId, "Edit"]]));
+
+        await client.attachTableForTests(tableId);
+        client.executeLocallyForTests(sql`
+            CREATE TABLE ${sql.tableRef(tableId, "items")} (id INTEGER PRIMARY KEY)
+        `);
+        client.commitOptimisticPagesForTests();
+        const tablePages = await extractOpfsTablePages(dir, tableId);
+        client.beginDisconnectedConnectionEpoch();
+        await client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    return {
+                        tables: new Map([
+                            [
+                                tableId,
+                                {
+                                    watermark: 70,
+                                    fileSizeInPages: tablePages.fileSizeInPages,
+                                    catchUp: {type: "current"},
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map([[tableId, "Edit"]]),
+                    };
+                },
+            }),
+        );
+
+        expect(
+            await execute(
+                client,
+                testConn,
+                sql`
+                    SELECT
+                        id
+                    FROM
+                        ${sql.tableRef(tableId, "items")}
+                `,
+            ),
+        ).toEqual([]);
+    });
+
+    test("invalidates reactive data when a locked schema prevents detach", async () => {
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        const tableId = await attachItemsTable(client);
+        const reportedErrors: Array<string> = [];
+        await client.registerReactiveAction(
+            "revoked-items",
+            {
+                name: "readonlyRawSql",
+                input: rawSqlInput(sql`
+                    SELECT
+                        id
+                    FROM
+                        ${sql.tableRef(tableId, "items")}
+                `),
+            },
+            testConn,
+            () => {},
+            error => reportedErrors.push(error instanceof Error ? error.message : String(error)),
+        );
+        const statement = client
+            .unsafeGetDbForTests()
+            .prepare(`SELECT id FROM ${databaseTableSchemaName(tableId)}.items`);
+        statement.step();
+
+        await client.applyTableAccessLevels(new Map([[tableId, null]]));
+        statement.finalize();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(reportedErrors).toEqual([
+            expect.stringContaining(`Permission denied for read on database table ${tableId}`),
+        ]);
     });
 
     test("a denied optimistic write fails fast without contacting the server", async () => {
@@ -1879,6 +2911,7 @@ describe("DatabaseClient — table access levels", () => {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -1893,29 +2926,6 @@ describe("DatabaseClient — table access levels", () => {
             `,
         );
         expect(serverCalled).toBe(true);
-
-        client.close();
-    });
-
-    test("ensureCacheIsUpToDate purges tables the full access map revokes", async () => {
-        const groupDir = createInMemoryOpfsDirectoryHandle();
-        const client = await DatabaseClient.create(groupDir);
-        const tableId = await attachItemsTable(client);
-
-        const conn = makeDatabaseClientConnection({
-            ensureCacheIsUpToDate: () =>
-                Promise.resolve({
-                    tables: new Map(),
-                    tableAccess: new Map<DatabaseTableId, AccessLevel | null>([[tableId, null]]),
-                }),
-        });
-        await client.ensureCacheIsUpToDate(conn);
-
-        const opfsEntries: Array<string> = [];
-        for await (const name of groupDir.keys()) {
-            opfsEntries.push(name);
-        }
-        expect(opfsEntries).toEqual([databaseMainTableId]);
 
         client.close();
     });

@@ -3,7 +3,6 @@ import type {
     DatabaseActionName,
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
-import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
@@ -35,8 +34,6 @@ class MockUniqueWorkerClient {
     readonly callMock = jest.fn(async (method: string, input: any): Promise<any> => {
         switch (method) {
             case "connectDatabaseGroup":
-            case "writeInitialPages":
-            case "writePageDiffsFromRealtime":
             case "unregisterReactiveAction":
                 return {};
             case "executeAction":
@@ -141,7 +138,6 @@ afterEach(() => {
 
 describe("createDatabaseGroupConnection", () => {
     test("queues calls until connect and injects the database group id", async () => {
-        const initialPages: DatabasePages = new Map();
         const db = createDatabaseGroupConnection();
 
         const executePromise = db.connection.executeAction("rawSql", {sql: "SELECT 1"});
@@ -150,7 +146,6 @@ describe("createDatabaseGroupConnection", () => {
         await db.connect({
             databaseGroupId: testDatabaseGroupId,
             webSocketUrl: "ws://test.invalid",
-            initialPages,
         });
         const [executeOutput, watchHandle] = await runAllPromises([executePromise, watchPromise]);
         const instance = latestUniqueWorker();
@@ -168,7 +163,6 @@ describe("createDatabaseGroupConnection", () => {
                     method: "connectDatabaseGroup",
                     input: {
                         databaseGroupId: testDatabaseGroupId,
-                        pages: initialPages,
                         webSocketUrl: "ws://test.invalid",
                     },
                 },
@@ -325,7 +319,6 @@ describe("reconnect", () => {
                     method: "connectDatabaseGroup",
                     input: {
                         databaseGroupId: testDatabaseGroupId,
-                        pages: new Map(),
                         webSocketUrl: "ws://test.invalid",
                     },
                 },

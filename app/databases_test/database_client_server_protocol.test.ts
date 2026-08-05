@@ -1,6 +1,10 @@
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
-import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
+import {
+    createInMemoryOpfsDirectoryHandle,
+    extractOpfsTablePages,
+    prepopulateOpfsTablePages,
+} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {
     DatabaseConnectionManager,
     type DatabaseConnectionManagerSocket,
@@ -8,9 +12,14 @@ import {
 } from "~/client/web/databases/worker/database_connection_manager.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
+import {
+    createDatabaseTableMetadataForTest,
+    updateDatabaseTableAccessPolicy,
+} from "~/server/databases/data/database_table_metadata.js";
 import {DatabaseGroupDurableObject} from "~/server/databases/database_durable_object.js";
-import type {DatabaseServer} from "~/server/databases/database_server.js";
+import {DatabaseServer} from "~/server/databases/database_server.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {
     type DatabaseActionInput,
@@ -20,21 +29,27 @@ import {
     type DatabaseActionOutput,
     type DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
-import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
+import type {
+    DatabasePages,
+    DatabaseTableRegistrations,
+} from "~/shared/databases/database_protocol_schemas.js";
+import {DatabaseTableMetadataBroadcastRealtimeEventsSchema} from "~/shared/databases/database_realtime_protocol.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
+import type {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
+import {UnavailableError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     AccountId,
-    BrowserId,
     DatabaseFieldId,
     DatabaseGroupId,
     DatabaseReactiveActionId,
     DatabaseRowId,
     DatabaseTableId,
+    SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -109,9 +124,7 @@ test("a connection from an account outside the group\u2019s space is refused", a
     const outsiderSession = await otherSpace.createSession();
 
     await expect(
-        durableObjectTest.connectForTest(context.action(outsiderSession), databaseGroupId, {
-            searchParams: new URLSearchParams([["browserId", generateId<BrowserId>()]]),
-        }),
+        durableObjectTest.connectForTest(context.action(outsiderSession), databaseGroupId),
     ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
@@ -177,7 +190,6 @@ test("internal-only actions are available over HTTP but not public websocket pro
     const serverConnection = await durableObjectTest.connectForTest(
         context.action(session),
         databaseGroupId,
-        {searchParams: new URLSearchParams([["browserId", generateId<BrowserId>()]])},
     );
     await expect(
         serverConnection.procedures.executeAction({
@@ -185,6 +197,7 @@ test("internal-only actions are available over HTTP but not public websocket pro
             mutationId: generateId(),
             returnResult: true,
             returnPages: true,
+            registerTables: new Map(),
         }),
     ).rejects.toThrow("Database action createTable is internal-only");
 
@@ -202,6 +215,7 @@ test("internal-only actions are available over HTTP but not public websocket pro
             mutationId: generateId(),
             returnResult: true,
             returnPages: true,
+            registerTables: new Map(),
         }),
     ).rejects.toThrow("Database action syncTableMetadata is internal-only");
     await executeInternalAction(databaseGroupId, "syncTableMetadata", {
@@ -248,11 +262,14 @@ test("a client keeps reading a table it first fetched from the server", async ()
         firstRead,
         secondRead,
         executeActionCalls: reader.executeActionCalls,
+        registerTableCalls: reader.registerTableCalls,
     }).toEqual({
         firstRead: [],
         secondRead: [],
         // Only the first read hit the server; the second was served locally.
         executeActionCalls: [{name: "readonlyRawSql", returnResult: true}],
+        // No durable pages existed to register before the fallback.
+        registerTableCalls: [],
     });
 });
 
@@ -308,20 +325,32 @@ test("a DELETE without a WHERE clause replicates to the server and peers", async
     });
 });
 
-test("a fresh client reads another client\u2019s table through the server fallback", async () => {
+test("a fresh client fetches another client\u2019s table once", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const table = await createTableOnServer(databaseGroupId);
     const writer = await createWarmClient(databaseGroupId, table);
+    const reader = await createTestClient(databaseGroupId);
     const rowId = generateChronologicalId<DatabaseRowId>();
     await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
     await settle();
 
-    // A brand-new browser holds none of the table's pages, so its first read routes to
-    // the server and returns the canonical rows.
-    const reader = await createTestClient(databaseGroupId);
-    const rowIds = await selectRowIds(reader, table);
+    // The connected reader holds none of the table's pages, so the mutation sends it
+    // nothing. Its first read routes to the server and warms the cache exactly once.
+    const executeActionCallsBeforeRead = [...reader.executeActionCalls];
+    const firstRead = await selectRowIds(reader, table);
+    const secondRead = await selectRowIds(reader, table);
 
-    expect(rowIds).toEqual([rowId]);
+    expect({
+        executeActionCallsBeforeRead,
+        firstRead,
+        secondRead,
+        executeActionCalls: reader.executeActionCalls,
+    }).toEqual({
+        executeActionCallsBeforeRead: [],
+        firstRead: [rowId],
+        secondRead: [rowId],
+        executeActionCalls: [{name: "readonlyRawSql", returnResult: true}],
+    });
 });
 
 test("realtime page diffs keep a warmed client\u2019s local reads fresh", async () => {
@@ -342,6 +371,76 @@ test("realtime page diffs keep a warmed client\u2019s local reads fresh", async 
     }).toEqual({
         rowIds: [rowId],
         executeActionCalls: [],
+    });
+});
+
+test("realtime materializes appended pages for a warmed client", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const writer = await createWarmClient(databaseGroupId, table);
+    const reader = await createWarmClient(databaseGroupId, table);
+    const readerGroupDir = await reader.dir.getDirectoryHandle(databaseGroupId);
+    const pagesBefore = await extractOpfsTablePages(readerGroupDir, table.tableId);
+
+    await executeAction(writer, "rawSql", {
+        sql: sql`
+            WITH RECURSIVE
+                sequence (n) AS (
+                    VALUES
+                        (1)
+                    UNION ALL
+                    SELECT
+                        n + 1
+                    FROM
+                        sequence
+                    WHERE
+                        n < 1000
+                )
+            INSERT INTO
+                ${sql.tableRef(table.tableId, table.tableName)} (_id)
+            SELECT
+                generate_id ()
+            FROM
+                sequence
+        `.query,
+    });
+    await settle();
+
+    const pagesAfter = await extractOpfsTablePages(readerGroupDir, table.tableId);
+    const clientPagesByIndex = new Map(pagesAfter.pages.map(page => [page.pageIndex, page]));
+    const serverPages = extractServerPages(databaseGroupId, [table.tableId]).get(table.tableId)!;
+    const mismatchedPageIndexes: Array<number> = [];
+    for (const [pageIndex, serverPage] of serverPages) {
+        const clientPage = clientPagesByIndex.get(pageIndex);
+        if (
+            clientPage === undefined ||
+            clientPage.data.some((byte, byteIndex) => byte !== serverPage.data[byteIndex])
+        ) {
+            mismatchedPageIndexes.push(pageIndex);
+        }
+    }
+    assert(
+        mismatchedPageIndexes.length === 0,
+        `realtime cache differs on pages ${mismatchedPageIndexes.join(",")}; client has ${[
+            ...clientPagesByIndex.keys(),
+        ].join(",")}; server has ${[...serverPages.keys()].join(",")}`,
+    );
+    const {rows} = await executeAction(reader, "readonlyRawSql", {
+        sql: sql`
+            SELECT
+                COUNT(*) AS count
+            FROM
+                ${sql.tableRef(table.tableId, table.tableName)}
+        `.query,
+    });
+    expect({
+        count: (rows[0] as {count: number}).count,
+        executeActionCalls: reader.executeActionCalls,
+        appendedPages: pagesAfter.pages.length > pagesBefore.pages.length,
+    }).toEqual({
+        count: 1000,
+        executeActionCalls: [],
+        appendedPages: true,
     });
 });
 
@@ -377,8 +476,8 @@ test("a page diff computed against a missed update is dropped and re-fetched, no
 });
 
 // Realtime events broadcast while the socket is down are gone for good, so on
-// reconnect the manager revalidates the whole cache (`ensureCacheIsUpToDate` runs
-// again) before local reads can be trusted — without it, reads would serve the
+// reconnect the manager re-registers the previous epoch's working set before local
+// reads can be trusted — without its bounded catch-up, reads would serve the
 // pre-disconnect state indefinitely.
 test("a client that missed realtime events while disconnected serves fresh reads after reconnecting", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
@@ -671,7 +770,7 @@ test("a mutation that no-ops on the server is confirmed without errors", async (
 //
 // ---
 
-test("a restarted client revalidates the main registry at cold open", async () => {
+test("a restarted client catches up the main registry at first touch", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const table = await createTableOnServer(databaseGroupId);
     const stale = await createWarmClient(databaseGroupId, table);
@@ -686,19 +785,18 @@ test("a restarted client revalidates the main registry at cold open", async () =
     );
     await settle();
 
-    // On restart, `ensureCacheIsUpToDate` refreshes the stale main pages, so the
-    // registry read is served locally with fresh data.
+    // The first registry touch registers main and applies its catch-up before retrying
+    // the read locally.
     const restarted = await restartClient(stale, databaseGroupId);
     const {tableIds} = await executeAction(restarted, "listTableIds", {});
 
     expect([...tableIds].sort()).toEqual([table.tableId, secondTable.tableId].sort());
 });
 
-// Guards the store-enumeration at cold open: `DatabaseClient.create` opens a page
-// store for every table cached in the group's OPFS directory, so
-// `ensureCacheIsUpToDate` validates all of them — not just the tables named in the
-// loader's seed pages — and attaches them with fresh data.
-test("a restarted client revalidates cached per-table files at cold open", async () => {
+// Guards lazy store enumeration: the first touch registers every table cached in
+// the group's OPFS directory and applies catch-up before attaching the requested
+// table.
+test("a restarted client catches up cached per-table files at first touch", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const table = await createTableOnServer(databaseGroupId);
     const writer = await createWarmClient(databaseGroupId, table);
@@ -714,6 +812,97 @@ test("a restarted client revalidates cached per-table files at cold open", async
     const restarted = await restartClient(stale, databaseGroupId);
 
     expect(await selectRowIds(restarted, table)).toEqual([rowId]);
+});
+
+test("concurrent reconnects register once per client without page point reads", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const clients: Array<TestDatabaseClient> = [];
+    for (let i = 0; i < 5; i++) {
+        clients.push(await createWarmClient(databaseGroupId, table));
+    }
+
+    for (const client of clients) {
+        client.goOffline();
+    }
+    const readPage = import.meta.jest.spyOn(DatabaseServer.prototype, "readPage");
+    for (const client of clients) {
+        client.goOnline();
+    }
+    await settle();
+    const readPageCalls = readPage.mock.calls.length;
+    readPage.mockRestore();
+
+    expect({
+        registrationTableCounts: clients.map(client =>
+            client.registerTableCalls.slice(1).map(registration => registration.size),
+        ),
+        readPageCalls,
+    }).toEqual({
+        registrationTableCounts: clients.map(() => [table.seedPages.size]),
+        readPageCalls: 0,
+    });
+});
+
+test("access revocation drops the subscription until the next read", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
+    const session = await space.createSession();
+    const allowedAccessPolicy = {
+        ...databaseTableAccessPolicyForCreator(session.account.id),
+        defaultGrant: {level: "Manage" as const, generation: 0},
+    };
+    await createDatabaseTableMetadataForTest(context.action(session), {
+        databaseGroupId,
+        tableId: table.tableId,
+        spaceId: space.id,
+        name: "Projects",
+        accessPolicy: allowedAccessPolicy,
+    });
+    context.takeDurableObjectBroadcasts();
+    const reader = await createWarmClient(databaseGroupId, table);
+
+    const revokedAccessPolicy = {...allowedAccessPolicy, defaultGrant: null};
+    const revoked = await updateDatabaseTableAccessPolicy(context.action(session), {
+        tableId: table.tableId,
+        accessPolicy: revokedAccessPolicy,
+    });
+    await deliverTableMetadataBroadcast(databaseGroupId, space.id, revoked.events, {
+        tableId: table.tableId,
+        accessPolicy: revokedAccessPolicy,
+    });
+    await settle();
+
+    const restoredAccessPolicy = {
+        ...allowedAccessPolicy,
+        defaultGrant: {level: "Manage" as const, generation: 1},
+    };
+    const restored = await updateDatabaseTableAccessPolicy(context.action(session), {
+        tableId: table.tableId,
+        accessPolicy: restoredAccessPolicy,
+    });
+    await deliverTableMetadataBroadcast(databaseGroupId, space.id, restored.events, {
+        tableId: table.tableId,
+        accessPolicy: restoredAccessPolicy,
+    });
+    await settle();
+
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeInternalAction(databaseGroupId, "createRow", {tableId: table.tableId, rowId});
+    await settle();
+    const executeActionCallsBeforeRead = [...reader.executeActionCalls];
+    const rowIds = await selectRowIds(reader, table);
+
+    expect({
+        executeActionCallsBeforeRead,
+        rowIds,
+        executeActionCalls: reader.executeActionCalls,
+    }).toEqual({
+        executeActionCallsBeforeRead: [],
+        rowIds: [rowId],
+        executeActionCalls: [{name: "readonlyRawSql", returnResult: true}],
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -755,6 +944,356 @@ test("a mutation through the HTTP action route reaches realtime subscribers", as
 });
 
 // ---------------------------------------------------------------------------
+// Known desync issues
+// ---
+//
+// Failing tests that pin down ways the realtime protocol lets a client fall out of
+// sync with the canonical database without healing on its own. Each test asserts
+// the _correct_ behavior and is marked `test.failing()` until the underlying bug
+// is fixed.
+//
+// ---
+
+// A registration response and a realtime event can race: the server computes the
+// catch-up at snapshot V, and before the client applies it, a `PagesChanged` event
+// for a later version V+1 arrives and advances the table's watermark
+// (`writePageDiffsFromRealtime` advances unconditionally for every table in the
+// event). `applyRegistrationResults` then discards the _entire_ catch-up because
+// `result.watermark < store.getWatermark()` — including pages whose only change
+// was carried by the discarded catch-up and that the V+1 event never touched.
+// Those pages stay stale under a watermark that claims currency, so reconnect
+// catch-up never re-fetches them, local reads never miss, and the page only heals
+// if some future mutation happens to rewrite it. The discard is unnecessary:
+// catch-up pages apply through `writePageIfNewer` and the event's tombstones, both
+// of which already reject stale data version-by-version.
+//
+// The race window is real in production: the client applies registration responses
+// across `await` boundaries (access-map purges remove OPFS directories;
+// action-response application opens new stores), so an event delivered behind the
+// response on the socket can be processed in between. The test widens the window
+// deterministically by holding the response.
+test.failing(
+    "registration catch-up is not discarded when a realtime event races the response",
+    async () => {
+        const databaseGroupId = generateId<DatabaseGroupId>();
+        const table = await executeInternalAction(
+            databaseGroupId,
+            "createTable",
+            createTableInputForTest("Projects"),
+        );
+        const fieldId = generateChronologicalId<DatabaseFieldId>();
+        await executeInternalAction(databaseGroupId, "createField", {
+            fieldId,
+            tableId: table.tableId,
+            name: "Notes",
+            config: {type: "plainText"},
+        });
+        const {fields} = await executeInternalAction(databaseGroupId, "getViewSchema", {
+            tableOrViewId: table.tableId,
+        });
+        const columnName = fields.find(field => field.id === fieldId)!.columnName;
+        const tableRef = sql.tableRef(table.tableId, table.tableName);
+        // Seed 12 rows with ~1.5 KB values so consecutive rows land on different 4 KB leaf
+        // pages (about two rows per leaf). The value is built inline from `zeroblob`
+        // because `.query` drops bound parameters.
+        await executeInternalAction(databaseGroupId, "rawSql", {
+            sql: sql`
+                WITH RECURSIVE
+                    sequence (n) AS (
+                        VALUES
+                            (1)
+                        UNION ALL
+                        SELECT
+                            n + 1
+                        FROM
+                            sequence
+                        WHERE
+                            n < 12
+                    )
+                INSERT INTO
+                    ${tableRef} (_id, ${sql.identifier(columnName)})
+                SELECT
+                    generate_id (),
+                    'seed:' || REPLACE(HEX(ZEROBLOB(747)), '00', 'xy')
+                FROM
+                    sequence
+            `.query,
+        });
+        await settle();
+        const seededRowIds = (
+            await executeInternalAction(databaseGroupId, "readonlyRawSql", {
+                sql: selectRowIdsQuery(table),
+            })
+        ).rows.map(row => (row as {_id: DatabaseRowId})._id);
+        const firstRowId = seededRowIds[0]!;
+        const lastRowId = seededRowIds[seededRowIds.length - 1]!;
+        const scanSql = sql`
+            SELECT
+                _id,
+                ${sql.identifier(columnName)} AS value
+            FROM
+                ${tableRef}
+            ORDER BY
+                _id
+        `.query;
+
+        // Warm the reader with a full value scan: the fallback response caches every page
+        // of the table (header, interiors, index, and all row leaves) and registers the
+        // table.
+        const reader = await createTestClient(databaseGroupId);
+        await executeAction(reader, "readonlyRawSql", {sql: scanSql});
+
+        // Two updates on different leaves are missed while disconnected. Their catch-up is
+        // what the registration response will carry.
+        reader.goOffline();
+        await executeInternalAction(databaseGroupId, "updateCellValue", {
+            tableId: table.tableId,
+            fieldId,
+            rowId: firstRowId,
+            value: largeCellValue("b1"),
+        });
+        await executeInternalAction(databaseGroupId, "updateCellValue", {
+            tableId: table.tableId,
+            fieldId,
+            rowId: lastRowId,
+            value: largeCellValue("b2"),
+        });
+        await settle();
+
+        // Reconnect. The server processes the registration (computing catch-up for the
+        // header page and both changed leaves), but the response is held in flight.
+        let serverProcessedRegistration = false;
+        let releaseRegistrationResponse!: () => void;
+        const registrationResponseGate = new Promise<void>(resolve => {
+            releaseRegistrationResponse = resolve;
+        });
+        reader.gates.holdRegisterTablesResponse = () => {
+            serverProcessedRegistration = true;
+            return registrationResponseGate;
+        };
+        reader.goOnline();
+        await settle();
+        assert(
+            serverProcessedRegistration,
+            "reconnect registration should have reached the server",
+        );
+
+        // While the response is in flight, a third update touches the first row again. Its
+        // realtime event tombstones the header page and the first leaf (their bases
+        // mismatch) and advances the table watermark past the registration snapshot.
+        await executeInternalAction(databaseGroupId, "updateCellValue", {
+            tableId: table.tableId,
+            fieldId,
+            rowId: firstRowId,
+            value: largeCellValue("b3"),
+        });
+        await settle();
+        reader.gates.holdRegisterTablesResponse = undefined;
+        releaseRegistrationResponse();
+        await settle();
+
+        // A narrow point read of the first row falls back (the header page is tombstoned)
+        // and heals exactly the pages that query touches — not the last row's leaf, whose
+        // only update was in the discarded catch-up.
+        await executeAction(reader, "readonlyRawSql", {
+            sql: sql`
+                SELECT
+                    ${sql.identifier(columnName)} AS value
+                FROM
+                    ${tableRef}
+                WHERE
+                    _id = (
+                        SELECT
+                            MIN(_id)
+                        FROM
+                            ${tableRef}
+                    )
+            `.query,
+        });
+        await settle();
+
+        // The full scan is now served locally. The last row must show the update made
+        // while disconnected; with the catch-up discarded it still shows the seed value,
+        // and nothing ever re-fetches the page.
+        const finalRows = (await executeAction(reader, "readonlyRawSql", {sql: scanSql}))
+            .rows as Array<{_id: DatabaseRowId; value: string}>;
+        expect({
+            firstRowValue: finalRows[0]!.value,
+            lastRowValue: finalRows[finalRows.length - 1]!.value,
+            reportedErrors: reader.reportedErrors,
+        }).toEqual({
+            firstRowValue: largeCellValue("b3"),
+            lastRowValue: largeCellValue("b2"),
+            reportedErrors: [],
+        });
+    },
+);
+
+// When the fire-and-forget send of an optimistic mutation fails (a transient
+// network error, or a server-side rejection), `removeOptimisticMutation` discards
+// the write buffer and replays the remaining queue — but never invalidates
+// reactive queries whose read set covered the reverted pages.
+// `Database.discardBuffer` doesn't notify tracked executions (only `markCommitted`
+// does), so a reactive query that already rendered the optimistic row keeps
+// rendering it indefinitely: the row exists in neither the local durable cache nor
+// the server, and no page write ever re-runs the query unless an unrelated
+// mutation happens to touch the same page.
+test.failing("a reactive query reverts when an optimistic mutation fails to send", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const client = await createWarmClient(databaseGroupId, table);
+
+    await client.manager.registerReactiveAction(
+        {
+            databaseGroupId,
+            id: generateId<DatabaseReactiveActionId>(),
+            action: {
+                name: "readonlyRawSql",
+                input: {sql: selectRowIdsQuery(table)},
+            },
+        },
+        client.tabConnection,
+    );
+
+    // The optimistic insert executes locally and notifies the watcher; the background
+    // send then fails, which drops the mutation from the queue and reverts its
+    // buffered pages.
+    client.gates.failNextExecuteAction = new UnavailableError("synthetic network failure");
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeAction(client, "createRow", {tableId: table.tableId, rowId});
+    await settle();
+
+    // Direct reads serve the durable truth (no row); the watcher must converge to the
+    // same result instead of keeping the phantom optimistic row.
+    expect({
+        directRowIds: await selectRowIds(client, table),
+        reactiveRowIds: client.reactiveUpdates.map(
+            update => (update.output as {rows: Array<{_id: DatabaseRowId}>}).rows,
+        ),
+        reportedErrors: client.reportedErrors,
+    }).toEqual({
+        directRowIds: [],
+        reactiveRowIds: [[{_id: rowId}], []],
+        reportedErrors: ["synthetic network failure"],
+    });
+});
+
+// Reconnect catch-up is the only mechanism that revalidates cached tables after
+// missed realtime events, but `ensureCachedTablesRegistered` is primed exactly
+// once per reconnect and its failure is only reported, never retried. After a
+// transient registration failure the client is stuck: reactive queries' pages
+// never change locally, so they keep serving the pre-disconnect state indefinitely
+// — until the user happens to trigger a read that falls back to the server.
+test.failing(
+    "a reactive query catches up after a transient reconnect registration failure",
+    async () => {
+        const databaseGroupId = generateId<DatabaseGroupId>();
+        const table = await createTableOnServer(databaseGroupId);
+        const watcher = await createWarmClient(databaseGroupId, table);
+
+        await watcher.manager.registerReactiveAction(
+            {
+                databaseGroupId,
+                id: generateId<DatabaseReactiveActionId>(),
+                action: {
+                    name: "readonlyRawSql",
+                    input: {sql: selectRowIdsQuery(table)},
+                },
+            },
+            watcher.tabConnection,
+        );
+
+        watcher.goOffline();
+        const rowId = generateChronologicalId<DatabaseRowId>();
+        await executeInternalAction(databaseGroupId, "createRow", {tableId: table.tableId, rowId});
+        await settle();
+
+        // The reconnect registration fails once — a transient network error right after
+        // the socket came back. Nothing retries it.
+        watcher.gates.failNextRegisterTables = new UnavailableError(
+            "synthetic registration failure",
+        );
+        watcher.goOnline();
+        await settle();
+        await settle();
+
+        expect({
+            reactiveUpdates: watcher.reactiveUpdates,
+            reportedErrors: watcher.reportedErrors,
+        }).toEqual({
+            reactiveUpdates: [{name: "readonlyRawSql", output: {rows: [{_id: rowId}]}}],
+            reportedErrors: [expect.stringContaining("synthetic registration failure")],
+        });
+    },
+);
+
+/**
+ * A ~1.5 KB cell value with a distinguishing prefix, sized to match the seeded
+ * rows so same-length overwrites stay on their leaf page.
+ */
+function largeCellValue(tag: string): string {
+    return `${tag}:${"xy".repeat(747)}`;
+}
+
+// The detach/reattach that refreshes a resized schema's cached SQLite page count
+// (`writePageDiffsFromRealtime`) can't cover `main`: the main registry is the
+// connection root, not an `ATTACH`-ed schema, so it can't be reopened cheaply.
+// When enough `createTable`s from another client grow main's `_alpine_tables`
+// b-tree onto a newly allocated page, the realtime diff materializes that page in
+// the local store, but SQLite's pager for `main` must still learn the new page
+// count or a local read that follows an interior pointer to the appended leaf
+// reports the database image as malformed (`SQLITE_CORRUPT`). That is not a page
+// miss, so it never falls back to the server — the read stays broken until the
+// connection is reopened. The client's `locking_mode = NORMAL` prevents it: SQLite
+// re-reads main's header change counter (bumped by the replicated write) at
+// transaction start and re-stats the file, so the appended page is in range.
+test("a warmed client sees main-registry ids appended onto a newly grown page", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const reader = await createWarmClient(databaseGroupId, table);
+
+    // Baseline: the single seeded table id is answered from the local cache with no
+    // server round-trip, proving `listTableIds` reads main locally.
+    const seededTableIds = (await executeAction(reader, "listTableIds", {})).tableIds;
+    assert(
+        seededTableIds.length === 1 && seededTableIds[0] === table.tableId,
+        "warm client should read the seeded table id locally",
+    );
+
+    // Another actor (the HTTP action route) registers tables until main's registry
+    // b-tree spills onto a newly allocated page, then a few more so several ids share
+    // that appended leaf. Each `createTable` broadcasts main's page diff to the
+    // connected reader.
+    const createdTableIds = [table.tableId];
+    const mainPagesBeforeGrowth = mainFileSizeInPages(databaseGroupId);
+    while (
+        mainFileSizeInPages(databaseGroupId) <= mainPagesBeforeGrowth ||
+        createdTableIds.length < mainPagesBeforeGrowth + 5
+    ) {
+        const created = await executeInternalAction(
+            databaseGroupId,
+            "createTable",
+            createTableInputForTest(`Table ${createdTableIds.length}`),
+        );
+        createdTableIds.push(created.tableId);
+    }
+    await settle();
+
+    // The reader received every main page diff — including the appended page — over
+    // realtime and wrote them to its durable cache, but never refreshed main's cached
+    // page count. The local read must still enumerate every registered id.
+    const localTableIds = (await executeAction(reader, "listTableIds", {})).tableIds;
+
+    expect({
+        tableIds: [...localTableIds].sort(),
+        executeActionCalls: reader.executeActionCalls,
+    }).toEqual({
+        tableIds: [...createdTableIds].sort(),
+        executeActionCalls: [],
+    });
+});
+
+// ---------------------------------------------------------------------------
 // Test client harness
 // ---
 //
@@ -763,6 +1302,32 @@ test("a mutation through the HTTP action route reaches realtime subscribers", as
 interface TestDatabaseClientExecuteActionCall {
     readonly name: DatabaseActionName;
     readonly returnResult: boolean;
+}
+
+/**
+ * Fault-injection hooks for the test socket adapter, modelling network latency and
+ * transient failures between the client and the durable object. All hooks are
+ * one-shot or captured per call, so a test can scope them to a single procedure
+ * invocation.
+ */
+interface TestDatabaseClientGates {
+    /**
+     * When set, called after the server has processed a `registerTables` call; the
+     * response is withheld from the client until the returned promise resolves. Models
+     * server→client latency on an otherwise ordered socket — realtime events broadcast
+     * after the registration keep flowing while the response is in flight.
+     */
+    holdRegisterTablesResponse?: () => Promise<void>;
+    /**
+     * When set, the next `registerTables` call rejects with this error without
+     * reaching the server — a transient network failure.
+     */
+    failNextRegisterTables?: Error;
+    /**
+     * When set, the next `executeAction` call rejects with this error without reaching
+     * the server — a transient network failure.
+     */
+    failNextExecuteAction?: Error;
 }
 
 interface TestDatabaseClient {
@@ -776,8 +1341,10 @@ interface TestDatabaseClient {
      * `returnResult: true`.
      */
     readonly executeActionCalls: Array<TestDatabaseClientExecuteActionCall>;
+    readonly registerTableCalls: Array<DatabaseTableRegistrations>;
+    /** Fault-injection hooks — see {@link TestDatabaseClientGates}. */
+    readonly gates: TestDatabaseClientGates;
     readonly dir: OpfsDirectoryHandle;
-    readonly browserId: BrowserId;
     readonly databaseGroupId: DatabaseGroupId;
     /**
      * Drop the socket: realtime events stop being delivered and the connection state
@@ -801,32 +1368,27 @@ interface TestDatabaseTableRef {
 interface TestDatabaseTable extends TestDatabaseTableRef {
     /**
      * A full page snapshot of the group (main + the table's per-db file) taken right
-     * after the table was created, for seeding warm clients the way the SSR loader
-     * does in production.
+     * after the table was created, plus the global snapshot watermark it reflects.
      */
     readonly seedPages: DatabasePages;
+    readonly seedWatermark: number;
 }
 
 /**
  * Wires a real {@link DatabaseConnectionManager} to the real durable object
- * server, standing in for one browser. Each client gets its own OPFS directory and
- * `browserId` unless overridden (pass both to model a restart of the same browser
- * — see {@link restartClient}). `pages` seeds the OPFS cache through
- * `connectDatabaseGroup`, mirroring the loader-provided pages a production tab
- * passes on startup.
+ * server, standing in for one browser. Each client gets its own OPFS directory
+ * unless one is supplied to model a restart (see {@link restartClient}).
  */
 async function createTestClient(
     databaseGroupId: DatabaseGroupId,
-    options: {browserId?: BrowserId; dir?: OpfsDirectoryHandle; pages?: DatabasePages} = {},
+    options: {dir?: OpfsDirectoryHandle} = {},
 ): Promise<TestDatabaseClient> {
     const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
     const session = await space.createSession();
-    const browserId = options.browserId ?? generateId<BrowserId>();
     const dir = options.dir ?? createInMemoryOpfsDirectoryHandle();
     const serverConnection = await durableObjectTest.connectForTest(
         context.action(session),
         databaseGroupId,
-        {searchParams: new URLSearchParams([["browserId", browserId]])},
     );
 
     let online = true;
@@ -839,6 +1401,8 @@ async function createTestClient(
         }
     };
     const executeActionCalls: Array<TestDatabaseClientExecuteActionCall> = [];
+    const registerTableCalls: Array<DatabaseTableRegistrations> = [];
+    const gates: TestDatabaseClientGates = {};
     const reportedErrors: Array<string> = [];
     const reactiveUpdates: Array<DatabaseActionResult> = [];
     const tabConnection: DatabaseConnectionManagerTabConnection = {
@@ -856,11 +1420,12 @@ async function createTestClient(
                 isOnline: () => online,
                 stateListeners,
                 executeActionCalls,
+                registerTableCalls,
+                gates,
             }),
     });
     manager.connectDatabaseGroup({
         databaseGroupId,
-        pages: options.pages ?? new Map(),
         webSocketUrl: "ws://test.invalid",
     });
 
@@ -870,8 +1435,9 @@ async function createTestClient(
         reportedErrors,
         reactiveUpdates,
         executeActionCalls,
+        registerTableCalls,
+        gates,
         dir,
-        browserId,
         databaseGroupId,
         goOffline: () => {
             setOnline(false);
@@ -899,8 +1465,8 @@ async function getOrCreateTestSpaceForDatabaseGroupId(
 
 /**
  * Model a browser restart: close the client's server connection and stand up a
- * fresh manager (fresh SQLite connection, fresh cold-open cache validation) on the
- * same OPFS directory and `browserId`.
+ * fresh manager (fresh SQLite connection and connection epoch) on the same OPFS
+ * directory.
  */
 async function restartClient(
     client: TestDatabaseClient,
@@ -909,7 +1475,6 @@ async function restartClient(
     client.close();
     return await createTestClient(databaseGroupId, {
         dir: client.dir,
-        browserId: client.browserId,
     });
 }
 
@@ -925,7 +1490,16 @@ async function createTableOnServer(databaseGroupId: DatabaseGroupId): Promise<Te
     );
     await settle();
     const seedPages = extractServerPages(databaseGroupId, [databaseMainTableId, tableId]);
-    return {tableId, tableName, seedPages};
+    const durableObjectStorage = durableObjectStorages.get(databaseGroupId);
+    assert(durableObjectStorage !== undefined);
+    const seedWatermark =
+        sql`
+            SELECT
+                MAX(last_version)
+            FROM
+                database_tables
+        `.selectValue(durableObjectStorage.sql, Schema.integer.nullable()) ?? 0;
+    return {tableId, tableName, seedPages, seedWatermark};
 }
 
 async function executeInternalAction<const Name extends DatabaseActionName>(
@@ -950,11 +1524,41 @@ async function executeInternalAction<const Name extends DatabaseActionName>(
     return result.output as DatabaseActionOutput<Name>;
 }
 
+async function deliverTableMetadataBroadcast(
+    databaseGroupId: DatabaseGroupId,
+    spaceId: SpaceId,
+    events: ReadonlyArray<RynamoEventStub>,
+    {
+        tableId,
+        accessPolicy,
+    }: {
+        tableId: DatabaseTableId;
+        accessPolicy: LocalAccessPolicy | null;
+    },
+): Promise<void> {
+    const response = await durableObjectTest.fetchForTest(
+        context.systemAction(spaceId, {serviceName: "AppService"}),
+        databaseGroupId,
+        new Request(
+            "https://databases.test.invalid/broadcast-table-metadata-realtime-event-transaction",
+            {
+                method: "POST",
+                body: JSON.stringify(
+                    DatabaseTableMetadataBroadcastRealtimeEventsSchema.serialize({
+                        events,
+                        resolvedAccessPolicyByTableId: new Map([[tableId, accessPolicy]]),
+                    }),
+                ),
+            },
+        ),
+    );
+    assert(response.status === 200, `metadata broadcast returned ${response.status}`);
+}
+
 /**
  * Snapshot every page of the given tables straight from the durable object's
  * canonical storage: the complete, versioned page set a fully warmed client holds.
- * Stands in for the loader-provided pages a production tab passes to
- * `connectDatabaseGroup` on startup.
+ * Models durable OPFS state left by an earlier browser session.
  */
 function extractServerPages(
     databaseGroupId: DatabaseGroupId,
@@ -1007,20 +1611,59 @@ function extractServerPages(
 }
 
 /**
- * Create a client that can read and write `table` fully locally, by seeding its
- * OPFS cache with loader pages the way a production tab starts. Cold-open cache
- * validation brings any stale seeded pages up to date and attaches the table; the
- * trailing read proves the client operates locally (no server calls).
+ * The main registry's current file size in pages, read straight from the durable
+ * object's canonical page store. Used to detect when appending registry rows has
+ * grown main's `_alpine_tables` b-tree onto a newly allocated page.
+ */
+function mainFileSizeInPages(databaseGroupId: DatabaseGroupId): number {
+    const mainPages = extractServerPages(databaseGroupId, [databaseMainTableId]).get(
+        databaseMainTableId,
+    )!;
+    return Math.max(-1, ...mainPages.keys()) + 1;
+}
+
+/**
+ * Create a client with a complete durable OPFS snapshot. Its first touch registers
+ * every cached table, applies catch-up, and then proves the requested table
+ * operates locally without a server action.
  */
 async function createWarmClient(
     databaseGroupId: DatabaseGroupId,
     table: TestDatabaseTable,
 ): Promise<TestDatabaseClient> {
-    const client = await createTestClient(databaseGroupId, {pages: table.seedPages});
+    const dir = createInMemoryOpfsDirectoryHandle();
+    const groupDir = await dir.getDirectoryHandle(databaseGroupId, {create: true});
+    for (const [tableId, pages] of table.seedPages) {
+        const fileSizeInPages = Math.max(-1, ...pages.keys()) + 1;
+        await prepopulateOpfsTablePages(
+            groupDir,
+            tableId,
+            fileSizeInPages,
+            [...pages].map(([pageIndex, page]) => ({pageIndex, ...page})),
+            table.seedWatermark,
+        );
+    }
+    const client = await createTestClient(databaseGroupId, {dir});
     await selectRowIds(client, table);
+    const registration = client.registerTableCalls[0];
+    assert(registration !== undefined, "warm client did not register its durable cache");
+    assert(client.registerTableCalls.length === 1, "warm client registered more than once");
+    assert(
+        registration.size === table.seedPages.size,
+        "warm client did not register every cached table",
+    );
+    for (const [tableId, pages] of table.seedPages) {
+        const entry = registration.get(tableId);
+        assert(entry !== undefined, `warm registration omitted ${tableId}`);
+        assert(entry.watermark === table.seedWatermark, `wrong watermark for ${tableId}`);
+        assert(
+            entry.heldPages.array().join(",") === [...pages.keys()].sort((a, b) => a - b).join(","),
+            `wrong held pages for ${tableId}`,
+        );
+    }
     assert(
         client.executeActionCalls.length === 0,
-        "warm client unexpectedly fell back to the server",
+        `warm client unexpectedly fell back to the server after ${client.registerTableCalls.length} registration calls`,
     );
     return client;
 }
@@ -1050,6 +1693,8 @@ function createSocketForServerConnection(
         isOnline: () => boolean;
         stateListeners: Set<() => void>;
         executeActionCalls: Array<TestDatabaseClientExecuteActionCall>;
+        registerTableCalls: Array<DatabaseTableRegistrations>;
+        gates: TestDatabaseClientGates;
     },
 ): DatabaseConnectionManagerSocket {
     return {
@@ -1060,8 +1705,29 @@ function createSocketForServerConnection(
                     name: input.action.name,
                     returnResult: input.returnResult,
                 });
+                const executeFailure = options.gates.failNextExecuteAction;
+                if (executeFailure !== undefined) {
+                    options.gates.failNextExecuteAction = undefined;
+                    throw executeFailure;
+                }
                 const output = await serverConnection.procedures.executeAction(input);
                 await new Promise(resolve => setTimeout(resolve, 0));
+                return output;
+            },
+            registerTables: async input => {
+                options.registerTableCalls.push(input.tables);
+                const registerFailure = options.gates.failNextRegisterTables;
+                if (registerFailure !== undefined) {
+                    options.gates.failNextRegisterTables = undefined;
+                    throw registerFailure;
+                }
+                // Capture the hold before the server call so clearing the gate after release
+                // doesn't skip the hold for the in-flight response.
+                const hold = options.gates.holdRegisterTablesResponse;
+                const output = await serverConnection.procedures.registerTables(input);
+                if (hold !== undefined) {
+                    await hold();
+                }
                 return output;
             },
         },
@@ -1100,9 +1766,6 @@ function createSocketForServerConnection(
             }
         },
         reconnect() {},
-        async disconnect() {
-            serverConnection.close();
-        },
     };
 }
 

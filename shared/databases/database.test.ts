@@ -3,7 +3,7 @@ import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/databas
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
-import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
+import {DatabaseTableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {InMemoryDatabaseServerTableStore} from "~/shared/databases/test_helpers/in_memory_database_server_table_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -862,7 +862,7 @@ describe("Database — unattached per-db file detection", () => {
                 `,
                 {allowWrites: "none", getTableAccessLevel: allowAllTableAccess},
             ),
-        ).toThrow(TableNotAttachedError);
+        ).toThrow(DatabaseTableNotAttachedError);
     });
 
     test("the unknown database DDL error shape also becomes TableNotAttachedError", async () => {
@@ -876,7 +876,7 @@ describe("Database — unattached per-db file detection", () => {
                 allowWrites: "schema+data",
                 getTableAccessLevel: allowAllTableAccess,
             }),
-        ).toThrow(TableNotAttachedError);
+        ).toThrow(DatabaseTableNotAttachedError);
     });
 
     test("a missing inner table in an ATTACHED file throws the raw error, not TableNotAttachedError", async () => {

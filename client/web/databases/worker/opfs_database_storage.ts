@@ -3,6 +3,7 @@ import {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
 import type {ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {DatabaseTableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
@@ -18,9 +19,14 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
     private readonly groupDir: OpfsDirectoryHandle;
     private readonly stores = new Map<DatabaseTableId, OpfsPageStore>();
+    private readonly isTableRegistered: (tableId: DatabaseTableId) => boolean;
 
-    constructor(groupDir: OpfsDirectoryHandle) {
+    constructor(
+        groupDir: OpfsDirectoryHandle,
+        isTableRegistered: (tableId: DatabaseTableId) => boolean = () => true,
+    ) {
         this.groupDir = groupDir;
+        this.isTableRegistered = isTableRegistered;
     }
 
     /**
@@ -71,6 +77,9 @@ export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
     // -- ReadonlyDatabaseStorage --------------------------------------------
 
     readPage(tableId: DatabaseTableId, index: number): {data: Uint8Array; version: number} | null {
+        if (!this.isTableRegistered(tableId)) {
+            throw new DatabaseTableNotAttachedError(tableId);
+        }
         const store = this.stores.get(tableId);
         assert(store !== undefined, `readPage for unknown table: ${tableId}`);
 
@@ -87,6 +96,9 @@ export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
     }
 
     getFileSize(tableId: DatabaseTableId): number {
+        if (!this.isTableRegistered(tableId)) {
+            throw new DatabaseTableNotAttachedError(tableId);
+        }
         const store = this.stores.get(tableId);
         assert(store !== undefined, `getFileSize for unknown table: ${tableId}`);
         return store.getFileSize();

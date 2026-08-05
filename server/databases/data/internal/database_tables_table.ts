@@ -7,7 +7,6 @@ import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_meta
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -54,10 +53,12 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
         },
     },
     broadcastEvents: async (context, events) => {
-        const eventsByDatabaseGroupId = new Map<DatabaseGroupId, Array<RynamoEventStub>>();
-        const resolvedAccessPolicyByTableIdByDatabaseGroupId = new Map<
+        const broadcastsByDatabaseGroupId = new Map<
             DatabaseGroupId,
-            Map<DatabaseTableId, LocalAccessPolicy | null>
+            {
+                events: Array<RynamoEventStub>;
+                resolvedAccessPolicyByTableId: Map<DatabaseTableId, LocalAccessPolicy | null>;
+            }
         >();
 
         await runAllPromises(
@@ -73,31 +74,26 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
                 const resolvedAccessPolicy: LocalAccessPolicy =
                     await resolveDatabaseTableAccessPolicyForDurableObject(context, accessPolicy);
 
-                getOrSetDefaultMapValue(eventsByDatabaseGroupId, databaseGroupId, () => []).push(
-                    eventStub,
-                );
-                getOrSetDefaultMapValue(
-                    resolvedAccessPolicyByTableIdByDatabaseGroupId,
+                const broadcast = getOrSetDefaultMapValue(
+                    broadcastsByDatabaseGroupId,
                     databaseGroupId,
-                    () => new Map(),
-                ).set(itemKey.tableId, resolvedAccessPolicy);
+                    () => ({events: [], resolvedAccessPolicyByTableId: new Map()}),
+                );
+                broadcast.events.push(eventStub);
+                broadcast.resolvedAccessPolicyByTableId.set(itemKey.tableId, resolvedAccessPolicy);
             }),
         );
 
         await runAllPromises(
-            mapIterable(eventsByDatabaseGroupId, async ([databaseGroupId, eventsForGroup]) => {
-                if (eventsForGroup.length === 0) return;
-
+            mapIterable(broadcastsByDatabaseGroupId, async ([databaseGroupId, broadcast]) => {
                 await context.edge.broadcastToDurableObject(
                     `/api/durable-objects/database-groups/${databaseGroupId}/broadcast-table-metadata-realtime-event-transaction`,
                     {
                         serviceName: "DatabaseGroupService",
                         route: "/api/durable-objects/database-groups/:databaseGroupId/broadcast-table-metadata-realtime-event-transaction",
                         body: DatabaseTableMetadataBroadcastRealtimeEventsSchema.serialize({
-                            events: eventsForGroup,
-                            resolvedAccessPolicyByTableId: assertExists(
-                                resolvedAccessPolicyByTableIdByDatabaseGroupId.get(databaseGroupId),
-                            ),
+                            events: broadcast.events,
+                            resolvedAccessPolicyByTableId: broadcast.resolvedAccessPolicyByTableId,
                         }),
                     },
                 );

@@ -15,6 +15,7 @@ import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sq
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {tableSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
+import {captureResult} from "~/shared/helpers/control/capture_result.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
@@ -91,7 +92,7 @@ describe("DatabaseServer — storage failure recovery", () => {
     test("a failed buffer drain does not wedge later executes", async () => {
         const server = await DatabaseServer.create(createStorage());
         openServers.push(server);
-        server.execute(testContext, sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
+        server.executeForTests(testContext, sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
         });
 
@@ -101,7 +102,7 @@ describe("DatabaseServer — storage failure recovery", () => {
             throw new InternalError("simulated storage failure");
         });
         expect(() =>
-            server.execute(
+            server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -116,7 +117,7 @@ describe("DatabaseServer — storage failure recovery", () => {
         // The failed drain must not leave the buffer dirty: a subsequent execute should
         // succeed, not throw "\_runAndPersist requires an empty buffer".
         expect(() =>
-            server.execute(
+            server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -127,6 +128,120 @@ describe("DatabaseServer — storage failure recovery", () => {
                 {allowWrites: "data"},
             ),
         ).not.toThrow();
+    });
+
+    test("a partial page drain rolls back pages, metadata, and caches", async () => {
+        const storage = createStorage();
+        const server = await DatabaseServer.create(storage);
+        openServers.push(server);
+        const tableA = generateChronologicalId<DatabaseTableId>();
+        const tableB = generateChronologicalId<DatabaseTableId>();
+        const exec = storage.sql.exec.bind(storage.sql);
+        let pageWriteCount = 0;
+        const execSpy = jest
+            .spyOn(storage.sql, "exec")
+            .mockImplementation((...args: Array<unknown>) => {
+                if (
+                    String(args[0]).includes(
+                        "INSERT INTO\n                        database_table_pages",
+                    )
+                ) {
+                    pageWriteCount++;
+                    if (pageWriteCount === 2) {
+                        throw new InternalError("simulated partial page drain");
+                    }
+                }
+                return exec(...args);
+            });
+
+        const writeResult = captureResult(() =>
+            server.writePages(
+                new Map([
+                    [tableA, new Map([[0, new Uint8Array(sqlitePageSize)]])],
+                    [tableB, new Map([[0, new Uint8Array(sqlitePageSize)]])],
+                ]),
+                noTruncates,
+            ),
+        );
+        execSpy.mockRestore();
+
+        const tableRows = [
+            ...storage.sql.exec(
+                "SELECT file_size_in_pages, last_version FROM database_tables WHERE table_id IN (?, ?)",
+                tableA,
+                tableB,
+            ),
+        ];
+        const rolledBackSize = server.getFileSize(tableA);
+        const retryVersion = writePagesFor(
+            server,
+            tableA,
+            new Map([[0, new Uint8Array(sqlitePageSize)]]),
+        );
+
+        expect({
+            error: writeResult.ok ? null : String(writeResult.error),
+            rolledBackSize,
+            tableRows,
+            retryPage: server.readPage(tableA, 0)?.version,
+            retrySize: server.getFileSize(tableA),
+        }).toEqual({
+            error: "InternalError: simulated partial page drain",
+            rolledBackSize: 0,
+            tableRows: [],
+            retryPage: retryVersion,
+            retrySize: sqlitePageSize,
+        });
+    });
+
+    test("a rolled-back version cannot escape as a snapshot watermark", async () => {
+        const storage = createStorage();
+        const server = await DatabaseServer.create(storage);
+        openServers.push(server);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const exec = storage.sql.exec.bind(storage.sql);
+        const execSpy = jest.spyOn(storage.sql, "exec").mockImplementation((...args) => {
+            if (
+                String(args[0]).includes(
+                    "INSERT INTO\n                        database_table_pages",
+                )
+            ) {
+                throw new InternalError("simulated page drain failure");
+            }
+            return exec(...args);
+        });
+
+        const writeResult = captureResult(() =>
+            writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]])),
+        );
+        execSpy.mockRestore();
+        const snapshotVersion = server.executeForTests(
+            testContext,
+            sql`
+                SELECT
+                    1
+            `,
+            {
+                allowWrites: "none",
+            },
+        ).snapshotVersion;
+
+        server.close();
+        const reloaded = await DatabaseServer.create(storage);
+        openServers.push(reloaded);
+        const nextVersion = writePagesFor(
+            reloaded,
+            tableId,
+            new Map([[0, new Uint8Array(sqlitePageSize)]]),
+        );
+
+        expect({
+            error: writeResult.ok ? null : String(writeResult.error),
+            nextVersionIsAfterSnapshot: nextVersion > snapshotVersion,
+        }).toEqual({
+            error: "InternalError: simulated page drain failure",
+            nextVersionIsAfterSnapshot: true,
+        });
     });
 });
 
@@ -145,7 +260,7 @@ describe("DatabaseServer", () => {
             return result;
         };
 
-        server.execute(
+        server.executeForTests(
             testContext,
             sql`
                 SELECT
@@ -171,7 +286,7 @@ describe("DatabaseServer", () => {
             `,
         );
 
-        const result = server.execute(
+        const result = server.executeForTests(
             testContext,
             sql`
                 SELECT
@@ -193,6 +308,31 @@ describe("DatabaseServer", () => {
         ]);
     });
 
+    test("a read-only execute reports the current snapshot version", async () => {
+        const server = await createServerWithSchema(sql`
+            CREATE TABLE items (id INTEGER PRIMARY KEY)
+        `);
+        const storedVersion = server.readPage(databaseMainTableId, 0)!.version;
+
+        const result = server.executeForTests(
+            testContext,
+            sql`
+                SELECT
+                    *
+                FROM
+                    items
+            `,
+            {
+                allowWrites: "none",
+            },
+        );
+
+        expect({
+            snapshotVersion: result.snapshotVersion,
+            changedPageCount: result.changedPages.size,
+        }).toEqual({snapshotVersion: storedVersion, changedPageCount: 0});
+    });
+
     describe("execute read-only — page tracking", () => {
         test("returns non-empty pages map", async () => {
             const server = await createServerWithSchema(
@@ -205,7 +345,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -231,7 +371,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -258,7 +398,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -325,7 +465,7 @@ describe("DatabaseServer", () => {
             `.selectAll(db, {name: Schema.string, rootpage: Schema.integer});
 
             for (const {name, rootpage} of schema) {
-                const result = server.execute(
+                const result = server.executeForTests(
                     testContext,
                     sql`
                         SELECT
@@ -358,7 +498,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const result1 = server.execute(
+            const result1 = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -368,7 +508,7 @@ describe("DatabaseServer", () => {
                 `,
                 {allowWrites: "none"},
             );
-            const result2 = server.execute(
+            const result2 = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -405,7 +545,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const before = server.execute(
+            const before = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -428,7 +568,7 @@ describe("DatabaseServer", () => {
             `.exec(db);
             server.commitBufferForTests();
 
-            const after = server.execute(
+            const after = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -456,7 +596,7 @@ describe("DatabaseServer", () => {
 
             // Authorizer rejection.
             expect(() =>
-                server.execute(
+                server.executeForTests(
                     testContext,
                     sql`
                         INSERT INTO
@@ -469,7 +609,7 @@ describe("DatabaseServer", () => {
             ).toThrow();
             // Reference to non-existent table.
             expect(() =>
-                server.execute(
+                server.executeForTests(
                     testContext,
                     sql`
                         SELECT
@@ -482,7 +622,7 @@ describe("DatabaseServer", () => {
             ).toThrow();
             // Constraint violation under writes.
             expect(() =>
-                server.execute(
+                server.executeForTests(
                     testContext,
                     sql`
                         INSERT INTO
@@ -496,7 +636,7 @@ describe("DatabaseServer", () => {
 
             // After all of the above, the server should still serve queries and accept new
             // writes.
-            const after = server.execute(
+            const after = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -507,7 +647,7 @@ describe("DatabaseServer", () => {
                 {allowWrites: "none"},
             );
             expect(after.rows).toEqual([{id: 1}]);
-            server.execute(
+            server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -517,7 +657,7 @@ describe("DatabaseServer", () => {
                 `,
                 {allowWrites: "data"},
             );
-            const final = server.execute(
+            const final = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -540,10 +680,10 @@ describe("DatabaseServer", () => {
             const server = await createServerWithSchema();
 
             expect(() =>
-                server.execute(testContext, sql`NOT VALID SQL`, {allowWrites: "none"}),
+                server.executeForTests(testContext, sql`NOT VALID SQL`, {allowWrites: "none"}),
             ).toThrow();
             expect(() =>
-                server.execute(testContext, sql`NOT VALID SQL`, {allowWrites: "data"}),
+                server.executeForTests(testContext, sql`NOT VALID SQL`, {allowWrites: "data"}),
             ).toThrow();
         });
     });
@@ -583,7 +723,7 @@ describe("DatabaseServer", () => {
             `.exec(db);
             server.commitBufferForTests();
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     SELECT
@@ -611,7 +751,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -635,7 +775,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -659,7 +799,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -681,7 +821,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -717,7 +857,7 @@ describe("DatabaseServer", () => {
                 prePages.set(i, new Uint8Array(server.readPage(databaseMainTableId, i)!.data));
             }
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -747,7 +887,7 @@ describe("DatabaseServer", () => {
             `.exec(db);
             server.commitBufferForTests();
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -770,7 +910,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -797,7 +937,7 @@ describe("DatabaseServer", () => {
                 CREATE TABLE items (id INTEGER PRIMARY KEY)
             `);
 
-            const result = server.execute(
+            const result = server.executeForTests(
                 testContext,
                 sql`
                     INSERT INTO
@@ -839,7 +979,7 @@ describe("DatabaseServer", () => {
             server.commitBufferForTests();
             const sizeBefore = server.getFileSize(databaseMainTableId);
 
-            server.execute(testContext, sql`VACUUM`, {allowWrites: "schema+data"});
+            server.executeForTests(testContext, sql`VACUUM`, {allowWrites: "schema+data"});
 
             expect(server.getFileSize(databaseMainTableId)).toBeLessThan(sizeBefore);
         });
@@ -1896,6 +2036,38 @@ describe("DatabaseServer — durable page storage", () => {
         expect(server.readPage(tableId, 2)!.version).toBe(batchVersion);
     });
 
+    test("a rewrite wins over a truncate tombstone for the same page", async () => {
+        const storage = createStorage();
+        const server = await DatabaseServer.create(storage);
+        openServers.push(server);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const initial = new Uint8Array(sqlitePageSize);
+        initial[0] = 0x11;
+        writePagesFor(server, tableId, new Map([[2, initial]]));
+
+        const replacement = new Uint8Array(sqlitePageSize);
+        replacement[0] = 0x22;
+        const version = server.writePages(
+            new Map([[tableId, new Map([[2, replacement]])]]),
+            new Map([[tableId, 1 * sqlitePageSize]]),
+        );
+        const sqliteId = storage.sql
+            .exec("SELECT sqlite_id FROM database_tables WHERE table_id = ?", tableId)
+            .next().value.sqlite_id;
+        const rowCount = storage.sql
+            .exec(
+                "SELECT COUNT(*) AS count FROM database_table_pages WHERE sqlite_id = ? AND page_index = 2",
+                sqliteId,
+            )
+            .next().value.count;
+
+        expect({data: server.readPage(tableId, 2)!.data[0], rowCount, version}).toEqual({
+            data: 0x22,
+            rowCount: 1,
+            version: server.readPage(tableId, 2)!.version,
+        });
+    });
+
     test("writePages returns the version it stamped onto the rows", async () => {
         const server = await createServer();
         const tableId = generateChronologicalId<DatabaseTableId>();
@@ -1958,6 +2130,28 @@ describe("DatabaseServer — durable page storage", () => {
         expect(data[0]).toBe(0x22);
     });
 
+    test("repeated page rewrites replace the stored image", async () => {
+        const storage = createStorage();
+        const server = await DatabaseServer.create(storage);
+        openServers.push(server);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        for (let i = 0; i < 50; i++) {
+            writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        }
+        const rowCount = storage.sql
+            .exec(
+                `SELECT COUNT(*) AS count
+                 FROM database_table_pages p
+                 JOIN database_tables t ON t.sqlite_id = p.sqlite_id
+                 WHERE t.table_id = ?`,
+                tableId,
+            )
+            .next().value.count;
+
+        expect(rowCount).toBe(1);
+    });
+
     test("nextVersion recovers MAX(version) on cold load", async () => {
         // Seed the underlying storage via one server, then create a fresh server over the
         // same storage (simulating a Durable Object restart). The next write must produce
@@ -1981,6 +2175,65 @@ describe("DatabaseServer — durable page storage", () => {
         );
 
         expect(nextVersion).toBeGreaterThan(seedVersion);
+    });
+
+    test("getFileSize recovers per-table metadata on cold load", async () => {
+        const storage = createStorage();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const first = await DatabaseServer.create(storage);
+        openServers.push(first);
+        writePagesFor(first, tableId, new Map([[2, new Uint8Array(sqlitePageSize)]]));
+
+        const reloaded = await DatabaseServer.create(storage);
+        openServers.push(reloaded);
+
+        expect(reloaded.getFileSize(tableId)).toBe(3 * sqlitePageSize);
+    });
+
+    test("changedPagesSince reports latest writes and tombstones", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const initialVersion = writePagesFor(
+            server,
+            tableId,
+            new Map([
+                [0, new Uint8Array(sqlitePageSize)],
+                [1, new Uint8Array(sqlitePageSize)],
+            ]),
+        );
+
+        server.writePages(
+            new Map([[tableId, new Map([[0, new Uint8Array(sqlitePageSize)]])]]),
+            new Map([[tableId, sqlitePageSize]]),
+        );
+
+        expect(server.changedPagesSince(tableId, initialVersion)).toEqual({
+            changedPageIndexes: new Set([0]),
+            tombstonedPageIndexes: new Set([1]),
+        });
+    });
+
+    test("changedPagesSince skips the page query at a current watermark", async () => {
+        const storage = createStorage();
+        const server = await DatabaseServer.create(storage);
+        openServers.push(server);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const version = writePagesFor(
+            server,
+            tableId,
+            new Map([[0, new Uint8Array(sqlitePageSize)]]),
+        );
+        const exec = jest.spyOn(storage.sql, "exec");
+
+        const result = server.changedPagesSince(tableId, version);
+        const queriedPages = exec.mock.calls.some(call =>
+            String(call[0]).includes("database_table_pages"),
+        );
+
+        expect({result, queriedPages}).toEqual({
+            result: {changedPageIndexes: new Set(), tombstonedPageIndexes: new Set()},
+            queriedPages: false,
+        });
     });
 
     test("getFileSize ignores tombstones in the interior of the file", async () => {
@@ -2013,10 +2266,10 @@ describe("DatabaseServer — durable page storage", () => {
         expect(sqliteIdRow.done).toBe(false);
         const sqliteId = sqliteIdRow.value.sqlite_id;
         storage.sql.exec(
-            "INSERT INTO database_table_pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
+            "UPDATE database_table_pages SET version = ?, data = NULL WHERE sqlite_id = ? AND page_index = ?",
+            999_999,
             sqliteId,
             1,
-            999_999,
         );
 
         // Page 2 is still the highest live page — file size should still reflect three

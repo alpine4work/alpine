@@ -24,6 +24,7 @@ ts_project(
         "//:node_modules/react-aria",
         "//:node_modules/react-dom",
         "//:node_modules/react-stately",
+        "//:node_modules/typedfastbitset",
         "//admin/external_types:sqlite",
         "//client/web/access",
         "//client/web/context",

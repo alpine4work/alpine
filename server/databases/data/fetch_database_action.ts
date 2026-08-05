@@ -13,13 +13,15 @@ import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * Executes a database action against a database group's durable object via HTTP
- * and returns the typed result along with the pages read during execution, keyed
- * by {@link DatabaseTableId}.
+ * and returns the typed result. The pages read during execution (keyed by {@link
+ * DatabaseTableId}) are only fetched when `returnPages: true` is passed — callers
+ * that just need the result skip the extra page transfer by default.
  */
 export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
     context: ServerActionContext,
     databaseGroupId: DatabaseGroupId,
     actionObject: {name: N; input: DatabaseActionInput<N>},
+    options: {returnPages?: boolean} = {},
 ): Promise<{
     result: DatabaseActionOutput<N>;
     readPages: ReadonlyMap<
@@ -29,7 +31,7 @@ export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
 }> {
     const body = DatabaseActionObjectSchema.serialize(actionObject as DatabaseActionObject);
     const response = await context.edge.sendRequestToDurableObject(
-        `/api/durable-objects/database-groups/${databaseGroupId}/action`,
+        `/api/durable-objects/database-groups/${databaseGroupId}/action?returnPages=${options.returnPages ?? false}`,
         {
             serviceName: "DatabaseGroupService",
             route: "/api/durable-objects/database-groups/:databaseGroupId/action",

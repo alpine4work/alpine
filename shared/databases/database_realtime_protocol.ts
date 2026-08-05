@@ -1,12 +1,11 @@
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {
-    DatabaseEnsureCacheIsUpToDateResultConfig,
     DatabaseExecuteActionInputConfig,
     DatabaseExecuteActionOutputConfig,
     DatabasePageDiffsSchema,
-    DatabasePageIndexesSchema,
-    DatabasePageVersionsByIndexSchema,
+    DatabaseRegisterTablesResultConfig,
     DatabaseTableAccessLevelsSchema,
+    DatabaseTableRegistrationsSchema,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
@@ -29,13 +28,9 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             input: DatabaseExecuteActionInputConfig,
             output: DatabaseExecuteActionOutputConfig,
         },
-        ensureCacheIsUpToDate: {
-            input: {pageVersionsByIndex: DatabasePageVersionsByIndexSchema},
-            output: DatabaseEnsureCacheIsUpToDateResultConfig,
-        },
-        acknowledgePages: {
-            input: {pageIndexes: DatabasePageIndexesSchema},
-            output: {},
+        registerTables: {
+            input: {tables: DatabaseTableRegistrationsSchema},
+            output: DatabaseRegisterTablesResultConfig,
         },
     },
     events: {
@@ -54,7 +49,7 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             events: Schema.array(DatabaseTableMetadataRealtimeEventSchema),
             /**
              * Access-map delta covering every table this batch touched. The client merges it
-             * over the entries it accumulated from `ensureCacheIsUpToDate`. Empty for trusted
+             * over the entries it accumulated from table registrations. Empty for trusted
              * internal connections.
              */
             tableAccess: DatabaseTableAccessLevelsSchema,

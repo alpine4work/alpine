@@ -15,6 +15,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@cloudflare/workers-types",
+        "//:node_modules/typedfastbitset",
         "@sqlite",
         "//admin/external_types:sqlite",
         "//server/cloudflare",

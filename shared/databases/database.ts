@@ -35,6 +35,7 @@ import {
     pageAccessFlagRead,
     sqliteAttachEvictionThreshold,
     sqliteAttachPagePragma,
+    sqliteLockingModePragma,
     sqliteOpenPragmas,
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
@@ -44,7 +45,7 @@ import {
     tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
 import {installTracing} from "~/shared/databases/sqlite_tracing.js";
-import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
+import {DatabaseTableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -376,6 +377,7 @@ export class Database {
         for (const pragma of sqliteOpenPragmas) {
             this.db.exec(pragma);
         }
+        this.db.exec(sqliteLockingModePragma({isServer: this.serverContext !== null}));
 
         this.installPageAccessHook();
     }
@@ -731,10 +733,9 @@ export class Database {
 
     /**
      * Whether attaching another per-table file would trigger LRU eviction. Callers
-     * that eagerly attach tables as an optimization (e.g. the client's
-     * `attachKnownTables`) should stop here — past this point eager attaches just
-     * churn the working set, since any table they evict re-attaches on first use
-     * anyway.
+     * that eagerly attach tables as an optimization during client registration should
+     * stop here — past this point eager attaches just churn the working set, since any
+     * table they evict re-attaches on first use anyway.
      */
     isAtAttachCapacity(): boolean {
         return this.tables.size >= this.attachEvictionThreshold;
@@ -854,8 +855,8 @@ export class Database {
      * Client: only attaches files whose header page is locally cached — under
      * `locking_mode = EXCLUSIVE`, attaching a headerless store would permanently cache
      * an empty schema. An unrecoverable miss keeps the original error, which {@link
-     * runTracked} converts to {@link TableNotAttachedError} for the server-fallback
-     * path.
+     * runTracked} converts to {@link DatabaseTableNotAttachedError} for the
+     * server-fallback path.
      */
     private tryAttachUnattachedTable(tableId: DatabaseTableId): boolean {
         this.inAttachRecovery = true;
@@ -1040,7 +1041,7 @@ export class Database {
             if (this.serverContext === null && error instanceof Error) {
                 const tableId = parseUnattachedTableMessage(error.message);
                 if (tableId !== null && !this.tables.has(tableId)) {
-                    const notAttached = new TableNotAttachedError(tableId);
+                    const notAttached = new DatabaseTableNotAttachedError(tableId);
                     notAttached.cause = error;
                     throw notAttached;
                 }

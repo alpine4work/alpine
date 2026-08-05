@@ -337,6 +337,7 @@
         "toml": "^3.0.0",
         "tough-cookie": "4.1.3",
         "tree-kill": "^1.2.2",
+        "typedfastbitset": "0.8.0",
         "typescript": "5.9.2",
         "undici": "5.28.4",
         "unicode-default-word-boundary": "^13.0.0",

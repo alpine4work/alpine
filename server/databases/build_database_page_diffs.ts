@@ -24,6 +24,7 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 export function buildDatabasePageDiffs(
     changedPages: DatabaseServerChangedPages,
     readPages: DatabaseServerReadPages,
+    version: number,
 ): DatabasePageDiffs {
     const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
     for (const [tableId, {pages, fileSizeInPages}] of changedPages) {
@@ -39,7 +40,7 @@ export function buildDatabasePageDiffs(
                 diff: diffPage(before, after),
             });
         }
-        pageDiffs.set(tableId, {diffs, fileSizeInPages});
+        pageDiffs.set(tableId, {version, diffs, fileSizeInPages});
     }
     return pageDiffs;
 }

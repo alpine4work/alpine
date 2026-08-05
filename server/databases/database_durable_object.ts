@@ -8,7 +8,6 @@ import {
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
 import {
     DatabaseDurableObjectConnection,
@@ -23,10 +22,10 @@ import {
     DatabaseRealtimeProtocol,
     DatabaseTableMetadataBroadcastRealtimeEventsSchema,
 } from "~/shared/databases/database_realtime_protocol.js";
-import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId} from "~/shared/id/id.js";
-import type {BrowserId, DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {authorizeDatabaseGroupAccess} from "~/shared/rpc/database_tables_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
@@ -42,7 +41,6 @@ class DatabaseGroupDurableObject {
     private readonly _server: DatabaseServer;
     private readonly _processContext: WorkerProcessContext;
     private readonly _databaseGroupId: DatabaseGroupId;
-    private readonly _browserPageTracker = new BrowserPageTracker();
 
     private readonly _webSocketServer: WebSocketServer<
         WorkerProcessContextModules,
@@ -91,32 +89,15 @@ class DatabaseGroupDurableObject {
             typeof DatabaseRealtimeProtocol,
             DatabaseRealtimeEventStub,
             DatabaseDurableObjectConnection
-        >(
-            this._processContext,
-            DatabaseRealtimeProtocol,
-            ({connectionId, searchParams, sendEvent}) => {
-                const browserId = searchParams.get("browserId") as BrowserId | null;
-                if (browserId === null) {
-                    throw new InvalidArgumentError("Missing browserId query parameter");
-                }
-                const trackPages = searchParams.get("trackPages") !== "false";
-                return new DatabaseDurableObjectConnection({
-                    processContext: this._processContext,
-                    server: this._server,
-                    sendEventToAll: (context, event) => {
-                        this._webSocketServer.sendEventToAll(context, event);
-                    },
-                    sendEventToSelf: (context, event) => {
-                        void sendEvent(context, event);
-                    },
-                    databaseGroupId: this._databaseGroupId,
-                    browserId,
-                    connectionId,
-                    browserPageTracker: this._browserPageTracker,
-                    trackPages,
-                });
-            },
-        );
+        >(this._processContext, DatabaseRealtimeProtocol, ({sendEvent}) => {
+            return new DatabaseDurableObjectConnection({
+                server: this._server,
+                sendEventToAll: event =>
+                    this._webSocketServer.sendEventToAll(this._processContext, event),
+                sendEventToSelf: event => void sendEvent(this._processContext, event),
+                databaseGroupId: this._databaseGroupId,
+            });
+        });
     }
 
     public static parseRoute(url: URL): [string, DatabaseGroupDurableObjectRoute] {
@@ -206,12 +187,17 @@ class DatabaseGroupDurableObject {
         );
 
         const actionResult = this._server.executeAction(context, actionObject);
+        const returnPages = new URL(request.url).searchParams.get("returnPages") !== "false";
 
         // Mutations through this route must reach realtime subscribers just like websocket
         // mutations, or every connected client keeps serving the pre-mutation state. No
         // client has this mutation queued optimistically, so a fresh `mutationId` is
         // delivered as an external mutation.
-        const pageDiffs = buildDatabasePageDiffs(actionResult.changedPages, actionResult.readPages);
+        const pageDiffs = buildDatabasePageDiffs(
+            actionResult.changedPages,
+            actionResult.readPages,
+            actionResult.snapshotVersion,
+        );
         if (pageDiffs.size > 0) {
             this._webSocketServer.sendEventToAll(this._processContext, {
                 type: "PagesChanged",
@@ -224,7 +210,7 @@ class DatabaseGroupDurableObject {
             JSON.stringify(
                 DatabaseActionFetchResponseSchema.serialize({
                     result: {name: actionObject.name, output: actionResult.result} as any,
-                    readPages: actionResult.readPages,
+                    readPages: returnPages ? actionResult.readPages : new Map(),
                 }),
             ),
             {

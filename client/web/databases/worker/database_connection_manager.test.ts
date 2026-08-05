@@ -27,11 +27,8 @@ function makeTestSocket(): {
                 mutationIds.push(input.mutationId);
                 return new Promise(() => {});
             },
-            async ensureCacheIsUpToDate() {
+            async registerTables() {
                 return {tables: new Map(), tableAccess: new Map()};
-            },
-            async acknowledgePages() {
-                return {};
             },
         },
         state: {
@@ -51,7 +48,6 @@ function makeTestSocket(): {
         },
         connect() {},
         reconnect() {},
-        async disconnect() {},
     };
     return {
         socket,
