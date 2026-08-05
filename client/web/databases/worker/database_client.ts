@@ -1,3 +1,4 @@
+import {reportError} from "ajv/dist/compile/errors.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {OpfsDatabaseStorage} from "~/client/web/databases/worker/opfs_database_storage.js";
 import type {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
@@ -428,16 +429,9 @@ export class DatabaseClient {
     private executeActionLocally<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
     ) {
-        for (;;) {
-            try {
-                return this.database.executeAction(actionObject, {
-                    getTableAccessLevel: this.getTableAccessLevel,
-                });
-            } catch (error) {
-                if
-            }
-        }
-
+        return this.database.executeAction(actionObject, {
+            getTableAccessLevel: this.getTableAccessLevel,
+        });
     }
 
     // -- Reactive actions ----------------------------------------------------
@@ -1054,6 +1048,7 @@ export class DatabaseClient {
  */
 function isServerFallbackError(error: unknown): boolean {
     return (
-        error instanceof DatabaseActionRequiresServerError || error instanceof DatabaseTableNotAttachedError
+        error instanceof DatabaseActionRequiresServerError ||
+        error instanceof DatabaseTableNotAttachedError
     );
 }
