@@ -105,14 +105,16 @@ test("audio instructions include transcript-only guidance and the transcript bod
     });
 });
 
-test("video instructions include transcript context when available", () => {
+test("video instructions require describing the input as a video", () => {
     expect(
         createFileProcessorVideoTagInstructions({
             transcript: "Narration about a product demo.",
         }),
     ).toEqual(
         expect.arrayContaining([
-            expect.stringContaining("The following images are chronological frames sampled"),
+            expect.stringContaining("Always describe the file as a video"),
+            expect.stringContaining("Never refer to it as frames,"),
+            expect.stringContaining("images, stills, or a sequence"),
             expect.stringContaining("## Untrusted transcript from the video audio"),
             expect.stringContaining("You are analyzing a single video for Alpine file search."),
         ]),

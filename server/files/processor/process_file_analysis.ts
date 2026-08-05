@@ -525,7 +525,9 @@ async function generateVideoTagsWithBedrock({
                     timeSeconds: frameTimestampSeconds,
                 });
                 const framePayload = await loadResizedImagePayload(framePath);
-                contentBlocks.push({text: `Frame ${index + 1}.`});
+                contentBlocks.push({
+                    text: `Video moment ${index + 1} of ${frameTimestampsSeconds.length}.`,
+                });
                 contentBlocks.push({
                     image: {
                         format: framePayload.format,

@@ -229,9 +229,11 @@ export function createFileProcessorVideoTagInstructions({
 }): Array<PrettyMarkdown> {
     const instructions: Array<PrettyMarkdown> = [
         markdown`
-The following images are chronological frames sampled from one video.
+The images above are chronological visual samples from one video. Analyze them together as parts of
+that video, not as separate images.
 
-Use all frames together as one sequence.
+Always describe the file as a video in \`caption\` and \`description\`. Never refer to it as frames,
+images, stills, or a sequence. Do not mention the sampling process or how the video was provided.
         `,
     ];
 
