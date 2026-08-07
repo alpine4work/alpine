@@ -138,6 +138,14 @@ import {
     TaskDetailNotesFieldRef,
 } from "~/client/web/tasks/internal/task_detail_notes_field.js";
 import {
+    createTaskDetailTimelineLayout,
+    getTaskDetailTimelineCommentRange,
+    getTaskDetailTimelineRowIndex,
+    getTaskDetailTimelineTailActivity,
+    getTaskDetailTimelineVirtualRow,
+} from "~/client/web/tasks/internal/task_detail_timeline.js";
+import {TaskDetailTimelineActivityRun} from "~/client/web/tasks/internal/task_detail_timeline_activity_run.js";
+import {
     TaskDetailTitleInput,
     TaskDetailTitleInputRef,
 } from "~/client/web/tasks/internal/task_detail_title_input.js";
@@ -156,6 +164,11 @@ import {
 } from "~/client/web/tasks/internal/task_project_detail_view_desktop_header.js";
 import {useTaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskStatusButton} from "~/client/web/tasks/internal/task_status_button.js";
+import {
+    TaskActivityFeedInitialData,
+    TaskActivityFeedTaskCreation,
+    useTaskActivityFeed,
+} from "~/client/web/tasks/internal/use_task_activity_feed.js";
 import {useTaskDetailNotesContentEditorWebSocketClient} from "~/client/web/tasks/internal/use_task_detail_notes_content_editor_web_socket_client.js";
 import {TaskUndoStackEntry} from "~/client/web/tasks/internal/use_task_undo_stack_state.js";
 import {normalizeTaskDetailViewQuery} from "~/client/web/tasks/normalize_task_detail_view_query.js";
@@ -290,6 +303,7 @@ export function TaskDetailView({
     affinityManager,
     shouldInitiallyFocus,
     initialComments,
+    initialActivity,
     initialMessageDraft,
     initialScrollToCommentIndex,
     commitActionTransactionAndCreateIfNeeded,
@@ -321,6 +335,7 @@ export function TaskDetailView({
         comments: ReadonlyArray<TaskCommentModel>;
         otherReferencedComments: ReadonlyArray<TaskCommentModel>;
     };
+    initialActivity: TaskActivityFeedInitialData;
     initialMessageDraft: MessageDraftWithFiles;
     initialScrollToCommentIndex: number | null;
     commitActionTransactionAndCreateIfNeeded: Memo<
@@ -503,6 +518,7 @@ export function TaskDetailView({
         procedures,
         subscribeToCommentsEvents,
         subscribeToPongs,
+        subscribeToTaskActivityEvents,
     } = useTaskDetailNotesContentEditorWebSocketClient({
         taskId: possiblyGhostTaskId,
         taskSubscription,
@@ -1226,6 +1242,15 @@ export function TaskDetailView({
         [accessLevel],
     );
 
+    // Reading comments only needs "View" (the task activity timeline interleaves them,
+    // so read-only members need the whole conversation). Writing still needs
+    // "Comment": `hasCommentAccessLevel` disables the composer and puts the comment
+    // list in read-only mode, which drops replies, reactions, and edit actions.
+    const hasCommentViewAccessLevel = useMemo(
+        () => hasAccessLevel(accessLevel, "View"),
+        [accessLevel],
+    );
+
     const [comments, setComments, setCommentsOptimistically] = useStateWithOptimisticUpdates(() => {
         return MessageList.new<TaskCommentModel>({
             checkpoint: initialComments.checkpoint,
@@ -1237,14 +1262,72 @@ export function TaskDetailView({
         });
     });
 
+    const taskCreationForActivityFeed = useStore(
+        useMemo((): Store<TaskActivityFeedTaskCreation | null> => {
+            if (!taskSubscription) return new ConstStore(null);
+
+            return taskSubscription.taskEntryStore.reduce<
+                TaskActivityFeedTaskCreation | null,
+                null
+            >((previousCreation, {task}) => {
+                if (task === null) return null;
+
+                const creation: TaskActivityFeedTaskCreation = {
+                    taskId: task.id,
+                    actor: task.getCreator(),
+                    actionTime: task.getCreatedTime().absoluteTime,
+                };
+
+                return previousCreation?.actor === creation.actor &&
+                    previousCreation.actionTime === creation.actionTime
+                    ? previousCreation
+                    : creation;
+            }, null);
+        }, [taskSubscription]),
+    );
+
+    // The task activity feed renders inside the comment rows, sorted by time: each
+    // comment shows the activity between it and its predecessor above its message.
+    // Ghost tasks have no committed activity to load.
+    const activityFeedItems = useTaskActivityFeed(possiblyGhostTaskId, initialActivity, {
+        creation: taskCreationForActivityFeed,
+        isConnected,
+        subscribeToPongs,
+        subscribeToTaskActivityEvents,
+    });
+
+    // Activity renders inside each comment's row (plus one trailing row). The hook
+    // derives the complete feed once per realtime update; rows binary-slice that
+    // stable result without repeating aggregation.
+
+    // The trailing activity row: everything after the last real comment, rendered
+    // between the real comments and any optimistic ones (which are newer: they're
+    // still being sent). Null when there's nothing to render — the row doesn't exist
+    // at all. Knowing the range start needs the last real comment loaded (or a
+    // comment-less task); while it's inside an unloaded gap the tail hides until the
+    // gap loads, like all other gap-adjacent activity.
+    const tailActivity = useMemo(
+        () => getTaskDetailTimelineTailActivity({comments, activityFeedItems}),
+        [activityFeedItems, comments],
+    );
+    const commentSectionLayout = useMemo(
+        () =>
+            createTaskDetailTimelineLayout({
+                commentItemCount: comments.getItemCount(),
+                realCommentCount: comments.getMessageCountExcludingOptimisticMessages(),
+                hasTailActivity: tailActivity !== null,
+            }),
+        [comments, tailActivity],
+    );
+
     const commentInputRef = useRef<MessageInputRef | null>(null);
     const setErrorState = useErrorState();
 
     const [isCommentSectionVisible, setIsCommentSectionVisible] =
-        useState<boolean>(hasCommentAccessLevel);
+        useState<boolean>(hasCommentViewAccessLevel);
 
-    // If we lose comment access, immediately hide the comment section.
-    if (isCommentSectionVisible && !hasCommentAccessLevel) setIsCommentSectionVisible(false);
+    // If we lose access to the task's comments, immediately hide the section.
+    if (isCommentSectionVisible && !hasCommentViewAccessLevel) setIsCommentSectionVisible(false);
 
     const isLoadingInitialCommentsAfterAccessChangeRef = useRef(false);
 
@@ -1252,7 +1335,7 @@ export function TaskDetailView({
     // from the server and set them in our state before we make the comment section
     // visible.
     useEffect(() => {
-        if (!(!isCommentSectionVisible && hasCommentAccessLevel)) {
+        if (!(!isCommentSectionVisible && hasCommentViewAccessLevel)) {
             isLoadingInitialCommentsAfterAccessChangeRef.current = false;
             return;
         }
@@ -1284,18 +1367,21 @@ export function TaskDetailView({
             });
     }, [
         context,
-        hasCommentAccessLevel,
+        hasCommentViewAccessLevel,
         isCommentSectionVisible,
         possiblyGhostTaskId,
         setComments,
         setErrorState,
     ]);
 
-    const commentItemCount = comments.getItemCount();
-    const commentItemCountRef = useRef(commentItemCount);
+    // The comment section's list layout, as a ref: it's read from virtualizer
+    // callbacks captured once at mount, where state would go stale. The trailing
+    // activity row (when present) sits between the real comments and the optimistic
+    // ones; comment items after it shift down by one list position.
+    const commentSectionLayoutRef = useRef(commentSectionLayout);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        commentItemCountRef.current = commentItemCount;
+        commentSectionLayoutRef.current = commentSectionLayout;
     });
 
     const shiftRenderedRangeForComments = useCallback(
@@ -1304,22 +1390,20 @@ export function TaskDetailView({
 
             const previousItemCount =
                 1 + (!isWideProjectLayout ? childrenGridViewItemCountRef.current : 0) + 1;
-            const itemCount = commentItemCountRef.current;
+            const commentSectionLayout = commentSectionLayoutRef.current;
 
             if (!range) return null;
-            if (itemCount === 0) return null;
+            const startPosition = Math.max(range.startIndex - previousItemCount, 0);
+            const endPosition = Math.min(
+                range.endIndex - previousItemCount,
+                commentSectionLayout.rowCount - 1,
+            );
+            if (endPosition < startPosition) return null;
 
-            const startIndex = range.startIndex - previousItemCount;
-            const endIndex = range.endIndex - previousItemCount;
-
-            if (endIndex < 0 || startIndex >= itemCount) {
-                return null;
-            } else {
-                return {
-                    startIndex: Math.max(startIndex, 0),
-                    endIndex: Math.min(endIndex, itemCount - 1),
-                };
-            }
+            return getTaskDetailTimelineCommentRange(commentSectionLayout, {
+                startIndex: startPosition,
+                endIndex: endPosition,
+            });
         },
         [isCommentSectionVisible, isWideProjectLayout],
     );
@@ -1437,11 +1521,18 @@ export function TaskDetailView({
             tryLoadingMoreData: tryLoadingMoreCommentsData,
             scrollToIndexForMessageIndex: (roomKey, index) => {
                 if (!isCommentSectionVisible) return null;
+
+                const position = getTaskDetailTimelineRowIndex(
+                    commentSectionLayoutRef.current,
+                    index,
+                );
+                if (position === null) return null;
+
                 return (
                     1 +
                     (!isWideProjectLayout ? childrenGridViewItemCountRef.current : 0) +
                     1 +
-                    index
+                    position
                 );
             },
         });
@@ -2268,10 +2359,15 @@ export function TaskDetailView({
         [possiblyGhostTaskId],
     );
 
+    const commentSectionListItemCount = commentSectionLayout.rowCount;
+
     const itemCount =
         1 +
         (!isWideProjectLayout ? childrenGridViewItemCount : 0) +
-        (isCommentSectionVisible ? 1 + comments.getItemCount() + 1 : 0);
+        // The comment section: header, then the comment items (each rendering the activity
+        // between it and its predecessor above its message) plus the trailing activity row
+        // when present, then the comment input.
+        (isCommentSectionVisible ? 1 + commentSectionListItemCount + 1 : 0);
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
@@ -2422,17 +2518,58 @@ export function TaskDetailView({
 
             index -= 1;
 
-            const commentsItemCount = comments.getItemCount();
+            if (index < commentSectionListItemCount) {
+                const timelineRow = getTaskDetailTimelineVirtualRow({
+                    comments,
+                    layout: commentSectionLayout,
+                    rowIndex: index,
+                });
 
-            if (index < commentsItemCount) {
-                const item = comments.getItem(index);
+                if (timelineRow.type === "TailActivity") {
+                    return {
+                        key: "TaskActivityFeedTailRun",
+                        // The floor of a run: one activity row plus the run's vertical padding.
+                        minHeight: convertRemLengthToPx("7", spacingScale),
+                        node: (
+                            <Box display="flex" justifyContent="center">
+                                <Box
+                                    width="full"
+                                    maxWidth={contentStyles.contentMaxWidth}
+                                    paddingX={screenPaddingX}
+                                >
+                                    <TaskDetailTimelineActivityRun
+                                        activityFeedItems={activityFeedItems}
+                                        afterTime={assertExists(tailActivity).afterTime}
+                                        untilTime={null}
+                                        taskNoun={taskEntityNoun}
+                                    />
+                                </Box>
+                            </Box>
+                        ),
+                        // Always render the task comment input once the comment section is visible.
+                        renderAdditionalItemIndexes: [itemCount - 1],
+                    };
+                }
+
+                const {commentItemIndex, item} = timelineRow;
+                const commentActivityNode =
+                    timelineRow.type === "Comment" && timelineRow.activity !== null ? (
+                        <Box width="full" paddingX={screenPaddingX}>
+                            <TaskDetailTimelineActivityRun
+                                activityFeedItems={activityFeedItems}
+                                afterTime={timelineRow.activity.afterTime}
+                                untilTime={timelineRow.activity.untilTime}
+                                taskNoun={taskEntityNoun}
+                            />
+                        </Box>
+                    ) : null;
 
                 const renderedItem = renderMessageListItem<TaskId, TaskCommentModel>({
                     spacingScale,
                     messageNoun: "comment",
                     messages: comments,
                     groupKey: null,
-                    index,
+                    index: commentItemIndex,
                     item,
                     fileAttachmentTarget: commentsFileAttachmentTarget,
                     randomSeedForShimmer: possiblyGhostTaskId,
@@ -2448,6 +2585,7 @@ export function TaskDetailView({
                               ]!
                             : null,
                     onJumpToMessageRange: jumpToCommentRange,
+                    isReadOnly: !hasCommentAccessLevel,
                     onReplyToMessage: message => {
                         setCommentInputParent({
                             type: "Message",
@@ -2470,8 +2608,9 @@ export function TaskDetailView({
                     onUpdateMessagesOptimistically: handleUpdateCommentsOptimistically,
                     onPutMessageApprovalDecisions: handlePutCommentApprovalDecisions,
                     approvalSessionNoun: "task",
-                    shouldAddMarginTop: index === 0 ? postContentViewCommentMargin : false,
-                    shouldAddMarginBottom: index === commentsItemCount - 1,
+                    shouldAddMarginTop:
+                        commentItemIndex === 0 ? postContentViewCommentMargin : false,
+                    shouldAddMarginBottom: commentItemIndex === comments.getItemCount() - 1,
                     render: node => (
                         <div
                             className={sprinkles({
@@ -2485,6 +2624,7 @@ export function TaskDetailView({
                                     maxWidth: contentStyles.contentMaxWidth,
                                 })}
                             >
+                                {commentActivityNode}
                                 {node}
                             </div>
                         </div>
@@ -2502,7 +2642,7 @@ export function TaskDetailView({
                 };
             }
 
-            index -= commentsItemCount;
+            index -= commentSectionListItemCount;
 
             if (index === 0) {
                 // This is defined out here so that it doesn't re-rerender every time the
@@ -2510,6 +2650,8 @@ export function TaskDetailView({
                 const inputNode = (
                     <TaskCommentInput
                         isGhostTask={!taskSubscription}
+                        isDisabled={!hasCommentAccessLevel}
+                        taskNoun={taskEntityNoun}
                         taskId={possiblyGhostTaskId}
                         inputRef={commentInputRef}
                         procedures={procedures}
@@ -2539,7 +2681,7 @@ export function TaskDetailView({
                         viewHeight,
                     }) => {
                         const headerPosition = getPositionByIndex(
-                            itemCount - 1 - commentsItemCount - 1,
+                            itemCount - 1 - commentSectionListItemCount - 1,
                         );
 
                         const headerOffsetEnd = headerPosition.offset + headerPosition.height;
@@ -2607,6 +2749,11 @@ export function TaskDetailView({
             isWideProjectLayout,
             isCommentSectionVisible,
             comments,
+            commentSectionListItemCount,
+            commentSectionLayout,
+            activityFeedItems,
+            tailActivity,
+            taskEntityNoun,
             spacingScale,
             possiblyGhostTaskId,
             store,
@@ -2634,6 +2781,7 @@ export function TaskDetailView({
             renderChildrenGridViewItem,
             platform,
             commentInputParent,
+            hasCommentAccessLevel,
             itemCount,
             commentsFileAttachmentTarget,
             commentEditing,

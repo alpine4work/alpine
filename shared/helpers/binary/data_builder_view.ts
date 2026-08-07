@@ -1,4 +1,5 @@
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Shared interface between `DataView` and `DataBuilderView`.
@@ -60,7 +61,7 @@ export class DataBuilderView implements DataViewInterface {
             throw new RangeError("Offset is outside the bounds of the DataView");
         }
 
-        return this.#bytes[byteIndex]!;
+        return assertExists(this.#bytes[byteIndex]);
     }
 
     setUint8(byteOffset: number, value: number): void {
@@ -101,7 +102,7 @@ export class DataBuilderView implements DataViewInterface {
         let value = 0n;
         for (let i = 0; i < 8; i++) {
             const nextByteIndex = byteIndex + (littleEndian ? 7 - i : i);
-            value = (value << 8n) | BigInt(this.#bytes[nextByteIndex]!);
+            value = (value << 8n) | BigInt(assertExists(this.#bytes[nextByteIndex]));
         }
         return value;
     }

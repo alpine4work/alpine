@@ -14980,7 +14980,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "schema": {
                                                                                                         "type": "Reference",
                                                                                                         "reuseReferenceId": "07a4a621"
-                                                                                                    }
+                                                                                                    },
+                                                                                                    "referenceId": "024482fb"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }
@@ -15502,7 +15503,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 "Medium",
                                                                                                 "High",
                                                                                                 "Urgent"
-                                                                                            ]
+                                                                                            ],
+                                                                                            "referenceId": "96d1c541"
                                                                                         }
                                                                                     },
                                                                                     "optional": false
@@ -15940,6 +15942,744 @@ export const dynamoGeneratedSchemaDescription: {
                     }
                 }
             ]
+        },
+        "TaskActivity": {
+            "name": "TaskActivity",
+            "partitionByType": {
+                "Task": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "spaceId": {
+                            "type": "Id"
+                        },
+                        "taskId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "ActivityEntry": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "activityEntryId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "actor": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "accountId": {
+                                                        "valueSchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "from": {
+                                                        "valueSchema": {
+                                                            "type": "Reference",
+                                                            "reuseReferenceId": "024482fb"
+                                                        },
+                                                        "optional": true
+                                                    }
+                                                },
+                                                "referenceId": "acf9e903"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "changes": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Union",
+                                                "typeKey": "type",
+                                                "variantSchemaByTypeValue": {
+                                                    "TaskCreated": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "actionTime": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "TaskCreated"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "TaskDeletionUpdated": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "actionTime": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "TaskDeletionUpdated"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "previousIsDeleted": {
+                                                                "valueSchema": {
+                                                                    "type": "Boolean"
+                                                                },
+                                                                "optional": true
+                                                            },
+                                                            "isDeleted": {
+                                                                "valueSchema": {
+                                                                    "type": "Boolean"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "TaskStatusUpdated": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "actionTime": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "TaskStatusUpdated"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "previousStatusType": {
+                                                                "valueSchema": {
+                                                                    "type": "Enum",
+                                                                    "values": [
+                                                                        "OpenInactive",
+                                                                        "OpenActive",
+                                                                        "Closed"
+                                                                    ]
+                                                                },
+                                                                "optional": true
+                                                            },
+                                                            "statusType": {
+                                                                "valueSchema": {
+                                                                    "type": "Enum",
+                                                                    "values": [
+                                                                        "OpenInactive",
+                                                                        "OpenActive",
+                                                                        "Closed"
+                                                                    ]
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "TaskDueDateUpdated": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "actionTime": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "TaskDueDateUpdated"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "previousDueDate": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "String"
+                                                                    }
+                                                                },
+                                                                "optional": true
+                                                            },
+                                                            "dueDate": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "String"
+                                                                    }
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "TaskPriorityUpdated": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "actionTime": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "TaskPriorityUpdated"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "previousPriority": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "Reference",
+                                                                        "reuseReferenceId": "96d1c541"
+                                                                    }
+                                                                },
+                                                                "optional": true
+                                                            },
+                                                            "priority": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "Reference",
+                                                                        "reuseReferenceId": "96d1c541"
+                                                                    }
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "TaskParentUpdated": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "actionTime": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "TaskParentUpdated"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "previousParentTaskId": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "Id"
+                                                                    }
+                                                                },
+                                                                "optional": true
+                                                            },
+                                                            "parentTaskId": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "Id"
+                                                                    }
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "TaskCollectionMembershipUpdated": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "actionTime": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "TaskCollectionMembershipUpdated"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "collectionId": {
+                                                                "valueSchema": {
+                                                                    "type": "Id"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "previousIsMember": {
+                                                                "valueSchema": {
+                                                                    "type": "Boolean"
+                                                                },
+                                                                "optional": true
+                                                            },
+                                                            "isMember": {
+                                                                "valueSchema": {
+                                                                    "type": "Boolean"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "TaskLayoutUpdated": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "actionTime": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "TaskLayoutUpdated"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "previousLayout": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "Reference",
+                                                                        "reuseReferenceId": "cb073e6d"
+                                                                    }
+                                                                },
+                                                                "optional": true
+                                                            },
+                                                            "layout": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "Reference",
+                                                                        "reuseReferenceId": "cb073e6d"
+                                                                    }
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "TaskAssigneeUpdated": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "actionTime": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "TaskAssigneeUpdated"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "previousAssigneeId": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "Id"
+                                                                    }
+                                                                },
+                                                                "optional": true
+                                                            },
+                                                            "assigneeId": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "Id"
+                                                                    }
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "NotesWindowChunks": {
+                            "id": 1,
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "chunkNumber": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "sealedTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "baseTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "actors": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "accountId": {
+                                                        "valueSchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "fromBotAccountId": {
+                                                        "valueSchema": {
+                                                            "type": "Nullable",
+                                                            "schema": {
+                                                                "type": "Id"
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "windows": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Bytes"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "TitleWindowChunks": {
+                            "id": 2,
+                            "orderKey": "a2",
+                            "sortKeyAttributeByKey": {
+                                "chunkNumber": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "sealedTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "baseTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "actors": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "accountId": {
+                                                        "valueSchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "fromBotAccountId": {
+                                                        "valueSchema": {
+                                                            "type": "Nullable",
+                                                            "schema": {
+                                                                "type": "Id"
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "windows": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Bytes"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "WindowSnapshot": {
+                            "id": 3,
+                            "orderKey": "a3",
+                            "sortKeyAttributeByKey": {
+                                "activityEntryId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "content": {
+                                        "valueSchema": {
+                                            "type": "Union",
+                                            "typeKey": "type",
+                                            "variantSchemaByTypeValue": {
+                                                "Title": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Title"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "startTitleText": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "String"
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "Notes": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Notes"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "startContentHash": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "String"
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "actors": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Nullable",
+                                                "schema": {
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "acf9e903"
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                },
+                "ProcessedSource": {
+                    "id": 1,
+                    "partitionKeyAttributeByKey": {
+                        "idempotencyKey": {
+                            "type": "LabelString"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Marker": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "taskId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "processedTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                },
+                "Realtime": {
+                    "id": 2,
+                    "partitionKeyAttributeByKey": {
+                        "realtimeKey": {
+                            "type": "LabelString"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Events": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "eventTime": {
+                                    "type": "Date"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "events": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "9171272b"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                },
+                "Graveyard": {
+                    "id": 3,
+                    "partitionKeyAttributeByKey": {
+                        "deletedPartitionKey": {
+                            "type": "LabelString"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Gravestone": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "deletedSortKey": {
+                                    "type": "LabelString"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                }
+            },
+            "indexes": []
         },
         "Tasks": {
             "name": "Tasks",
@@ -17194,6 +17934,12 @@ export const dynamoGeneratedSchemaDescription: {
                                             }
                                         },
                                         "optional": false
+                                    },
+                                    "contentHash": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
                                     },
                                     "stepCountByAccountId": {
                                         "valueSchema": {

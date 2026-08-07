@@ -44,7 +44,7 @@ import {getNotificationMessageContentSnippet} from "~/server/notifications/core/
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
-import {getAccount} from "~/server/spaces/get_account.js";
+import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
@@ -146,7 +146,7 @@ export async function getTaskComment(
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
 ): Promise<TaskCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
-        authorizeTaskAccess(context, taskId, "Comment"),
+        authorizeTaskAccess(context, taskId, "View"),
         getTaskCommentItemIfExists(context, taskId, commentIndex),
     ]);
 
@@ -200,7 +200,7 @@ export async function getTaskCommentPayload(
     },
 ): Promise<MessageItem & {spaceId: SpaceId}> {
     const [{spaceId}, item] = await runAllPromises([
-        authorizeTaskAccess(context, taskId, "Comment", null, {consistency}),
+        authorizeTaskAccess(context, taskId, "View", null, {consistency}),
         getTaskCommentItemIfExists(context, taskId, commentIndex, {consistency}),
     ]);
 
@@ -225,7 +225,7 @@ export async function getTaskCommentMessageApprovals(
     approvals: ReadonlyArray<MessageExperimentalApproval>;
 }> {
     const [{spaceId}, commentItem] = await runAllPromises([
-        authorizeTaskAccess(context, taskId, "Comment", null, {
+        authorizeTaskAccess(context, taskId, "View", null, {
             consistency,
         }),
         // NOTE(ifitzsimmons, 2026-07-06): We decided to fetch the entire comment item (a
@@ -358,7 +358,7 @@ export async function backfillTaskComments(
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
         taskId,
-        "Comment",
+        "View",
     );
     const [{commentsSummaryItem}, {comments, otherReferencedComments}, commentUpdatesResult] =
         await runAllPromises([
@@ -429,7 +429,7 @@ export async function getTaskCommentsFromStart(
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
         taskId,
-        "Comment",
+        "View",
     );
 
     const [{commentsSummaryItem}, {comments, otherReferencedComments}] = await runAllPromises([
@@ -477,7 +477,7 @@ export async function getTaskCommentsFromEnd(
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
         taskId,
-        "Comment",
+        "View",
     );
 
     const [{commentsSummaryItem}, {comments, otherReferencedComments}] = await runAllPromises([
@@ -536,7 +536,7 @@ export async function getTaskCommentPayloadsFromStart(
     );
 
     const [{item: taskItem, commentsSummaryItem}, commentItems] = await runAllPromises([
-        authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment", {consistency}),
+        authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "View", {consistency}),
         arrayFromAsyncIterable(
             runCommentsQuery(context, {
                 cache: TaskCommentItemContextCache,
@@ -594,7 +594,7 @@ export async function getTaskCommentPayloadsFromEnd(
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
         taskId,
-        "Comment",
+        "View",
         {consistency},
     );
 
@@ -753,7 +753,7 @@ export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
 
     const commentAuthorizationResultPromise = authorizationPromiseResolver.promise.then(
         async ({item}) => {
-            const result = await authorizeTaskItemAccessIfPossible(context, item, "Comment", {
+            const result = await authorizeTaskItemAccessIfPossible(context, item, "View", {
                 getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
                 getCollectionItem: collectionId =>
                     getTaskCollectionItemForAuthorization(context, collectionId, null),
@@ -1476,7 +1476,7 @@ export async function createTaskCommentModelFromItem(
     item: MessageItem,
 ): Promise<TaskCommentModel> {
     const [author, payload] = await runAllPromises([
-        getAccount(context, spaceId, item.authorId),
+        getAccountOrDangerouslyGetStubWithoutAuthorization(context, spaceId, item.authorId),
         createMessagePayloadModel(
             context,
             spaceId,

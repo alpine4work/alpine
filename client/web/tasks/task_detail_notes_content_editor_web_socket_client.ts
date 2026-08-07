@@ -13,6 +13,7 @@ import {
     WebSocketClientState,
 } from "~/client/web/web_socket/web_socket_client.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {UnavailableError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -23,6 +24,7 @@ import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_prot
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {TaskActivityModel} from "~/shared/tasks/task_activity.js";
 import {taskNotesBackfillFutureVersionErrorMessage} from "~/shared/tasks/task_error_messages.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
@@ -273,6 +275,11 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                 case "Comments": {
                     break;
                 }
+                // The activity feed subscribes to these itself (see `useTaskActivityFeed()`); the
+                // notes editor has no use for them.
+                case "TaskActivity": {
+                    break;
+                }
                 case "PersistedContent": {
                     this._dispatch({type: "Persisted", newVersion: event.newVersion});
                     break;
@@ -380,6 +387,23 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         return this._client.subscribeToEvents(event => {
             if (event.type === "Comments") {
                 subscriber(event.event);
+            }
+        });
+    }
+
+    /**
+     * Subscribe to the task's activity events.
+     *
+     * Being connected to this durable object is the whole subscription — there's no
+     * opt-in procedure to await — so `webSocketState.isConnected` is also the right
+     * signal for when it's safe to run an activity backfill.
+     */
+    public subscribeToTaskActivityEvents(
+        subscriber: (events: ReadonlyArray<RynamoEvent<TaskActivityModel>>) => void,
+    ) {
+        return this._client.subscribeToEvents(event => {
+            if (event.type === "TaskActivity") {
+                subscriber(event.events);
             }
         });
     }

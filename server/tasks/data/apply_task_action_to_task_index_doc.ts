@@ -62,11 +62,7 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
             }
 
             const mergedCreator = mergeTaskSortableAccounts(
-                {
-                    accountId: task.creator.accountId,
-                    workingAccountName: task.creator.workingAccountName,
-                    workingAccountNameVersion: task.creator.workingAccountNameVersion,
-                },
+                task.creator,
                 getActionReferencedSortableAccount(action.creator.accountId),
             );
 

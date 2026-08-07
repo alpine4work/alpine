@@ -77,7 +77,12 @@ async function testQueryTaskIndex(
     });
 
     return tasks.map(
-        ({lastIndexSearchEntityJob, approximateActionCountByAccountId, ...task}) => task,
+        ({
+            lastIndexSearchEntityJob,
+            approximateActionCountByAccountId,
+            titleIndexVersion,
+            ...task
+        }) => task,
     );
 }
 
@@ -3929,6 +3934,7 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
                     "version",
                     "lastIndexSearchEntityJob",
                     "approximateActionCountByAccountId",
+                    "titleIndexVersion",
                 ]),
             ),
         ]),
@@ -3945,6 +3951,7 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
                     "version",
                     "lastIndexSearchEntityJob",
                     "approximateActionCountByAccountId",
+                    "titleIndexVersion",
                 ]),
             )
             .then(task => ({
@@ -3971,6 +3978,7 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
                     "version",
                     "lastIndexSearchEntityJob",
                     "approximateActionCountByAccountId",
+                    "titleIndexVersion",
                 ]),
             ),
             getTaskIndexDocIfExistsForTest(context, space.id, task2.id)
@@ -3979,6 +3987,7 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
                         "version",
                         "lastIndexSearchEntityJob",
                         "approximateActionCountByAccountId",
+                        "titleIndexVersion",
                     ]),
                 )
                 .then(task => ({
@@ -3990,6 +3999,7 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
                     "version",
                     "lastIndexSearchEntityJob",
                     "approximateActionCountByAccountId",
+                    "titleIndexVersion",
                 ]),
             ),
         ]),

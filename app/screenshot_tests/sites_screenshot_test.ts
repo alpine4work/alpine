@@ -514,6 +514,7 @@ async function createH2PlanningSite(runner: ScreenshotTestRunner, accounts: Demo
 
     // Depth-0 entry at the very top — depth-0 rows should never render a line slot.
     const okrsTask = await TestTask.create(accounts.cassCade, {
+        time: [new Date("2025-10-15T15:13:00-04:00").getTime(), 0],
         title: "Lock the OKRs",
         assignee: accounts.cassCade,
         priority: "High",

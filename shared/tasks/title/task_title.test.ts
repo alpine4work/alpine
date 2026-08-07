@@ -13,6 +13,7 @@ import {
     addFallbackToTaskTitle,
     applyTaskTitleUpdate,
     createTaskTitleFromText,
+    createTaskTitleRetypeUpdateForTest,
     emptyTaskTitle,
     emptyTaskTitleModel,
     generateTaskTitleClientIdFromRealmId,
@@ -22,6 +23,7 @@ import {
     getTaskTitleText,
     isTaskTitle,
     mergeTaskTitleUpdates,
+    randomlyGenerateTaskTitleClientId,
     taskTitleMaxLength,
 } from "~/shared/tasks/title/task_title.js";
 
@@ -3456,4 +3458,13 @@ test("shuffling task title client IDs rarely conflicts and always produces u32s"
         hasAtMostOneConflict: true,
         invalidClientIds: [],
     });
+});
+
+test("a retype update edits an existing title in place", () => {
+    const clientId = randomlyGenerateTaskTitleClientId();
+    const title = createTaskTitleFromText(clientId, "hello");
+
+    const renameUpdate = createTaskTitleRetypeUpdateForTest(title, clientId, "Hello");
+
+    expect(getTaskTitleText(applyTaskTitleUpdate(title, renameUpdate))).toEqual("Hello");
 });

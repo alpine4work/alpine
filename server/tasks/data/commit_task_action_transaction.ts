@@ -78,6 +78,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
@@ -149,6 +150,12 @@ export function commitTaskActionTransaction(
         extraTransactionEntries?: Array<DynamoTransactionEntry>;
         consistency?: DynamoCacheReadConsistency;
         waitForProcessing?: boolean;
+        /**
+         * Backdates the transaction's `committedTime` so tests can author histories a
+         * known distance from a fixed time. Mirrors `overrideUpdatedTimeForTest` on
+         * `updateTaskNotesContent()`.
+         */
+        overrideCommittedTimeForTest?: Date;
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;
@@ -389,6 +396,7 @@ class TaskActionTransactionCommitState {
     private readonly _spaceId: SpaceId;
     private readonly _leaseId: TaskActionTransactionLeaseId | null;
     private readonly _providedActorIdFromBot: AccountId;
+    private readonly _overrideCommittedTimeForTest: Date | null;
     private _startTime = Date.now();
 
     // We may only have one DynamoDB transaction entry for each item. So we need to
@@ -451,11 +459,13 @@ class TaskActionTransactionCommitState {
             leaseId,
             providedActorIdFromBot,
             consistency = "Eventual",
+            overrideCommittedTimeForTest,
         }: {
             spaceId: SpaceId;
             leaseId: TaskActionTransactionLeaseId | null;
             providedActorIdFromBot: AccountId;
             consistency?: DynamoCacheReadConsistency;
+            overrideCommittedTimeForTest?: Date;
         },
     ) {
         this._context = context;
@@ -463,6 +473,7 @@ class TaskActionTransactionCommitState {
         this._leaseId = leaseId;
         this._providedActorIdFromBot = providedActorIdFromBot;
         this._consistency = consistency;
+        this._overrideCommittedTimeForTest = overrideCommittedTimeForTest ?? null;
     }
 
     public static commit(
@@ -476,6 +487,7 @@ class TaskActionTransactionCommitState {
             createLeaseIfLostAccess,
             extraTransactionEntries,
             consistency,
+            overrideCommittedTimeForTest,
         }: {
             clientId?: TaskRealtimeClientId | null;
             actorId?: AccountId;
@@ -486,6 +498,7 @@ class TaskActionTransactionCommitState {
             };
             extraTransactionEntries?: Array<DynamoTransactionEntry>;
             consistency?: DynamoCacheReadConsistency;
+            overrideCommittedTimeForTest?: Date;
         },
     ): Promise<{
         actionTransactionItem: TaskActionTransactionItem;
@@ -538,11 +551,16 @@ class TaskActionTransactionCommitState {
                 }
             }
 
+            if (overrideCommittedTimeForTest) {
+                assert(isTestNodeEnvOrAdminScenariosScript);
+            }
+
             const state = new TaskActionTransactionCommitState(context, {
                 spaceId,
                 leaseId,
                 providedActorIdFromBot,
                 consistency,
+                overrideCommittedTimeForTest,
             });
             await state._prepareCommit(actions);
 
@@ -776,7 +794,7 @@ class TaskActionTransactionCommitState {
             partitionType: "TaskActions",
             sortRangeType: "ActionTransaction",
             spaceId: this._spaceId,
-            committedTime: new Date(),
+            committedTime: this._overrideCommittedTimeForTest ?? new Date(),
             actionTransactionId: generateId<TaskActionTransactionId>(),
             actions: [...actions, ...extraActions],
             wasProcessed: false,

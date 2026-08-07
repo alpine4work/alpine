@@ -17,12 +17,14 @@ import {
     BrowserId,
     FileId,
     SpaceId,
+    TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {
     SendWebPushNotificationOptionsSchema,
     WebPushNotificationContentSchema,
 } from "~/shared/notifications/web_push_notification_content.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {TaskCreatorSchema} from "~/shared/tasks/task_creator.js";
 
 /**
  * An object representing a background job. Jobs allow you to perform work without
@@ -209,6 +211,30 @@ const SendPendingSubtleNotificationsForInboxJobDescriptionSchema = Schema.object
     sendTime: Schema.date,
 });
 
+export type ProcessTaskNotesActivityJobDescription = SchemaType<
+    typeof ProcessTaskNotesActivityJobDescriptionSchema
+>;
+
+const ProcessTaskNotesActivityJobDescriptionSchema = Schema.object({
+    type: Schema.value("ProcessTaskNotesActivity"),
+    spaceId: Schema.id<SpaceId>(),
+    taskId: Schema.id<TaskId>(),
+    /**
+     * First ProseMirror version represented by the persisted notes step transaction.
+     */
+    startVersion: Schema.integer.min(0),
+    /** Version after applying the step transaction's steps. */
+    endVersion: Schema.integer.min(0),
+    /** When the step transaction was committed. */
+    createdTime: Schema.date,
+    /** The responsible actor with bot provenance, or null for a system update. */
+    actor: TaskCreatorSchema.nullable(),
+    /** Hash of the notes content before the steps were applied. */
+    beforeContentHash: Schema.string,
+    /** Hash of the notes content after the steps were applied. */
+    afterContentHash: Schema.string,
+});
+
 export type SendPendingSubtleNotificationsForInboxJobDescription = SchemaType<
     typeof SendPendingSubtleNotificationsForInboxJobDescriptionSchema
 >;
@@ -231,4 +257,5 @@ export const JobDescriptionSchema = Schema.union({
     SendPendingSubtleNotificationsForInbox:
         SendPendingSubtleNotificationsForInboxJobDescriptionSchema,
     SendNotificationToSlackIntegration: SendNotificationToSlackIntegrationJobDescriptionSchema,
+    ProcessTaskNotesActivity: ProcessTaskNotesActivityJobDescriptionSchema,
 });

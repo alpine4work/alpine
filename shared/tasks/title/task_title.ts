@@ -459,6 +459,36 @@ export function createTaskTitleFromText(clientId: TaskTitleClientId, titleText: 
 }
 
 /**
+ * A Yjs update against an existing title that deletes the current text and retypes
+ * `titleText` — a real edit for tests that need one against prior state, e.g.
+ * reverted-window scenarios.
+ */
+export function createTaskTitleRetypeUpdateForTest(
+    title: TaskTitle,
+    clientId: TaskTitleClientId,
+    titleText: string,
+): TaskTitleUpdate {
+    assert(import.meta.jest);
+
+    const doc = createDoc(clientId);
+    Y.applyUpdateV2(doc, assertExists(title));
+    const beforeStateVector = Y.encodeStateVector(doc);
+
+    const prosemirrorNode = TaskTitleProsemirrorSchema.node(
+        "doc",
+        {},
+        titleText.length > 0 ? [TaskTitleProsemirrorSchema.text(titleText)] : [],
+    );
+    doc.transact(() => {
+        const fragment = doc.getXmlFragment("doc");
+        fragment.delete(0, fragment.length);
+        prosemirrorToYXmlFragment(prosemirrorNode, fragment);
+    });
+
+    return Y.encodeStateAsUpdateV2(doc, beforeStateVector) as TaskTitleUpdate;
+}
+
+/**
  * A Yjs update to a `TaskTitle`.
  */
 export type TaskTitleUpdate = Uint8Array & {readonly _TaskTitleUpdate: never};

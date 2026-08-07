@@ -474,6 +474,7 @@ last open design question is how column resizing should feel.
     });
 
     const task = await TestTask.create(cassCade, {
+        time: [new Date("2025-10-07T10:19:00-04:00").getTime(), 0],
         // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
         // makes sure the reaction party on any messages is stable across renders.
         id: unsafelyGenerateStableId<TaskId>(runner.stableRandom, "task"),

@@ -19,6 +19,7 @@ import {
     processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
 } from "~/server/search/data/index/search_entity_index.js";
+import {processTaskNotesActivityJob} from "~/server/tasks/data/process_task_notes_activity_job.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
@@ -82,6 +83,10 @@ export async function processJob(
         }
         case "SendNotificationToSlackIntegration": {
             await processSendNotificationToSlackIntegrationJob(context, job);
+            return;
+        }
+        case "ProcessTaskNotesActivity": {
+            await processTaskNotesActivityJob(context, job);
             return;
         }
         default:

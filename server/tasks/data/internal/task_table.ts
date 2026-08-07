@@ -646,6 +646,15 @@ const TaskTable = DynamoTableSchema.new({
                         content: TaskNotesContentSchema,
 
                         /**
+                         * Hash of `content` (see `getTaskNotesContentHash()`), maintained on every content
+                         * write so the activity pipeline reads the BEFORE hash of an update from the item
+                         * instead of re-serializing and re-hashing the whole previous document on the hot
+                         * path. Optional: items written before this attribute existed recompute it once on
+                         * their next update.
+                         */
+                        contentHash: Schema.string.optional(),
+
+                        /**
                          * Keep track of the number of steps contributed by various `AccountId`s after
                          * `version` 0. Excluding steps contributed by `creatorId`. You can compute
                          * `creatorId`'s `stepCount` by adding all step counts in this map then subtracting

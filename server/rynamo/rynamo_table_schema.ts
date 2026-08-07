@@ -1613,8 +1613,11 @@ export class RynamoTableSchema<
      * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
      * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      */
-    transactionCreateItem<Item extends Types["Item"]>(item: Item): RynamoTransactionEntry {
-        return this.transactionCreateItemWithEvent(item).transactionEntry;
+    transactionCreateItem<Item extends Types["Item"]>(
+        item: Item,
+        options?: {isConditionCheckErrorRetriable?: boolean},
+    ): RynamoTransactionEntry {
+        return this.transactionCreateItemWithEvent(item, options).transactionEntry;
     }
 
     /**
@@ -1630,6 +1633,7 @@ export class RynamoTableSchema<
      */
     transactionCreateItemWithEvent<const Item extends Types["Item"]>(
         item: Item,
+        options?: {isConditionCheckErrorRetriable?: boolean},
     ): {
         transactionEntry: RynamoTransactionEntry;
         getEvent: (
@@ -1676,14 +1680,14 @@ export class RynamoTableSchema<
 
         if (transactionEntries.length === 0) {
             transactionEntry = new RynamoTransactionEntryInternal({
-                entry: this.#table.transactionCreateItem(item),
+                entry: this.#table.transactionCreateItem(item, options),
                 schema: this,
                 action,
             });
         } else {
             transactionEntry = new RynamoTransactionEntryInternal({
                 entry: assertNonEmptyReadonlyArray([
-                    this.#table.transactionCreateItem(item),
+                    this.#table.transactionCreateItem(item, options),
                     ...transactionEntries,
                 ]),
                 schema: this,

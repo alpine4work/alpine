@@ -471,7 +471,7 @@ export type TaskIndexDoc = MergeObjectIntersection<
         readonly id: TaskId;
     } & Omit<
         OpensearchIndexTypeType<typeof TaskIndexDocType>,
-        "lastIndexSearchEntityJob" | "approximateActionCountByAccountId"
+        "lastIndexSearchEntityJob" | "approximateActionCountByAccountId" | "titleIndexVersion"
     > & {
             // This type is used throughout `TaskRealtimeService` to represent a task. It
             // should not include bookkeeping properties from OpenSearch that won't be updated
@@ -479,6 +479,7 @@ export type TaskIndexDoc = MergeObjectIntersection<
             readonly version?: undefined;
             readonly lastIndexSearchEntityJob?: undefined;
             readonly approximateActionCountByAccountId?: undefined;
+            readonly titleIndexVersion?: undefined;
         }
 >;
 
@@ -493,7 +494,7 @@ export type TaskIndexActualDoc = OpensearchIndexTypeType<typeof TaskIndexDocType
  */
 export type TaskIndexDocBase = Omit<
     TaskIndexActualDoc,
-    "lastIndexSearchEntityJob" | "approximateActionCountByAccountId"
+    "lastIndexSearchEntityJob" | "approximateActionCountByAccountId" | "titleIndexVersion"
 >;
 
 assertAssignableTypes<TaskIndexDoc, TaskIndexDocBase>();
@@ -642,6 +643,19 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             .default(new TaskAssigneePositionRegister(null, zeroHybridLogicalTime)),
 
         title: TaskIndexTitleType,
+
+        /**
+         * Counts the effective title updates ever applied to this doc. Advanced only by
+         * the winning index write of an update that changed the title text (replays apply
+         * as identity noops), so it gives task activity a total order over title updates
+         * without a separate update log. Not part of the realtime in-memory doc — only
+         * indexing maintains it.
+         */
+        // NOTE(ifitzsimmons, 2026-07-30): There is no per-version title text stored
+        // anywhere. These versions exist to ORDER out-of-order absorbs and identify
+        // windows, not for text lookup. This is primarily used for grouping title updates
+        // into windows in the TaskActivityTable.
+        titleIndexVersion: new OpensearchIndexIntegerType().default(0),
         dueDate: TaskIndexDueDateType,
         priority: TaskIndexPriorityType,
 

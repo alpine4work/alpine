@@ -606,6 +606,7 @@ export class TaskRealtimeQuery {
         for (const {
             lastIndexSearchEntityJob,
             approximateActionCountByAccountId,
+            titleIndexVersion,
             ...loadedTask
         } of loadedTasks) {
             const {isFresh, taskEntry} = this.store.ensureTaskEntry(loadedTask);

@@ -30,6 +30,7 @@ import {
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {taskNotesBackfillFutureVersionErrorMessage} from "~/shared/tasks/task_error_messages.js";
 import {
+    TaskNotesCollaborationBroadcastTaskActivityRequestBodySchema,
     TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
     TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/tasks/task_notes_collaboration_protocol.js";
@@ -55,6 +56,17 @@ function createUpdateContentWithDiffRequest({version, text}: {version: number; t
                 content: [
                     schema.nodes.paragraph.create(null, text.length > 0 ? schema.text(text) : null),
                 ],
+            }),
+        ),
+    });
+}
+
+function createBroadcastTaskActivityRequest() {
+    return new Request("https://cyberworlds.local/broadcast-task-activity", {
+        method: "POST",
+        body: JSON.stringify(
+            TaskNotesCollaborationBroadcastTaskActivityRequestBodySchema.serialize({
+                events: [],
             }),
         ),
     });
@@ -918,6 +930,55 @@ describe("update-content-with-diff route", () => {
         // persistence of an unauthorized update.
         expect(connection1.isClosed()).toEqual(false);
         expect(connection1.takeEvents()).toEqual([]);
+    });
+});
+
+describe("broadcast-task-activity route", () => {
+    test("sends the activity event to every connection, whatever its access level", async () => {
+        const space = await TestSpace.create(context);
+        const editorSession = await space.createSession();
+        const viewerSession = await space.createSession();
+
+        const task = await TestTask.create(editorSession);
+        const collection = await TestTaskCollection.create(editorSession);
+        await collection.access.grantDefault(editorSession);
+        await task.addCollection(editorSession, collection);
+
+        // Two connections that can land on different access levels. Activity never carries
+        // anything narrower than view access, so both must get the same event.
+        const editorConnection = await connectForTest(context.action(editorSession), task.id);
+        const viewerConnection = await connectForTest(context.action(viewerSession), task.id);
+
+        expect(editorConnection.takeEvents()).toEqual([]);
+        expect(viewerConnection.takeEvents()).toEqual([]);
+
+        const response = await fetchForTest(
+            context.action(editorSession),
+            task.id,
+            createBroadcastTaskActivityRequest(),
+        );
+
+        expect(response.status).toBe(200);
+
+        const expectedEvents = [{type: "TaskActivity", events: []}];
+        expect(editorConnection.takeEvents()).toEqual(expectedEvents);
+        expect(viewerConnection.takeEvents()).toEqual(expectedEvents);
+    });
+
+    test("rejects a request that isn\u2019t a POST", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const task = await TestTask.create(session);
+
+        await connectForTest(context.action(session), task.id);
+
+        const response = await fetchForTest(
+            context.action(session),
+            task.id,
+            new Request("https://cyberworlds.local/broadcast-task-activity", {method: "GET"}),
+        );
+
+        expect(response.status).toBe(405);
     });
 });
 

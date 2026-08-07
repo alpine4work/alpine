@@ -1244,6 +1244,7 @@ export class TaskRealtimeStoreInternal {
                         version,
                         lastIndexSearchEntityJob,
                         approximateActionCountByAccountId,
+                        titleIndexVersion,
                         ...freshTask
                     } = task;
 

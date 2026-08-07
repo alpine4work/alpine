@@ -76,6 +76,7 @@ import {
 
 export type TaskNotesCollaborationEventStub =
     | (TaskNotesCollaborationEvent & {readonly type: "PersistedContent"})
+    | (TaskNotesCollaborationEvent & {readonly type: "TaskActivity"})
     | {
           readonly type: "UpdateNotesContentWithoutPersistence";
           readonly newVersion: number;
@@ -398,6 +399,12 @@ export class TaskNotesCollaborationConnection {
                 };
             }
             case "PersistedContent": {
+                return eventStub;
+            }
+            // Activity arrives fully formed from the writer (see
+            // `broadcastTaskActivityEvents()`) and is identical for every connection, so
+            // there's nothing to transform per connection.
+            case "TaskActivity": {
                 return eventStub;
             }
             default:

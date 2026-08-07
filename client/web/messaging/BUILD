@@ -3,6 +3,8 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "messaging",
     test_deps = [
+        "//:node_modules/@testing-library/react",
+        "//:node_modules/react-dom",
         "//shared/chat",
         "//shared/spaces/test_helpers",
     ],

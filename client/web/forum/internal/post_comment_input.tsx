@@ -1,4 +1,3 @@
-import {ArrowUp, Plus} from "phosphor-react";
 import {Step} from "prosemirror-transform";
 import {
     ComponentProps,
@@ -16,11 +15,11 @@ import {createAccessPolicyStore} from "~/client/web/access/create_access_policy_
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
-import {IconButton} from "~/client/web/design/icon_button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {PostListHeader} from "~/client/web/forum/post_list.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {DisabledMessageInput} from "~/client/web/messaging/disabled_message_input.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageInput, MessageInputRestoreState} from "~/client/web/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
@@ -35,23 +34,16 @@ import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     messageInputBottomBarBackgroundSlopBottom,
-    messageInputEditorBorderRadiusPx,
-    messageInputEditorIconButtonNegativeMarginX,
-    messageInputEditorIconButtonSize,
-    messageInputEditorMinHeightPx,
-    messageInputEditorPaddingX,
-    messageInputEditorPaddingYPx,
     messageInputMinHeightPx,
-    messageInputPaddingY,
 } from "~/client/web/styles/messaging_shared_styles.js";
-import {contentStyles, inputPlaceholderStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {inputPlaceholderStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {VirtualizedScrollViewRef} from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
@@ -469,126 +461,19 @@ function PostCommentDisabledInput(props: ComponentProps<typeof PostCommentInput>
                     isBottomBar && clientInfo.isNativeMobile ? true : undefined
                 }
             >
-                <Box width="full" maxWidth={contentStyles.contentMaxWidth} marginX="center">
-                    <Box
-                        paddingX={screenPaddingX}
-                        paddingY={messageInputPaddingY}
-                        marginX={messageInputEditorIconButtonNegativeMarginX}
-                    >
-                        <Box
-                            position="relative"
-                            zIndex="0"
-                            style={{
-                                minHeight: messageInputEditorMinHeightPx[platform][spacingScale],
-                                borderRadius:
-                                    messageInputEditorBorderRadiusPx[platform][spacingScale],
-                            }}
+                <DisabledMessageInput>
+                    Can&#x2019;t comment on posts in{" "}
+                    {platform === "mobile" ? (
+                        "this channel"
+                    ) : (
+                        <span
+                            className={sprinkles({color: "grey-50"})}
+                            style={{fontWeight: inputPlaceholderStyles.fontWeight + 100}}
                         >
-                            <Box
-                                pointerEvents="none"
-                                position="absolute"
-                                zIndex="10"
-                                inset="0"
-                                border="grey-10"
-                                style={{
-                                    borderRadius:
-                                        messageInputEditorBorderRadiusPx[platform][spacingScale],
-                                }}
-                            />
-                            <Box
-                                fontStyle="truncate"
-                                color="grey-40"
-                                style={{
-                                    ...contentStyles.paragraphFontSize,
-                                    fontWeight: inputPlaceholderStyles.fontWeight,
-                                    paddingTop:
-                                        messageInputEditorPaddingYPx[platform][spacingScale],
-                                    paddingBottom:
-                                        messageInputEditorPaddingYPx[platform][spacingScale],
-                                    paddingLeft: messageInputEditorPaddingX[platform],
-                                    paddingRight: messageInputEditorPaddingX[platform],
-                                }}
-                            >
-                                Can&#x2019;t comment on posts in{" "}
-                                {platform === "mobile" ? (
-                                    // There isn't enough space on mobile to consistently render the channel name. So
-                                    // on mobile only say "this channel". You should be able to see the channel name in
-                                    // the header always anyway.
-                                    "this channel"
-                                ) : (
-                                    <span
-                                        className={sprinkles({color: "grey-50"})}
-                                        style={{
-                                            fontWeight: inputPlaceholderStyles.fontWeight + 100,
-                                        }}
-                                    >
-                                        {post.channel.name}
-                                    </span>
-                                )}
-                            </Box>
-                            <Box
-                                pointerEvents="none"
-                                position="absolute"
-                                left="0"
-                                bottom="0"
-                                zIndex="20"
-                                display="flex"
-                                justifyContent="center"
-                                alignItems="center"
-                                style={{
-                                    width: messageInputEditorMinHeightPx[platform][spacingScale],
-                                    height: messageInputEditorMinHeightPx[platform][spacingScale],
-                                }}
-                            >
-                                <IconButton
-                                    size={messageInputEditorIconButtonSize}
-                                    description="Disabled"
-                                    withoutTooltip={true}
-                                    isDisabled={true}
-                                    isFocusable={false}
-                                >
-                                    <Plus />
-                                </IconButton>
-                            </Box>
-                            <Box
-                                pointerEvents="none"
-                                position="absolute"
-                                right="0"
-                                bottom="0"
-                                zIndex="20"
-                                display="flex"
-                                justifyContent="center"
-                                alignItems="center"
-                                style={{
-                                    width: messageInputEditorMinHeightPx[platform][spacingScale],
-                                    height: messageInputEditorMinHeightPx[platform][spacingScale],
-                                }}
-                            >
-                                <IconButton
-                                    size={messageInputEditorIconButtonSize}
-                                    variant="accent"
-                                    description="Disabled"
-                                    withoutTooltip={true}
-                                    isDisabled={true}
-                                    isFocusable={false}
-                                >
-                                    <ArrowUp
-                                        size={spacing["4"]}
-                                        style={{
-                                            // Optically, this icon looks...off in our iOS native mobile app. Presumably
-                                            // everywhere in Safari. If only we had a `clientInfo.isWebKit` test.
-                                            transform:
-                                                clientInfo.isNativeMobile &&
-                                                clientInfo.isAppleDevice
-                                                    ? "translateY(0.5px)"
-                                                    : undefined,
-                                        }}
-                                    />
-                                </IconButton>
-                            </Box>
-                        </Box>
-                    </Box>
-                </Box>
+                            {post.channel.name}
+                        </span>
+                    )}
+                </DisabledMessageInput>
             </Box>
         </Box>
     );

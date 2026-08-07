@@ -7,6 +7,11 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/content/message_content_schema.js";
+import {DynamoItemKeySchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    createRynamoBackfillResultSchema,
+    createRynamoQuerySchema,
+} from "~/shared/dynamo/rynamo_types.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     BrowserId,
@@ -37,6 +42,7 @@ import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema, TaskUpdateTaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {TaskActivityModelSchema} from "~/shared/tasks/task_activity.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskNotesContentSchema,
@@ -253,6 +259,18 @@ export const getTaskCommentsFromEnd = defineRpc({
     },
 });
 
+export const getTaskActivityEntries = defineRpc({
+    name: "getTaskActivityEntries",
+    isIdempotent: true,
+    input: {
+        taskId: Schema.id<TaskId>(),
+        afterItemKey: DynamoItemKeySchema.nullable(),
+    },
+    output: {
+        entriesResult: createRynamoQuerySchema(TaskActivityModelSchema),
+    },
+});
+
 export const createTaskComment = defineRpc({
     name: "createTaskComment",
     // Creates two comments if called twice.
@@ -358,6 +376,18 @@ export const backfillTaskComments = defineRpc({
         newComments: Schema.array(TaskCommentModel.schema()),
         newOtherReferencedComments: Schema.array(TaskCommentModel.schema()),
         commentUpdatesResult: createMessageUpdatesBackfillResultSchema(TaskCommentModel.schema()),
+    },
+});
+
+export const backfillTaskActivity = defineRpc({
+    name: "backfillTaskActivity",
+    isIdempotent: true,
+    input: {
+        taskId: Schema.id<TaskId>(),
+        checkpoint: ServerSynchronizationCheckpointSchema,
+    },
+    output: {
+        result: createRynamoBackfillResultSchema(TaskActivityModelSchema),
     },
 });
 

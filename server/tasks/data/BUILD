@@ -21,6 +21,8 @@ ts_project(
         },
         "task_table_test": {"size": "medium"},
         "task_messaging_test": {"size": "medium"},
+        "internal/apply_task_activity_window_update_test": {"size": "medium"},
+        "internal/process_task_activity_entries_by_task_id_test": {"size": "medium"},
         "task_index_permutations_test": {
             "size": "medium",
             # Give this test at least three CPUs. Two for OpenSearch, one for the test
@@ -82,12 +84,14 @@ ts_project(
         "//shared/context",
         "//shared/crdt",
         "//shared/design",
+        "//shared/dynamo",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
         "//shared/messaging",
         "//shared/reactions",
         "//shared/schema",
+        "//shared/spaces",
         "//shared/tasks",
     ],
 )

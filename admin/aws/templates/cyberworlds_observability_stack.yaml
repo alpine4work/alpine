@@ -1032,6 +1032,10 @@ Resources:
                           Type: double
                         - Name: dynamodb__consumed_capacity__task_actions__write_capacity_units
                           Type: double
+                        - Name: dynamodb__consumed_capacity__task_activity__read_capacity_units
+                          Type: double
+                        - Name: dynamodb__consumed_capacity__task_activity__write_capacity_units
+                          Type: double
                         - Name: dynamodb__consumed_capacity__tasks__read_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__tasks__write_capacity_units
@@ -1241,6 +1245,16 @@ Resources:
                         - Name: dynamodb__table__task_actions__partition_type
                           Type: string
                         - Name: dynamodb__table__task_actions__partition__task_actions__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__task_activity__partition_type
+                          Type: string
+                        - Name: dynamodb__table__task_activity__partition__task__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__task_activity__partition__processed_source__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__task_activity__partition__realtime__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__task_activity__partition__graveyard__sort_range_type
                           Type: string
                         - Name: dynamodb__table__tasks__partition_type
                           Type: string

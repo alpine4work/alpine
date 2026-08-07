@@ -16,6 +16,7 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
 import {UnknownError} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
@@ -31,6 +32,8 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskActivityModel} from "~/shared/tasks/task_activity.js";
+import {TaskNotesCollaborationBroadcastTaskActivityRequestBodySchema} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
     TaskRealtimeGetCollectionOutputSchema,
@@ -169,6 +172,47 @@ export class TaskContextModule extends TaskContextModuleBase {
                 );
             },
         );
+    }
+
+    /**
+     * Tells the task's `TaskNotesCollaborationService` durable object that an activity
+     * item changed, so sockets currently viewing the task apply the event live.
+     * Loading is separate: the detail view queries via `getTaskActivityEntries`; this
+     * is the push half, the same pattern task comments and doc updates use.
+     *
+     * The durable object is the task detail view's existing 1:1 realtime connection,
+     * so being connected to it IS the activity subscription — there's no per-task
+     * bookkeeping and no opt-in flag. It also scales horizontally, unlike
+     * `TaskRealtimeService`, which would otherwise do this work on every notes update.
+     *
+     * Best-effort by design: `broadcastToDurableObject()` drops the request when no
+     * durable object is live, which is exactly right here — nobody is watching the
+     * task, and the entries are already committed for the next reader to query.
+     */
+    public override broadcastTaskActivityEvents(
+        this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
+        {
+            taskId,
+            events,
+        }: {
+            taskId: TaskId;
+            // The full client model union — entry AND window chunk events flow through here
+            // (see `TaskActivityTable.broadcastEvents`).
+            events: ReadonlyArray<RynamoEvent<TaskActivityModel>>;
+        },
+    ): Promise<void> {
+        return this._context.tracer.withSpan("Broadcast task activity", async context => {
+            await context.edge.broadcastToDurableObject(
+                `/api/durable-objects/task-notes/${taskId}/broadcast-task-activity`,
+                {
+                    serviceName: "TaskNotesCollaborationService",
+                    route: "/api/durable-objects/task-notes/:taskId/broadcast-task-activity",
+                    body: TaskNotesCollaborationBroadcastTaskActivityRequestBodySchema.serialize({
+                        events,
+                    }),
+                },
+            );
+        });
     }
 
     /**

@@ -22,6 +22,7 @@ ts_project(
         "//shared/chat",
         "//shared/context",
         "//shared/documents",
+        "//shared/spaces",
         "//shared/dynamo",
         "//shared/error",
         "//shared/files",

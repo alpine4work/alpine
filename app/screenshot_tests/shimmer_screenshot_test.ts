@@ -1113,6 +1113,7 @@ maximus volutpat ullamcorper.
                 color: "blue",
             });
             const task = await TestTask.create(session, {
+                time: [screenshotTestEndTime.getTime() - 60_000, 0],
                 title: lorem.title,
                 assignee: session,
                 assigneeStatus: "Active",

@@ -124,6 +124,7 @@ export class TestTask extends TestCommentRoomBase {
             dueDate,
             collections,
             notes = "",
+            overrideCommittedTimeForTest,
         }: {
             id?: TaskId;
             time?: HybridLogicalTime;
@@ -137,18 +138,26 @@ export class TestTask extends TestCommentRoomBase {
             dueDate?: CalendarDate | null;
             collections?: TestTaskCollection | ReadonlyArray<TestTaskCollection>;
             notes?: string;
+            overrideCommittedTimeForTest?: Date;
         } = {},
     ) {
-        if (time) {
-            testTaskClock.tick(time);
-        } else {
-            time = testTaskClock.now();
+        const providedTime = time;
+        if (providedTime) testTaskClock.tick(providedTime);
+
+        const createTime = providedTime ?? testTaskClock.now();
+        let initialActionTicks = createTime[1];
+
+        function getNextInitialActionTime(): HybridLogicalTime {
+            if (providedTime === undefined) return testTaskClock.now();
+            const nextTime: HybridLogicalTime = [createTime[0], ++initialActionTicks];
+            testTaskClock.tick(nextTime);
+            return nextTime;
         }
 
         const actions: Array<TaskAction> = [
             {
                 type: "UpdateTask",
-                time,
+                time: createTime,
                 taskId: id,
                 taskAction: {
                     type: "Create",
@@ -165,12 +174,12 @@ export class TestTask extends TestCommentRoomBase {
                     : {
                           type: "Closed",
                           closerId: session.account.id,
-                          closedTime: TaskFilterableTime.test(time),
+                          closedTime: TaskFilterableTime.test(createTime),
                       };
 
             actions.push({
                 type: "UpdateTask",
-                time: testTaskClock.now(),
+                time: getNextInitialActionTime(),
                 taskId: id,
                 taskAction: {
                     type: "UpdateStatus",
@@ -188,7 +197,7 @@ export class TestTask extends TestCommentRoomBase {
 
             actions.push({
                 type: "UpdateTask",
-                time: testTaskClock.now(),
+                time: getNextInitialActionTime(),
                 taskId: id,
                 taskAction: {
                     type: "UpdateTitle",
@@ -202,7 +211,7 @@ export class TestTask extends TestCommentRoomBase {
         if (parent) {
             actions.push({
                 type: "UpdateTask",
-                time: testTaskClock.now(),
+                time: getNextInitialActionTime(),
                 taskId: id,
                 taskAction: {
                     type: "UpdateParentTaskId",
@@ -214,7 +223,7 @@ export class TestTask extends TestCommentRoomBase {
         if (assignee) {
             actions.push({
                 type: "UpdateTask",
-                time: testTaskClock.now(),
+                time: getNextInitialActionTime(),
                 taskId: id,
                 taskAction: {
                     type: "UpdateAssignee",
@@ -225,7 +234,7 @@ export class TestTask extends TestCommentRoomBase {
                                       ? assignee.account.id
                                       : assignee.id,
                               assignerId: session.account.id,
-                              assignedTime: TaskFilterableTime.test(time),
+                              assignedTime: TaskFilterableTime.test(createTime),
                           }
                         : null,
                 },
@@ -235,13 +244,16 @@ export class TestTask extends TestCommentRoomBase {
         if (assigneeStatus) {
             actions.push({
                 type: "UpdateTask",
-                time: testTaskClock.now(),
+                time: getNextInitialActionTime(),
                 taskId: id,
                 taskAction: {
                     type: "UpdateAssigneeStatus",
                     assigneeStatus:
                         assigneeStatus === "Active"
-                            ? {type: "Active", activatedTime: TaskFilterableTime.test(time)}
+                            ? {
+                                  type: "Active",
+                                  activatedTime: TaskFilterableTime.test(createTime),
+                              }
                             : {type: assigneeStatus},
                 },
             });
@@ -250,7 +262,7 @@ export class TestTask extends TestCommentRoomBase {
         if (priority) {
             actions.push({
                 type: "UpdateTask",
-                time: testTaskClock.now(),
+                time: getNextInitialActionTime(),
                 taskId: id,
                 taskAction: {
                     type: "UpdatePriority",
@@ -262,7 +274,7 @@ export class TestTask extends TestCommentRoomBase {
         if (layout !== undefined) {
             actions.push({
                 type: "UpdateTask",
-                time: testTaskClock.now(),
+                time: getNextInitialActionTime(),
                 taskId: id,
                 taskAction: {
                     type: "UpdateLayout",
@@ -274,7 +286,7 @@ export class TestTask extends TestCommentRoomBase {
         if (dueDate) {
             actions.push({
                 type: "UpdateTask",
-                time: testTaskClock.now(),
+                time: getNextInitialActionTime(),
                 taskId: id,
                 taskAction: {
                     type: "UpdateDueDate",
@@ -290,7 +302,7 @@ export class TestTask extends TestCommentRoomBase {
             for (let i = 0; i < collectionsArray.length; i++) {
                 actions.push({
                     type: "UpdateTask",
-                    time: testTaskClock.now(),
+                    time: getNextInitialActionTime(),
                     taskId: id,
                     taskAction: {
                         type: "AddCollection",
@@ -301,7 +313,9 @@ export class TestTask extends TestCommentRoomBase {
             }
         }
 
-        await commitTaskActionTransaction(session.action(), session.space.id, actions);
+        await commitTaskActionTransaction(session.action(), session.space.id, actions, {
+            overrideCommittedTimeForTest,
+        });
 
         let notesState;
 
@@ -321,7 +335,7 @@ export class TestTask extends TestCommentRoomBase {
             notesState = new MutexValue({lastVersion: 1, lastUpdatePos: fragment.size - 1});
         }
 
-        return new TestTask(session.context, session.space, id, time, titleState, notesState);
+        return new TestTask(session.context, session.space, id, createTime, titleState, notesState);
     }
 
     public readonly access = new TestAccessPolicy({
@@ -512,8 +526,13 @@ export class TestTask extends TestCommentRoomBase {
     }
 
     public async getIndexDoc(options?: {realtime?: boolean}): Promise<TaskIndexDoc> {
-        const {version, approximateActionCountByAccountId, lastIndexSearchEntityJob, ...task} =
-            await this.getIndexDocWithVersion(options);
+        const {
+            version,
+            approximateActionCountByAccountId,
+            lastIndexSearchEntityJob,
+            titleIndexVersion,
+            ...task
+        } = await this.getIndexDocWithVersion(options);
 
         return task;
     }
@@ -552,7 +571,10 @@ export class TestTask extends TestCommentRoomBase {
     public async updateStatus(
         session: TestSpaceSession,
         statusType: TaskStatus["type"],
-        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
+        {
+            time = testTaskClock.now(),
+            overrideCommittedTimeForTest,
+        }: {time?: HybridLogicalTime; overrideCommittedTimeForTest?: Date} = {},
     ) {
         const status: TaskStatus =
             statusType === "Open"
@@ -563,17 +585,22 @@ export class TestTask extends TestCommentRoomBase {
                       closedTime: TaskFilterableTime.test(time),
                   };
 
-        await commitTaskActionTransaction(session.action(), session.space.id, [
-            {
-                type: "UpdateTask",
-                time,
-                taskId: this.id,
-                taskAction: {
-                    type: "UpdateStatus",
-                    status,
+        await commitTaskActionTransaction(
+            session.action(),
+            session.space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time,
+                    taskId: this.id,
+                    taskAction: {
+                        type: "UpdateStatus",
+                        status,
+                    },
                 },
-            },
-        ]);
+            ],
+            {overrideCommittedTimeForTest},
+        );
 
         return {time};
     }
@@ -581,39 +608,50 @@ export class TestTask extends TestCommentRoomBase {
     public async updateAssignee(
         session: TestSpaceSession,
         assignee: TestAccount | TestSession | AccountId | null,
-        {assigneeStatus}: {assigneeStatus?: "Inactive" | "Active"} = {},
+        {
+            time = testTaskClock.now(),
+            assigneeStatus,
+            overrideCommittedTimeForTest,
+        }: {
+            time?: HybridLogicalTime;
+            assigneeStatus?: "Inactive" | "Active";
+            overrideCommittedTimeForTest?: Date;
+        } = {},
     ) {
-        const time = testTaskClock.now();
-
         if (typeof assignee === "string") assignee = await TestAccount.get(this.context, assignee);
         else if (assignee instanceof TestSession) assignee = assignee.account;
 
-        await commitTaskActionTransaction(session.action(), session.space.id, [
-            {
-                type: "UpdateTask",
-                time,
-                taskId: this.id,
-                taskAction: {
-                    type: "UpdateAssignee",
-                    assignee: assignee
-                        ? {
-                              assigneeId:
-                                  assignee instanceof TestSession
-                                      ? assignee.account.id
-                                      : assignee.id,
-                              assignerId: session.account.id,
-                              assignedTime: TaskFilterableTime.test(time),
-                          }
-                        : null,
-                    assigneeStatus:
-                        assigneeStatus !== undefined
-                            ? assigneeStatus === "Active"
-                                ? {type: "Active", activatedTime: TaskFilterableTime.test(time)}
-                                : {type: assigneeStatus}
-                            : undefined,
+        await commitTaskActionTransaction(
+            session.action(),
+            session.space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time,
+                    taskId: this.id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: assignee
+                            ? {
+                                  assigneeId:
+                                      assignee instanceof TestSession
+                                          ? assignee.account.id
+                                          : assignee.id,
+                                  assignerId: session.account.id,
+                                  assignedTime: TaskFilterableTime.test(time),
+                              }
+                            : null,
+                        assigneeStatus:
+                            assigneeStatus !== undefined
+                                ? assigneeStatus === "Active"
+                                    ? {type: "Active", activatedTime: TaskFilterableTime.test(time)}
+                                    : {type: assigneeStatus}
+                                : undefined,
+                    },
                 },
-            },
-        ]);
+            ],
+            {overrideCommittedTimeForTest},
+        );
 
         return {time};
     }
@@ -643,19 +681,27 @@ export class TestTask extends TestCommentRoomBase {
     public async updatePriority(
         session: TestSpaceSession,
         priority: TaskPriority | null,
-        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
+        {
+            time = testTaskClock.now(),
+            overrideCommittedTimeForTest,
+        }: {time?: HybridLogicalTime; overrideCommittedTimeForTest?: Date} = {},
     ) {
-        await commitTaskActionTransaction(session.action(), session.space.id, [
-            {
-                type: "UpdateTask",
-                time,
-                taskId: this.id,
-                taskAction: {
-                    type: "UpdatePriority",
-                    priority,
+        await commitTaskActionTransaction(
+            session.action(),
+            session.space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time,
+                    taskId: this.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority,
+                    },
                 },
-            },
-        ]);
+            ],
+            {overrideCommittedTimeForTest},
+        );
     }
 
     public async updateLayout(
@@ -679,19 +725,27 @@ export class TestTask extends TestCommentRoomBase {
     public async updateDueDate(
         session: TestSpaceSession,
         dueDate: CalendarDate | null,
-        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
+        {
+            time = testTaskClock.now(),
+            overrideCommittedTimeForTest,
+        }: {time?: HybridLogicalTime; overrideCommittedTimeForTest?: Date} = {},
     ) {
-        await commitTaskActionTransaction(session.action(), session.space.id, [
-            {
-                type: "UpdateTask",
-                time,
-                taskId: this.id,
-                taskAction: {
-                    type: "UpdateDueDate",
-                    dueDate,
+        await commitTaskActionTransaction(
+            session.action(),
+            session.space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time,
+                    taskId: this.id,
+                    taskAction: {
+                        type: "UpdateDueDate",
+                        dueDate,
+                    },
                 },
-            },
-        ]);
+            ],
+            {overrideCommittedTimeForTest},
+        );
     }
 
     public async addCollection(
@@ -810,7 +864,10 @@ export class TestTask extends TestCommentRoomBase {
     public async typeNotes(
         session: TestSpaceSession,
         text: string | Node | ReadonlyArray<Node> | Fragment,
-        {secondText}: {secondText?: string} = {},
+        {
+            secondText,
+            overrideUpdatedTimeForTest,
+        }: {secondText?: string; overrideUpdatedTimeForTest?: Date} = {},
     ) {
         return await this._notesState.withLock(async stateRef => {
             if (typeof text === "string") {
@@ -824,6 +881,7 @@ export class TestTask extends TestCommentRoomBase {
             const result = await updateTaskNotesContent(session.action(), {
                 spaceId: this.space.id,
                 taskId: this.id,
+                overrideUpdatedTimeForTest,
                 clientVersion: stateRef.current.lastVersion,
                 clientSteps: [
                     new ReplaceStep(

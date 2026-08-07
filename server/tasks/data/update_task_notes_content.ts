@@ -3,6 +3,7 @@ import {ServerAccountActionContext} from "~/server/context/server_action_context
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
+import {getTaskNotesContentHash} from "~/server/tasks/data/get_task_notes_content_hash.js";
 import {
     authorizeTaskAccessAndGetCommentsSummaryAndNotesItems,
     authorizeTaskItemAccess,
@@ -21,6 +22,7 @@ import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collab
 import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {ContentEditorClientId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     emptyTaskNotesContent,
@@ -49,6 +51,7 @@ export function updateTaskNotesContent(
         clientId,
         clientRequestToken,
         consistency,
+        overrideUpdatedTimeForTest,
     }: {
         spaceId: SpaceId;
         taskId: TaskId;
@@ -59,9 +62,20 @@ export function updateTaskNotesContent(
         // deduplicated. See `updateTaskNotesContentIdempotently()`.
         clientRequestToken?: string;
         consistency?: DynamoCacheReadConsistency;
+        /**
+         * Backdates the update (which is also the time the notes window renders at in the
+         * task activity feed) so tests can author histories a known distance from a fixed
+         * screenshot time. Mirrors `overrideCommittedTimeForTest` on
+         * `commitTaskActionTransaction()`.
+         */
+        overrideUpdatedTimeForTest?: Date;
     },
 ): Promise<{newVersion: number}> {
-    const currentTime = new Date();
+    if (overrideUpdatedTimeForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+    }
+
+    const currentTime = overrideUpdatedTimeForTest ?? new Date();
     return withSendTaskIndexSearchEntityJobIfNeeded(context, {spaceId, taskId}, () => {
         return context.dynamo.retryTransaction(async context => {
             const [taskItem, currentNotesItem] = await runAllPromises([
@@ -161,11 +175,19 @@ export function updateTaskNotesContent(
                 );
             }
 
+            // The before hash is by definition the previous update's after hash, so it's a
+            // stored-attribute read — recomputed only for items written before `contentHash`
+            // existed. Only the new content pays a hash here.
+            const beforeContentHash =
+                currentNotesItem?.contentHash ?? getTaskNotesContentHash(currentContent);
+            const afterContentHash = getTaskNotesContentHash(newContent);
+
             const newNotesItem: TaskNotesItem = currentNotesItem
                 ? {
                       ...currentNotesItem,
                       version: currentVersion + newSteps.length,
                       content: newContent,
+                      contentHash: afterContentHash,
                       stepCountByAccountId: newStepCountByAccountId,
                       lastUpdatedTime: currentTime,
                   }
@@ -177,6 +199,7 @@ export function updateTaskNotesContent(
                       createdTime: currentTime,
                       version: currentVersion + newSteps.length,
                       content: newContent,
+                      contentHash: afterContentHash,
                       stepCountByAccountId: newStepCountByAccountId,
                   };
 
@@ -220,6 +243,24 @@ export function updateTaskNotesContent(
                 ],
                 {clientRequestToken},
             );
+
+            context.jobs.send({
+                type: "ProcessTaskNotesActivity",
+                spaceId,
+                taskId,
+                startVersion: currentVersion,
+                endVersion: currentVersion + newSteps.length,
+                createdTime: currentTime,
+                actor: {
+                    accountId: context.actor.getPossiblyBotAccountId(),
+                    from:
+                        context.actor.type === "Bot"
+                            ? {type: "Bot", accountId: context.actor.getBotAccountId()}
+                            : null,
+                },
+                beforeContentHash,
+                afterContentHash,
+            });
 
             return {newVersion: currentVersion + newSteps.length};
         });

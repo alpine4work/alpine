@@ -8,6 +8,7 @@ import {
 } from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_file_entity.js";
 import {scrollLocatorToBottom} from "~/app/screenshot_tests/helpers/scroll_locator_to_bottom.js";
+import {runTaskActivityFeedScreenshots} from "~/app/screenshot_tests/run_task_activity_feed_screenshots.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
@@ -815,6 +816,8 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await site.removeEntity(accounts.cassCade, `TaskCollection:${collections.bugs.id}`);
         await collections.bugs.access.set(accounts.cassCade, oldBugsCollectionAccessPolicy);
     }
+
+    await runTaskActivityFeedScreenshots(context, runner, accounts);
 }
 
 async function createTaskCollections(session: TestSpaceSession) {
@@ -1204,6 +1207,7 @@ selection state.
     });
 
     const featuredProjectTask = await TestTask.create(accounts.cassCade, {
+        time: [new Date("2025-10-06T14:17:00-04:00").getTime(), 0],
         // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
         // makes sure the reaction party on any messages is stable across renders.
         id: unsafelyGenerateStableId<TaskId>(stableRandom, "featuredProjectTask"),
@@ -1499,6 +1503,7 @@ async function createSprintTasksAndBugTasks(
         priority: "Low",
     });
     const featuredBugTask = await TestTask.create(accounts.cassCade, {
+        time: [new Date("2025-10-08T09:15:00-04:00").getTime(), 0],
         title: "App crashes if user has deleted a previously-favorited task",
         collections: bugs,
         priority: "Urgent",

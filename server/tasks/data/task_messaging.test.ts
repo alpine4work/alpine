@@ -121,7 +121,7 @@ async function createTaskCommentAccessScenario() {
 }
 
 describe("getTaskComment()", () => {
-    test("throws error for users that only have view access when trying to access task comments", async () => {
+    test("lets users with only view access read task comments", async () => {
         const {
             task,
             taskCommentIdAndIndex,
@@ -147,9 +147,9 @@ describe("getTaskComment()", () => {
         await expect(
             getTaskComment(unauthorizedSession.action(), taskCommentIdAndIndex),
         ).rejects.toThrow(PermissionDeniedError);
-        await expect(getTaskComment(viewerSession.action(), taskCommentIdAndIndex)).rejects.toThrow(
-            PermissionDeniedError,
-        );
+        await expect(
+            getTaskComment(viewerSession.action(), taskCommentIdAndIndex),
+        ).resolves.not.toBeNull();
         await expect(
             getTaskComment(commenterSession.action(), taskCommentIdAndIndex),
         ).resolves.not.toBeNull();
@@ -166,7 +166,7 @@ describe("getTaskComment()", () => {
 });
 
 describe("getTaskCommentPayload()", () => {
-    test("throws error for users that only have view access when trying to access task comment payloads", async () => {
+    test("lets users with only view access read task comment payloads", async () => {
         const {
             taskCommentIdAndIndex,
             unauthorizedSession,
@@ -182,7 +182,7 @@ describe("getTaskCommentPayload()", () => {
         ).rejects.toThrow(PermissionDeniedError);
         await expect(
             getTaskCommentPayload(viewerSession.action(), taskCommentIdAndIndex),
-        ).rejects.toThrow(PermissionDeniedError);
+        ).resolves.not.toBeNull();
         await expect(
             getTaskCommentPayload(commenterSession.action(), taskCommentIdAndIndex),
         ).resolves.not.toBeNull();
@@ -199,7 +199,7 @@ describe("getTaskCommentPayload()", () => {
 });
 
 describe("getTaskCommentsFromStart()", () => {
-    test("throws error for users that only have view access when trying to get task comments from start", async () => {
+    test("lets users with only view access get task comments from start", async () => {
         const space = await TestSpace.create(taskMessagingContext);
 
         const [
@@ -270,7 +270,7 @@ describe("getTaskCommentsFromStart()", () => {
                 afterCommentIndex: 0,
                 beforeCommentIndex: 2,
             }),
-        ).rejects.toThrow(PermissionDeniedError);
+        ).resolves.not.toBeNull();
 
         await expect(
             getTaskCommentsFromStart(commenterSession.action(), {
@@ -311,7 +311,7 @@ describe("getTaskCommentsFromStart()", () => {
 });
 
 describe("getTaskCommentsFromEnd()", () => {
-    test("throws error for users that only have view access when trying to get task comments from end", async () => {
+    test("lets users with only view access get task comments from end", async () => {
         const space = await TestSpace.create(taskMessagingContext);
 
         const [
@@ -382,7 +382,7 @@ describe("getTaskCommentsFromEnd()", () => {
                 afterCommentIndex: 0,
                 beforeCommentIndex: 2,
             }),
-        ).rejects.toThrow(PermissionDeniedError);
+        ).resolves.not.toBeNull();
 
         await expect(
             getTaskCommentsFromEnd(commenterSession.action(), {
@@ -423,7 +423,7 @@ describe("getTaskCommentsFromEnd()", () => {
 });
 
 describe("getTaskNotesContentAndOptionalInitialCommentsIfExists()", () => {
-    test("returns null for users that only have view access when trying to get initial task comments", async () => {
+    test("returns initial task comments for users that only have view access", async () => {
         const space = await TestSpace.create(taskMessagingContext);
 
         const [
@@ -568,7 +568,7 @@ describe("getTaskNotesContentAndOptionalInitialCommentsIfExists()", () => {
                 taskId: task.id,
                 commentsLimit: 10,
             }),
-        ).resolves.toEqual({
+        ).resolves.toMatchObject({
             notes: {
                 version: 1,
                 content: {
@@ -576,7 +576,7 @@ describe("getTaskNotesContentAndOptionalInitialCommentsIfExists()", () => {
                     references: emptyContentReferences,
                 },
             },
-            initialComments: null,
+            initialComments: {commentCount: 3},
         });
 
         await expect(
@@ -1244,7 +1244,7 @@ describe("backfillTaskComments()", () => {
                 clientCommentCount: 3,
                 newCommentLimit: 100,
             }),
-        ).rejects.toThrow(PermissionDeniedError);
+        ).resolves.not.toBeNull();
 
         await expect(
             backfillTaskComments(unauthorizedSession.action(), {
@@ -1422,7 +1422,9 @@ describe("taskMessagingImplementation()", () => {
                 createdTime: new Date((await task.getItem()).createdTime[0]),
                 messageCount: 0,
                 messageNoun: "comment",
-                doesInsideViewerSessionHaveRoomAccess: false,
+                // View access reads a task's comments (the activity timeline interleaves with
+                // them); writing still needs "Comment".
+                doesInsideViewerSessionHaveRoomAccess: true,
                 revokeInsideSession: async (context, revokeSession) => {
                     await taskCollection.access.revoke(session, revokeSession.account.id);
                 },
@@ -1435,7 +1437,8 @@ describe("taskMessagingImplementation()", () => {
                 getTaskCommentsSummaryItemIfExistsForTest(context, taskId),
             ]);
 
-            await authorizeTaskAccess(context, taskId, "Comment");
+            // Matches the production read rule for a task's comment room.
+            await authorizeTaskAccess(context, taskId, "View");
 
             return {
                 key: taskItem.taskId,

@@ -176,6 +176,7 @@ async function createShowcaseSite({
     });
 
     const okrsTask = await TestTask.create(accounts.cassCade, {
+        time: [new Date("2025-10-15T15:13:00-04:00").getTime(), 0],
         title: "Lock Q4 plan with Rose",
         assignee: accounts.cassCade,
         priority: "High",

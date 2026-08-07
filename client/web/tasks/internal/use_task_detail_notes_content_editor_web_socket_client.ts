@@ -24,6 +24,7 @@ import {
 import {useWebSocketErrorDialog} from "~/client/web/web_socket/use_web_socket.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {
     PromiseResolver,
     createPromiseResolver,
@@ -36,6 +37,7 @@ import {falseStore, nullStore} from "~/shared/store/const_store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {TaskActivityModel} from "~/shared/tasks/task_activity.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
@@ -339,6 +341,13 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
             (subscriber: (event: MessagingRealtimeEvent<TaskCommentModel>) => void) => {
                 if (clientState.type !== "Exists") return noop;
                 return clientState.client.subscribeToCommentEvents(subscriber);
+            },
+            [clientState],
+        ),
+        subscribeToTaskActivityEvents: useCallback(
+            (subscriber: (events: ReadonlyArray<RynamoEvent<TaskActivityModel>>) => void) => {
+                if (clientState.type !== "Exists") return noop;
+                return clientState.client.subscribeToTaskActivityEvents(subscriber);
             },
             [clientState],
         ),

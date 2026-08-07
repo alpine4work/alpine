@@ -11,6 +11,7 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {UnimplementedError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {Result} from "~/shared/helpers/control/result.open_source.js";
@@ -26,6 +27,7 @@ import {
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskActivityModel} from "~/shared/tasks/task_activity.js";
 import {TaskCreator} from "~/shared/tasks/task_creator.js";
 import {
     createTaskCollectionNotFoundError,
@@ -110,6 +112,19 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
     public abstract applyActionTransactionInRealtimeService(
         this: TaskContextModuleBase & ContextModuleBase<Omit<ServerActionContextModules, "actor">>,
         actionTransaction: TaskContextModuleActionTransaction,
+    ): Promise<void>;
+
+    /**
+     * Broadcast one projection transaction's TaskActivity Rynamo events to the clients
+     * connected to the task's `TaskNotesCollaborationService` durable object — batched
+     * so a transaction costs one request, not one per event.
+     */
+    public abstract broadcastTaskActivityEvents(
+        this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
+        input: {
+            taskId: TaskId;
+            events: ReadonlyArray<RynamoEvent<TaskActivityModel>>;
+        },
     ): Promise<void>;
 
     /**
@@ -242,6 +257,10 @@ export class TestTaskContextModule
     }
 
     public override async applyActionTransactionInRealtimeService(): Promise<void> {
+        // Noop in tests...
+    }
+
+    public override async broadcastTaskActivityEvents(): Promise<void> {
         // Noop in tests...
     }
 

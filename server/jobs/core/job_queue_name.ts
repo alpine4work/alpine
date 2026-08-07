@@ -21,6 +21,7 @@ export const jobQueueNameByType = {
     CallBotWebhook: "Default",
     SendPendingSubtleNotificationsForInbox: "Default",
     SendNotificationToSlackIntegration: "Default",
+    ProcessTaskNotesActivity: "Default",
 } as const satisfies Record<JobDescription["type"], string>;
 
 export type JobTypeByQueueName = {
