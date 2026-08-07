@@ -812,7 +812,86 @@ describe("GitHubAlertSource", () => {
 
         const postCalls = mockFetchCalls.filter(call => call.body !== null);
         expect(postCalls).toHaveLength(1);
+        expect(postCalls[0]!.body).toMatchObject({
+            post: {
+                content: {
+                    elements: expect.arrayContaining([
+                        {
+                            type: "Quote",
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {type: "Text", text: "Fix bug in user authentication"},
+                                    ],
+                                },
+                            ],
+                        },
+                    ]),
+                },
+            },
+        });
         expect(formatFetchCallForSnapshot(postCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("build failure preserves multiline commit messages in a quote", async () => {
+        const payload = createGitHubFixture({
+            workflow_run: {
+                ...createGitHubFixture().workflow_run,
+                conclusion: "failure",
+                head_commit: {
+                    id: "abc123def456",
+                    tree_id: "tree123456",
+                    message: "Fix bug in user authentication\n\nDetails (#123)",
+                    timestamp: "2023-11-10T09:55:00Z",
+                    author: {
+                        name: "developer123",
+                        email: "developer123@example.com",
+                    },
+                    committer: {
+                        name: "developer123",
+                        email: "developer123@example.com",
+                    },
+                },
+            },
+        });
+
+        await handleGitHubWorkflowRunPayload(payload);
+
+        const postCalls = mockFetchCalls.filter(call => call.body !== null);
+        expect(postCalls).toHaveLength(1);
+        expect(postCalls[0]!.body).toMatchObject({
+            post: {
+                content: {
+                    elements: expect.arrayContaining([
+                        {
+                            type: "Quote",
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {type: "Text", text: "Fix bug in user authentication"},
+                                        {type: "Break"},
+                                        {type: "Break"},
+                                        {type: "Text", text: "Details "},
+                                        {
+                                            type: "Text",
+                                            text: "(#123)",
+                                            marks: [
+                                                {
+                                                    type: "Link",
+                                                    url: "https://app.graphite.com/github/pr/cyberworlds/cyberworlds/123",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ]),
+                },
+            },
+        });
     });
 
     test("build failure with PR reference", async () => {
