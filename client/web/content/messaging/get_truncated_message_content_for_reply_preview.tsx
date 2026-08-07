@@ -17,15 +17,15 @@ import {codeClassName, strikeClassName} from "~/shared/design/core/constant_clas
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     HtmlContainerGenerator,
     HtmlElementGenerator,
     HtmlFragmentGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";

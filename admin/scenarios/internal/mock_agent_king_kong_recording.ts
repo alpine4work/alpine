@@ -14,9 +14,9 @@ import {
     ApiContentUnorderedListBlockElement,
     ApiMentionReference,
     ApiMessageStreamPartPayload,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {partitionArray} from "~/shared/helpers/array/partition_array.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {partitionArray} from "~/shared/helpers/array/partition_array.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 function p(...elements: Array<string | ApiContentInlineElement>): ApiContentParagraphBlockElement {
     return {

@@ -6,10 +6,10 @@ import {
     useGlobalContext,
 } from "~/client/web/helpers/global_context.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {falseStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";

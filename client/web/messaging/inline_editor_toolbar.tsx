@@ -3,8 +3,8 @@ import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 export type InlineEditorToolbarRef = {
     save(): void;

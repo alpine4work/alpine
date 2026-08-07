@@ -13,8 +13,8 @@ import {
     GlUniformVector2,
 } from "~/client/web/helpers/gl/gl_uniform.js";
 import {GlVertexArray} from "~/client/web/helpers/gl/gl_vertex_array.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 
 export class GlProgram {

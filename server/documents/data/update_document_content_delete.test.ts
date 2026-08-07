@@ -16,8 +16,8 @@ import {documentsInjection} from "~/server/documents/data/documents_injection.js
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({documentsInjection});
 

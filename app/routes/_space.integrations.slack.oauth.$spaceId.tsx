@@ -13,17 +13,17 @@ import {
     PermissionDeniedError,
     UnavailableError,
     UnknownError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {
     SlackOAuthStatusMessageSchema,
     slackOAuthStatusMessageType,
     slackOAuthWindowName,
 } from "~/shared/integrations/slack/slack_oauth_status_message_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const LoaderSchema = Schema.object({
     ok: Schema.boolean,

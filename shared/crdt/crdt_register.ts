@@ -4,10 +4,10 @@ import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export type CrdtRegisterClass<Value> = {
     new (value: Value, version: HybridLogicalTime): CrdtRegister<Value>;

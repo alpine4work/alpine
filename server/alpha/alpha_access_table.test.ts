@@ -10,10 +10,10 @@ import {
     FailedPreconditionError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     searchInjection: {

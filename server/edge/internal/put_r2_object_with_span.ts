@@ -1,4 +1,4 @@
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export interface PutR2ObjectBucketInterface {
     put(

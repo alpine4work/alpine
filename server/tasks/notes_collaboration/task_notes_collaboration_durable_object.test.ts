@@ -13,11 +13,15 @@ import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_cont
 import {TaskNotesCollaborationDurableObject} from "~/server/tasks/notes_collaboration/task_notes_collaboration_durable_object.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {ContentEditorClientId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ContentEditorClientId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     createTaskComment,
     deleteTaskComment,

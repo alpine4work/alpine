@@ -1,10 +1,10 @@
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {Reaction, getValueByReaction} from "~/shared/reactions/reaction.js";
 import {reactionById, reactionIds} from "~/shared/reactions/reaction_id.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
 
 export type ReactionSet = InstanceType<typeof ReactionSet>;
 

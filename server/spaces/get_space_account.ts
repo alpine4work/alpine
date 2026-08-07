@@ -9,7 +9,7 @@ import {
     getSpaceAccountItemWithEventualThenStrongConsistency,
 } from "~/server/spaces/internal/get_space_account_item.js";
 import {spaceAccountsCache} from "~/server/spaces/internal/space_accounts_cache.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 
 /**

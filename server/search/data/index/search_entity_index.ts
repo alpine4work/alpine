@@ -145,56 +145,56 @@ import {ContextBatcher} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
 import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     createPostSearchEntityTitleWithAlreadySnippedContent,
     getPostSearchEntityTitleContentSnippet,
 } from "~/shared/forum/create_post_search_entity_title.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertNotAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertNotAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
 import {enumerateIterable} from "~/shared/helpers/iterable/enumerate_iterable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.open_source.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
-import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {assertId, isId} from "~/shared/id/id.js";
+import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {assertId, isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
     ChatId,
     SpaceId,
     TaskCollectionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {isDeepEqualWithSchema} from "~/shared/schema/helpers/is_deep_equal_with_schema.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
@@ -236,8 +236,8 @@ import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collect
 import {getTaskSearchEntityBase} from "~/shared/tasks/get_task_search_entity_base.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Special `SearchEntityId` used by the OpenSearch keyword index.

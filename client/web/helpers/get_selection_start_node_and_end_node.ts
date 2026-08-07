@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Determines the direction of a browser [`Selection`][1] and returns the node

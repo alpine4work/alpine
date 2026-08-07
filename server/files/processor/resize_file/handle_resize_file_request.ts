@@ -3,10 +3,10 @@ import {resizeFile} from "~/server/files/processor/resize_file.js";
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {createActorContextModuleFromAuthorizationHeader} from "~/server/spaces/create_actor_context_module_from_authorization_header.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // Used for tracing. Keeps span naming consistent with existing ECS service.
 const temporaryDirectoryPath = os.tmpdir();

@@ -2,7 +2,7 @@ import {join as joinPath} from "path";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export const serviceOpensearchOptions = {
     opensearchLocalPort: {type: "string"},

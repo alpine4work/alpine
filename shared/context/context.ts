@@ -1,7 +1,7 @@
 import {ContextModuleBase, ContextModuleModulesType} from "~/shared/context/context_module_base.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 
 // Never actually used at runtime. Only used by the type system.

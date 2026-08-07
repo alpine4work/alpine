@@ -1,8 +1,8 @@
 import http from "http";
 import net from "net";
-import {DeadlineExceededError} from "~/shared/error/error.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {DeadlineExceededError} from "~/shared/error/error.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 // We can't use `wait()` or `setTimeout()` since Jest will override `setTimeout()`
 // when `jest.useFakeTimers()` is on. But we want to wait the timeout anyway.

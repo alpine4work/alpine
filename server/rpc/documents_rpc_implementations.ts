@@ -30,9 +30,9 @@ import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import * as definitions from "~/shared/rpc/documents_rpc_definitions.js";
 
 export default implementRpcs(definitions, {

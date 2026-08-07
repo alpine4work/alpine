@@ -1,7 +1,7 @@
 import {Iterator, RBTree} from "bintrees";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 
 /**
  * In-memory implementation of the Cloudflare Durable Object KV storage API.

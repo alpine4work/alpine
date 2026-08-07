@@ -1,5 +1,5 @@
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 
 export const touchSlopBySpacing: {

@@ -1,4 +1,4 @@
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const nonTransactionalEmailTypeList = ["NotificationDigest"] as const;
 

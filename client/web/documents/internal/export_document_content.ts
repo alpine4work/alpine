@@ -21,12 +21,12 @@ import {prepareApiMentionTitle} from "~/shared/api/content/closed_source/prepare
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
-} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
+} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
     missingSearchEntityTitle,

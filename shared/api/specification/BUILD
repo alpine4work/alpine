@@ -87,8 +87,8 @@ write_source_files(
     name = "write_specification",
     files = {
         "api_specification_final.yaml": "api_specification_final_generated.yaml",
-        "types/api_specification_types.ts": "types/api_specification_types_generated.ts",
-        "types/api_specification_convenience_types.ts": "types/api_specification_convenience_types_generated.ts",
-        "api_content_code_block_language_definition.ts": "api_content_code_block_language_definition_generated.ts",
+        "types/api_specification_types.open_source.ts": "types/api_specification_types_generated.ts",
+        "types/api_specification_convenience_types.open_source.ts": "types/api_specification_convenience_types_generated.ts",
+        "api_content_code_block_language_definition.open_source.ts": "api_content_code_block_language_definition_generated.ts",
     },
 )

@@ -2,12 +2,12 @@ import {expectTypeOf} from "expect-type";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 
 class TestContextModule extends ContextModuleBase {
     public readonly id = Symbol();

@@ -1,5 +1,5 @@
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {Id} from "~/shared/id/id.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {Id} from "~/shared/id/id.open_source.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 
 // IMPORTANT: This array should never change! Otherwise the character we use for

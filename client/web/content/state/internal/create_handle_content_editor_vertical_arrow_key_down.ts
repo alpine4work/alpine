@@ -13,9 +13,9 @@ import {
     ContentNodeTypeName,
 } from "~/shared/content/content_node_type_name.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Creates an event handler for `<ContentEditor>`'s `ArrowDown` and `ArrowUp`

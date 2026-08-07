@@ -1,5 +1,5 @@
-import {ApiTaskQuerySort} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ApiTaskQuerySort} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 export function intoApiTaskQuerySort(sort: TaskQuerySort): ApiTaskQuerySort {

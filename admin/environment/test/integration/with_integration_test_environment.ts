@@ -39,17 +39,17 @@ import {
 } from "~/server/tokens/token_agent_private_side.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError, UnknownError} from "~/shared/error/error.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {InternalError, UnknownError} from "~/shared/error/error.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {ApiKey, assertApiKey} from "~/shared/id/api_key.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
 
 // This file should only run in a Node.js test environment. Either Jest or
 // Playwright.

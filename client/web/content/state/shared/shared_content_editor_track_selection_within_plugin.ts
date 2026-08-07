@@ -1,7 +1,7 @@
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.open_source.js";
 
 type SharedContentEditorTrackSelectionWithinPluginState = ImmutableMap<
     string,

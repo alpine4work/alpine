@@ -10,8 +10,8 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskQueryFilter,
     serializeTaskQueryFiltersSearchParam,

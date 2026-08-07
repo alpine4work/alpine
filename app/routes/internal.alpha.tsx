@@ -11,12 +11,12 @@ import {getUndecidedAlphaAccessRequests} from "~/server/alpha/alpha_access_table
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model.js";
-import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
+import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.open_source.js";
 import {
     approveAlphaAccessRequest,
     denyAlphaAccessRequest,
 } from "~/shared/rpc/alpha_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export function meta() {
     return [{title: `Closed Alpha Management${metaTitlePostfix}`}];

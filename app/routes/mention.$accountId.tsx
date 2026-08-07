@@ -3,11 +3,11 @@ import {deserializeAccountIdForLoader} from "~/app/helpers/deserialize_id_for_lo
 import {getOurAccountSpaceIdsAndLastOpenedSpaceId} from "~/server/accounts/with_spaces/get_our_last_opened_space_id.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 
 /**
  * This route automatically redirects from `/mention/:accountId` to

@@ -13,8 +13,8 @@ import {
 } from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles, pulseAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
 
 const messageShimmerRagRights: ReadonlyArray<Spacing> = [
     // 1x frequency

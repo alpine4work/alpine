@@ -1,17 +1,17 @@
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     SiteId,
     SiteSideBarId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {

@@ -68,11 +68,11 @@ import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {

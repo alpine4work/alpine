@@ -1,6 +1,6 @@
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxEntryKeySchema} from "~/shared/notifications/inbox_model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /**
  * A stub for tracking a subtle notification that has not been sent and will be

@@ -21,14 +21,14 @@ import {
     normalizeTaskPersonalViewSorts,
 } from "~/client/web/tasks/get_task_personal_view_section_filters.js";
 import {isTaskQueryMissingRequiredFilters} from "~/client/web/tasks/use_task_query_state.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";

@@ -1,7 +1,7 @@
-import {fileContentTypeByCodeBlockLanguageId} from "~/shared/files/file_content_type.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {fileContentTypeByCodeBlockLanguageId} from "~/shared/files/file_content_type.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export type ContentCodeBlockLanguageId = (typeof contentCodeBlockLanguageIds)[number];
 

@@ -8,11 +8,11 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 

@@ -1,7 +1,7 @@
 import {hashMd5} from "~/server/helpers/node/hash_md5.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {decodeIdInto, encodeId} from "~/shared/id/id.js";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {decodeIdInto, encodeId} from "~/shared/id/id.open_source.js";
+import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * When sending a message to a set of accounts but we don't know the `ChatId` for

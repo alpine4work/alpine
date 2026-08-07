@@ -9,13 +9,13 @@ import {
     serializeReversedDynamoKeyAttribute,
 } from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {compareArrays} from "~/shared/helpers/array/compare_arrays.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
 
 test("key attributes can be a reasonable set of ASCII characters", () => {

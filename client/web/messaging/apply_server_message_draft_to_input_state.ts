@@ -7,7 +7,7 @@ import {MessageInputDraftSyncState} from "~/client/web/messaging/message_input_d
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 

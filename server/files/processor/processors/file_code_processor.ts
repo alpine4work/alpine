@@ -13,10 +13,10 @@ import {
 import {
     FileCodeContentType,
     getFileContentTypeContentCodeBlockLanguageId,
-} from "~/shared/files/file_content_type.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
 
 const fileCodePreviewWaitForLineCount = 128;
 

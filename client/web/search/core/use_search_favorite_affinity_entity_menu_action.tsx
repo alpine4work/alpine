@@ -7,9 +7,9 @@ import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {favoriteSearchEntity, unfavoriteSearchEntity} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 

@@ -4,7 +4,7 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Document content for heading section tests: an "Introduction" heading followed

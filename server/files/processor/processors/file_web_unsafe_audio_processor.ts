@@ -21,16 +21,16 @@ import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {InternalError, UnknownError} from "~/shared/error/error.js";
+import {InternalError, UnknownError} from "~/shared/error/error.open_source.js";
 import {
     FileContentType,
     FileMp4AudioContentType,
     FileWebUnsafeAudioContentType,
     getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileAudioPreviewMetadata} from "~/shared/files/file_preview.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 /**
  * To process an unsafe audio file we transcode the audio file to a format with

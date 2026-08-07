@@ -2,8 +2,11 @@
 
 import {Server, createServer} from "http";
 import {setupCliForTest} from "~/server/agents/cli/integration_tests/setup_cli_for_test.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const cli = setupCliForTest();
 

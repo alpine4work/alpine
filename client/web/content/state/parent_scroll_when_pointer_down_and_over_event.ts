@@ -5,9 +5,9 @@ import {
     contentViewStyles,
 } from "~/client/web/styles/styles.js";
 import {commentClassName, linkClassName} from "~/shared/design/core/constant_class_names.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 
 let parentScrollWhenPointerDownAndOverEventEmitterByElement:
     | WeakMap<Element, EventEmitter<void>>

@@ -1,8 +1,8 @@
 import {CalendarDate} from "@internationalized/date";
 import fc, {Arbitrary, MaybeWeightedArbitrary} from "fast-check";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Id, encodeId, generateId, idByteLength} from "~/shared/id/id.js";
-import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Id, encodeId, generateId, idByteLength} from "~/shared/id/id.open_source.js";
+import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {

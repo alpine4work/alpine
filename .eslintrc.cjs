@@ -4,7 +4,7 @@ const baseNoRestrictedImports = {
     paths: [
         {
             name: "assert",
-            message: "Import `assert()` from `~/shared/helpers/control/assert.js`",
+            message: "Import `assert()` from `~/shared/helpers/control/assert.open_source.js`",
         },
         {
             name: "react-router",

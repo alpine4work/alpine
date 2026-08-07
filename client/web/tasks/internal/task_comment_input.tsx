@@ -9,7 +9,7 @@ import {JumpToMessageRangeOptions} from "~/client/web/messaging/use_jump_to_mess
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";

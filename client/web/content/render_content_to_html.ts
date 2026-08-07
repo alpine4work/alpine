@@ -31,26 +31,26 @@ import {
     tableWrapper3ClassName,
     tableWrapperClassName,
 } from "~/shared/design/core/constant_class_names.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {
     HtmlElementGenerator,
     HtmlFragmentGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
 import {htmlPTagOmissionTagNames} from "~/shared/helpers/html/html_p_tag_omission_tag_names.js";
-import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     ProsemirrorHtmlSerializationDecoration,
     RecursiveReadonlyArray,

@@ -6,7 +6,7 @@ import {Spacer} from "~/client/web/design/spacer.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export type DocumentContentExportFormat = "Markdown" | "HTML";
 

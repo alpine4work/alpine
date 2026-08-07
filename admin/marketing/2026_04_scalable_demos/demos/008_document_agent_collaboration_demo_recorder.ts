@@ -9,15 +9,15 @@ import {
 } from "~/admin/marketing/2026_04_scalable_demos/demos/008_document_agent_collaboration_demo_shared.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {assertId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
     const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());

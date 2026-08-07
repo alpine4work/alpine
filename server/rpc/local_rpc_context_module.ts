@@ -1,8 +1,8 @@
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {allRpcImplementations} from "~/server/rpc/all_rpc_implementations.js";
 import {RpcServerActionExtraContextModules} from "~/server/rpc/rpc_server_action_context.js";
-import {InternalError} from "~/shared/error/error.js";
-import {RpcCallId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 

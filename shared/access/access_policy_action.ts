@@ -7,9 +7,9 @@ import {
     ResolvedAccessPolicyWithGenerations,
     getAccountAccessPolicyManageGeneration,
 } from "~/shared/access/access_policy.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 export type AccessPolicyAction =
     | {

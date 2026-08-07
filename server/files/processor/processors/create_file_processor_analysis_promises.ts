@@ -5,9 +5,9 @@ import {
     processFileAnalysis,
 } from "~/server/files/processor/process_file_analysis.js";
 import {FileAnalysisResult} from "~/shared/files/file_analysis.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export type FileProcessorAnalysisPromises = {
     readonly analysisPromise: Promise<FileAnalysisResult | null>;

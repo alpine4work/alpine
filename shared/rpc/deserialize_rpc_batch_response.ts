@@ -1,9 +1,9 @@
-import {InternalError} from "~/shared/error/error.js";
-import {PromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {PromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {RpcHttpBatchCallEventOutputSchema} from "~/shared/rpc/helpers/rpc_http_schema.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 export async function deserializeRpcBatchResponse(
     callBatch: ReadonlyArray<{

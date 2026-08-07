@@ -3,7 +3,7 @@ import {join as joinPath} from "path";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const migrationName = process.argv[2] ?? "";
 

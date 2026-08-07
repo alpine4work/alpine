@@ -13,10 +13,10 @@ import {
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const AccountItemWithoutAvatarContextCache = new DynamoContextCache<
     AccountId,

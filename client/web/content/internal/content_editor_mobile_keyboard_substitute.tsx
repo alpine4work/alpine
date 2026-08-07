@@ -86,12 +86,15 @@ import {
     getFileAudioContentTypes,
     getFileImageContentTypes,
     getFileVideoContentTypes,
-} from "~/shared/files/file_content_type.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {throwError} from "~/shared/helpers/control/throw_error.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 

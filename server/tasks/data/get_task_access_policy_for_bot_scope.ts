@@ -6,9 +6,9 @@ import {
     getTaskItemForAuthorization,
 } from "~/server/tasks/data/internal/authorize_task_item_access.js";
 import {EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function getTaskAccessPolicyForBotScope(
     context: ServerMinimalBotActionContext,

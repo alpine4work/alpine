@@ -3,8 +3,8 @@ import {mkdir, stat} from "fs/promises";
 import {join as joinPath} from "path";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 import {unzipToDisk} from "~/server/importer/internal/unzip_to_disk.js";
-import {DataLossError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const devDataPath = envPaths("cyberworlds-development", {suffix: ""}).data;
 

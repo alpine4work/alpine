@@ -1,6 +1,6 @@
 import {createContext, useContext} from "react";
 import {useLocalStorage} from "~/client/web/helpers/use_local_storage.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export const mediaDebugModeLocalStorageKey = "cyberworlds/mediaDebugMode";
 export const MediaDebugModeSchema = Schema.boolean;

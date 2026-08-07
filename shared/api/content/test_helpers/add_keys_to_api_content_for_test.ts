@@ -21,9 +21,9 @@ import {
     ApiContentResponse,
     ApiContentResponseWithoutKeys,
     ApiContentTableBlockElementCellBlockElementResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 type ApiContentFileOrPreviewBlockElementResponseWithoutKeys =
     | ApiContentFileBlockElementResponseWithoutKeys

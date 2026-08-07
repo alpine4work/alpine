@@ -7,9 +7,9 @@ import {uploadScenarioFile} from "~/admin/scenarios/internal/upload_scenario_fil
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);

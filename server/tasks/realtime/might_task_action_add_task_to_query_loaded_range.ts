@@ -5,9 +5,9 @@ import {
     evaluateTaskQueryNormalizedFiltersForIndexDoc,
 } from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.open_source.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";

@@ -7,10 +7,10 @@ import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_ac
 import {SpaceAccountItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 /**

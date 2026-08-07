@@ -2,8 +2,8 @@ import fc from "fast-check";
 import {
     parseAgentWebTaskQueryFilters,
     printAgentWebTaskQueryFilters,
-} from "~/server/agents/web/agent_web_task_query_filters.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
+} from "~/server/agents/web/agent_web_task_query_filters.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
     fromApiTaskQueryFilter,
@@ -12,10 +12,10 @@ import {
 import {
     ApiTaskQueryFilter,
     ApiTaskQueryFilterResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {Id, generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {Id, generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskQueryFiltersArbitrary} from "~/shared/tasks/test_helpers/task_query_filter_arbitrary.js";
 
 import.meta.jest.setTimeout(20 * 1000);

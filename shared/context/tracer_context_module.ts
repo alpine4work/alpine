@@ -1,11 +1,11 @@
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 /**
  * A wrapper around either a `Tracer` or `TracerSpan` for instrumenting code using

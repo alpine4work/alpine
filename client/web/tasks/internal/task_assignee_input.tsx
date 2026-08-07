@@ -33,11 +33,11 @@ import {
 import {nullTaskAssigneeInputLabel} from "~/client/web/tasks/null_task_assignee_input_label.js";
 import {TaskMissingAccountAvatar} from "~/client/web/tasks/task_missing_account_avatar.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {assertId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";

@@ -3,14 +3,17 @@ import {bazelExecutableMutex, bazelExecutablePath} from "~/admin/dev/bazel/bazel
 import {spawnWithBlockingStdio} from "~/admin/dev/stdio_coordinator.js";
 import {waitForProcessExitWithAnyCode} from "~/server/helpers/node/wait_for_process_exit.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {Id, generateId} from "~/shared/id/id.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {Id, generateId} from "~/shared/id/id.open_source.js";
 import {BazelBuildEvent} from "~/shared/schema/helpers/bazel_build_event_schema.js";
 
 /**

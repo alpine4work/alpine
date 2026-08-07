@@ -8,10 +8,10 @@ import {getSpaceAccountBotIdIfExists} from "~/server/spaces/get_space_account_bo
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {BotSettingsSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContentWithReferences} from "~/shared/content/simple_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {BotId, SpaceId} from "~/shared/id/types/id_types.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Get the bot settings for a particular space.

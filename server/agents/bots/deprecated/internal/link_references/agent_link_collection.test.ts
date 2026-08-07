@@ -15,9 +15,9 @@ import {
     printAgentPlainTextLabel,
     printApiPathForAgentLink,
 } from "~/server/agents/bots/deprecated/internal/link_references/print_agent_link_path.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -27,7 +27,7 @@ import {
     PostId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 const storage = new DurableObjectStorage(new MemoryStorage());
 

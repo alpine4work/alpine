@@ -1,7 +1,7 @@
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.open_source.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {encodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";

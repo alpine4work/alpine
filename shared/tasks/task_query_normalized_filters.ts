@@ -3,21 +3,25 @@ import {compareArrays} from "~/shared/helpers/array/compare_arrays.js";
 import {
     NonEmptyReadonlyArray,
     isNonEmptyReadonlyArray,
-} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {diffSets} from "~/shared/helpers/set/diff_sets.js";
 import {intersectSets} from "~/shared/helpers/set/intersect_sets.js";
 import {unionSets} from "~/shared/helpers/set/union_sets.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {ObjectSchema, Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {
+    ObjectSchema,
+    Schema,
+    SchemaDeserializationError,
+} from "~/shared/schema/schema.open_source.js";
 import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
 import {CalendarDateSchema} from "~/shared/tasks/calendar_date_schema.js";
 import {TaskLayout} from "~/shared/tasks/task_layout.js";

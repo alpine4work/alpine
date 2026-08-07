@@ -13,9 +13,9 @@ import {printAgentLinkPath} from "~/server/agents/bots/deprecated/internal/link_
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
-import {InternalError} from "~/shared/error/error.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 /**
  * Loads the content of the current page and renders link to the next pages. When

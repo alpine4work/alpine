@@ -6,7 +6,7 @@ import fs from "fs";
 import path from "path";
 import type {AlertSourceRequest} from "~/admin/lambda/send_alert/internal/alert_source_request_types.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 
 type AlertSourceName = "github" | "honeycomb" | "pagerduty";
 

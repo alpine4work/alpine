@@ -1,5 +1,5 @@
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export type ApiThemeColor =
     | "Red"

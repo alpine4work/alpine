@@ -32,10 +32,10 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

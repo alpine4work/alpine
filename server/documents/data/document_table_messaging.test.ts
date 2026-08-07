@@ -42,15 +42,15 @@ import {
     decodeDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
 import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     documentsInjection,

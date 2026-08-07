@@ -4,10 +4,10 @@ import {
     getChatGptAgentPendingMessageApprovalIfExistsWithPendingApprovalIndexes,
 } from "~/server/agents/bots/deprecated/internal/conversation/chat_gpt_agent_approval_collection.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Rejects every approval that is still awaiting a decision. Called when the agent

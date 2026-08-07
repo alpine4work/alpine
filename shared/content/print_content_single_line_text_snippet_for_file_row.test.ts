@@ -1,9 +1,9 @@
 import {printContentSingleLineTextSnippetForFileRow} from "~/shared/content/print_content_single_line_text_snippet_for_file_row.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
 
 function fileId(contentType: FileContentType): FileId {
     const id = generateChronologicalId<FileId>();

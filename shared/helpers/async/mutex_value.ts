@@ -1,4 +1,4 @@
-import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
 
 /**
  * A mutex that owns a value. Useful if you want to force exclusive access to a

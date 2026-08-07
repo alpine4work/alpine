@@ -2,8 +2,8 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Returns true if the actor is subscribed to the channel.

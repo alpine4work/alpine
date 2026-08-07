@@ -1,8 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {spaceAccountsCache} from "~/server/spaces/internal/space_accounts_cache.js";
 import {accountNameIndexFuseScoreMatchCutoff} from "~/server/spaces/space_accounts_cache_constants.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type SpaceAccountNameSearchIndex = {

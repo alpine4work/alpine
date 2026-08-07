@@ -12,7 +12,7 @@ import {
     zipApiSearchResultMatches,
 } from "~/server/agents/bots/deprecated/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
-import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
     ApiMessageRoomReference,
     ApiSearchChatMessageResult,
@@ -20,12 +20,12 @@ import {
     ApiSearchPostMessageResult,
     ApiSearchResult,
     ApiSearchTaskMessageResult,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 type ApiSearchMessageResult =
     | ApiSearchChatMessageResult

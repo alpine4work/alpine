@@ -1,8 +1,8 @@
-import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
 
 const fileId1 = generateChronologicalId<FileId>();
 const fileId2 = generateChronologicalId<FileId>();

@@ -8,7 +8,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {TaskChildTasksProgressWheel} from "~/client/web/tasks/task_child_tasks_progress_wheel.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this

@@ -7,7 +7,7 @@ import {createPost} from "~/server/forum/data/create_post.js";
 import {createPostComment} from "~/server/forum/data/post_messaging.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 const {context, services} = createTestServices();
 const space = createTestSpace(context);

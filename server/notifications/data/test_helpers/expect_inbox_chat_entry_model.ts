@@ -3,7 +3,7 @@ import {TestMessage} from "~/server/messaging/test_helpers/test_messaging_room_b
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {MessageContentPayloadClerical} from "~/shared/messaging/message_schema.js";
 import {InboxChatEntryModel} from "~/shared/notifications/inbox_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

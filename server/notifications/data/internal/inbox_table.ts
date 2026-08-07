@@ -42,23 +42,29 @@ import {
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
-import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {
+    runAllObjectPromises,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {deserializeDateString, isDateString} from "~/shared/helpers/date/date_string.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {
+    deserializeDateString,
+    isDateString,
+} from "~/shared/helpers/date/date_string.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
-import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {isId} from "~/shared/id/id.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -68,7 +74,7 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageContentPayloadClericalSchema,
     MessagePayload,
@@ -86,7 +92,7 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventsSchema} from "~/shared/notifications/my_account_protocol.js";
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 type InboxTableTypes = RynamoTableSchemaGetTypes<typeof InboxTable>;
 

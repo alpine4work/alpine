@@ -1,7 +1,7 @@
 import {useMemo} from "react";
 import {getAvatarContentType} from "~/shared/avatar/get_avatar_content_type.js";
 import {borderRadius as borderRadiusVar} from "~/shared/design/core/border_radius.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 
 export function AvatarImage({
     content,

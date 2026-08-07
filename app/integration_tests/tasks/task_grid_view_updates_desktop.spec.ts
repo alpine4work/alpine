@@ -6,9 +6,9 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {serializeTaskQueryFilters} from "~/shared/tasks/task_query_filter.js";
 
 const {context, services} = createTestServices();

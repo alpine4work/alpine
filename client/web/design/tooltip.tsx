@@ -41,11 +41,11 @@ import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.
 import {parseCubicBezier} from "~/shared/design/core/easing.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
  * Time it takes before we present a tooltip to the user if the user has not taken

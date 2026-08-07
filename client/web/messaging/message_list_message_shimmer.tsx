@@ -3,8 +3,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {MessageShimmer} from "~/client/web/shimmer/message_shimmer.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
 import {MessageModel, MessageModelBase} from "~/shared/messaging/message_model.js";
 
 // We repeat sizes to make them appear more frequently when randomly selecting a

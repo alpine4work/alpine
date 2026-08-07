@@ -5,9 +5,9 @@ import {getWebPushSubscriptionItemIfExistsWithoutAuthorization} from "~/server/n
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {Context} from "~/shared/context/context.js";
-import {InternalError, NotFoundError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {AccountId, BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InternalError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {AccountId, BrowserId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     SendWebPushNotificationOptions,
     WebPushNotificationContent,

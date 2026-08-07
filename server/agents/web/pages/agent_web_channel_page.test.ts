@@ -3,7 +3,7 @@ import {
     normalizeAgentWebChannelPage,
     parseAgentWebChannelPage,
     printAgentWebChannelPage,
-} from "~/server/agents/web/pages/agent_web_channel_page.js";
+} from "~/server/agents/web/pages/agent_web_channel_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
     ApiAccountReferenceResponse,
@@ -12,10 +12,10 @@ import {
     ApiContentResponseWithoutKeys,
     ApiContentTextInlineElement,
     ApiPostReferenceResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChannelId, PostId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, ChannelId, PostId} from "~/shared/id/types/id_types.open_source.js";
 
 const channelId = generateId<ChannelId>();
 const launchPostId = generateId<PostId>();

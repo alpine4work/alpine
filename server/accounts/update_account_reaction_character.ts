@@ -6,7 +6,7 @@ import {SessionActorContextModule} from "~/server/helpers/actor_context_module.j
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 
 /**

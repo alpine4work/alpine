@@ -1,5 +1,5 @@
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 export type DocumentationSitemapEntry = {
     pathname: string;

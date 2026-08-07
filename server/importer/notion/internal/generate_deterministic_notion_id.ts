@@ -1,6 +1,6 @@
-import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
-import {encodeId} from "~/shared/id/id.js";
-import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {encodeId} from "~/shared/id/id.open_source.js";
+import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Generates a deterministic ID based on the target space ID, Notion workspace ID,

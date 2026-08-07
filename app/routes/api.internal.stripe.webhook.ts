@@ -1,6 +1,6 @@
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 
 export async function action({request, context, span}: LoaderArgs) {
     try {

@@ -1,6 +1,6 @@
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {updateInboxPostCommentsEntry} from "~/server/notifications/data/internal/update_inbox_post_comments_entry.js";
-import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function archiveInboxPostCommentsEntryAfterSetPostCommentReaction(
     context: ServerSessionActionContextWithPush,

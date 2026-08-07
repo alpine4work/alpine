@@ -8,15 +8,18 @@ import {
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {UnknownError} from "~/shared/error/error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
 import {schedulePostPromiseJob} from "~/shared/helpers/async/schedule_post_promise_job.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
 
 // The maximum number of messages `SendMessageBatch` will accept is 10.

@@ -1,9 +1,9 @@
 import {
     parseApiReferenceKey,
     printApiReferenceKey,
-} from "~/shared/api/specification/api_reference_key.js";
-import type {ApiReference} from "~/shared/api/specification/types/api_reference.js";
-import {generateId} from "~/shared/id/id.js";
+} from "~/shared/api/specification/api_reference_key.open_source.js";
+import type {ApiReference} from "~/shared/api/specification/types/api_reference.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -13,7 +13,7 @@ import {
     PostId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 const accountId = generateId<AccountId>();
 const channelId = generateId<ChannelId>();

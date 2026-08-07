@@ -2,7 +2,7 @@ import {useCallback, useMemo} from "react";
 import {ContentFilePreview} from "~/client/web/content/content_file_preview_component.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 export function ChannelViewContentFilePreview({
     postId,

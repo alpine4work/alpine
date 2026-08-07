@@ -3,7 +3,7 @@ import {
     FailedPreconditionError,
     InternalError,
     UnknownError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 
 test("can create an error of a specific code using the from method", () => {
     // eslint-disable-next-line cyberworlds/no-global-error

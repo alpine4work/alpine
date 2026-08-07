@@ -4,7 +4,7 @@ import {printContentSingleLineTextSnippetForServer} from "~/server/content/print
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function printNotificationEventAlertContentBody(
     context: ServerActionContext,

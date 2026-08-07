@@ -2,12 +2,12 @@ import {Node, ResolvedPos} from "prosemirror-model";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {ContentNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {cutContent} from "~/shared/content/cut_content.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
-import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.open_source.js";
+import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.open_source.js";
 
 /**
  * Get a snippet of content around the provided position. The snippet should have

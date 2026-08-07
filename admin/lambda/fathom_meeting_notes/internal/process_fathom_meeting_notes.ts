@@ -7,9 +7,9 @@ import {getFathomMeetingNotesMonthDocumentIds} from "~/admin/lambda/fathom_meeti
 import {getFathomMeetingNotesParentDocumentId} from "~/admin/lambda/fathom_meeting_notes/internal/get_fathom_meeting_notes_parent_document_id.js";
 import {insertFathomMeetingNotesMention} from "~/admin/lambda/fathom_meeting_notes/internal/insert_fathom_meeting_notes_mention.js";
 import {isPublicFathomMeeting} from "~/admin/lambda/fathom_meeting_notes/internal/is_public_fathom_meeting.js";
-import {ApiGetDocumentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {ApiGetDocumentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 type ApiCreateDocumentRequestBody =
     ApiSpecification.paths["/documents"]["post"]["requestBody"]["content"]["application/json"];

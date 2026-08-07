@@ -1,0 +1,746 @@
+import createClient, {Client, FetchOptions, ParseAsResponse} from "openapi-fetch";
+import {
+    FilterKeys,
+    HttpMethod,
+    MediaType,
+    PathsWithMethod,
+    ResponseObjectMap,
+    SuccessResponse,
+} from "openapi-typescript-helpers";
+import {
+    ApiContent,
+    ApiErrorResponse,
+    ApiMentionReference,
+    ApiMentionReferenceResponse,
+    ApiMessageContentPayloadFile,
+    ApiMessageContentPayloadParent,
+    ApiMessageExperimentalApprovalDecisionValue,
+    ApiMessageRoomReference,
+    ApiMessageStreamPartPayload,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {getErrorCodeForHttpStatusCode} from "~/shared/error/get_error_code_for_http_status_code.open_source.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+
+type ApiClientMethod<Paths extends {}, Method extends HttpMethod, Media extends MediaType> = <
+    Path extends PathsWithMethod<Paths, Method>,
+    Options extends FetchOptions<FilterKeys<Paths[Path], Method>>,
+>(
+    tracer: TracerBase,
+    url: Path,
+    options: Options,
+) => Promise<{
+    data: ParseAsResponse<
+        SuccessResponse<
+            // @ts-expect-error: This code was copied from `openapi-fetch`. It doesn't
+            // error when in `openapi-fetch`'s `.d.ts` files because we set
+            // `"skipLibCheck": true` in our `tsconfig.json`. This code might not type
+            // check here in the generic type definition but it works!
+            ResponseObjectMap<Paths[Path][Method]>,
+            Media
+        >,
+        Options
+    >;
+    response: Response;
+}>;
+
+export type ApiClient = {
+    get: ApiClientMethod<ApiSpecification.paths, "get", MediaType>;
+    put: ApiClientMethod<ApiSpecification.paths, "put", MediaType>;
+    post: ApiClientMethod<ApiSpecification.paths, "post", MediaType>;
+    delete: ApiClientMethod<ApiSpecification.paths, "delete", MediaType>;
+    patch: ApiClientMethod<ApiSpecification.paths, "patch", MediaType>;
+};
+
+export function createApiClient({
+    baseUrl,
+    apiKey,
+    accessToken,
+}: {
+    baseUrl: string;
+    apiKey: string;
+    accessToken?: string;
+}): ApiClient {
+    const routeBySchemaPath = new DefaultMap<string, string>(schemaPath => {
+        // Convert path params from the OpenAPI format (`/hello/{name}`) to the format
+        // expected by `fetchWithTracer()` (`/hello/:name`). Parameters may have a static
+        // suffix, as in `/tasks/{id}-with-notes`, but must begin their path segment.
+        const route = schemaPath
+            .split("/")
+            .map(pathSegment => {
+                if (!pathSegment.startsWith("{")) {
+                    assert(!/[{}]/.test(pathSegment));
+                    return pathSegment;
+                }
+
+                const match = assertExists(pathSegment.match(/^\{([^}]+)\}([^{}]*)$/));
+                const [, pathParamName = "", staticSuffix = ""] = match;
+                assert(isIdentifier(pathParamName));
+
+                return `:${pathParamName}${staticSuffix}`;
+            })
+            .join("/");
+
+        return route;
+    });
+
+    const apiClient: Client<ApiSpecification.paths> = createClient({
+        baseUrl,
+        headers: {
+            "Alpine-Version": "2026-07-29",
+            Authorization: `bearer ${apiKey}${accessToken === undefined ? "" : `~${accessToken}`}`,
+        },
+    });
+
+    let currentTracer: TracerBase | null = null;
+
+    apiClient.use({
+        onRequest: async ({request, schemaPath, options}) => {
+            const tracer = assertExists(currentTracer);
+            currentTracer = null;
+            const requestBody = request.body === null ? null : await request.arrayBuffer();
+
+            // Define the fetch operation
+            return await retryWithExponentialBackoff(
+                retry =>
+                    fetchWithTracer(
+                        tracer,
+                        request.url,
+                        {
+                            serviceName: "ApiService",
+                            route: routeBySchemaPath.getOrSetDefault(schemaPath),
+                            method: request.method,
+                            headers: request.headers,
+                            body: requestBody,
+                            signal: request.signal,
+                        },
+                        async response => {
+                            // If the request failed, then throw an error. We want to mark this span as failed
+                            // and we don't want to handle errors inline.
+                            if (!response.ok) {
+                                const responseBody: ApiErrorResponse = await response.json();
+
+                                // Our API doesn't share the internal `ErrorCode` we use, so infer an error code
+                                // from the HTTP status code.
+                                const errorCode = getErrorCodeForHttpStatusCode(response.status);
+                                const ErrorConstructor = getErrorConstructorForCode(errorCode);
+
+                                const error = new ErrorConstructor("API request failed", {
+                                    // The error message might contain sensitive user data. So treat the whole error
+                                    // message as sensitive text.
+                                    displayMessage: errorDisplayMessage`${responseBody.error.message}`,
+                                    cause: {status: response.status, ...responseBody},
+                                });
+
+                                if (responseBody.error.retry.able) {
+                                    throw retry(error);
+                                } else {
+                                    throw error;
+                                }
+                            }
+
+                            if (options.parseAs === "stream") {
+                                return response;
+                            }
+
+                            // Parse the response body in our `fetchWithTracer()` action so the time it takes
+                            // for the response body to be streamed is included in the span.
+                            const responseBody = await response[options.parseAs]();
+
+                            // Don't throw an error when `openapi-fetch` [calls this method a second time][1].
+                            // Instead return what we already parsed.
+                            //
+                            // [1]:
+                            //     https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L234-L241
+                            (response as any)[options.parseAs] = () => responseBody;
+
+                            // For error handling `openapi-fetch` [calls `response.text()` and tries to parse
+                            // it as JSON][1]. So add a `text()` handler if we're parsing as JSON and the
+                            // request is not ok.
+                            //
+                            // [1]:
+                            //     https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L243-L250
+                            if (!response.ok && options.parseAs === "json") {
+                                (response as any).text = () => JSON.stringify(responseBody);
+                            }
+
+                            return response;
+                        },
+                    ),
+                {maxAttemptCount: 5},
+            );
+        },
+    });
+
+    function createRequest(method: "GET" | "PUT" | "POST" | "DELETE" | "PATCH"): any {
+        return (tracer: any, path: any, options: any) => {
+            currentTracer = tracer;
+
+            return (apiClient as any)[method](path, options);
+        };
+    }
+
+    return {
+        get: createRequest("GET"),
+        put: createRequest("PUT"),
+        post: createRequest("POST"),
+        delete: createRequest("DELETE"),
+        patch: createRequest("PATCH"),
+    };
+}
+
+export function getApiMessage(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomReference,
+    index: number,
+) {
+    switch (room.type) {
+        case "Chat": {
+            return apiClient.get(tracer, "/chats/{id}/messages/{index}", {
+                params: {path: {id: room.id, index}},
+            });
+        }
+        case "DocumentThread": {
+            return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages/{index}", {
+                params: {
+                    path: {
+                        id: room.document.id,
+                        threadId: room.id,
+                        index,
+                    },
+                },
+            });
+        }
+        case "Post": {
+            return apiClient.get(tracer, "/posts/{id}/messages/{index}", {
+                params: {path: {id: room.id, index}},
+            });
+        }
+        case "Task": {
+            return apiClient.get(tracer, "/tasks/{id}/messages/{index}", {
+                params: {path: {id: room.id, index}},
+            });
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export function getApiMessagesFromStart(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomReference,
+    {limit, cursor}: {limit: number; cursor: number | null},
+) {
+    switch (room.type) {
+        case "Chat": {
+            return apiClient.get(tracer, "/chats/{id}/messages", {
+                params: {
+                    path: {id: room.id},
+                    query: {limit, cursor: cursor ?? undefined},
+                },
+            });
+        }
+        case "DocumentThread": {
+            return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
+                params: {
+                    path: {
+                        id: room.document.id,
+                        threadId: room.id,
+                    },
+                    query: {limit, cursor: cursor ?? undefined},
+                },
+            });
+        }
+        case "Post": {
+            return apiClient.get(tracer, "/posts/{id}/messages", {
+                params: {
+                    path: {id: room.id},
+                    query: {limit, cursor: cursor ?? undefined},
+                },
+            });
+        }
+        case "Task": {
+            return apiClient.get(tracer, "/tasks/{id}/messages", {
+                params: {
+                    path: {id: room.id},
+                    query: {limit, cursor: cursor ?? undefined},
+                },
+            });
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export function getApiMessagesFromEnd(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomReference,
+    {limit, cursor}: {limit: number; cursor: number | null},
+) {
+    switch (room.type) {
+        case "Chat": {
+            return apiClient.get(tracer, "/chats/{id}/messages", {
+                params: {
+                    path: {id: room.id},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
+                },
+            });
+        }
+        case "DocumentThread": {
+            return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
+                params: {
+                    path: {
+                        id: room.document.id,
+                        threadId: room.id,
+                    },
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
+                },
+            });
+        }
+        case "Post": {
+            return apiClient.get(tracer, "/posts/{id}/messages", {
+                params: {
+                    path: {id: room.id},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
+                },
+            });
+        }
+        case "Task": {
+            return apiClient.get(tracer, "/tasks/{id}/messages", {
+                params: {
+                    path: {id: room.id},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
+                },
+            });
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export function createApiMessage(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomReference,
+    body: {
+        isStream?: boolean;
+        parent?: ApiMessageContentPayloadParent;
+        content: ApiContent;
+        files?: ReadonlyArray<ApiMessageContentPayloadFile>;
+        createdTimeZone?: TimeZone;
+    },
+) {
+    switch (room.type) {
+        case "Chat": {
+            return apiClient.post(tracer, "/chats/{id}/messages", {
+                params: {path: {id: room.id}},
+                body,
+            });
+        }
+        case "DocumentThread": {
+            return apiClient.post(tracer, "/documents/{id}/threads/{threadId}/messages", {
+                params: {path: {id: room.document.id, threadId: room.id}},
+                body,
+            });
+        }
+        case "Post": {
+            return apiClient.post(tracer, "/posts/{id}/messages", {
+                params: {path: {id: room.id}},
+                body,
+            });
+        }
+        case "Task": {
+            return apiClient.post(tracer, "/tasks/{id}/messages", {
+                params: {path: {id: room.id}},
+                body,
+            });
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export function createApiMessageStreamPart(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomReference,
+    messageIndex: number,
+    body: {payload: ApiMessageStreamPartPayload},
+) {
+    switch (room.type) {
+        case "Chat": {
+            return apiClient.post(tracer, "/chats/{id}/messages/{index}/stream/parts", {
+                params: {path: {id: room.id, index: messageIndex}},
+                body,
+            });
+        }
+        case "DocumentThread": {
+            return apiClient.post(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts",
+                {
+                    params: {
+                        path: {
+                            id: room.document.id,
+                            threadId: room.id,
+                            index: messageIndex,
+                        },
+                    },
+                    body,
+                },
+            );
+        }
+        case "Post": {
+            return apiClient.post(tracer, "/posts/{id}/messages/{index}/stream/parts", {
+                params: {path: {id: room.id, index: messageIndex}},
+                body,
+            });
+        }
+        case "Task": {
+            return apiClient.post(tracer, "/tasks/{id}/messages/{index}/stream/parts", {
+                params: {path: {id: room.id, index: messageIndex}},
+                body,
+            });
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export const putApiMessageStreamPartBeforeFetchTestCheckpoint = new TestCheckpoint<
+    [number, number]
+>();
+
+export async function putApiMessageStreamPart(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomReference,
+    messageIndex: number,
+    partIndex: number,
+    body: {payload: ApiMessageStreamPartPayload},
+) {
+    // Micro-optimization, `waitForTest()` is noops if `!import.meta.jest` anyway but
+    // `response.output_text.delta` is a hot code path in production. So add an extra
+    // `import.meta.jest` check here to make sure we don't pay the microtask price in
+    // production (an `await` schedules a microtask even when immediately resolved).
+    if (import.meta.jest) {
+        await putApiMessageStreamPartBeforeFetchTestCheckpoint.waitForTest([
+            messageIndex,
+            partIndex,
+        ]);
+    }
+
+    switch (room.type) {
+        case "Chat": {
+            return await apiClient.put(
+                tracer,
+                "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {path: {id: room.id, index: messageIndex, partIndex}},
+                    body,
+                },
+            );
+        }
+        case "DocumentThread": {
+            return await apiClient.put(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {
+                        path: {
+                            id: room.document.id,
+                            threadId: room.id,
+                            index: messageIndex,
+                            partIndex,
+                        },
+                    },
+                    body,
+                },
+            );
+        }
+        case "Post": {
+            return await apiClient.put(
+                tracer,
+                "/posts/{id}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {path: {id: room.id, index: messageIndex, partIndex}},
+                    body,
+                },
+            );
+        }
+        case "Task": {
+            return await apiClient.put(
+                tracer,
+                "/tasks/{id}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {path: {id: room.id, index: messageIndex, partIndex}},
+                    body,
+                },
+            );
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export async function patchApiMessageApprovals(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomReference,
+    messageIndex: number,
+    decisions: ReadonlyArray<{index: number; value: ApiMessageExperimentalApprovalDecisionValue}>,
+) {
+    const body = {
+        patches: decisions.map(decision => ({
+            type: "SetDecisionValue" as const,
+            index: decision.index,
+            decision: {
+                value: decision.value,
+            },
+        })),
+    };
+
+    switch (room.type) {
+        case "Chat": {
+            return await apiClient.patch(
+                tracer,
+                "/chats/{id}/messages/{index}/experimental-approvals",
+                {
+                    params: {path: {id: room.id, index: messageIndex}},
+                    body,
+                },
+            );
+        }
+        case "DocumentThread": {
+            return await apiClient.patch(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals",
+                {
+                    params: {
+                        path: {
+                            id: room.document.id,
+                            threadId: room.id,
+                            index: messageIndex,
+                        },
+                    },
+                    body,
+                },
+            );
+        }
+        case "Post": {
+            return await apiClient.patch(
+                tracer,
+                "/posts/{id}/messages/{index}/experimental-approvals",
+                {
+                    params: {path: {id: room.id, index: messageIndex}},
+                    body,
+                },
+            );
+        }
+        case "Task": {
+            return await apiClient.patch(
+                tracer,
+                "/tasks/{id}/messages/{index}/experimental-approvals",
+                {
+                    params: {path: {id: room.id, index: messageIndex}},
+                    body,
+                },
+            );
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export function getApiMessageApprovals(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomReference,
+    messageIndex: number,
+) {
+    switch (room.type) {
+        case "Chat": {
+            return apiClient.get(tracer, "/chats/{id}/messages/{index}/experimental-approvals", {
+                params: {path: {id: room.id, index: messageIndex}},
+            });
+        }
+        case "DocumentThread": {
+            return apiClient.get(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals",
+                {
+                    params: {
+                        path: {id: room.document.id, threadId: room.id, index: messageIndex},
+                    },
+                },
+            );
+        }
+        case "Post": {
+            return apiClient.get(tracer, "/posts/{id}/messages/{index}/experimental-approvals", {
+                params: {path: {id: room.id, index: messageIndex}},
+            });
+        }
+        case "Task": {
+            return apiClient.get(tracer, "/tasks/{id}/messages/{index}/experimental-approvals", {
+                params: {path: {id: room.id, index: messageIndex}},
+            });
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export function completeApiMessageStream(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomReference,
+    messageIndex: number,
+) {
+    switch (room.type) {
+        case "Chat": {
+            return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/completion", {
+                params: {path: {id: room.id, index: messageIndex}},
+            });
+        }
+        case "DocumentThread": {
+            return apiClient.put(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/stream/completion",
+                {
+                    params: {
+                        path: {
+                            id: room.document.id,
+                            threadId: room.id,
+                            index: messageIndex,
+                        },
+                    },
+                },
+            );
+        }
+        case "Post": {
+            return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/completion", {
+                params: {path: {id: room.id, index: messageIndex}},
+            });
+        }
+        case "Task": {
+            return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/completion", {
+                params: {path: {id: room.id, index: messageIndex}},
+            });
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export function pingApiMessageStream(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomReference,
+    messageIndex: number,
+) {
+    switch (room.type) {
+        case "Chat": {
+            return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/ping", {
+                params: {
+                    path: {id: room.id, index: messageIndex},
+                },
+            });
+        }
+        case "DocumentThread": {
+            return apiClient.put(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/stream/ping",
+                {
+                    params: {
+                        path: {
+                            id: room.document.id,
+                            threadId: room.id,
+                            index: messageIndex,
+                        },
+                    },
+                },
+            );
+        }
+        case "Post": {
+            return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/ping", {
+                params: {
+                    path: {id: room.id, index: messageIndex},
+                },
+            });
+        }
+        case "Task": {
+            return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/ping", {
+                params: {
+                    path: {id: room.id, index: messageIndex},
+                },
+            });
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export function getApiReference(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    reference: ApiMentionReference,
+): Promise<{data: {reference: ApiMentionReferenceResponse}}> {
+    switch (reference.type) {
+        case "Account": {
+            return apiClient.get(tracer, "/accounts/{id}-reference", {
+                params: {path: {id: reference.id}},
+            });
+        }
+        case "Document": {
+            return apiClient.get(tracer, "/documents/{id}-reference", {
+                params: {path: {id: reference.id}},
+            });
+        }
+        case "Channel": {
+            return apiClient.get(tracer, "/channels/{id}-reference", {
+                params: {path: {id: reference.id}},
+            });
+        }
+        case "Chat": {
+            return apiClient.get(tracer, "/chats/{id}-reference", {
+                params: {path: {id: reference.id}},
+            });
+        }
+        case "Task":
+            return apiClient.get(tracer, "/tasks/{id}-reference", {
+                params: {path: {id: reference.id}},
+            });
+        case "TaskCollection": {
+            return apiClient.get(tracer, "/task-collections/{id}-reference", {
+                params: {path: {id: reference.id}},
+            });
+        }
+        case "Post": {
+            return apiClient.get(tracer, "/posts/{id}-reference", {
+                params: {path: {id: reference.id}},
+            });
+        }
+        case "Site": {
+            return apiClient.get(tracer, "/sites/{id}-reference", {
+                params: {path: {id: reference.id}},
+            });
+        }
+        default: {
+            throw exhaustive(reference);
+        }
+    }
+}

@@ -14,8 +14,12 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    PermissionDeniedError,
+} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Authenticates using the information from an HTTP request to create a

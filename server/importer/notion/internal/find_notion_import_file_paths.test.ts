@@ -3,7 +3,7 @@ import {
     findFilePathsInDatabaseProperties,
     looksLikeFilePath,
 } from "~/server/importer/notion/internal/find_notion_import_file_paths.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 function fileMap(entries: Array<[string, string]>): Map<string, FileId> {
     return new Map(entries.map(([k, v]) => [k, v as FileId]));

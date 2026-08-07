@@ -17,7 +17,7 @@ import {TaskPriorityInputItem} from "~/client/web/tasks/internal/task_priority_i
 import {TaskPriorityIcon} from "~/client/web/tasks/task_priority_icon.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export function TaskPriorityInputListBox({
     comboBoxState,

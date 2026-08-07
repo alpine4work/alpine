@@ -1,5 +1,5 @@
-import {InternalError} from "~/shared/error/error.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
  * The complete caching strategy for public documentation surfaces.

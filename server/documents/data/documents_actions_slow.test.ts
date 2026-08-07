@@ -21,8 +21,8 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 import.meta.jest.setTimeout(1000 * 20);
 

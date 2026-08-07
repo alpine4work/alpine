@@ -11,9 +11,9 @@ import {seedTestMockChatGptBot} from "~/server/bots/seed_test_bots.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 const debug = createDebug(import.meta.url);
 

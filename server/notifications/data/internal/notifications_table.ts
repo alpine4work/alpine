@@ -13,9 +13,9 @@ import {
     DocumentId,
     PostId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {WebPushSubscriptionSchema} from "~/shared/notifications/web_push_subscription.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 // Regular DynamoDB table for any data regarding notifications that does not need
 // to be updated on the client in realtime. `InboxTable` is where all the data for

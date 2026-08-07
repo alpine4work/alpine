@@ -19,12 +19,12 @@ import {
     contentFileVideoAndAudioPlayerControlsStyles,
     sprinkles,
 } from "~/client/web/styles/styles.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 type PlayerControlsStylesString = keyof typeof contentFileVideoAndAudioPlayerControlsStyles;
 

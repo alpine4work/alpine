@@ -3,9 +3,9 @@ import {
     deserializeFileAttachmentTargetString,
     serializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const fileAttachmentTargetByType: {
     [Key in FileAttachmentTarget["type"]]: FileAttachmentTarget & {type: Key};

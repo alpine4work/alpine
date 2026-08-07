@@ -1,9 +1,9 @@
 import fc, {Arbitrary} from "fast-check";
 import {Root} from "mdast";
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {apiContentArbitrarySpaceId} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 // This file can only be imported in Jest unit tests.
 assert(import.meta.jest);

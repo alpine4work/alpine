@@ -1,7 +1,7 @@
 import {getFathomMeetingNotesMonthDocumentIds} from "~/admin/lambda/fathom_meeting_notes/internal/get_fathom_meeting_notes_month_document_ids.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assertId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const julyDocumentId = assertId<DocumentId>("11111111111111111111111111");
 const juneDocumentId = assertId<DocumentId>("22222222222222222222222222");

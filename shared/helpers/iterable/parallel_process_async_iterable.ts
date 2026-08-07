@@ -1,6 +1,6 @@
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Processes items from an async iterable in parallel with a configurable

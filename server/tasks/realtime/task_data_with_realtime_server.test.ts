@@ -10,8 +10,8 @@ import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {ContentDuplicationVariableValues} from "~/shared/content/content_duplication_variable_schema.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {getTaskTitleText} from "~/shared/tasks/title/task_title.js";
 
 const context = createTestContext({

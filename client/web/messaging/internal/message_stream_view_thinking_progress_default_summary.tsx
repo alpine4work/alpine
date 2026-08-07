@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this

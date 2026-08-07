@@ -1,5 +1,5 @@
-import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 export type AgentConversationState = {
     readonly lastMessageIndex: number | null;

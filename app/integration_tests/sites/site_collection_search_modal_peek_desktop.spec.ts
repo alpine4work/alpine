@@ -5,8 +5,8 @@ import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {printSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 const {context, services} = createTestServices();

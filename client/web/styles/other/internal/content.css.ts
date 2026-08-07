@@ -84,7 +84,7 @@ import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RawColor, parseRawColor, printRawColor} from "~/shared/design/core/helpers/raw_color.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {
     RemLength,
     Spacing,
@@ -99,17 +99,17 @@ import {
     SpacingScale,
     allSpacingScales,
     remPxBySpacingScale,
-} from "~/shared/design/core/spacing_scale.js";
+} from "~/shared/design/core/spacing_scale.open_source.js";
 import {ThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
-import {lerp} from "~/shared/helpers/number/lerp.js";
+import {lerp} from "~/shared/helpers/number/lerp.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //

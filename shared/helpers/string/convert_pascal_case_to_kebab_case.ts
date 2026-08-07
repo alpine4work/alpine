@@ -1,4 +1,4 @@
-import {convertCamelCaseToKebabCase} from "~/shared/helpers/string/convert_camel_case_to_kebab_case.js";
+import {convertCamelCaseToKebabCase} from "~/shared/helpers/string/convert_camel_case_to_kebab_case.open_source.js";
 
 /**
  * Convert a PascalCase string into kebab-case.

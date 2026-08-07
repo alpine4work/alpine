@@ -52,15 +52,15 @@ import {
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {RynamoIndexQueryResult, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
 import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/forum/forum_error_messages.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {
     addAccountGrantsToChannelAccessPolicy,
     backfillChannelAndMetadata,

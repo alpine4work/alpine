@@ -4,10 +4,10 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {

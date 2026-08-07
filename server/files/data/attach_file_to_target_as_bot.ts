@@ -5,10 +5,10 @@ import {
     getFileWithUploaderIdIfExists,
 } from "~/server/files/data/files_actions.js";
 import {getFileFromAnyAttachment} from "~/server/files/data/get_file_from_any_attachment.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Attach a file to an entity on behalf of a bot actor. Verifies the bot has rights

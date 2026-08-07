@@ -1,6 +1,10 @@
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {updateInboxDocumentCommentThreadEntry} from "~/server/notifications/data/internal/update_inbox_document_comment_thread_entry.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 export async function archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(
     context: ServerSessionActionContextWithPush,

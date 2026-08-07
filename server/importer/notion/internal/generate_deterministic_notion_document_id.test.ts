@@ -1,5 +1,5 @@
 import {generateDeterministicNotionDocumentIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_document_id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 describe("generateDeterministicNotionDocumentIdSync", () => {
     const spaceId1 = "space1" as SpaceId;

@@ -2,12 +2,12 @@ import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_servi
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {fromApiThemeColor} from "~/shared/api/content/closed_source/from_api_theme_color.js";
 import {intoApiThemeColor} from "~/shared/api/content/closed_source/into_api_theme_color.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 

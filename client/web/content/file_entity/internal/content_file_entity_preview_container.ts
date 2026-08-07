@@ -2,9 +2,9 @@ import classNames from "classnames";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 
 type transformScaleBaseFontSize = Extract<FontSize, "75" | "100">;

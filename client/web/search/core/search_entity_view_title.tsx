@@ -17,10 +17,10 @@ import {
 } from "~/client/web/styles/search_shared_styles.js";
 import {colorSchemeVars, contentStyles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {countGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
-import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {countGraphemes} from "~/shared/helpers/string/iterate_graphemes.open_source.js";
+import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.open_source.js";
 import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {deletedSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";

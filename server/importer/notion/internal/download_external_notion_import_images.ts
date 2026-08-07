@@ -3,8 +3,8 @@ import {mkdir, writeFile} from "fs/promises";
 import {dirname, join as joinPath} from "path";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 import {generateDeterministicNotionFileIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const oneGigabyte = 1024 * 1024 * 1024;
 

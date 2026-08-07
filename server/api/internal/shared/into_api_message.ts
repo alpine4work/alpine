@@ -11,25 +11,25 @@ import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js"
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {computeApiContentFileRowWidths} from "~/shared/api/content/closed_source/compute_api_content_file_row_widths.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
-import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.js";
+import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.open_source.js";
 import {
     ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentResponse,
     ApiMessagePayloadResponse,
     ApiMessageResponse,
     ApiPreviewReferenceResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_layout.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModelData} from "~/shared/files/file_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageContentPayload,
     MessageContentPayloadParent,

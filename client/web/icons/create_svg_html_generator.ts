@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
 
 const svgHtmlGeneratorKeySymbol = Symbol("svgHtmlGeneratorKey");

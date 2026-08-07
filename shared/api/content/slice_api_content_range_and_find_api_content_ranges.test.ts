@@ -2,16 +2,16 @@
 
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
-import {findApiContentRanges} from "~/shared/api/content/find_api_content_ranges.js";
-import {sliceApiContentRange} from "~/shared/api/content/slice_api_content_range.js";
-import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.js";
+import {findApiContentRanges} from "~/shared/api/content/find_api_content_ranges.open_source.js";
+import {sliceApiContentRange} from "~/shared/api/content/slice_api_content_range.open_source.js";
+import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.open_source.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {JsonValue} from "~/shared/helpers/types/json_value.js";
-import {assertId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const testCases: Array<{
     only?: CommitBlocker;

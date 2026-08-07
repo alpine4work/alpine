@@ -9,9 +9,9 @@ import {STATUS_CODES} from "http";
 import * as prettier from "prettier/index.mjs";
 import {colors} from "~/shared/design/core/colors.js";
 import {invertColor} from "~/shared/design/core/inverted_colors.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
-import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
 
 const selectionLightColor = (() => {
     const selectionAlpha = 2 / 3;

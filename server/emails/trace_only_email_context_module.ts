@@ -1,9 +1,9 @@
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {NonTransactionalEmailType} from "~/server/emails/email_type.js";
 import {RenderedEmail} from "~/server/emails/internal/templates/email_templates.js";
-import {DataLossError} from "~/shared/error/error.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Renders emails, but creates a trace on send instead of sending the email. Throws

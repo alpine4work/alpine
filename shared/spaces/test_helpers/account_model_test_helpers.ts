@@ -3,9 +3,9 @@ import {
     AccountModelWithoutSpaceAndAvatarData,
     AccountModelWithoutSpaceData,
 } from "~/shared/accounts/account_model_without_space.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {
     AccountModel,

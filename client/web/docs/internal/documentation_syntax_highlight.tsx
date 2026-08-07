@@ -1,7 +1,7 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {ColorSchemeVar} from "~/client/web/styles/styles.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export type DocumentationCodeLanguage = "json" | "bash" | "js" | "text";
 

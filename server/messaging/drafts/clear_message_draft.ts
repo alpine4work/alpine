@@ -1,7 +1,7 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {MessageDraftsTable} from "~/server/messaging/drafts/internal/message_drafts_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftSurface,
     getMessageDraftSurfaceKey,

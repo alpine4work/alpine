@@ -6,8 +6,8 @@ import {SessionActorContextModule} from "~/server/helpers/actor_context_module.j
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Get the actor's account.

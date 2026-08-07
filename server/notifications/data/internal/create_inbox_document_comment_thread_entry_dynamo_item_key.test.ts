@@ -1,11 +1,11 @@
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     DocumentCommentThreadId,
     DocumentId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {createInboxDocumentCommentThreadEntryDynamoItemKey} from "~/shared/notifications/create_inbox_document_comment_thread_entry_dynamo_item_key.js";
 
 // This test lives in `server/notifications/data` instead of `shared/notifications`

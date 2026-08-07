@@ -21,7 +21,7 @@ import {
     getDocumentationApiSchemaRefName,
 } from "~/shared/docs/documentation_api_model.js";
 import {getDocumentationApiSchemaKindLabel} from "~/shared/docs/get_api_documentation_schema_kind_label.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * One schema page: the schema's doc block plus a precomputed "Referenced by"

@@ -47,13 +47,13 @@ import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_
 import {sprinkles, withoutClearSelectionOnMouseDownClassName} from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 
 const contextMenuEventExtensionSymbol = Symbol("contextMenuEventExtension");
 

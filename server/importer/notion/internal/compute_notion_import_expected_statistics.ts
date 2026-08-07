@@ -4,10 +4,10 @@ import {join as joinPath} from "path";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {parseNotionImportHierarchyFromIndexHtml} from "~/server/importer/notion/internal/parse_notion_import_hierarchy_from_index_html.js";
 import {resolveNotionImportFileLinkPath} from "~/server/importer/notion/internal/resolve_notion_import_file_link_path.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {visitApiContent} from "~/shared/api/content/visit_api_content.js";
-import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {visitApiContent} from "~/shared/api/content/visit_api_content.open_source.js";
+import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";
 
 /**

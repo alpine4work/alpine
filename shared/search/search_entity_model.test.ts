@@ -1,11 +1,11 @@
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     SearchChatEntityMediaModel,
     SearchEntityModel,

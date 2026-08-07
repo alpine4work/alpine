@@ -1,12 +1,12 @@
 import {shutdownManagerTimeoutMs} from "~/server/helpers/node/shutdown_timeouts.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {DeadlineExceededError} from "~/shared/error/error.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {DeadlineExceededError} from "~/shared/error/error.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type ShutdownReason =
     | {

@@ -34,8 +34,8 @@ import {
     ChannelModel,
     renderedMaxChannelTopContributorCount,
 } from "~/shared/forum/channel_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {sendChannelShareNotification} from "~/shared/rpc/forum_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

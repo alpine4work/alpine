@@ -9,14 +9,14 @@ import {
     ApiInboxEntryTitleItemResponse,
     ApiPostReferenceResponse,
     ApiTaskReferenceResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {ChatId, TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
+import {ChatId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     InboxEntryDisplayContent,
     InboxEntryDisplayContentTitle,

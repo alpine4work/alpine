@@ -29,15 +29,15 @@ import {
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {lerp} from "~/shared/helpers/number/lerp.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {lerp} from "~/shared/helpers/number/lerp.open_source.js";
 import {randomFloat} from "~/shared/helpers/number/random_float.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     chatInjection,

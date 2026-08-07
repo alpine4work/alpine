@@ -3,7 +3,7 @@ import {Node} from "prosemirror-model";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {createContentCodeBlockNodeInput} from "~/shared/content/code/create_content_code_block_node_input.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
 

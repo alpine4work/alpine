@@ -6,7 +6,7 @@ import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js
 import {createChannel} from "~/server/forum/data/create_channel.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 const {context, services} = createTestServices();
 const space = createTestSpace(context);

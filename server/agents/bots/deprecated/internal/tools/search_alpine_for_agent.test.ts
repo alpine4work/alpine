@@ -7,9 +7,9 @@ import {searchAlpineForAgent} from "~/server/agents/bots/deprecated/internal/too
 import {
     ApiMessageRoomReference,
     ApiSearchResultResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {generateId} from "~/shared/id/id.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -20,7 +20,7 @@ import {
     SpaceId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const storage = new DurableObjectStorage(new MemoryStorage());

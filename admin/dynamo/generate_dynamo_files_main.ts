@@ -1,11 +1,11 @@
 import fs from "fs-extra";
 import {parseArgs} from "util";
 import {crawlDynamoTableSchemaIndexNames, crawlDynamoTableSchemas} from "~/admin/crawl/crawl.js";
-import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {JsonValue} from "~/shared/helpers/types/json_value.js";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
 import {serializeSchemaDescriptionToJsonSafeValue} from "~/shared/schema/schema_description_json.js";
 
 async function main() {

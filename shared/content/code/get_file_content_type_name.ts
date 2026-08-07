@@ -2,9 +2,9 @@ import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_b
 import {
     FileContentType,
     getFileContentTypeContentCodeBlockLanguageId,
-} from "~/shared/files/file_content_type.js";
-import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Get a human readable name for the content type which includes the format of the

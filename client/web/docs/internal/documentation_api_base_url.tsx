@@ -4,7 +4,7 @@ import {documentationComponent} from "~/client/web/docs/internal/markdown/docume
 /* eslint-disable react-refresh/only-export-components -- co-located component factories bind API models for markdown generation. */
 import {DocumentationApiModel} from "~/shared/docs/documentation_api_model.js";
 import {toDocumentationMarkdownCodeBlock} from "~/shared/docs/to_documentation_markdown_code_block.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * A code block showing the API's base URL, read from the OpenAPI spec's server so

@@ -11,16 +11,16 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
-import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
-import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.open_source.js";
+import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {
     DigestEntry,
     DigestNotificationContent,

@@ -19,14 +19,14 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DataLossError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
-import {getMaxId, getMinId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getMaxId, getMinId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 // Node.js ESM interop (#node-esm-migration)

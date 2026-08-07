@@ -11,8 +11,8 @@ import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
@@ -20,13 +20,13 @@ import {
 import {
     isFileWebSafeAudioContentType,
     isFileWebSafeImageContentType,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     getDynamicSearchEntityPathForFileEntity,
     getSearchDynamicEntityPath,

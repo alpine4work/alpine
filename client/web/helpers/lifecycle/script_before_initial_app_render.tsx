@@ -1,5 +1,5 @@
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {SafeString, isSafeString} from "~/shared/helpers/string/safe_string.js";
 
 /**

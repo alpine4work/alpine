@@ -14,15 +14,15 @@ import {
     RenderContentMentionToTextSearchEntity,
     renderContentMentionToText,
 } from "~/shared/content/render_content_mention_to_text.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**

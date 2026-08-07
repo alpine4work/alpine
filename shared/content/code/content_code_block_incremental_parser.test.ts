@@ -21,11 +21,11 @@ import {
     DocumentContentProsemirrorSchema as schema,
     DocumentContentStepSchema as stepSchema,
 } from "~/shared/documents/document_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 
 const doc1 = schema.nodeFromJSON({
     type: "doc",

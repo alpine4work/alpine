@@ -1,7 +1,7 @@
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 let navigationAnimationCount = 0;
 let navigationAnimationCallbacks = new Set<() => void>();

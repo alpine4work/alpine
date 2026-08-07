@@ -8,7 +8,7 @@ import {
     createApiMessageStreamPart,
     getApiMessagesFromStart,
     pingApiMessageStream,
-} from "~/server/agents/api/api_client.js";
+} from "~/server/agents/api/api_client.open_source.js";
 import {agentInstructionsMarkdown as markdown} from "~/server/agents/bots/deprecated/internal/agent_instructions_markdown.js";
 import {
     agentInitializeMessagesTokenLimit,
@@ -56,38 +56,43 @@ import {
     ApiContentTextInlineElement,
     ApiMessageRoomReference,
     ApiMessageStreamPartPayload,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
     UnimplementedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {AccountId, BotId, CursorCloudAgentId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    BotId,
+    CursorCloudAgentId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // The `/webhook` route is shared across all agents and parsed/handled in
 // `AgentDurableObjectBase`.

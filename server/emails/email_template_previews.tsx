@@ -11,9 +11,9 @@ import {
     sampleAccountAvatarTeemoBytes,
 } from "~/shared/avatar/fixtures/sample_account_avatars.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId, AvatarId} from "~/shared/id/types/id_types.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {AccountId, AvatarId} from "~/shared/id/types/id_types.open_source.js";
 
 type NonEmptyArray<Value> = [Value, ...Array<Value>];
 

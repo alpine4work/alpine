@@ -3,7 +3,7 @@ import {
     createApiMessage,
     pingApiMessageStream,
     putApiMessageStreamPart,
-} from "~/server/agents/api/api_client.js";
+} from "~/server/agents/api/api_client.open_source.js";
 import {
     AgentContext,
     AgentDurableObjectBase,
@@ -13,15 +13,15 @@ import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.j
 import {shouldAgentRespondToRequest} from "~/server/agents/bots/internal/should_agent_respond_to_request.js";
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {MockAgentRecording} from "~/shared/agents/mock_agent_recording.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 // The `/webhook` route is shared across all agents and parsed/handled in
 // `AgentDurableObjectBase`.

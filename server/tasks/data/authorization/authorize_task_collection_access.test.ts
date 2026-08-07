@@ -7,11 +7,15 @@ import {authorizeTaskCollectionAccess} from "~/server/tasks/data/authorization/a
 import {authorizeTaskCollectionAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_collection_access_if_possible.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {NotFoundError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {
+    NotFoundError,
+    PermissionDeniedError,
+    UnauthenticatedError,
+} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     spacesInjection,

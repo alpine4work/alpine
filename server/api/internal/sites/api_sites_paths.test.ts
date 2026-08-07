@@ -4,8 +4,8 @@ import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {generateId} from "~/shared/id/id.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({});
 

@@ -24,9 +24,9 @@ import {
 } from "~/server/tasks/data/task_messaging.js";
 import {updateTaskGridViewExpansionState} from "~/server/tasks/data/update_task_grid_view_expansion_state.js";
 import {updateTaskNotesContentIdempotently} from "~/server/tasks/data/update_task_notes_content.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {AccountId, SiteId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {AccountId, SiteId} from "~/shared/id/types/id_types.open_source.js";
 import * as definitions from "~/shared/rpc/tasks_rpc_definitions.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";

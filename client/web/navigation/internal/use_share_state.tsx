@@ -18,12 +18,12 @@ import {
 import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {InternalError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**

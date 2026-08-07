@@ -31,12 +31,12 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {maxFileContentLength} from "~/shared/files/file_constants.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
@@ -46,14 +46,23 @@ import {
 } from "~/shared/files/file_preview.js";
 import {FileProcessorError} from "~/shared/files/file_processor_error.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
-import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
-import {AccountId, DocumentId, FileId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    generateChronologicalId,
+    getChronologicalIdTime,
+} from "~/shared/id/chronological_id.open_source.js";
+import {
+    AccountId,
+    DocumentId,
+    FileId,
+    PostDraftId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 /**

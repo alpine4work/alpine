@@ -77,9 +77,9 @@ import {
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {
     HtmlElementGenerator,
     HtmlGenerator,
@@ -87,11 +87,11 @@ import {
 } from "~/shared/helpers/html/html_generator.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {Id, generateId, isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {Id, generateId, isId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {areProsemirrorNodesEqualExceptText} from "~/shared/prosemirror/are_prosemirror_nodes_equal_except_text.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {getDynamicSearchEntityPathForFileEntity} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

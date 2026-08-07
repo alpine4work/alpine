@@ -1,6 +1,6 @@
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
 
 const safeStringTag = Symbol("safe");
 

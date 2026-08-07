@@ -9,19 +9,19 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSiteActivation, useSiteContext} from "~/client/web/sites/context/site_context.js";
 import {computeAdjacentEntityId} from "~/client/web/sites/internal/compute_adjacent_entity_id.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     ChannelId,
     DocumentId,
     SiteSideBarSectionId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {createDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {createChannel} from "~/shared/rpc/forum_rpc_definitions.js";
 import {

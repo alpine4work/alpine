@@ -64,7 +64,7 @@ import {
     colorSchemeVars,
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
-import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
+import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.open_source.js";
 import {
     Spacing,
     convertRemLengthToPx,
@@ -73,11 +73,11 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";

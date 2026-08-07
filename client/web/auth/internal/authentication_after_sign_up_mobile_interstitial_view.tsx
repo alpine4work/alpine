@@ -14,7 +14,7 @@ import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {DataLossError} from "~/shared/error/error.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
 import {
     optInToTryOnDesktopEmail,
     optOutOfTryOnDesktopEmail,

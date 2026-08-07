@@ -69,7 +69,7 @@ import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -79,11 +79,11 @@ import {
     emptyMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {InternalError, NotFoundError} from "~/shared/error/error.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {InternalError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     createPostSearchEntityTitle,
@@ -91,34 +91,34 @@ import {
     getPostSearchEntityTitleContentSnippet,
 } from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
 import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -130,7 +130,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagePayload,
     MessageStream,

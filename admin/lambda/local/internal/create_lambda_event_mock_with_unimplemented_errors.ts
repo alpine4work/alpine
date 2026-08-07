@@ -1,5 +1,5 @@
-import {UnimplementedError} from "~/shared/error/error.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 export function createLambdaEventMockWithUnimplementedErrors<T>(
     baseEventObject: Partial<T>,

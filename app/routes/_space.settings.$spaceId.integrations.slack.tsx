@@ -27,10 +27,10 @@ import {areNotificationsToSlackEnabled} from "~/server/notifications/data/push/a
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     SlackOAuthStatusMessageSchema,
     slackOAuthStatusMessageType,
@@ -50,7 +50,7 @@ import {
     disableNotificationsToSlack,
     enableNotificationsToSlack,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {hasSpaceRole} from "~/shared/spaces/space_model.js";
 
 const LoaderSchema = Schema.object({

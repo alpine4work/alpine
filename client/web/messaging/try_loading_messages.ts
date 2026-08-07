@@ -2,7 +2,7 @@ import {MessageList} from "~/client/web/messaging/message_list.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {messageViewMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {getVirtualizationWindowHeight} from "~/client/web/virtualized/virtualized_scroll_view_state.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 
 /**

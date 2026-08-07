@@ -38,7 +38,7 @@ ts_project(
 js_binary(
     name = "cli",
     data = [":cli_lib"],
-    entry_point = "cli_main.js",
+    entry_point = "cli_main.open_source.js",
     env = {"NODE_ENV": "development"},
     visibility = ["//server/agents/cli:__subpackages__"],
 )

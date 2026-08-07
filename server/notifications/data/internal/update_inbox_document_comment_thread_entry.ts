@@ -14,14 +14,14 @@ import {
     updateInboxEntry,
 } from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {
     AccountId,
     DocumentCommentThreadId,
     DocumentId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 export function updateInboxDocumentCommentThreadEntry(
     context: ServerActionContext,

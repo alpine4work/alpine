@@ -9,7 +9,7 @@ import {useContext} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Reporter, ReporterContext} from "~/client/web/design/internal/reporter_context.js";
 import {markMemoIfNotRendering} from "~/client/web/helpers/lifecycle/mark_memo_if_not_rendering.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.open_source.js";
 
 // Re-export `Reporter` for files that can't import from `client/design/internal`.
 export type {Reporter};

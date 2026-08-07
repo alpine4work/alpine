@@ -4,14 +4,14 @@ import escapeHtml from "escape-html";
 import {RootContent} from "mdast";
 import {AgentMessage} from "~/server/agents/bots/deprecated/internal/messages/agent_message.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
-import {ApiMessageContentPayloadParentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {TimeZone, formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {ApiMessageContentPayloadParentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {deserializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {TimeZone, formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * When printing messages to the log, we'll group successive messages from the same

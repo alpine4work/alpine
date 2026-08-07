@@ -8,9 +8,9 @@ import {
     createProsemirrorSchemaSpec,
 } from "~/shared/content/content_schema.js";
 import {contentMentionProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const messageContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {

@@ -26,12 +26,12 @@ import {OpensearchSortClause} from "~/server/opensearch/opensearch_sort_clause.j
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 type WithoutFirstTracerParameter<F> = F extends (
     tracer: TracerBase,

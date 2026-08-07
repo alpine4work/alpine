@@ -30,14 +30,14 @@ import {
     pendingExecuteSearchOutput,
 } from "~/client/web/search/internal/execute_search.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
-import {InternalError} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {addSumOperandToOpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";

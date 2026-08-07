@@ -1,5 +1,5 @@
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     ChannelId,
     ChatId,
@@ -7,7 +7,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchFavoriteEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

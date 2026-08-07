@@ -7,16 +7,16 @@ import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {TaskClientStore} from "~/client/web/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
 import {WebSocketClient, WebSocketClientState} from "~/client/web/web_socket/web_socket_client.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {Id, generateId} from "~/shared/id/id.js";
+import {Id, generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     BrowserId,
@@ -24,7 +24,7 @@ import {
     TaskRealtimeCollectionSubscriptionId,
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";

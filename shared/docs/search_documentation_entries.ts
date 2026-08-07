@@ -26,8 +26,8 @@
 
 import _Fuse from "fuse.js";
 import {DocumentationApiMethod} from "~/shared/docs/documentation_api_model.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;

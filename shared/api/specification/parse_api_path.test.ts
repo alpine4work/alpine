@@ -9,7 +9,7 @@ import {
     printApiMessageRoomPath,
     printApiPath,
 } from "~/shared/api/specification/parse_api_path.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -19,7 +19,7 @@ import {
     PostId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 const accountId = generateId<AccountId>();
 const channelId = generateId<ChannelId>();

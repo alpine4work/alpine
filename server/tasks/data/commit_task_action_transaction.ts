@@ -56,26 +56,29 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    runAllPromiseThunks,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     SpaceId,
@@ -84,9 +87,9 @@ import {
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

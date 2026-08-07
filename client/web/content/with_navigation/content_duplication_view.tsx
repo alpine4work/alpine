@@ -47,11 +47,11 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/content/message_content_schema.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 
 /**
  * A generic content duplication view that can be used for both documents and

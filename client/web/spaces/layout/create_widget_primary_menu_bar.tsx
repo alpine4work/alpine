@@ -32,9 +32,9 @@ import {
 import {colorSchemeVars, spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 export type CreateWidgetPrimaryMenuBarRef = {

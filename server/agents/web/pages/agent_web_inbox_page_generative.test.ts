@@ -1,7 +1,7 @@
 import fc, {Arbitrary} from "fast-check";
-import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
-import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
-import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
+import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_source.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.open_source.js";
+import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.open_source.js";
 import {
     AgentWebInboxPage,
     AgentWebInboxPageEntry,
@@ -10,7 +10,7 @@ import {
     normalizeAgentWebInboxPage,
     parseAgentWebInboxPage,
     printAgentWebInboxPage,
-} from "~/server/agents/web/pages/agent_web_inbox_page.js";
+} from "~/server/agents/web/pages/agent_web_inbox_page.open_source.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {
     ApiChannelReferenceArbitrary,
@@ -18,8 +18,8 @@ import {
     ApiDocumentReferenceArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {generateId} from "~/shared/id/id.js";
+import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChatId,
@@ -27,7 +27,7 @@ import {
     DocumentId,
     PostId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 // The inbox is addressed by a single human `AccountId`, and
 // `printAgentWebInboxPage` asserts the page link equals `page.account.id`. Share

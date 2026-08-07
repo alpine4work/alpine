@@ -9,13 +9,13 @@ import {registerGracefulServerShutdown} from "~/server/node/register_graceful_se
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {coupleWebSocket} from "~/server/web_socket/couple_web_socket.js";
-import {AbortedError, InternalError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {AbortedError, InternalError} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Create a request listener for a Node.js HTTP server that follows WhatWG

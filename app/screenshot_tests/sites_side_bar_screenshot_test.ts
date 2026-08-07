@@ -14,17 +14,17 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {
     OrderKey,
     assertOrderKey,
     generateOrderKeyBetween,
-} from "~/shared/helpers/sort/order_key.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId, PostId} from "~/shared/id/types/id_types.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteContainerId, printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();

@@ -7,7 +7,7 @@ import {
     DocumentationApiModel,
     DocumentationApiSchemaNode,
 } from "~/shared/docs/documentation_api_model.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Renders a schema's field table inline in an API page:

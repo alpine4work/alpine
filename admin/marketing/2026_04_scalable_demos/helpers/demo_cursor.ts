@@ -2,7 +2,7 @@ import {Locator, Page} from "playwright";
 import {random} from "remotion";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {html} from "~/shared/helpers/string/html.js";
 
 // SVG from https://github.com/daviddarnes/mac-cursors

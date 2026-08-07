@@ -1,5 +1,5 @@
-import {encodeId} from "~/shared/id/id.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {encodeId} from "~/shared/id/id.open_source.js";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Generates a deterministic document ID based on the target space ID, Notion

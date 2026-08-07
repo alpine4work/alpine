@@ -4,11 +4,11 @@ import {ServerAccountActionContext} from "~/server/context/server_action_context
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Update a single property in the bot's account settings. Accounts can update

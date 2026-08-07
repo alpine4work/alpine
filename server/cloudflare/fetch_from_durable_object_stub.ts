@@ -1,9 +1,9 @@
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
-import {DurableObjectServiceName} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.open_source.js";
+import {DurableObjectServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Send a request to a Cloudflare Durable Object created with

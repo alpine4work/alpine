@@ -23,12 +23,15 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/web/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContextIfExists} from "~/client/web/spaces/context/space_context.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 
 /**

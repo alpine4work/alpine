@@ -60,7 +60,7 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskQueryFilter,

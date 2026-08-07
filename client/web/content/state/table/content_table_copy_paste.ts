@@ -42,7 +42,7 @@ import {Transaction} from "prosemirror-state";
 import {Transform} from "prosemirror-transform";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 type Area = {width: number; height: number; rows: Array<Fragment>};
 

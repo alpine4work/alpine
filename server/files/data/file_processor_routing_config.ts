@@ -4,7 +4,7 @@ import {
     getFileMicrosoftOfficeContentTypes,
     getFileVideoContentTypes,
     isFileWebSafeAudioContentType,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 /**
  * Configuration for routing files to appropriate processor tiers.
  */

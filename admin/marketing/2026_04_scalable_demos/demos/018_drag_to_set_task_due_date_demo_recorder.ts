@@ -3,8 +3,8 @@ import {createDemoSpace} from "~/admin/environment/demo_space/create_demo_space.
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
 import {scalableDemoWideViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {

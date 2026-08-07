@@ -62,28 +62,28 @@ import {
     FailedPreconditionError,
     InternalError,
     NotFoundError,
-} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {areHybridLogicalTimesEqual} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
-import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {JsonScalarValue} from "~/shared/helpers/types/json_value.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {
     AccountId,
     SiteId,
@@ -91,7 +91,7 @@ import {
     TaskActionTransactionId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {
@@ -110,7 +110,7 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 /**
  * The refresh interval of our task index and task collection index. Since we use

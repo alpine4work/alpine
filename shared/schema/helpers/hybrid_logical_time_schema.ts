@@ -1,6 +1,6 @@
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const higherBitsMask = 2n ** 48n - 1n;
 const lowerBitsMask = 2n ** 16n - 1n;

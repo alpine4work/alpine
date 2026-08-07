@@ -5,15 +5,15 @@ import {
 } from "~/client/web/content/state/content_file_layout_computations.js";
 import {createCachedFunction} from "~/client/web/content/state/internal/create_cached_function.js";
 import {ContentFileLayout, fileRowMaxFileCount} from "~/shared/content/compute_file_row_layout.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {InternalError} from "~/shared/error/error.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModelData} from "~/shared/files/file_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 const actuallyLayoutContentFileParent = createCachedFunction(
     (

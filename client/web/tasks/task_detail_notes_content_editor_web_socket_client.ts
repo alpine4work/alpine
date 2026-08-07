@@ -13,12 +13,12 @@ import {
     WebSocketClientState,
 } from "~/client/web/web_socket/web_socket_client.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {UnavailableError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {UnavailableError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";

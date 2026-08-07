@@ -3,7 +3,7 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 
 const {context, services} = createTestServices();
 

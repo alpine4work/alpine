@@ -29,7 +29,7 @@ import {
     FailedPreconditionError,
     InvalidArgumentError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     CompleteFileMultipartUploadRequestSchema,
@@ -38,13 +38,13 @@ import {
     PutFileMultipartUploadPartResponseSchema,
     UploadFileResponseSchema,
 } from "~/shared/files/upload_file_protocol.js";
-import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const {shutdownManager, shutdown} = ShutdownManager.new({

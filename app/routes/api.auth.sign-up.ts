@@ -5,9 +5,9 @@ import {
     AuthSignInOrSignUpOutputSchema,
     AuthSignUpInputSchema,
 } from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 export async function action({request, context, span}: LoaderArgs) {
     try {

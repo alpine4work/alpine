@@ -30,16 +30,16 @@ import {renderTaskMissingAccountAvatar} from "~/client/web/tasks/task_missing_ac
 import {renderTaskPriorityIcon} from "~/client/web/tasks/task_priority_icon_html.js";
 import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {Store} from "~/shared/store/store.js";
 import {

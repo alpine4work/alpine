@@ -2,7 +2,7 @@ import {jest} from "@jest/globals";
 import {SupportedBedrockModel} from "~/server/language_models/supported_bedrock_model.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const testBedrockModel: SupportedBedrockModel = "google.gemma-3-12b-it";

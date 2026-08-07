@@ -1,10 +1,10 @@
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {
     AgentWebTaskPage,
     normalizeAgentWebTaskPage,
     parseAgentWebTaskPage,
     printAgentWebTaskPage,
-} from "~/server/agents/web/pages/agent_web_task_page.js";
+} from "~/server/agents/web/pages/agent_web_task_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
@@ -12,10 +12,15 @@ import {
     ApiMentionReferenceResponse,
     ApiTaskCollectionReferenceResponse,
     ApiTaskReferenceResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    BotId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 const taskId = generateId<TaskId>();
 

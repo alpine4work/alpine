@@ -8,8 +8,8 @@ import {isModifiedPointerEvent} from "~/client/web/helpers/events/is_modified_po
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/web/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const {linkPressedClassName} = contentStyles;
 

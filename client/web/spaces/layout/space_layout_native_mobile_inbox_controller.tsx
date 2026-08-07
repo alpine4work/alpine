@@ -8,7 +8,7 @@ import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/web/remix/use_c
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/web/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 

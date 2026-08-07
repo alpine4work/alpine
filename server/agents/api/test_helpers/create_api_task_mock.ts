@@ -15,13 +15,13 @@ import {
     ApiTaskStatus,
     ApiTaskSubtasks,
     ApiTaskWithNotesResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {scrambleBytes} from "~/shared/helpers/binary/scramble_bytes.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {WritableShallow} from "~/shared/helpers/types/writable_deep.js";
-import {encodeId, generateId, idByteLength} from "~/shared/id/id.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {encodeId, generateId, idByteLength} from "~/shared/id/id.open_source.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 export type ApiTaskStatusMock = "Open" | "OpenInactive" | "OpenActive" | "Closed";
 

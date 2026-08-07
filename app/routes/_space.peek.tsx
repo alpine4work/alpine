@@ -15,17 +15,17 @@ import {
     GlobalLoadingIndicatorContextProvider,
 } from "~/client/web/spaces/global_loading_indicator_context_provider.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_tracer_event_propagated_data_for_pathname.js";
-import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
+import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.open_source.js";
 import {tracerEventDataContextPeekMoveIntoAboveKeys} from "~/shared/tracer/helpers/tracer_event_data_context_peek_move_into_above_key.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 export default function PeekLayout() {
     // Navigating to this route via URL will show you an error! This route can only be

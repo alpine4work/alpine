@@ -1,9 +1,9 @@
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 import {OpensearchSearchHitExplanationSchema} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SearchAffinityEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

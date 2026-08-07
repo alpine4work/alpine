@@ -1,4 +1,4 @@
-import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
+import {JsonScalarValue} from "~/shared/helpers/types/json_value.open_source.js";
 
 /**
  * Deeply converts a type into a readonly type. The inverse of `WritableDeep`.

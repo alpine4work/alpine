@@ -14,15 +14,15 @@ import {
     botWebhookSignatureHeader,
     signBotWebhookRequest,
 } from "~/shared/api/specification/sign_bot_webhook_request.js";
-import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {BotWebhook} from "~/shared/bots/bot_schema.js";
 import {Context} from "~/shared/context/context.js";
-import {DeadlineExceededError, UnknownError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {DeadlineExceededError, UnknownError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 const botWebhookRequestTimeoutMs = 10 * 1000;
 const botWebhookRetryDelayIncrementMs = 2 * 1000;

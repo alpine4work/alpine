@@ -8,7 +8,11 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {getAccount} from "~/server/spaces/get_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DataLossError, FailedPreconditionError, UnknownError} from "~/shared/error/error.js";
+import {
+    DataLossError,
+    FailedPreconditionError,
+    UnknownError,
+} from "~/shared/error/error.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const tracer = new TracerContextModule(testTracer);

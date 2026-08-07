@@ -1,10 +1,10 @@
-import {ApiClient, getApiMessagesFromEnd} from "~/server/agents/api/api_client.js";
+import {ApiClient, getApiMessagesFromEnd} from "~/server/agents/api/api_client.open_source.js";
 import {AgentMessage} from "~/server/agents/bots/deprecated/internal/messages/agent_message.js";
 import {loadApiMessagesForAgentBatchCount} from "~/server/agents/bots/deprecated/internal/messages/load_api_messages_for_agent_batch_count.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 /**
  * Get all messages before the cursor within a provided token limit (including the

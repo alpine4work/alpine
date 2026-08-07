@@ -1,5 +1,5 @@
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
-import {AccountId, SiteId} from "~/shared/id/types/id_types.js";
+import {AccountId, SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 
 /**

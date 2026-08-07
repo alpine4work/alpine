@@ -7,8 +7,8 @@ import {
     PostAttributesItem,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {createPostNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 export const PostItemAuthorizationCache = new DynamoContextCache<
     PostId,

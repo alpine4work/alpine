@@ -19,16 +19,19 @@ import {
     botWebhookSignatureHeader,
     verifyBotWebhookRequestSignature,
 } from "~/shared/api/specification/sign_bot_webhook_request.js";
-import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotWebhookEventId, ChatId} from "~/shared/id/types/id_types.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotWebhookEventId, ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
 const mockTokenAgent: BotWebhookContextModuleTokenAgentInterface = {

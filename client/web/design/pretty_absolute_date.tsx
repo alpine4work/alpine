@@ -3,8 +3,8 @@ import {OverlayPlacement} from "~/client/web/design/overlay.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
-import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
-import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
+import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.open_source.js";
 
 /**
  * Render a date in a human readable form.

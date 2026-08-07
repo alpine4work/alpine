@@ -1,7 +1,7 @@
 import {useContext} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
 
 type AppRouteWithMetadataId =

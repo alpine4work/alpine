@@ -12,9 +12,9 @@ import {
     sprinkles,
 } from "~/client/web/styles/styles.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
 
 type TaskDisplayStatus = "OpenInactive" | "OpenActive" | "Closed";
 

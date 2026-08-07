@@ -7,8 +7,8 @@ import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runProcessWithInheritedStdio} from "~/server/helpers/node/run_process_with_inherited_stdio.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {InvalidArgumentError, UnknownError} from "~/shared/error/error.js";
-import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.js";
+import {InvalidArgumentError, UnknownError} from "~/shared/error/error.open_source.js";
+import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.open_source.js";
 
 // Shortcuts for common queries to be used with the "d1 run" command
 const namedQueries = new Map<string, string>([

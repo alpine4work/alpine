@@ -9,10 +9,10 @@ import {screenshotTestLooksSameTolerance} from "~/app/screenshot_tests/helpers/s
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 const githubOwner = "cyberworlds";
 const githubRepo = "cyberworlds";

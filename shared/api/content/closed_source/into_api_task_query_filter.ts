@@ -10,9 +10,9 @@ import {
     ApiTaskQueryTimeFilterOperationDuration,
     ApiTaskQueryTimeFilterOperationTime,
     ApiTaskStatus,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";

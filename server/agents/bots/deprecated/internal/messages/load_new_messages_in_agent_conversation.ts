@@ -2,7 +2,7 @@ import {AgentConversationStore} from "~/server/agents/bots/deprecated/internal/c
 import {getAgentMessagesBetweenIndexes} from "~/server/agents/bots/deprecated/internal/messages/get_agent_messages_between_indexes.js";
 import {printAgentMessagesLog} from "~/server/agents/bots/deprecated/internal/messages/print_agent_messages_log.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 export async function loadNewMessagesInAgentConversation(
     tracer: TracerBase,

@@ -81,11 +81,11 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {Spacing, addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {InternalError} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {
     clearSearchEntityAffinity,

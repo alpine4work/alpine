@@ -5,7 +5,7 @@ import {
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 
 export class TaskRealtimeServiceLocalRouter extends TaskRealtimeServiceRouterBase {
     private _port: MaybeThunk<number>;

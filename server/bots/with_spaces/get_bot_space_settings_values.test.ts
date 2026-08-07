@@ -5,7 +5,7 @@ import {updateBotSpaceSettingsPropertyValue} from "~/server/bots/with_spaces/upd
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {emptySimpleContent} from "~/shared/content/simple_content_schema.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 
 const context = createTestContext();
 

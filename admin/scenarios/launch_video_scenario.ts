@@ -24,7 +24,7 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {MockAgentRecordingAction} from "~/shared/agents/mock_agent_recording.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
@@ -32,15 +32,18 @@ import {
     PostContentProsemirrorSchema,
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
-import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {
+    runAllPromiseThunks,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {JsonObjectValue} from "~/shared/helpers/types/json_value.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export async function createLaunchVideoScenario(
     context: TestContext,

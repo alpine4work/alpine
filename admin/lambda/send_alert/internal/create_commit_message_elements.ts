@@ -1,4 +1,4 @@
-import {ApiContentCodeBlockElementTextInlineElement} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentCodeBlockElementTextInlineElement} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 /**
  * Converts a GitHub commit message into inline content elements.

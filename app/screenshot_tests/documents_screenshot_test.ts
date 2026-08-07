@@ -10,11 +10,11 @@ import {
 } from "~/shared/content/content_duplication_variable_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {generateId, unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     const {space, accounts} = await runner.createDemoSpace(context);

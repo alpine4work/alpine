@@ -4,7 +4,7 @@ import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {renderContentMentionToTextForClient} from "~/client/web/content/render_content_mention_to_text_for_client.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 // We fork these two functions `textBetween` from Prosemirror's prosemirror-model
 // Fragment class. We add our own behavior for serializing the text content when

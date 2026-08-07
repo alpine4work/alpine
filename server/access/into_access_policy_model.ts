@@ -2,7 +2,7 @@ import {ServerMinimalActionContext} from "~/server/context/server_minimal_action
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Converts a raw access policy into an access policy model. In practice, this

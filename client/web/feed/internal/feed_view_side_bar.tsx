@@ -39,14 +39,14 @@ import {
     searchEntityViewDefaultPaddingX,
 } from "~/client/web/styles/search_shared_styles.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {generateId} from "~/shared/id/id.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {
     clearSearchEntityAffinity,

@@ -1,4 +1,4 @@
-import {alternateIterables} from "~/shared/helpers/iterable/alternate_iterables.js";
+import {alternateIterables} from "~/shared/helpers/iterable/alternate_iterables.open_source.js";
 
 test("alternates values from each iterable in order", () => {
     expect(Array.from(alternateIterables([1, 2], [3, 4], [5, 6]))).toEqual([1, 3, 5, 2, 4, 6]);

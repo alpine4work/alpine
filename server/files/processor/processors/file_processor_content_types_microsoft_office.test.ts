@@ -3,7 +3,7 @@ import {
     FileProcessorContentTypeTestCase,
     testFileProcessorContentTypes,
 } from "~/server/files/processor/test_helpers/test_file_processor_content_types.js";
-import {FileMicrosoftOfficeDocumentContentType} from "~/shared/files/file_content_type.js";
+import {FileMicrosoftOfficeDocumentContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 
 const context = createTestContext();

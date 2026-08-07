@@ -5,14 +5,14 @@ import {
     ApiMessageExperimentalApproval,
     ApiMessageExperimentalApprovalDecisionOption,
     ApiMessageStreamPartPayload,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     MessageExperimentalApproval,
     MessageExperimentalApprovalDecisionOption,

@@ -13,12 +13,16 @@ import {
     DocumentModel,
 } from "~/shared/documents/document_model.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {DeadlineExceededError, NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DeadlineExceededError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {InboxDocumentNewCommentThreadsEntryModel} from "~/shared/notifications/inbox_model.js";
 
 /**

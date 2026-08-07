@@ -1,9 +1,9 @@
 import {NavigateFunction} from "~/client/web/remix/use_navigate.js";
 import {AuthSignInOrSignUpOpen} from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {neverPromise} from "~/shared/helpers/async/never_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function navigateAfterSignInOrSignUp({
     navigate,

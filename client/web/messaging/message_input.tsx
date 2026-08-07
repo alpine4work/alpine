@@ -49,22 +49,22 @@ import {
 } from "~/shared/content/message_content_schema.js";
 import {trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {Id, generateId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {Id, generateId} from "~/shared/id/id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {
     MessageDraftSurface,

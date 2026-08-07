@@ -2,7 +2,7 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {deleteSlackWorkspaceIntegration} from "~/server/integrations/slack/delete_slack_workspace_integration.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Disconnects a Slack workspace from a space by uninstalling the Alpine app from

@@ -12,11 +12,11 @@ import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 

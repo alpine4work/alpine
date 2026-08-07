@@ -13,10 +13,10 @@ import {
 import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, DocumentId} from "~/shared/id/types/id_types.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 
 const context = createTestContext({

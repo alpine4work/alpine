@@ -7,7 +7,7 @@ import {
     cursorKnownBotId,
 } from "~/server/bots/settings_default_known_bot_account_model_data.js";
 import {instantiateBotSpaceAccount} from "~/server/spaces/instantiate_bot_space_account.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     await seedScreenshotTestBots(context, runner.services);

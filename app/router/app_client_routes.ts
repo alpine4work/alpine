@@ -13,18 +13,18 @@ import {
     InternalError,
     UnavailableError,
     getErrorCode,
-} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
+} from "~/shared/error/error.open_source.js";
+import {ErrorCode} from "~/shared/error/error_code.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {assertId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 type CreateClientRoutesArgs = Parameters<typeof createClientRoutes>;
 

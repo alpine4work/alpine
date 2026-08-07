@@ -1,8 +1,8 @@
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {assertId} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.open_source.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     decodeApiTaskQueryCursor,
     encodeApiTaskQueryCursor,

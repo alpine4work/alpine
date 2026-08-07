@@ -1,11 +1,11 @@
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
 import {AgentUsageDatabase} from "~/server/agents/bots/internal/d1/agent_usage_database.js";
 import {AccountEntitlements} from "~/server/agents/bots/internal/d1/agent_usage_database_types.js";
-import {InternalError} from "~/shared/error/error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 /**
  * README

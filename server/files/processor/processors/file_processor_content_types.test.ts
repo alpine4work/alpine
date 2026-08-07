@@ -9,7 +9,7 @@ import {
     FileContentType,
     FileMicrosoftOfficeDocumentContentType,
     FileVideoContentType,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 
 const context = createTestContext();

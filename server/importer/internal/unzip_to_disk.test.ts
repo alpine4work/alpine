@@ -7,7 +7,7 @@ import {
     ExportedNotionDocument,
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 // NOTE: This test does NOT use fake timers because yauzl uses setImmediate
 // internally which would be blocked by jest's fake timers.

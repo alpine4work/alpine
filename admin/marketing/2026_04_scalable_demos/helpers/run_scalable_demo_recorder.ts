@@ -13,7 +13,7 @@ import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_direc
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 import {PrettyMarkdown} from "~/shared/helpers/string/markdown.js";
 

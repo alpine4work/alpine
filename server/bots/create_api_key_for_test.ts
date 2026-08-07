@@ -1,9 +1,9 @@
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {ApiKey, generateApiKey} from "~/shared/id/api_key.js";
-import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Create an unscoped API key for a bot.

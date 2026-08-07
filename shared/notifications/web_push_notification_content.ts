@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export const WebPushNotificationContentSchema = Schema.object({
     title: Schema.string,

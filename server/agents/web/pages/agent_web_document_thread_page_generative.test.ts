@@ -7,7 +7,7 @@ import {
     normalizeAgentWebDocumentThreadPage,
     parseAgentWebDocumentThreadPage,
     printAgentWebDocumentThreadPage,
-} from "~/server/agents/web/pages/agent_web_document_thread_page.js";
+} from "~/server/agents/web/pages/agent_web_document_thread_page.open_source.js";
 import {
     AgentWebMessagingPageBlockArbitrary,
     AgentWebMessagingPagePaginationArbitrary,
@@ -18,7 +18,7 @@ import {
     ApiDocumentReferenceArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const AgentWebDocumentThreadHeadPagePreambleArbitrary: Arbitrary<AgentWebDocumentThreadHeadPagePreamble> =
     fc.record({

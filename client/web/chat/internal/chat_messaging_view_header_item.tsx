@@ -4,7 +4,7 @@ import {
     chatMessagingViewHeaderMinHeight,
 } from "~/client/web/chat/internal/chat_messaging_view_header.js";
 import {VirtualizedScrollViewItem} from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
 
 /**
  * The messaging header is empty space. It fills up the view height so your first

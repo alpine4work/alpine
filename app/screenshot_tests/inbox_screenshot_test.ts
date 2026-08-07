@@ -10,14 +10,14 @@ import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId, PostId, TaskId} from "~/shared/id/types/id_types.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId, PostId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 const inboxScreenshotTime = new Date("2025-10-17T17:00:00.000Z");
 

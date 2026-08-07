@@ -4,7 +4,7 @@ import {NotionImporterTable} from "~/server/importer/notion/internal/notion_impo
 import {startNotionImport} from "~/server/importer/notion/start_notion_import.js";
 import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const context = createTestContext();
 

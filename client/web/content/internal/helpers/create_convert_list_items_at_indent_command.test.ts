@@ -3,7 +3,7 @@ import {EditorState, TextSelection} from "prosemirror-state";
 import {createConvertListItemsAtIndentCommand} from "~/client/web/content/internal/helpers/create_convert_list_items_at_indent_command.js";
 import {createContentBuilder} from "~/shared/content/create_content_builder.js";
 import {MessageContentProsemirrorSchema as schema} from "~/shared/content/message_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const {doc, paragraph, quoteBlock, table, tableRow, tableCell, unorderedListItem, orderedListItem} =
     createContentBuilder(schema);

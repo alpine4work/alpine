@@ -3,12 +3,12 @@ import {getBotWithAvatar} from "~/server/bots/get_bot_with_avatar.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {
     generateChronologicalId,
     generateChronologicalIdWithTime,
-} from "~/shared/id/chronological_id.js";
-import {AvatarId} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/chronological_id.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext();
 

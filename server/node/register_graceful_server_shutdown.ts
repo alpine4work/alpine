@@ -24,7 +24,7 @@ import {Server} from "http";
 import {Socket} from "net";
 import {httpServerGracefulForceShutdownTimeoutMs} from "~/server/helpers/node/shutdown_timeouts.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 
 // In cases a client is sending no more requests, we won't have the opportunity to
 // send `Connection: close` back In these cases we should just end the connection

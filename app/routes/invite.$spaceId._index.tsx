@@ -17,7 +17,7 @@ import {loadSpaceInviteContent} from "~/server/spaces/load_space_invite_content.
 import {spacing} from "~/shared/design/core/spacing.js";
 import {neverPromise} from "~/shared/helpers/async/never_promise.js";
 import {acceptSpaceAccountInvite} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 

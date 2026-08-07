@@ -7,13 +7,13 @@ import {
     convertChannelModelToChannelPreviewAttributesItem,
 } from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Gets the channel object with the provided `ChannelId`. Returns null if the

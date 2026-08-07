@@ -24,10 +24,10 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();

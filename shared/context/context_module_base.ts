@@ -1,6 +1,6 @@
 // Important that this is a type import to break the import cycle.
 import type {Context} from "~/shared/context/context.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 // Never actually used at runtime. Only used by the type system.
 declare const modulesTypeSymbol: unique symbol;

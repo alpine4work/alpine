@@ -15,7 +15,7 @@ import {
     TaskActionTransactionLeaseId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
     MessageReferencedIdsSchema,
@@ -31,7 +31,7 @@ import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

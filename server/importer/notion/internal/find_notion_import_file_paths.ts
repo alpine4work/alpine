@@ -1,6 +1,6 @@
 import {parseCSVLine} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Check if a string looks like a file path. Must be careful not to match:

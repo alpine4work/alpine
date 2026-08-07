@@ -2,7 +2,7 @@ import {
     DataBuilderView,
     type DataViewInterface,
 } from "~/shared/helpers/binary/data_builder_view.js";
-import {captureResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResult} from "~/shared/helpers/control/capture_result.open_source.js";
 
 type DataBuilderViewTestInterface = DataViewInterface & {
     pushUint8(value: number): void;

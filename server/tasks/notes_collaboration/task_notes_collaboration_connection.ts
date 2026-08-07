@@ -32,19 +32,19 @@ import {
     FailedPreconditionError,
     InternalError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+} from "~/shared/error/error.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {
     AccountId,
     ContentEditorClientId,
     TaskId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,

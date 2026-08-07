@@ -5,17 +5,17 @@ import {
     intoApiContent,
 } from "~/shared/api/content/closed_source/into_api_content.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
-import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
+import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
     ApiContent,
     ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {FileModelData} from "~/shared/files/file_model.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChannelId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 

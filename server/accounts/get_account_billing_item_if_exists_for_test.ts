@@ -3,8 +3,8 @@ import {getAccountBillingItemIfExists} from "~/server/accounts/internal/get_acco
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {Context} from "~/shared/context/context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function getAccountBillingItemIfExistsForTest(
     context: Context<DynamoContextModules>,

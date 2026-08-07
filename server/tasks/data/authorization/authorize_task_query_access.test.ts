@@ -9,10 +9,10 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {

@@ -1,21 +1,21 @@
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {RpcServerActionContext} from "~/server/rpc/rpc_server_action_context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
-import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {RpcCallId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
 import {
     RpcDefinition,
     RpcDefinitionInputType,
     RpcDefinitionOutputType,
 } from "~/shared/rpc/rpc_definition.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
-import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type RpcExecuteOptions = {
     replaceTracerPropagationContext?: TracerSpanPropagationContext;

@@ -1,5 +1,5 @@
 import {createGlobalContext, getGlobalContext} from "~/client/web/helpers/global_context.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 export const GlobalSavingIndicatorContext = createGlobalContext(

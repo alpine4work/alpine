@@ -8,7 +8,7 @@ import {
 } from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import OpenAi from "openai";
-import {putApiMessageStreamPartBeforeFetchTestCheckpoint} from "~/server/agents/api/api_client.js";
+import {putApiMessageStreamPartBeforeFetchTestCheckpoint} from "~/server/agents/api/api_client.open_source.js";
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {
@@ -24,16 +24,22 @@ import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_o
 import {AgentUsageDatabaseInterface} from "~/server/agents/bots/internal/d1/agent_usage_database.js";
 import {OpenAiClientInterface} from "~/server/agents/bots/internal/open_ai_client.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {InternalError, NotFoundError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {assertDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {InternalError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {assertDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    BotId,
+    ChatId,
+    DocumentId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // Have to case as any here since Miniflare's DurableObjectStorage type is not
 // assignable to the global DurableObjectStorage type we use in the

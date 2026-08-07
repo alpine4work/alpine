@@ -1,7 +1,7 @@
 import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
 import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**

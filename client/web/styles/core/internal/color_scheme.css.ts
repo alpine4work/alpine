@@ -10,7 +10,7 @@ import {
 } from "~/shared/design/core/helpers/get_color_for_shifting_grey_color.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {ThemeColor, defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * The color scheme which identifies whether we are in dark mode.

@@ -1,6 +1,6 @@
-import {InternalError} from "~/shared/error/error.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {Store} from "~/shared/store/internal/store.js";
 
 /**

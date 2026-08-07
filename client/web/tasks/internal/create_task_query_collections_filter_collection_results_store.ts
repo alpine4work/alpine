@@ -2,11 +2,11 @@ import {
     TaskClientStore,
     TaskClientStoreCollectionEntry,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {nullStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";

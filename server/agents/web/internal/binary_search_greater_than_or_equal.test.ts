@@ -1,4 +1,4 @@
-import {binarySearchGreaterThanOrEqual} from "~/server/agents/web/internal/binary_search_greater_than_or_equal.js";
+import {binarySearchGreaterThanOrEqual} from "~/server/agents/web/internal/binary_search_greater_than_or_equal.open_source.js";
 
 test("finds an exact matching value", () => {
     expect(binarySearchGreaterThanOrEqual([2, 4, 6], 4)).toEqual({index: 1, value: 4});

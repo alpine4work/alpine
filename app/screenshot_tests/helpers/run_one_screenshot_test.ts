@@ -6,7 +6,7 @@ import {
     parseScreenshotTestMode,
     runScreenshotTests,
 } from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 
 async function runOneScreenshotTest() {
     const screenshotTestName = process.argv[2];

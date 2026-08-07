@@ -1,6 +1,6 @@
 import {Node} from "prosemirror-model";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Creates a copy of the provided content between the `from` and `to` positions.

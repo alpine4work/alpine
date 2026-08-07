@@ -13,8 +13,8 @@ import {
 import yargs from "yargs";
 import {hideBin} from "yargs/helpers";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const env = parseDotenv();
 

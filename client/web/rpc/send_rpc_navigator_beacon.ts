@@ -1,4 +1,4 @@
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {RpcHttpCallInputSchema} from "~/shared/rpc/helpers/rpc_http_schema.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 

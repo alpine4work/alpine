@@ -1,10 +1,10 @@
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
-import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
-import {assertId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 test("converts empty quote block from API content", () => {
     // When API content has an empty Quote, we should create a quoteBlock with an empty

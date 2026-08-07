@@ -6,7 +6,7 @@ import {
     LanguageModelsGenerateTextOptions,
     LanguageModelsGenerateTextResult,
 } from "~/server/language_models/language_models_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Generate a plain text response from a shared Alpine model wrapper.

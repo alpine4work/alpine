@@ -9,7 +9,7 @@ import {
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 export type LambdaRuntimeServerOptions = {
     /**

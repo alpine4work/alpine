@@ -1,5 +1,5 @@
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 

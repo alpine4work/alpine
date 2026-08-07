@@ -20,16 +20,16 @@ import {
     ApiMentionReferencePath,
     parseApiMentionReference,
 } from "~/shared/api/specification/parse_api_path.js";
-import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";

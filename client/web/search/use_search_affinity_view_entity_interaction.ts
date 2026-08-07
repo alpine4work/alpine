@@ -3,11 +3,11 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {useSiteActivation} from "~/client/web/sites/context/site_context.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.open_source.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
 import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 const SessionStorageSchema = Schema.object({

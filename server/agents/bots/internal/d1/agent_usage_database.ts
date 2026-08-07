@@ -13,8 +13,8 @@ import {
     agentRequestsTable,
     agentUsageWindowsTable,
 } from "~/server/agents/bots/internal/d1/agent_usage_schema.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * In case of transient D1 errors, retry the action a few times. See

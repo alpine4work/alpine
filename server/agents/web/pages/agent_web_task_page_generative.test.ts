@@ -4,7 +4,7 @@ import {
     normalizeAgentWebTaskPage,
     parseAgentWebTaskPage,
     printAgentWebTaskPage,
-} from "~/server/agents/web/pages/agent_web_task_page.js";
+} from "~/server/agents/web/pages/agent_web_task_page.open_source.js";
 import {AgentWebTaskQueryPageUniqueSubtasksArbitrary} from "~/server/agents/web/test_helpers/agent_web_task_query_page_arbitrary.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {
@@ -15,8 +15,8 @@ import {
     ApiTaskReferenceArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {ApiTaskPriority} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {ApiTaskPriority} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 const ApiTaskPriorityArbitrary: Arbitrary<ApiTaskPriority> = fc.oneof(
     fc.constant({type: "Low"} as const),

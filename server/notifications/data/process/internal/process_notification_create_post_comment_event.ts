@@ -8,8 +8,8 @@ import {createNotificationEventProcessor} from "~/server/notifications/data/proc
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Process a `NotificationCreatePostCommentEvent` which occurs when a user comments

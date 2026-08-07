@@ -6,7 +6,7 @@ import {
 } from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,

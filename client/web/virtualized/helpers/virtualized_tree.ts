@@ -4,9 +4,9 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {Key} from "react";
-import {InternalError, OutOfRangeError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
+import {InternalError, OutOfRangeError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.open_source.js";
 
 /**
  * See documentation of `VirtualizedTree`.

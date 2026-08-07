@@ -1,5 +1,5 @@
 import {ReactNode} from "react";
-import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
+import {interleaveArray} from "~/shared/helpers/array/interleave_array.open_source.js";
 
 /**
  * Join a list of components into an English conjunction list. Does the same thing

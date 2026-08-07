@@ -19,7 +19,7 @@ import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {createCloudWatchAgentConfig} from "~/admin/aws/internal/cloudwatch_agent_config.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 function configureRunnerCloudWatchAgent(
     scope: Construct,

@@ -1,10 +1,10 @@
 import {dynamoReservedWords} from "~/server/dynamo/core/internal/dynamo_reserved_words.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {NonUndefined} from "~/shared/helpers/types/non_undefined.js";
 import {
     ObjectSchema,
@@ -12,7 +12,7 @@ import {
     SchemaSerializedValue,
     SchemaWithOnlySerialization,
     objectSchemaMissingPropertySymbol,
-} from "~/shared/schema/schema.js";
+} from "~/shared/schema/schema.open_source.js";
 
 /**
  * An abstract, type-safe, representation of a [DynamoDB condition expression][1]

@@ -26,20 +26,20 @@ import {
     NotFoundError,
     PermissionDeniedError,
     UnknownError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {
     FileContentType,
     getFileContentTypePreferredExtension,
     isFileWebSafeImageContentType,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {getFilePreviewImageMaxResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {getChronologicalIdTime} from "~/shared/id/chronological_id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {getChronologicalIdTime} from "~/shared/id/chronological_id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 /**
  * Resize a file from Cloudflare R2. You provide the `width` as a URL search param

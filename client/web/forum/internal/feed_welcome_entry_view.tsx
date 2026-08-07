@@ -17,7 +17,7 @@ import {
 import {boldClassName, paragraphClassName} from "~/shared/design/core/constant_class_names.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {FeedWelcomeEntryModel} from "~/shared/feed/feed_entry_model.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 
 export function FeedWelcomeEntryView({entry}: {entry: FeedWelcomeEntryModel}) {
     const routeLayout = useRouteLayout();

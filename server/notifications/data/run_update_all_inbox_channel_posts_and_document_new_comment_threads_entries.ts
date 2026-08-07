@@ -1,6 +1,6 @@
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 export async function runUpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries(
     context: DynamoContext,

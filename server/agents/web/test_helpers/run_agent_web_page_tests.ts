@@ -1,14 +1,14 @@
 import {Nodes, Root} from "mdast";
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
+import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
+import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {PrettyMarkdown} from "~/shared/helpers/string/markdown.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 // This file can only be imported in Jest unit tests.
 assert(import.meta.jest);

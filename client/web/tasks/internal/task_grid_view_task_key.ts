@@ -1,6 +1,6 @@
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * The key of a task in a grid view. Tasks are unique within a query but because

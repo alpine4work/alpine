@@ -1,10 +1,10 @@
 import {Context, ContextModulesDependencies} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * A context module that can be forked. Forking should create a completely new

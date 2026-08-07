@@ -12,11 +12,11 @@ import {
     SiteSideBarSectionId,
     SiteTopBarId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SiteItemSearchEntityIdSchema} from "~/shared/search/site_item_search_entity_id.js";
 import {
     SiteContainerIdSchema,

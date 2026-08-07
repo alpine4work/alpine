@@ -25,15 +25,15 @@ import {searchFavoriteEntityIconColor} from "~/client/web/search/core/use_search
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {
     createLifetimeAccessCheckoutSessionUrl,
     updateOurAccountName,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 export default function SpaceProfileSettingsRoute() {
     const context = useAppContext();

@@ -29,20 +29,20 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
 import {
     SpaceId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

@@ -13,8 +13,8 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     ChannelId,
     ChatId,
@@ -23,7 +23,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchMentionEntityId, isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";

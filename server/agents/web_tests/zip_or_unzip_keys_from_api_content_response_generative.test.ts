@@ -1,19 +1,19 @@
 import fc from "fast-check";
-import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
-import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.open_source.js";
+import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {apiContentArbitrarySpaceId} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
 import {
     unzipKeysFromApiContentResponse,
     zipKeysIntoApiContentResponse,
-} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.open_source.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {getProsemirrorNodeArbitrary} from "~/shared/prosemirror/test_helpers/get_prosemirror_node_arbitrary.js";
 
 import.meta.jest.setTimeout(20 * 1000);

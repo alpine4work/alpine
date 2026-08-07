@@ -47,9 +47,9 @@ import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {finallyMaybePromise} from "~/shared/helpers/async/finally_maybe_promise.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadMessagesRangeParent,

@@ -2,7 +2,7 @@ import {getAccountSettingsItem} from "~/server/accounts/internal/get_account_set
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the last opened `SpaceId` for the provided account without authorizing

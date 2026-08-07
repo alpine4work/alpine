@@ -7,19 +7,22 @@ import {AgentPostCommentsLink} from "~/server/agents/bots/deprecated/internal/li
 import {createAgentLink} from "~/server/agents/bots/deprecated/internal/link_references/agent_link_collection.js";
 import {loadAgentPostCommentsLinkContent as actuallyLoadAgentPostCommentsLinkContent} from "~/server/agents/bots/deprecated/internal/link_references/load_agent_post_comments_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_with_optional_keys.js";
+import {ApiContentResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_with_optional_keys.open_source.js";
 import {
     ApiContentResponse,
     ApiMessageResponse,
     ApiPostResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    assertDateString,
+    serializeDateString,
+} from "~/shared/helpers/date/date_string.open_source.js";
+import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const storage = new DurableObjectStorage(new MemoryStorage());

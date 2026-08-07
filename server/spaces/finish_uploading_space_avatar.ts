@@ -9,8 +9,8 @@ import {
     SpacesTable,
 } from "~/server/spaces/internal/spaces_table.js";
 import {AvatarTheme} from "~/shared/avatar/avatar_schema.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AvatarId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AvatarId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export async function finishUploadingSpaceAvatar(

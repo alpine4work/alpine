@@ -195,19 +195,19 @@ import {
     OutOfRangeError,
     PermissionDeniedError,
     UnimplementedError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
@@ -215,7 +215,7 @@ import {
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ConstStore, falseStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";

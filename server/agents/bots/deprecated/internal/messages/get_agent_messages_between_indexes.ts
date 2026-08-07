@@ -1,9 +1,9 @@
-import {getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
+import {getApiMessagesFromStart} from "~/server/agents/api/api_client.open_source.js";
 import {AgentMessage} from "~/server/agents/bots/deprecated/internal/messages/agent_message.js";
 import {loadApiMessagesForAgentBatchCount} from "~/server/agents/bots/deprecated/internal/messages/load_api_messages_for_agent_batch_count.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 /**
  * Gets all the messages between two indexes. `startMessageIndex` is exclusive and

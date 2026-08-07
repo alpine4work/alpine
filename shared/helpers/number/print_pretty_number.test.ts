@@ -1,5 +1,5 @@
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
 
 describe("printPrettyNumber", () => {
     describe("basic formatting", () => {

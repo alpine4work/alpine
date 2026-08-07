@@ -2,9 +2,9 @@
 
 import {diffArrays as originalDiff} from "diff";
 import {findSpans} from "unicode-default-word-boundary";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {DiffChange, diff} from "~/shared/helpers/diff/diff.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 // NOTE(calebmer): I asked Codex to derive test cases from the `diff` library's
 // test suite.

@@ -24,16 +24,16 @@ import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/bot
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
+import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
 import {
     ApiContentResponseWithoutKeys,
     ApiMessageRoomReference,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 type LoadAgentMessagesListLinkRequest = Pick<AgentWebhookRequest, "apiClient" | "spaceId">;
 

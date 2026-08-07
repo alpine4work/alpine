@@ -5,16 +5,16 @@ import {
     DynamoItemKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {RynamoEvent, RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {InternalError, OutOfRangeError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {InternalError, OutOfRangeError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 type RynamoIndexQueryLoadedPageInfo =

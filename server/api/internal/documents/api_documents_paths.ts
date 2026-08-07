@@ -42,7 +42,7 @@ import {
     ApiContentResponseWithoutKeys,
     ApiDocumentSetContentPatch,
     ApiDocumentSetTitlePatch,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -62,16 +62,16 @@ import {
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";

@@ -10,7 +10,7 @@ import {
 import {getFileAttachmentTargetAuthorizer} from "~/server/files/data/get_file_attachment_target_authorizer.js";
 import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import * as definitions from "~/shared/rpc/files_rpc_definitions.js";
 
 export default implementRpcs(definitions, {

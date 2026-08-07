@@ -2,7 +2,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getPostItemForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**

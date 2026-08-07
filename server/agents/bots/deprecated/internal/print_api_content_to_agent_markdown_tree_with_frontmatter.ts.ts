@@ -7,10 +7,10 @@ import {
 } from "~/server/agents/bots/deprecated/internal/link_references/print_agent_link_path.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export async function printApiContentToAgentMarkdownTreeWithFrontmatter({

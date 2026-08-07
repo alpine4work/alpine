@@ -5,16 +5,21 @@ import {
     mockGetApiTaskCollectionTasks,
     printApiTaskQueryCursorMock,
 } from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
-import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {createAgentWebTaskQueryCursorHash} from "~/server/agents/web/agent_web_task_query_cursor_hash.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
+import {createAgentWebTaskQueryCursorHash} from "~/server/agents/web/agent_web_task_query_cursor_hash.open_source.js";
+import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
-import {ApiTaskQueryDefaultsResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {ApiTaskQueryDefaultsResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    BotId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();

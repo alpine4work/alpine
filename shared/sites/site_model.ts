@@ -1,10 +1,10 @@
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId, SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     SearchChannelEntityModelDataSchema,
     SearchChatEntityModelDataSchema,

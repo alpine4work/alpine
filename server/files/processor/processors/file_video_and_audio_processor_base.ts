@@ -4,18 +4,18 @@ import {FileProcessorActionContext} from "~/server/files/data/file_processor_con
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {
     FileContentType,
     FileMp4AudioContentType,
     FileWebSafeAudioContentType,
     FileWebUnsafeAudioContentType,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileAudioPreviewMetadata, FileImagePreviewSize} from "~/shared/files/file_preview.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 export const ffmpegExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/ffmpeg");
 export const ffprobeExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/ffprobe");

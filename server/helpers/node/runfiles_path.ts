@@ -1,4 +1,4 @@
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Path where we can find our runfiles from Bazel.

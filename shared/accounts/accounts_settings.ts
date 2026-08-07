@@ -1,8 +1,8 @@
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     ReactionEmotionAffinitySchema,
     applyReactionEmotionAffinityDecay,
@@ -12,7 +12,7 @@ import {
 } from "~/shared/reactions/reaction_emotion_affinity.js";
 import {ReactionSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export type AccountSettings = SchemaType<typeof AccountSettingsSchema>;
 

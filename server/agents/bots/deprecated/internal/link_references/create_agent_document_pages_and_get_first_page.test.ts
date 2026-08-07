@@ -4,9 +4,9 @@ import {getAgentLink} from "~/server/agents/bots/deprecated/internal/link_refere
 import {putAgentLocalDocumentContent} from "~/server/agents/bots/deprecated/internal/link_references/agent_local_document_content_collection.js";
 import {createAgentDocumentPagesAndReturnFirstPage} from "~/server/agents/bots/deprecated/internal/link_references/create_agent_document_pages_and_get_first_page.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const storage = new DurableObjectStorage(new MemoryStorage());
 

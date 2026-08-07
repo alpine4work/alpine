@@ -19,7 +19,7 @@ import {
 import {JumpToPostRangeOptions} from "~/client/web/messaging/use_jump_to_post_range.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {Store} from "~/shared/store/store.js";
 

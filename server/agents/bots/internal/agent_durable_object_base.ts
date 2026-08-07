@@ -1,4 +1,4 @@
-import {ApiClient, createApiClient} from "~/server/agents/api/api_client.js";
+import {ApiClient, createApiClient} from "~/server/agents/api/api_client.open_source.js";
 import {
     AgentScheduleEventRequest,
     deleteAgentScheduleEvent,
@@ -25,21 +25,21 @@ import {
     ApiBotWebhookEvent,
     ApiBotWebhookRequestBody,
     ApiMessageRoomReference,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DataLossError, InternalError} from "~/shared/error/error.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
-import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {DataLossError, InternalError} from "~/shared/error/error.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type AgentContext = Context<AgentContextModules>;
 

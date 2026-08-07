@@ -31,14 +31,14 @@ import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.
 import {spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
-import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.open_source.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 let isDisablingContentEditorFileToolbarInitialAnimation = false;
 

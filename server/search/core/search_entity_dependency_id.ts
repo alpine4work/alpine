@@ -1,5 +1,5 @@
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -9,7 +9,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 /**

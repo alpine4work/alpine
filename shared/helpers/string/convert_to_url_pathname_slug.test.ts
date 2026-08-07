@@ -1,4 +1,4 @@
-import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.js";
+import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.open_source.js";
 
 describe("default separator", () => {
     const cases = [

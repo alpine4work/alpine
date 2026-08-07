@@ -43,16 +43,16 @@ import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/web/s
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 
 /**
  * A list of actions or action sections. In between each section is a divider and

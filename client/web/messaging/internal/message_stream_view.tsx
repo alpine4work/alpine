@@ -18,10 +18,10 @@ import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageStream,

@@ -1,9 +1,9 @@
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Scan every post comment in our database. Use when migrating data.

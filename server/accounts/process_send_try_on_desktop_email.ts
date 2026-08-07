@@ -4,9 +4,9 @@ import {ServerProcessContextModules} from "~/server/context/server_process_conte
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {Context} from "~/shared/context/context.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function processSendTryOnDesktopEmail(
     context: Context<ServerProcessContextModules & {email: EmailContextModuleBase}>,

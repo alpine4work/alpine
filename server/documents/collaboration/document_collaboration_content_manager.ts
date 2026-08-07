@@ -34,19 +34,22 @@ import {
     InternalError,
     InvalidArgumentError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {assertId, generateId} from "~/shared/id/id.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ContentEditorClientId,
@@ -55,7 +58,7 @@ import {
     FileId,
     SpaceId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorStep,

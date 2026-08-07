@@ -1,10 +1,10 @@
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {TaskCollectionActionSchema} from "~/shared/tasks/actions/task_collection_action.js";
 import {TaskTaskActionSchema} from "~/shared/tasks/actions/task_task_action.js";
 

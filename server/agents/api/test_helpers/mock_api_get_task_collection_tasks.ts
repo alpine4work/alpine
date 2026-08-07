@@ -4,12 +4,12 @@ import {
     ApiTaskCollectionResponse,
     ApiTaskQueryDefaultsResponse,
     ApiTaskResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.open_source.js";
+import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 
 export function mockGetApiTaskCollectionTasks(
     api: ApiClientMock,

@@ -33,8 +33,8 @@ import {formatTaskDate} from "~/client/web/tasks/format_task_date.js";
 import {TaskDateInput} from "~/client/web/tasks/internal/task_date_input.js";
 import {TaskGridViewColumn} from "~/client/web/tasks/internal/task_row_view.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 

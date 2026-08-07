@@ -10,14 +10,14 @@ import {
 } from "react";
 import {I18nProvider} from "react-aria";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {defaultTimeZone, getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {getRealmId} from "~/shared/id/realm_id.js";
-import {BrowserId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {defaultTimeZone, getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {getRealmId} from "~/shared/id/realm_id.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
 import {
     ClientInfo,
     defaultClientInfo,

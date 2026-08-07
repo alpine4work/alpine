@@ -1,6 +1,6 @@
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {SynchronizedSystemClock} from "~/shared/helpers/clock/synchronized_system_clock.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {SynchronizedSystemClock} from "~/shared/helpers/clock/synchronized_system_clock.open_source.js";
 
 let clockPromise: PromiseImmediate<SynchronizedSystemClock> | null = null;
 

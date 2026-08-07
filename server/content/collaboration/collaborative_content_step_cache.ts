@@ -3,9 +3,9 @@ import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
-} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.open_source.js";
 
 export type CollaborationStepCacheStep = {
     step: Step;

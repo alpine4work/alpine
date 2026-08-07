@@ -2,7 +2,7 @@ import crypto from "crypto";
 import fs from "fs/promises";
 import {dirname, extname, join} from "path";
 import sharp from "sharp";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const documentationImageWidths = [320, 640, 960, 1280, 1600] as const;
 const documentationAnimatedImageWidths = [320, 640] as const;

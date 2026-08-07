@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import {toMarkdown} from "mdast-util-to-markdown";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 test.each([
     {unquoted: "", quoted: "empty"},

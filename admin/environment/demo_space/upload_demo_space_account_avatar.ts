@@ -5,9 +5,9 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
-import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 export async function uploadDemoSpaceAccountAvatar(
     tokenAgent: TokenAgent,

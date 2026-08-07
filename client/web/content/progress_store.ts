@@ -1,10 +1,10 @@
 import {Easing, easeOutQuint} from "~/shared/design/core/easing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {lerp} from "~/shared/helpers/number/lerp.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {lerp} from "~/shared/helpers/number/lerp.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";

@@ -5,8 +5,8 @@ import {AuthenticationView} from "~/client/web/auth/authentication_view.js";
 import {GoogleAdsConversionTrackingScript} from "~/client/web/auth/google_ads_conversion_tracking_script.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export function meta({params}: {params: Params}) {
     return [{title: params.variant === "sign-up" ? "Sign up for Alpine" : "Sign in to Alpine"}];

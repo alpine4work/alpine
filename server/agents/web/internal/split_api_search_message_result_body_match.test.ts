@@ -1,4 +1,4 @@
-import {splitApiSearchMessageResultBodyMatch} from "~/server/agents/web/internal/split_api_search_message_result_body_match.js";
+import {splitApiSearchMessageResultBodyMatch} from "~/server/agents/web/internal/split_api_search_message_result_body_match.open_source.js";
 
 type ApiSearchResultMatchItemWithText = {text: string; isMatch?: true};
 

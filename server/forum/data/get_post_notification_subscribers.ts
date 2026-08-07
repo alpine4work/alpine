@@ -3,8 +3,8 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {getPostItemForAuthorizationIfExists} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {createPostNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {AccountId, PostId} from "~/shared/id/types/id_types.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {AccountId, PostId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get accounts subscribed to notifications for the provided `PostId`.

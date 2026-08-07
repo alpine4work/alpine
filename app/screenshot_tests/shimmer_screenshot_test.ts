@@ -28,17 +28,17 @@ import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_col
 import {encodeContentDuplicationVariableSchemaForUrl} from "~/shared/content/content_duplication_variable_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {convertCamelCaseToKebabCase} from "~/shared/helpers/string/convert_camel_case_to_kebab_case.js";
-import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {convertCamelCaseToKebabCase} from "~/shared/helpers/string/convert_camel_case_to_kebab_case.open_source.js";
+import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {AccountId, ChatId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.open_source.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {AccountId, ChatId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 

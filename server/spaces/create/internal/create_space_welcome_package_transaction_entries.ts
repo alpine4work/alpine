@@ -10,10 +10,10 @@ import {internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries} f
 import {SpaceWelcomePackageItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {Context} from "~/shared/context/context.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function createSpaceWelcomePackageTransactionEntries(
     context: Context<Omit<ServerActionContextModules, "actor">>,

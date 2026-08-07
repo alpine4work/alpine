@@ -3,7 +3,7 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 const {context, services} = createTestServices();
 

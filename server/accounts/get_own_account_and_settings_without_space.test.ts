@@ -2,7 +2,7 @@ import {getOwnAccountAndSettingsWithoutSpace} from "~/server/accounts/get_own_ac
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
-import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 const context = createTestContext();
 

@@ -38,10 +38,10 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {
     PostContent,
@@ -50,12 +50,12 @@ import {
     emptyPostContent,
 } from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,

@@ -4,9 +4,13 @@ import {
     ContentTableCellSelection,
     ContentTableCellSelectionJson,
 } from "~/shared/content/table/content_table_cell_selection.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {Schema, SchemaDeserializationError, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {
+    Schema,
+    SchemaDeserializationError,
+    SchemaSerializedValue,
+} from "~/shared/schema/schema.open_source.js";
 
 /**
  * A schema representing a Prosemirror `Selection` object.

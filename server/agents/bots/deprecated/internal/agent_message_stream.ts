@@ -2,8 +2,8 @@ import {BlockContent, DefinitionContent, Parent, Root} from "mdast";
 import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
-} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {printApiMentionReferenceToMentionUrl} from "~/shared/api/content/print_api_content_to_markdown.js";
+} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printApiMentionReferenceToMentionUrl} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
     ApiPath,
     isApiMentionReferencePath,
@@ -14,14 +14,14 @@ import {
 import {
     ApiContentBlockElement,
     ApiMessageStreamPartPayload,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type AgentMessageStreamPart = {
     readonly index: number;

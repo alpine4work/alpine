@@ -2,7 +2,7 @@ import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get's all of the AccountIds for a given Bot (which spaces are the bot

@@ -1,12 +1,12 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {SearchNaturalLanguageFilter} from "~/server/search/data/index/internal/parse_search_natural_language_query.js";
-import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 
 type HandledNaturalLanguageFilter = {

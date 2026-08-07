@@ -1,7 +1,7 @@
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {isId} from "~/shared/id/id.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChatId,
@@ -10,8 +10,8 @@ import {
     SessionId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export type SessionTokenPayload = {
     readonly type: "Session";

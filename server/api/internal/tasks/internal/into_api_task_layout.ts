@@ -1,4 +1,4 @@
-import {ApiTaskLayout} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiTaskLayout} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {TaskLayout} from "~/shared/tasks/task_layout.js";
 
 export function intoApiTaskLayout(layout: TaskLayout | null): ApiTaskLayout | undefined {

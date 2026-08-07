@@ -3,7 +3,7 @@ import {createTestPushContextModules} from "~/server/dynamo/test_helpers/create_
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
 import {getInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 /**
  * Archives every entry in the account's inbox so it sits at "inbox zero".

@@ -27,8 +27,8 @@ import {
     TaskPriorityInputListBoxOptionItem,
 } from "~/client/web/tasks/internal/task_priority_input_list_box.js";
 import {TaskPriorityIcon} from "~/client/web/tasks/task_priority_icon.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 // Node.js ESM interop (#node-esm-migration)

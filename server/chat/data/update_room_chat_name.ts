@@ -6,10 +6,10 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**

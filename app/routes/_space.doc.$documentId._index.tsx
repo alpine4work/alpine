@@ -42,17 +42,17 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {RynamoQueryResult, createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftWithFilesSchema,
     emptyMessageDraftWithFiles,
 } from "~/shared/messaging/message_draft_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {
     ServerSynchronizationCheckpointSchema,

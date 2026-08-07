@@ -48,12 +48,12 @@ import {
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
 import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {isFileImageContentType} from "~/shared/files/file_content_type.js";
+import {isFileImageContentType} from "~/shared/files/file_content_type.open_source.js";
 import {isFileModelDataLoading} from "~/shared/files/file_model.js";
-import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 /**
  * Render the provided file in a fullscreen modal on desktop platforms.

@@ -557,7 +557,7 @@ what `landing_page_scenario.ts` and the hero/demo scenarios do:
 
 ```ts
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {UrlPath} from "~/shared/routing/url_path.js";
 
 const entries: Array<FeedEntry> = [
@@ -645,8 +645,8 @@ comments on a document, chat messages). Verify they landed (notifications are as
 
 ```ts
 import {getInboxEntry} from "~/server/notifications/inbox/inbox_actions.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 await retryWithExponentialBackoff(async retry => {
     try {

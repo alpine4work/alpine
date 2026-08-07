@@ -9,11 +9,11 @@ import {
     ApiMessageExperimentalApprovalDecisionValueResponse,
     ApiMessageExperimentalApprovalResponse,
     ApiMessageRoomReference,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InternalError} from "~/shared/error/error.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const {span} = testTracer.getRoot().startSpan("test-span");

@@ -8,10 +8,10 @@ import {
     maxAccessLevel,
     minAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";

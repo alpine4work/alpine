@@ -1,11 +1,11 @@
-import {createApiClient} from "~/server/agents/api/api_client.js";
+import {createApiClient} from "~/server/agents/api/api_client.open_source.js";
 import {rejectPendingChatGptAgentMessageApproval} from "~/server/agents/bots/deprecated/internal/approvals/reject_pending_chat_gpt_agent_message_approval.js";
 import {getChatGptAgentPendingMessageApprovalIfExistsWithPendingApprovalIndexes} from "~/server/agents/bots/deprecated/internal/conversation/chat_gpt_agent_approval_collection.js";
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Best-effort rejects every pending approval before the Durable Object's storage

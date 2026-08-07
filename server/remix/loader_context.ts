@@ -16,11 +16,11 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {BrowserId} from "~/shared/id/types/id_types.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
 import {
     ClientInfo,
     ClientInfoSchema,
@@ -29,7 +29,7 @@ import {
     getRenderingEngineFromUserAgent,
     isAppleDeviceUserAgent,
 } from "~/shared/remix/client_info.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type LoaderContext = Context<LoaderContextModules>;
 

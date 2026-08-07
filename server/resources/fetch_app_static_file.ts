@@ -1,7 +1,7 @@
 import {getAppStaticCacheControlHeaders} from "~/app/static/get_app_static_cache_control_headers.js";
 import {fetchCachedR2Object} from "~/server/cloudflare/fetch_cached_r2_object.js";
 import {ResourceServiceEnv} from "~/server/resources/resource_service_env.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Fetch and cache a bundled static file from its environment-specific source.

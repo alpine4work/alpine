@@ -16,11 +16,11 @@ import {
     ResolvedAccessPolicy,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Evaluates whether the `AccountId` has access to the access policy at the

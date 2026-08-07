@@ -85,7 +85,7 @@ import {AccessLevel, AccessPolicy, EffectiveAccessPolicy} from "~/shared/access/
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     ContentDuplicationVariableValues,
     applyContentDuplicationVariableValues,
@@ -143,46 +143,46 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {Id, assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {Id, assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ContentEditorClientId,
@@ -191,7 +191,7 @@ import {
     FileId,
     SiteId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";

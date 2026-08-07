@@ -9,7 +9,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 import.meta.jest.useFakeTimers();
 

@@ -1,6 +1,6 @@
 import {Node, NodeType} from "prosemirror-model";
 import {findWrapping} from "prosemirror-transform";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Are all nodes the provided list item type?

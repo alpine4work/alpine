@@ -5,7 +5,7 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {BotSettingsSchema} from "~/shared/bots/bot_settings_schema.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {SimpleContentWithReferences} from "~/shared/content/simple_content_schema.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the settings for a `BotId`. Won't throw if the bot doesn't exist. Instead

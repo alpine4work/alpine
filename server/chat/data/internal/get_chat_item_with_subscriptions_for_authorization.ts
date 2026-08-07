@@ -10,10 +10,10 @@ import {ServerMinimalActionContext} from "~/server/context/server_minimal_action
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {AccountId, ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 export function getChatItemWithSubscriptionsIfExistsForAuthorization(
     context: ServerMinimalActionContext,

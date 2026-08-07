@@ -3,9 +3,9 @@ import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object
 import {
     ApiBotWebhookEvent,
     ApiChat,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 const ApiChatCollection = new DurableObjectStorageCollection<ChatId, ApiChat>("a0");
 

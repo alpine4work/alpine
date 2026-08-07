@@ -2,9 +2,9 @@ import {AccountItem, AccountsTable} from "~/server/accounts/internal/accounts_ta
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {Context} from "~/shared/context/context.js";
-import {DataLossError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Add a Stripe purchase to the account's billing history and update relevant

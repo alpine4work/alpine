@@ -14,9 +14,9 @@ import {
     LanguageModelsGenerateObjectOptions,
     LanguageModelsGenerateObjectResult,
 } from "~/server/language_models/language_models_types.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 const onePixelPng = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0WQAAAAASUVORK5CYII=",

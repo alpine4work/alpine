@@ -18,18 +18,18 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";

@@ -13,12 +13,12 @@ import {
     GeneratedDocumentationOpenGraphImage,
     GeneratedDocumentationOpenGraphImageDocument,
 } from "~/shared/docs/generated_documentation.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
 import {parallelProcessAsyncIterable} from "~/shared/helpers/iterable/parallel_process_async_iterable.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 const staticFilesDirectoryPath = join(runfilesPath, "cyberworlds/app/static/files");
 

@@ -21,10 +21,10 @@ import {
     InvalidArgumentError,
     PermissionDeniedError,
     UnauthenticatedError,
-} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Create a `ActorContextModule` from an HTTP `Authorization` header.

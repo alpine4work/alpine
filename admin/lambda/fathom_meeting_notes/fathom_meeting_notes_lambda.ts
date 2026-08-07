@@ -4,7 +4,7 @@ import {APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Handler} from
 import {parseFathomWebhookPayload} from "~/admin/lambda/fathom_meeting_notes/internal/parse_fathom_webhook_payload.js";
 import {processFathomMeetingNotes} from "~/admin/lambda/fathom_meeting_notes/internal/process_fathom_meeting_notes.js";
 import {verifyFathomWebhook} from "~/admin/lambda/fathom_meeting_notes/internal/verify_fathom_webhook.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export const handler: Handler<
     APIGatewayProxyEventV2,

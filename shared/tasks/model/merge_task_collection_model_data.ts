@@ -1,9 +1,9 @@
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {TaskCollectionModelData} from "~/shared/tasks/model/task_collection_model.js";
 
 export function mergeTaskCollectionModelData(

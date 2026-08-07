@@ -3,11 +3,11 @@
 import {ReactElement, ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {flushSync} from "react-dom";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
-import {Platform, mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
-import {InternalError} from "~/shared/error/error.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Platform, mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.open_source.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 
 const PlatformContext = createContext<Platform | null>(null);

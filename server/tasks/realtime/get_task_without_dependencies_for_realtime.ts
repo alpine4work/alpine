@@ -12,7 +12,7 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskRealtimeGetTaskWithoutDependenciesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 
 export async function getTaskWithoutDependenciesForRealtime(

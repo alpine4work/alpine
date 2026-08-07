@@ -1,5 +1,5 @@
 import inspector from "inspector";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 
 // Same as `TEST_DEBUGGER_INSPECTOR_PORT` in `.env.development`. We inline it here

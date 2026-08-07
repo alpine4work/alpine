@@ -6,8 +6,8 @@ import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Updates the description of the channel.

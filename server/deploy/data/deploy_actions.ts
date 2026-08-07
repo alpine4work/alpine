@@ -12,17 +12,17 @@ import {
     FailedPreconditionError,
     InternalError,
     NotFoundError,
-} from "~/shared/error/error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+} from "~/shared/error/error.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * NOTE: this file is currently being split up. We do not anticipate adding more

@@ -6,17 +6,20 @@ import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {trimContentFragmentEndPos} from "~/shared/content/trim_content.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     LinkedList,
     forEachLinkedList,
     reverseLinkedList,
-} from "~/shared/helpers/immutable/linked_list.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/helpers/immutable/linked_list.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export type PostEditingState =
     | {

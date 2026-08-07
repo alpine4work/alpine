@@ -17,10 +17,10 @@ import {ConstantsContextModule} from "~/shared/context/constants_context_module.
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Context module for sending an email.

@@ -20,14 +20,14 @@ import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_spac
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export const getOrCreateChatBeforeCreateChatTestCheckpoint = new TestCheckpoint<AccountId>();
 

@@ -9,11 +9,11 @@ import {
     getContentReferencedIdsForNode,
 } from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Same as `getContentReferencesForNode()` except when the actor doesn't have space

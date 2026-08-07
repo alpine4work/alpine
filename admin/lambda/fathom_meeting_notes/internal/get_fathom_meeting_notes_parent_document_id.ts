@@ -1,5 +1,5 @@
-import {assertId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const defaultFathomMeetingNotesParentDocumentId = assertId<DocumentId>(
     "ygfnxa6n51gcg07c3jx01vyqwc",

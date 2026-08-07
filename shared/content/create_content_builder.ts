@@ -2,7 +2,7 @@ import {Mark, Node} from "prosemirror-model";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * A helper for conveniently creating content nodes. Mostly used in tests.

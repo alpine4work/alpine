@@ -7,10 +7,10 @@ import {maxFailedOneTimePasswordAttemptCount} from "~/server/accounts/one_time_p
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {Context} from "~/shared/context/context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 export async function actuallyRegenerateOneTimePasswordSignIn(
     context: Context<Omit<ServerActionContextModules, "actor"> & {email: EmailContextModuleBase}>,

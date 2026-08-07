@@ -4,7 +4,7 @@ import {ReplaceStep} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {prosemirrorToYXmlFragment, ySyncPlugin} from "y-prosemirror";
 import * as Y from "yjs";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {
     sentenceTaskTitleTestScenario,
     wordTaskTitleTestScenario,

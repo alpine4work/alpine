@@ -16,10 +16,10 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export function ContentFileVideoViewerMobile({
     file,

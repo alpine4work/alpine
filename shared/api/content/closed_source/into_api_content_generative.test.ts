@@ -2,11 +2,11 @@ import fc from "fast-check";
 import {produce} from "immer";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
-import {ApiContentNormalizer} from "~/shared/api/content/normalize_api_content.js";
+import {ApiContentNormalizer} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {JsonWritableValue} from "~/shared/helpers/types/json_value.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {JsonWritableValue} from "~/shared/helpers/types/json_value.open_source.js";
 import {getProsemirrorNodeArbitrary} from "~/shared/prosemirror/test_helpers/get_prosemirror_node_arbitrary.js";
 
 import.meta.jest.setTimeout(30 * 1000);

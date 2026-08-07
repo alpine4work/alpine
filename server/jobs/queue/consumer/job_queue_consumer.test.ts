@@ -6,16 +6,16 @@ import {
     receiveMessageTestCounter,
 } from "~/server/jobs/queue/consumer/job_queue_consumer.js";
 import {TestContextModules} from "~/server/spaces/test_helpers/test_context.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {Id, generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {Id, generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 // We have to use real timers in this test because we want to test timing behavior
 // in SQS as well. Our local SQS implementation doesn't have fake timers. This may

@@ -13,10 +13,10 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
-import {PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     chatInjection,

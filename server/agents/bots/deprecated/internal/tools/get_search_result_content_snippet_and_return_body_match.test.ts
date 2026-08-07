@@ -3,8 +3,8 @@ import {
     ZippedApiSearchResultMatches,
     getSearchResultContentSnippetAndReturnBodyMatch,
 } from "~/server/agents/bots/deprecated/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 function createTestSearchResult(bodyMatch: ZippedApiSearchResultMatches) {
     const matches: Array<{index: number; length: number}> = [];

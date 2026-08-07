@@ -29,21 +29,28 @@ import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {FileImageContentType, isFileImageContentType} from "~/shared/files/file_content_type.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {AvatarId} from "~/shared/id/types/id_types.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    PermissionDeniedError,
+} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {
+    FileImageContentType,
+    isFileImageContentType,
+} from "~/shared/files/file_content_type.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.open_source.js";
 import {finishUploadingAccountAvatar} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {finishUploadingBotAvatar} from "~/shared/rpc/bots_rpc_definitions.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {finishUploadingSpaceAvatar} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export async function uploadAvatar(
     createContext: (payload: SessionTokenPayload) => Context<{

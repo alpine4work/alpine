@@ -8,12 +8,12 @@ import {printAgentContentMarkdownTree} from "~/server/agents/bots/deprecated/int
 import {
     ApiTaskCollection,
     ApiTaskResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {PartialBy} from "~/shared/helpers/types/partial_by.js";
-import {generateId} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.open_source.js";
+import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const storage = new DurableObjectStorage(new MemoryStorage());

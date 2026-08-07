@@ -13,9 +13,9 @@ import {createSimpleMessageContent} from "~/shared/content/message_content_schem
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const {context, services} = createTestServices();
 

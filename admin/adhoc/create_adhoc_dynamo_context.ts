@@ -8,7 +8,7 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const env = parseDotenv();
 

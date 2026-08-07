@@ -1,7 +1,11 @@
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     InboxEntryDisplayContentTitleItem,
     getInboxEntryDisplayContent,

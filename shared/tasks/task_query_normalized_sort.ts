@@ -1,6 +1,6 @@
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {ObjectSchema, Schema} from "~/shared/schema/schema.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
+import {ObjectSchema, Schema} from "~/shared/schema/schema.open_source.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 /**

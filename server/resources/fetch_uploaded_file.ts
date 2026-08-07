@@ -3,21 +3,25 @@ import {fetchFileFromBucket} from "~/server/resources/fetch_file_from_bucket.js"
 import {ResourceServiceEnv} from "~/server/resources/resource_service_env.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {getContentReferencesFileSignedUrlSearchExpirationTime} from "~/shared/content/content_references.js";
-import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    PermissionDeniedError,
+} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     getFilePreviewImageResizeWidth,
     isFilePreviewImageResizeWidth,
 } from "~/shared/files/get_file_preview_image_resize_width.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     fetchWithTracer,
     getHeadersTracerData,
     obfuscateCookieHeader,
     obfuscateSetCookieHeaders,
-} from "~/shared/tracer/fetch_with_tracer.js";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // You can change the version number to bust the Cloudflare file resize cache.
 const fileCacheName = "files_v2";

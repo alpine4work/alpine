@@ -7,11 +7,11 @@ import {processNotificationCreatePostCommentEvent} from "~/server/notifications/
 import {processNotificationCreatePostEvent} from "~/server/notifications/data/process/internal/process_notification_create_post_event.js";
 import {processNotificationCreateTaskCommentEvent} from "~/server/notifications/data/process/internal/process_notification_create_task_comment_event.js";
 import {Context} from "~/shared/context/context.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export const notificationEventProcessingTestCounter = new TestCounter<AccountId>();
 export const notificationEventBeforeProcessingTestCheckpoint = new TestCheckpoint<AccountId>();

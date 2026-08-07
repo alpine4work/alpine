@@ -7,7 +7,7 @@ import {pipeline} from "stream/promises";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 
 import {unzipToDisk} from "~/server/importer/internal/unzip_to_disk.js";
-import {DataLossError} from "~/shared/error/error.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
 import {importerVolumeContainerPath} from "~/shared/importer/importer_volume.js";
 
 /**

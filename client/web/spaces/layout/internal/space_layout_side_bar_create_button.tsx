@@ -28,7 +28,7 @@ import {createWidgetPrimaryMenuBarItemHeight} from "~/client/web/styles/feed_sha
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {addRemLengths} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 // NOTE(calebmer): The icons used here for create actions are the same icons used
 // in `<SearchEntityView/>`'s `getSearchEntityTypeDisplay()`. If you change an icon

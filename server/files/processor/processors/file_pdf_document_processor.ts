@@ -15,18 +15,18 @@ import {rethrowClassifiedSharpError} from "~/server/files/processor/sharp/rethro
 import {sharpTimeoutSeconds} from "~/server/files/processor/sharp/sharp_timeout_seconds.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {
     FileContentType,
     FilePdfDocumentContentType,
     getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {getFilePreviewImageMaxResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
  * Create a file processor for PDF files. We process PDF files with `sharp`. We use

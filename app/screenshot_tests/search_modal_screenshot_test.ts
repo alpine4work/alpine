@@ -10,11 +10,11 @@ import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 

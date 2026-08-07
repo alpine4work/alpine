@@ -30,9 +30,9 @@ import {useIsMounted} from "~/client/web/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {easeOutCubic, parseCubicBezier} from "~/shared/design/core/easing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export const mobileFullScreenModalAnimationDurationMs = 250;
 export const mobileFullScreenModalAnimationDurationLongMs = 250 * 1.5;

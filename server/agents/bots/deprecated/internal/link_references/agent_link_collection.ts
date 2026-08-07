@@ -21,12 +21,12 @@ import {
     DurableObjectTransactionInterface,
 } from "~/server/cloudflare/durable_object_storage_collection.js";
 import {ApiPath} from "~/shared/api/specification/parse_api_path.js";
-import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -37,7 +37,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 // Stores a map of AgentLinkPath -> AgentLinkReference. We use this to uniquely
 // identify linked Alpine Content in agent conversations.

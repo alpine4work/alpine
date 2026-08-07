@@ -23,7 +23,7 @@ import {
 } from "~/client/web/styles/space_settings_shared_styles.js";
 import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 // We don't need to reload if the URL doesn't change.
 export const shouldRevalidate: ShouldRevalidateFunction = ({

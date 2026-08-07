@@ -1,7 +1,7 @@
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {decodeIdInto} from "~/shared/id/id.js";
-import {AccountId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {decodeIdInto} from "~/shared/id/id.open_source.js";
+import {AccountId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Manually build a `DynamoItemKey` for an `InboxPostCommentsEntryModel` using the

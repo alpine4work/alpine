@@ -2,8 +2,11 @@ import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
 } from "~/server/cloudflare/durable_object_storage_collection.js";
-import {ChronologicalId, generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
-import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
+import {
+    ChronologicalId,
+    generateChronologicalIdWithTime,
+} from "~/shared/id/chronological_id.open_source.js";
+import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type AgentScheduleEventRequest = {
     readonly type: string;

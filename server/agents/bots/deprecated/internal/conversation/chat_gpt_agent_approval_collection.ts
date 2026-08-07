@@ -10,11 +10,11 @@ import {
     ApiMessageExperimentalApprovalDecisionSchema,
     ApiMessageExperimentalApprovalDecisionValue,
     ApiMessageRoomReference,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 type ChatGptAgentApprovedForSessionApprovalDecisionOption = Omit<
     ApiMessageExperimentalApprovalDecisionApprovedForSessionOption,

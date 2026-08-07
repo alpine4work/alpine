@@ -48,19 +48,19 @@ import {
     NotFoundError,
     PermissionDeniedError,
     UnauthenticatedError,
-} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageModel, MessageRoomKeyType} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadContentUpdate,

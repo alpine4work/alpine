@@ -14,11 +14,11 @@ import {TextInput} from "~/client/web/design/text_input.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {saveAccountSignUpProfile} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 export function AuthenticationSignUpProfileView({
     state,

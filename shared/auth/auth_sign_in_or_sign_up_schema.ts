@@ -1,8 +1,8 @@
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {EmailAddressSchema} from "~/shared/schema/helpers/email_address_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 // NOTE(calebmer): We don't have RPCs for `attemptOneTimePasswordSignIn()` or
 // `attemptOneTimePasswordSignUpThenCreateSpace()` because:

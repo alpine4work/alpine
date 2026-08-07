@@ -6,10 +6,10 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {AvatarVariant} from "~/shared/avatar/avatar_entity_path.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
 import {getEncodedInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 import {

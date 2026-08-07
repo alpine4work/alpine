@@ -1,9 +1,9 @@
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
 import {createTestAvatarModel} from "~/shared/avatar/test_helpers/avatar_model_test_helpers.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, AvatarId, BotId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, AvatarId, BotId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     createTestAccountModel,

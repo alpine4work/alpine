@@ -3,7 +3,7 @@ import {
     ApiContentFileBlockElementResponseWithoutKeys,
     ApiContentPreviewBlockElement,
     ApiContentPreviewBlockElementResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     computeFileRowLayout,
     fileRowBlockWidthPxForClipboardAndApi,
@@ -13,7 +13,7 @@ import {
 import {getFileEntityPreviewHeight} from "~/shared/content/get_file_entity_preview_height.js";
 import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
 import {FileModelData} from "~/shared/files/file_model.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 export function computeApiContentFileRowWidths(
     elements: ReadonlyArray<

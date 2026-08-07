@@ -2,19 +2,19 @@ import {
     decode as decodeO200kBase,
     encode as encodeO200kBase,
 } from "gpt-tokenizer/esm/encoding/o200k_base";
-import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
-import {normalizeApiContentForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
-import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
-import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.open_source.js";
+import {normalizeApiContentForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.open_source.js";
+import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.open_source.js";
+import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
     ApiContentBlockElementResponseWithoutKeys,
     ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {assertId, generateId} from "~/shared/id/id.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     BotId,
@@ -26,7 +26,7 @@ import {
     SiteId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 const spaceId = generateId<SpaceId>();
 const documentId = generateId<DocumentId>();

@@ -1,7 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {

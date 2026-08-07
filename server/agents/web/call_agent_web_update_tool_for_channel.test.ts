@@ -1,21 +1,27 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
-import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
-import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
-import {agentWebChannelPageApiPostsBatchCount} from "~/server/agents/web/pages/agent_web_channel_page.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
+import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
+import {agentWebChannelPageApiPostsBatchCount} from "~/server/agents/web/pages/agent_web_channel_page.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
     ApiContentResponse,
     ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {DateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {DateString, serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    BotId,
+    ChannelId,
+    PostId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();

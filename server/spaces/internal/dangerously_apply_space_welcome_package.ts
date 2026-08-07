@@ -3,9 +3,9 @@ import {suggestedSpaceAccountMaxCount} from "~/server/spaces/dangerously_expensi
 import {SpaceWelcomePackageItem} from "~/server/spaces/internal/spaces_table.js";
 import {searchAffinityEntityHighIntentUpdateInteractionPoints} from "~/server/spaces/search_affinity_entity_interaction_points.js";
 import {Context} from "~/shared/context/context.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 export const internalSpaceWelcomePackageSearchEntityMaxCount =
     1 + // My tasks

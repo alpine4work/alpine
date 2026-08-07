@@ -33,19 +33,25 @@ import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    ChannelId,
+    PostDraftId,
+    PostId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
 /**

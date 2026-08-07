@@ -16,7 +16,7 @@ import {
     createDocumentationApiSchemaUrl,
     getDocumentationApiSchemaBaseName,
 } from "~/shared/docs/documentation_api_model.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /** Build metadata for a generated API schema reference page. */
 export const meta = createDocumentationMetaFunction<{

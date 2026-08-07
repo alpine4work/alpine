@@ -14,19 +14,19 @@ import {
     PostRealtimeEventStub,
 } from "~/server/forum/realtime/post_realtime_connection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {
     PostBroadcastRealtimeEventsSchema,
     PostRealtimeProtocol,
 } from "~/shared/forum/post_realtime_protocol.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 type PostRealtimeDurableObjectRoute =
     | "Main"

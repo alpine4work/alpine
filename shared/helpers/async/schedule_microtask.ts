@@ -1,4 +1,4 @@
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
 
 const microtaskPromise = Promise.resolve();
 

@@ -1,8 +1,8 @@
 import {Parent} from "mdast";
-import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 
 /**
  * Template string tag that tells Prettier to format the string as Markdown.

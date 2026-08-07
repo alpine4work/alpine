@@ -29,10 +29,10 @@ import {
     ApiPatchTaskResponse,
     ApiTaskPriority,
     ApiTaskResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {TaskCollectionId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import type {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 
 type ApiContentElement = ApiContent["elements"][number];
 type HoneycombPayloadType = NonNullable<HoneycombEventPayload["type"]>;

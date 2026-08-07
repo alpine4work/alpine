@@ -3,11 +3,11 @@ import {
     normalizeAgentWebDocumentPage,
     parseAgentWebDocumentPage,
     printAgentWebDocumentPage,
-} from "~/server/agents/web/pages/agent_web_document_page.js";
+} from "~/server/agents/web/pages/agent_web_document_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const documentId = generateId<DocumentId>();
 const commentThreadId1 = generateId<DocumentCommentThreadId>();

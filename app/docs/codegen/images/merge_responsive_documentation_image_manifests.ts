@@ -1,7 +1,7 @@
 import {ResponsiveDocumentationImage} from "~/app/docs/codegen/images/generate_responsive_documentation_image.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 /**
  * Merge validated per-source responsive image manifests in source URL order.

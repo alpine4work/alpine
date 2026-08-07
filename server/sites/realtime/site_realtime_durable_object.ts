@@ -14,10 +14,10 @@ import {
     SiteRealtimeEventStub,
 } from "~/server/sites/realtime/site_realtime_connection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {
     SiteBroadcastRealtimeEventsSchema,
     SiteRealtimeProtocol,

@@ -7,7 +7,7 @@ import {authorizeSiteAccessAndReturnItem} from "~/server/sites/data/internal/aut
 import {createSitePreviewModelFromItem} from "~/server/sites/data/internal/create_site_preview_model_from_item.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**

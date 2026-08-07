@@ -7,15 +7,15 @@ import {
     collectContentReferencedIds,
     isEmptyContentReferencedIds,
 } from "~/shared/content/content_referenced_ids.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {assertId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, SiteId} from "~/shared/id/types/id_types.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId, SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorNode,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Just the IDs we need for loading a `ContentReferences` object. Useful to perform

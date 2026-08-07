@@ -3,9 +3,9 @@ import {contentLargeFallbackFileWidthPx} from "~/shared/design/core/content_shar
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModelData} from "~/shared/files/file_model.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const largeFallbackWidth = contentLargeFallbackFileWidthPx;
 const spaceId = generateId<SpaceId>();

@@ -4,7 +4,7 @@ import {
     overlaySinkContextForTest,
     overlayVisiblePoppers,
 } from "~/client/web/design/internal/overlay_sink_context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Get the current overlay portal element. This will be inside the nearest

@@ -24,13 +24,17 @@ import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {assertId, generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    FileId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 const searchInjection: Partial<SearchInjection> = {

@@ -10,16 +10,16 @@ import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {getClientTracerSynchronizedSystemClock} from "~/client/web/tracer/client_tracer_synchronized_system_clock.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {Clock} from "~/shared/helpers/clock/clock.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {Clock} from "~/shared/helpers/clock/clock.open_source.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraft,
     MessageDraftWithFiles,

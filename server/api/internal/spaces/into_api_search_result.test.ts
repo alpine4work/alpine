@@ -1,5 +1,5 @@
 import {intoApiSearchResult} from "~/server/api/internal/spaces/into_api_search_result.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     BotId,
@@ -10,7 +10,7 @@ import {
     PostId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

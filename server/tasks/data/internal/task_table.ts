@@ -10,10 +10,10 @@ import {TaskStepCountByAccountId} from "~/server/tasks/data/task_step_count_by_a
 import {AccessLevel, AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {
     VtencBigUint64Set,
     decodeVtencBigUint64List,
@@ -29,12 +29,12 @@ import {
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";

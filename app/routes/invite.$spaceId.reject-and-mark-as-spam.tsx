@@ -12,10 +12,10 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {rejectSpaceAccountInviteAsSpam} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const LoaderSchema = Schema.object({
     spaceId: Schema.id<SpaceId>(),

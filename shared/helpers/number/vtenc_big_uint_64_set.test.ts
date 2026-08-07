@@ -1,4 +1,4 @@
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {randomFloat} from "~/shared/helpers/number/random_float.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {

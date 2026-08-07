@@ -3,7 +3,7 @@ import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
 } from "~/shared/content/message_content_schema.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 
 /**

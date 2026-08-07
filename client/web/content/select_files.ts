@@ -3,7 +3,7 @@ import {
     FileContentType,
     fileAdditionalContentTypesAndExtensionsByContentType,
     getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 
 /**
  * Opens the browser file selector and returns a promise that resolves once the

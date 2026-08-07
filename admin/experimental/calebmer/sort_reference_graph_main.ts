@@ -2,7 +2,7 @@ import {parse} from "@babel/parser";
 import {readFile, writeFile} from "fs/promises";
 import {resolve as resolvePath} from "path";
 import {parseArgs} from "util";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 type SortableDeclarationKind = "Function" | "Type" | "Variable";
 

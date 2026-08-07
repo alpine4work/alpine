@@ -1,9 +1,13 @@
 /* eslint-disable cyberworlds/no-global-error */
 
-import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
-import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
-import {InternalError, InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
+import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 
 test("prints every display message segment without the link URL", () => {
     const error = new InvalidArgumentError("Internal message", {

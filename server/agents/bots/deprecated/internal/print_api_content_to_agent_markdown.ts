@@ -9,13 +9,13 @@ import {DurableObjectStorageInterface} from "~/server/cloudflare/durable_object_
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
-} from "~/shared/api/content/print_api_content_to_markdown.js";
+} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
     ApiContentMentionInlineElementResponse,
     ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Print API content to Markdown for an agent. Strips some Markdown formatting that

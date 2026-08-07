@@ -1,4 +1,4 @@
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {normalizeTaskQueryFilters} from "~/shared/tasks/task_query_normalized_filters.js";

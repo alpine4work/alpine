@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import {join} from "path";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 test("generates the blog home as a BlogHome image without an author", async () => {
     const manifestPath = join(

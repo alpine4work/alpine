@@ -14,9 +14,9 @@ import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse
 import {parseNotionImportHierarchyFromIndexHtml} from "~/server/importer/notion/internal/parse_notion_import_hierarchy_from_index_html.js";
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
 /**

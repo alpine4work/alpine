@@ -1,6 +1,6 @@
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";

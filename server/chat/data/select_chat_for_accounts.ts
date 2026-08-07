@@ -4,10 +4,10 @@ import {actuallyGetOrCreateChatForAccounts} from "~/server/chat/data/internal/ac
 import {getSharedChats} from "~/server/chat/data/internal/get_shared_chats.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
 import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Called by the chat account picker component after the user has selected some

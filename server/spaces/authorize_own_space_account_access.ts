@@ -1,10 +1,10 @@
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {AuthorizeSpaceAccessContext} from "~/server/spaces/authorize_space_access.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Authorizes that the provided `AccountId` is the same account as the actor. If

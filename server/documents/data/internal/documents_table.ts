@@ -15,20 +15,20 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {DocumentCreatorFromSchema} from "~/shared/documents/document_creator_from.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const DocumentCommentThreadAttributesSchema = Schema.object({
     /** The time at which the thread was created. */

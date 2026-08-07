@@ -13,10 +13,10 @@ import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertId, generateId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 const context = createTestContext({

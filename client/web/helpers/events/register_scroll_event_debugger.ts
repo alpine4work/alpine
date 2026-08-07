@@ -1,7 +1,7 @@
 /* eslint-disable no-console, prefer-rest-params */
 
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 assert(process.env.NODE_ENV === "development");
 

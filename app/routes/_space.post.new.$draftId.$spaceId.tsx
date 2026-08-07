@@ -9,7 +9,7 @@ import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {getPostDraftIfExists} from "~/server/forum/data/get_post_draft_if_exists.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
@@ -18,11 +18,11 @@ import {
     assertPostContent,
     emptyPostContentWithReferences,
 } from "~/shared/forum/post_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {getChronologicalIdTime} from "~/shared/id/chronological_id.js";
-import {isId} from "~/shared/id/id.js";
-import {ChannelId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {getChronologicalIdTime} from "~/shared/id/chronological_id.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {ChannelId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const LoaderSchema = Schema.object({
     draftId: Schema.id<PostDraftId>(),

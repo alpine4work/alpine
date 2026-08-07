@@ -15,16 +15,16 @@ import {parseArgs} from "util";
 import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {
     FileContentType,
     getPathFileContentTypeIfExists,
     isFileAudioContentType,
     isFileImageContentType,
     isFileVideoContentType,
-} from "~/shared/files/file_content_type.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 
 type ProbeRoute = "Audio" | "Image" | "Unsupported" | "Video";
 type PricingRegion = keyof typeof gemmaInputCostPerMillionTokensByRegion;

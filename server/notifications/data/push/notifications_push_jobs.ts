@@ -13,7 +13,7 @@ import {sendNotificationToSlackIntegration} from "~/server/notifications/data/in
 import {sendPendingSubtleNotificationsForInbox} from "~/server/notifications/data/internal/push/send_pending_subtle_notifications_for_inbox.js";
 import {sendWebPushNotificationToSubscription} from "~/server/notifications/data/internal/push/send_web_push_notification_to_subscription.js";
 import {Context} from "~/shared/context/context.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function processSendWebPushNotificationJob(
     context: Context<ServerSystemActionContextModules & {webPush: WebPushContextModule}>,

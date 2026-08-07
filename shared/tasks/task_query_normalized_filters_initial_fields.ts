@@ -1,9 +1,9 @@
 import {CalendarDate} from "@internationalized/date";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";

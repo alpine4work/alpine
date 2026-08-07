@@ -1,4 +1,4 @@
-import {getApiMessageApprovals} from "~/server/agents/api/api_client.js";
+import {getApiMessageApprovals} from "~/server/agents/api/api_client.open_source.js";
 import {rejectPendingChatGptAgentMessageApproval} from "~/server/agents/bots/deprecated/internal/approvals/reject_pending_chat_gpt_agent_message_approval.js";
 import {
     ChatGptAgentMessageApproval,
@@ -16,23 +16,23 @@ import {
     ApiBotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent,
     ApiMessageExperimentalApprovalDecisionValue,
     ApiMessageExperimentalApprovalDecisionValueResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
-} from "~/shared/error/error.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+} from "~/shared/error/error.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Applies an `UpdatedMessageStreamExperimentalApprovalsPart` webhook event to the

@@ -20,7 +20,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export type {TextInputFontSize} from "~/client/web/design/text_input_height_spacing_for_font_size.js";
 

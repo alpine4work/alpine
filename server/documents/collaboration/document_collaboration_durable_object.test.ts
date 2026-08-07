@@ -40,7 +40,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
-import {ApiContentPosition} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentPosition} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
@@ -64,28 +64,32 @@ import {
     decodeDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
-import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     FileId,
     SiteId,
     SiteSideBarId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,

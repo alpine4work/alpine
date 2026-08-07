@@ -8,9 +8,9 @@ import {
     TaskRealtimeCollectionSubscriptionId,
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";

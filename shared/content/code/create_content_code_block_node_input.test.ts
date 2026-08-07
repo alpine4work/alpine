@@ -2,8 +2,8 @@
 
 import {createContentCodeBlockNodeInput} from "~/shared/content/code/create_content_code_block_node_input.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 
 function runTests(code: string) {

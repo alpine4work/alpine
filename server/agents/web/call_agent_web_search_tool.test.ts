@@ -1,16 +1,16 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
-import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
+import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {
     callAgentWebSearchTool,
     defaultAgentWebSearchResultLimit,
-} from "~/server/agents/web/call_agent_web_search_tool.js";
+} from "~/server/agents/web/call_agent_web_search_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
+import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     BotId,
@@ -23,7 +23,7 @@ import {
     SpaceId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const {span} = testTracer.startSpan("call_agent_web_search_tool.test.ts");

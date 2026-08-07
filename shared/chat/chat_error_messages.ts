@@ -1,8 +1,8 @@
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 export const chatPermissionDeniedErrorDisplayMessageByAccessLevel: Record<
     AccessLevel,

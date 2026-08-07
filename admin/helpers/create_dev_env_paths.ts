@@ -1,7 +1,7 @@
 import {DotenvParseOutput} from "dotenv";
 import createEnvPaths from "env-paths";
-import {InternalError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export function createDevEnvPaths(env: DotenvParseOutput) {
     const devEnvPathsNameSuffix = assertExists(env.DEV_ENV_PATHS_NAME_SUFFIX);

@@ -4,10 +4,10 @@ import {
     AccountModelWithoutSpaceData,
 } from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
 
 /**
  * Number of accounts rendered in a chat search entity title.

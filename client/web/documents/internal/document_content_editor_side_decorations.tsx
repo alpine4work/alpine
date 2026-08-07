@@ -8,8 +8,8 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {addRemLengths, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type DocumentContentEditorSideDecoration = {

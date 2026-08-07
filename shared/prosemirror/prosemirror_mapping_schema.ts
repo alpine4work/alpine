@@ -1,5 +1,5 @@
 import {Mapping, StepMap} from "prosemirror-transform";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 declare module "prosemirror-transform" {
     interface StepMap {

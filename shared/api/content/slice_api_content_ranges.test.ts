@@ -1,14 +1,14 @@
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {sliceApiContentRange} from "~/shared/api/content/slice_api_content_range.js";
-import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {sliceApiContentRange} from "~/shared/api/content/slice_api_content_range.open_source.js";
+import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.open_source.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const testCases: Array<{
     only?: CommitBlocker;

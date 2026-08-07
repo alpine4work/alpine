@@ -8,7 +8,7 @@ import {
     LambdaSystemActionContext,
     createLambdaJobQueueConsumerHandler,
 } from "~/server/lambda/create_lambda_job_queue_consumer_handler.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 const temporaryDirectoryPath = "/tmp";
 

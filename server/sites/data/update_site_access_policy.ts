@@ -9,7 +9,7 @@ import {createSitePreviewModelFromItem} from "~/server/sites/data/internal/creat
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**

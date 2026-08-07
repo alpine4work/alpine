@@ -40,13 +40,13 @@ import {useLifecycleRef} from "~/client/web/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {Sprinkles} from "~/client/web/styles/styles.js";
 import {ParsableRemLength} from "~/shared/design/core/spacing.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 
 export type OverlayTriggerButtonRef = {
     open(options?: {

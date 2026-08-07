@@ -1,14 +1,14 @@
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export type AvatarEntityPath = `account/${AccountId}` | `space/${SpaceId}` | `bot/${BotId}`;
 

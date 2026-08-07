@@ -5,9 +5,9 @@ import {ErrorBodyRenderer} from "~/client/web/design/error_body_renderer.js";
 import {useStableValue} from "~/client/web/helpers/use_stable_value.js";
 import {useRouteErrorTitle} from "~/client/web/spaces/route_metadata.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {FailedPreconditionError, UnknownError} from "~/shared/error/error.js";
+import {FailedPreconditionError, UnknownError} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {routeNotFoundError} from "~/shared/remix/route_not_found_error.js";
 
 export function RootErrorBoundary() {

@@ -1,22 +1,22 @@
-import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.open_source.js";
+import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {
     ApiAccountResponse,
     ApiMentionReferenceResponse,
     ApiTaskCollectionPreviewResponse,
     ApiTaskCollectionResponse,
     ApiTaskResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {MaybeReadonlyArray} from "~/shared/helpers/types/maybe_array.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {MaybeReadonlyArray} from "~/shared/helpers/types/maybe_array.open_source.js";
 
 export type StoreAgentWebPageLinkForTestTarget =
     | ApiAccountResponse

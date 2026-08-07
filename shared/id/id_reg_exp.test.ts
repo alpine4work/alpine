@@ -1,4 +1,4 @@
-import {generateId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
+import {generateId, getMaxId, getMinId, isId} from "~/shared/id/id.open_source.js";
 import {idExclusiveRegExp} from "~/shared/id/id_reg_exp.js";
 
 test("`idExclusiveRegExp` works", () => {

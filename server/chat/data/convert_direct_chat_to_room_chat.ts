@@ -10,14 +10,14 @@ import {
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**

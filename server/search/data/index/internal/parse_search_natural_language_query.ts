@@ -9,13 +9,13 @@ import {
     SearchEntityIndexPriorityType,
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SpaceAccountNameSearchIndex} from "~/server/spaces/get_space_account_name_search_index.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {DateString} from "~/shared/helpers/date/date_string.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {DateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

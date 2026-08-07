@@ -42,17 +42,17 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {FileId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {FileId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";

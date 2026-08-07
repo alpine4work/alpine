@@ -1,4 +1,4 @@
-import {lerp} from "~/shared/helpers/number/lerp.js";
+import {lerp} from "~/shared/helpers/number/lerp.open_source.js";
 
 /**
  * Generates a random float between `a` and `b` (exclusive).

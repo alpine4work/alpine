@@ -22,9 +22,9 @@ import {
 import {AppRouterProvider} from "~/app/router/app_router_provider.js";
 import {createNativeMobileRouterWithoutInitialization} from "~/app/router/native_mobile_router.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 
 let router: Router | undefined;
 let routes: Array<DataRouteObject> | undefined;

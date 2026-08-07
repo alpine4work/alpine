@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryDisplayStatusFilter, TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";

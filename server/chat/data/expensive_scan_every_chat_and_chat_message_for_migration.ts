@@ -1,8 +1,8 @@
 import {ChatTable} from "~/server/chat/data/internal/chat_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Scan every document and document comment in our database. Use when migrating

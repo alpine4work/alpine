@@ -1,8 +1,8 @@
 import fs from "fs/promises";
 import {join, relative, resolve} from "path";
 import {generateResponsiveDocumentationImage} from "~/app/docs/codegen/images/generate_responsive_documentation_image.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const documentationImageUrlPrefixes = ["/api/", "/blog/", "/docs/"] as const;
 

@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /** Parse a real authored calendar date in the blog frontmatter format. */
 export function parseBlogPostDate({

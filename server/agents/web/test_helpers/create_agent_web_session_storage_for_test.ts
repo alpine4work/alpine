@@ -1,12 +1,15 @@
 import {
     AgentWebSessionStorage,
     AgentWebSessionStorageCollection,
-} from "~/server/agents/web/agent_web_session_storage.js";
+} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durable_object_storage.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {
+    generateOrderKeyBetween,
+    initialOrderKey,
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export function createAgentWebSessionStorageForTest(
     spaceId: SpaceId,

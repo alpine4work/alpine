@@ -2,15 +2,15 @@ import {
     ApiClient,
     getApiMessageApprovals,
     patchApiMessageApprovals,
-} from "~/server/agents/api/api_client.js";
+} from "~/server/agents/api/api_client.open_source.js";
 import {
     ApiMessageExperimentalApproval,
     ApiMessageRoomReference,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * This function attempts to reject all of the pending approvals for a given

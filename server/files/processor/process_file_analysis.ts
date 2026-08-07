@@ -35,7 +35,7 @@ import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js
 import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
 import {SupportedBedrockModel} from "~/server/language_models/supported_bedrock_model.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
+import {DeadlineExceededError, InternalError} from "~/shared/error/error.open_source.js";
 import {
     FileAnalysisResult,
     FileAnalysisResultSchema,
@@ -56,12 +56,12 @@ import {
     isFileDocumentContentType,
     isFileImageContentType,
     isFileVideoContentType,
-} from "~/shared/files/file_content_type.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export type ProcessFileAnalysisResult =
     | {readonly ok: true; readonly analysis: FileAnalysisResult}

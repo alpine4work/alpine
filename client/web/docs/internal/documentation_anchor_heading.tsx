@@ -7,7 +7,7 @@ import {
     DocumentationMarkdownChildren,
     flattenDocumentationMarkdownChildren,
 } from "~/shared/docs/documentation_markdown_component.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * A page heading with a stable anchor id. Hovering reveals a `#` link so readers

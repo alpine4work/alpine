@@ -23,11 +23,11 @@ import {
     SelectableSpaceThemeColor,
     selectableSpaceThemeColors,
 } from "~/shared/design/core/theme_colors.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {updateSpaceName, updateSpaceThemeColor} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 const themeColorNames: {[key in SelectableSpaceThemeColor]: string} = {
     red: "Red",

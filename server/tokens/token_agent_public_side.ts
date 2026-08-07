@@ -5,12 +5,12 @@ import {
     TokenServiceNameSchema,
     tokenServiceShortNameByName,
 } from "~/server/tokens/token_service_name.js";
-import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 /**
  * The token agent class is responsible for RSA key cryptography between services

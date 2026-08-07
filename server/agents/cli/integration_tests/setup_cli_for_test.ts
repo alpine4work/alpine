@@ -11,9 +11,9 @@ import {refreshSearchEntityKeywordIndexForTest} from "~/server/search/data/index
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 export type CliIntegrationTests = {
     readonly dataDirectoryPath: string;

@@ -6,7 +6,7 @@ import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the channel name and description content without references. Used for

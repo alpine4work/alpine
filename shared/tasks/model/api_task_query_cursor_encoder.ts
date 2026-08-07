@@ -1,15 +1,15 @@
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {DataBuilderView} from "~/shared/helpers/binary/data_builder_view.js";
 import {scrambleBytes, unscrambleBytes} from "~/shared/helpers/binary/scramble_bytes.js";
 import {getVarInt, pushVarInt} from "~/shared/helpers/binary/var_int.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {decodeOrderKey, encodeOrderKey} from "~/shared/helpers/sort/encode_order_key.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {assertId, decodeId, encodeId, idByteLength} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {assertId, decodeId, encodeId, idByteLength} from "~/shared/id/id.open_source.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     deserializeHybridLogicalTime,
     serializeHybridLogicalTime,

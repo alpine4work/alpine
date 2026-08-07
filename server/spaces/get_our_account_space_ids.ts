@@ -5,7 +5,7 @@ import {
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the active `SpaceId`s our actor is a part of (excludes invite pending

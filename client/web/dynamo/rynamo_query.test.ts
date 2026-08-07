@@ -1,7 +1,7 @@
 import {RynamoQuery, RynamoQueryItem} from "~/client/web/dynamo/rynamo_query.js";
 import {DynamoItemKey, DynamoItemPartitionKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 function testItemKey(string: string): DynamoItemKey {

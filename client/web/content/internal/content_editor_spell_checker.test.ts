@@ -10,8 +10,8 @@ import {ConstantsContextModule} from "~/shared/context/constants_context_module.
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 

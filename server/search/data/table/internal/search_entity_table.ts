@@ -1,9 +1,14 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {Id} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {Id} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    ChannelId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SearchAffinityEntityId, SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 const SearchAffinityEntityIdDynamoKeyAttributeSchema =

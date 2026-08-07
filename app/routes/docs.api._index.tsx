@@ -12,7 +12,7 @@ import {
     DocumentationMdxPage,
 } from "~/client/web/docs/documentation_mdx_page.js";
 import {DocumentationOnThisPage} from "~/client/web/docs/documentation_on_this_page.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
 
 export const meta = createDocumentationMetaFunction<{page: DocumentationApiPageData}>(data => ({
     type: "APIReference",

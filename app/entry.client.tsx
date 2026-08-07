@@ -17,9 +17,9 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 declare global {
     // eslint-disable-next-line no-var

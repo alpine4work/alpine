@@ -4,7 +4,7 @@ import {
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {MyAccountDurableObjectAuthorizer} from "~/server/notifications/my_account/my_account_durable_object_authorizer.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MyAccountEvent,
     MyAccountProtocol,

@@ -4,8 +4,8 @@ import {createSlackWorkspaceIntegration} from "~/server/integrations/slack/creat
 import {getConnectedSlackAccountIfExists} from "~/server/integrations/slack/get_connected_slack_account_if_exists.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.open_source.js";
 
 const context = createTestContext({
     notificationsInjection: {

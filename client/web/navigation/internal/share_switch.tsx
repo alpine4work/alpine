@@ -12,9 +12,9 @@ import {
     ResolvedAccessPolicyWithGenerations,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 type ShareSwitchAccessPolicyAction = AccessPolicyAction & {

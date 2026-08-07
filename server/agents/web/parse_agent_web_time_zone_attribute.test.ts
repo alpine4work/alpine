@@ -1,9 +1,9 @@
-import {parseAgentWebTimeZoneAttribute} from "~/server/agents/web/parse_agent_web_time_zone_attribute.js";
+import {parseAgentWebTimeZoneAttribute} from "~/server/agents/web/parse_agent_web_time_zone_attribute.open_source.js";
 import {
     TimeZone,
     assertTimeZone,
     formatTimeZoneAbbreviation,
-} from "~/shared/helpers/intl/time_zone.js";
+} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 const utcTimeZone = assertTimeZone("UTC");
 const easternTimeZone = assertTimeZone("America/New_York");

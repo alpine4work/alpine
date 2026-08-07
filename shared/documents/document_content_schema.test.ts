@@ -5,9 +5,9 @@ import {
     DocumentContentSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 test("content type names cover schema", () => {
     assertContentTypeNamesCoverProsemirrorSchema(DocumentContentProsemirrorSchema);

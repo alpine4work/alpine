@@ -3,7 +3,7 @@ import {
     printContentSingleLineTextSnippetPreservingMarks,
 } from "~/shared/content/print_content_single_line_text_snippet.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 

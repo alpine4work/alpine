@@ -45,7 +45,7 @@ import {
     ApiChannelPreview,
     ApiContent,
     ApiGetChannelResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -56,13 +56,16 @@ import {
     PostContentProsemirrorSchema,
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {ChannelId, FileId, PostId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {
+    deserializeDateString,
+    serializeDateString,
+} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {ChannelId, FileId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";

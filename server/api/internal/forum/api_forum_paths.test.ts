@@ -17,10 +17,10 @@ import {
     PostContentProsemirrorSchema,
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, PostId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChannelId, DocumentId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 const searchMentionEntityById = new Map<string, {isPrivate: false; entity: SearchEntityModel}>();

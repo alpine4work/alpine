@@ -18,7 +18,7 @@ import {
     TaskQueryViewDesktopHeaderNameRef,
 } from "~/client/web/tasks/internal/task_query_view_desktop_header_name.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";

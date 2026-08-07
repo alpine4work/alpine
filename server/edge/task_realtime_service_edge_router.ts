@@ -8,7 +8,7 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 /**
  * Our task realtime service router for use in `EdgeService`. Reads routes by

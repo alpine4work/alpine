@@ -1,6 +1,6 @@
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftFileSchema,
     MessageDraftWithFilesSchema,
@@ -9,7 +9,7 @@ import {MessageDraftSurfaceSchema} from "~/shared/messaging/message_draft_surfac
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export const getMessageDraft = defineRpc({
     name: "getMessageDraft",

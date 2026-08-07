@@ -4,11 +4,11 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 
 /**
  * Context module for DynamoDB. Holds a DynamoDB client which is accessible to our

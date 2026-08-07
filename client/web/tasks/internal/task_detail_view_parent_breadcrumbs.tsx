@@ -16,8 +16,8 @@ import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_ta
 import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/core/task_query_normalized_filters_initial_fields_model.js";
 import {isTaskClientStoreTaskEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_task_entry_deleted.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {interleaveArray} from "~/shared/helpers/array/interleave_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

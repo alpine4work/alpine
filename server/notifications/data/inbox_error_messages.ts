@@ -1,6 +1,6 @@
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
 
 /**
  * Access levels that inbox authorization actually accepts. Inbox grants are all or

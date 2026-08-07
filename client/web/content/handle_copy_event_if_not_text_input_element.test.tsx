@@ -13,8 +13,8 @@ import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {paragraphClassName} from "~/shared/design/core/constant_class_names.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {createTestSpaceModel} from "~/shared/spaces/test_helpers/space_model_test_helpers.js";
 

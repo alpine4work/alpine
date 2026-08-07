@@ -4,7 +4,7 @@
  * display code.
  */
 
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Formats year/month/day as a zero-padded "YYYY-MM-DD" date string.

@@ -26,20 +26,25 @@ import {
     compareHybridLogicalTimes,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {isTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {isTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {decodeIdInto, encodeId, idByteLength, isId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
+import {decodeIdInto, encodeId, idByteLength, isId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {
     HybridLogicalTimeSchema,
     serializeHybridLogicalTime,
 } from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     TaskDueDateRegister,
     TaskParentTaskIdRegister,

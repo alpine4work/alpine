@@ -9,7 +9,10 @@ import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {
+    generateOrderKeyBetween,
+    initialOrderKey,
+} from "~/shared/helpers/sort/order_key.open_source.js";
 
 const {context, services} = createTestServices();
 const space = createTestSpace(context);

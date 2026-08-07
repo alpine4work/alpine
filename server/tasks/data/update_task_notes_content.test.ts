@@ -17,10 +17,10 @@ import {
     FailedPreconditionError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
-import {ContentEditorClientId, RpcCallId} from "~/shared/id/types/id_types.js";
+} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ContentEditorClientId, RpcCallId} from "~/shared/id/types/id_types.open_source.js";
 import {
     emptyTaskNotesContent,
     TaskNotesContentProsemirrorSchema as schema,

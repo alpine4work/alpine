@@ -1,5 +1,5 @@
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * The description that shows (in a modal) when you try to perform some action

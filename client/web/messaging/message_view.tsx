@@ -146,17 +146,17 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {getMessageReactionsByCanonicalPos} from "~/shared/messaging/get_message_reactions_by_canonical_pos.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";

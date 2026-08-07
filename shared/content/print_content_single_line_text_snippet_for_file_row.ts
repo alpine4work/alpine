@@ -1,13 +1,13 @@
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {
     FileNounCountState,
     formatFileNounWithAdjacentCount,
 } from "~/shared/files/format_file_noun_with_adjacent_count.js";
-import {getFileContentTypeStartOfSentenceNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileContentTypeStartOfSentenceNoun} from "~/shared/files/get_file_content_type_noun.open_source.js";
 import {getFileEntityStartOfSentenceNoun} from "~/shared/files/get_file_entity_noun.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 export type {FileNounCountState};
 

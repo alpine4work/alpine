@@ -8,8 +8,8 @@ import {
     generateSlackMessageBodyFromTemplate,
 } from "~/server/integrations/slack/internal/message_templates/slack_message_templates.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Sends a direct message to a Slack user as the Alpine app.

@@ -6,9 +6,9 @@ import {createFileProcessorAnalysisPromises} from "~/server/files/processor/proc
 import {processImageFile} from "~/server/files/processor/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
-import {FileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {FileWebSafeImageContentType} from "~/shared/files/file_content_type.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export function createFileWebSafeImageProcessor(
     contentType: FileWebSafeImageContentType,

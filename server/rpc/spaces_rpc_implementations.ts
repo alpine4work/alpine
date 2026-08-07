@@ -19,11 +19,11 @@ import {updateSpaceAccountRole} from "~/server/spaces/update_space_account_role.
 import {updateSpaceAccountSettings} from "~/server/spaces/update_space_account_settings.js";
 import {updateSpaceName} from "~/server/spaces/update_space_name.js";
 import {updateSpaceThemeColor} from "~/server/spaces/update_space_theme_color.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import * as definitions from "~/shared/rpc/spaces_rpc_definitions.js";
 
 export default implementRpcs(definitions, {

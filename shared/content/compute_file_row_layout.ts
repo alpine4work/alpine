@@ -6,9 +6,9 @@ import {
     contentFileRowMaxHeightRem,
 } from "~/shared/design/core/content_shared_styles.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 /**
  * The minimum width:height aspect ratio we support when rendering images. Images

@@ -4,8 +4,8 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const appServiceAccountPlanSecretToken = "cyberworlds-super-secret-internal-agent-service-token";

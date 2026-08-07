@@ -1,6 +1,6 @@
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 // Guards against the serialize and deserialize halves of the unsubscribe URL
 // scheme drifting apart.

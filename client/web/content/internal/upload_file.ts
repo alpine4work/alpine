@@ -8,7 +8,7 @@ import {
 } from "~/client/web/content/progress_store.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
 import {
     AbortedError,
     ErrorBase,
@@ -16,8 +16,8 @@ import {
     InvalidArgumentError,
     UnavailableError,
     UnknownError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
@@ -30,9 +30,9 @@ import {
     FileContentType,
     canonicalizeFileContentTypeIfExists,
     getPathFileContentTypeIfExists,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileModel, getFileModelDataAttachReadiness} from "~/shared/files/file_model.js";
-import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.open_source.js";
 import {
     CompleteFileMultipartUploadRequestPart,
     CompleteFileMultipartUploadRequestSchema,
@@ -42,23 +42,23 @@ import {
     UploadFileResponse,
     UploadFileResponseSchema,
 } from "~/shared/files/upload_file_protocol.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 import {waitForAbort} from "~/shared/helpers/async/wait_for_abort.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {lerp} from "~/shared/helpers/number/lerp.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {lerp} from "~/shared/helpers/number/lerp.open_source.js";
 import {ReadonlyTuple} from "~/shared/helpers/types/tuple.js";
-import {idLength} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {idLength} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {Store} from "~/shared/store/store.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 declare global {
     interface RequestInit {

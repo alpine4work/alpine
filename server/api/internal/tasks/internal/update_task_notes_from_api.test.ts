@@ -8,7 +8,7 @@ import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {
     TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
     TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,

@@ -1,11 +1,11 @@
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {MessageContentWithReferencesSchema} from "~/shared/content/message_content_schema.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export class ChannelModel extends Model(

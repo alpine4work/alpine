@@ -1,7 +1,7 @@
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor.js";
 
 export function getPostContentFileIds(content: PostContent): Set<FileId> {

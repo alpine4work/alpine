@@ -1,4 +1,4 @@
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 
 /**
  * HTTP header carrying the signature of a bot webhook request. The value has the

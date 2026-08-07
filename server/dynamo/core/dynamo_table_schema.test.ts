@@ -4,7 +4,7 @@ import {DynamoClientInternal} from "~/server/dynamo/core/internal/dynamo_client_
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 const context = createTestContext();
 

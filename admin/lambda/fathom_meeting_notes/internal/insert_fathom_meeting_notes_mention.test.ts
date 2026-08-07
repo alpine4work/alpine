@@ -1,6 +1,6 @@
 import {insertFathomMeetingNotesMention} from "~/admin/lambda/fathom_meeting_notes/internal/insert_fathom_meeting_notes_mention.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import type {DocumentId} from "~/shared/id/types/id_types.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import type {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const oldDocumentId = "old-document-id" as DocumentId;
 const newDocumentId = "new-document-id" as DocumentId;

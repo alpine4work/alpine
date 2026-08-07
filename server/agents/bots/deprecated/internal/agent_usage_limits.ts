@@ -9,17 +9,17 @@ import {
     SupportedAgentProviders,
 } from "~/server/agents/bots/internal/supported_agent_models.js";
 import {alpioneers} from "~/shared/accounts/known_account_ids.js";
-import {DataLossError} from "~/shared/error/error.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 type AgentUsageWindowLimit = {
     type: AgentUsageWindowType;

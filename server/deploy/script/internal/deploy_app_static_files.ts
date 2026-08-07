@@ -8,14 +8,14 @@ import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_co
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {Context} from "~/shared/context/context.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const appStaticBucketName = "cyberworlds-app-static";
 

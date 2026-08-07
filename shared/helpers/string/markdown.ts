@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * A string that if it's valid Markdown, will be formatted as Markdown by Prettier

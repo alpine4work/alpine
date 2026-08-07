@@ -3,7 +3,7 @@ import {
     DynamoConditionExpression,
     DynamoConditionExpressionCompilationContext,
 } from "~/server/dynamo/core/dynamo_condition.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const schema = Schema.object({
     a: Schema.integer,

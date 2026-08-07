@@ -4,7 +4,7 @@ import {
     formatTimeZoneAbbreviation,
     getCurrentTimeZone,
     isTimeZone,
-} from "~/shared/helpers/intl/time_zone.js";
+} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 describe("formatTimeZoneAbbreviation", () => {
     describe("standard time zones", () => {

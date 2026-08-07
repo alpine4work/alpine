@@ -38,9 +38,9 @@ import {
     sprinkles,
 } from "~/client/web/styles/styles.js";
 import {RemLength, Spacing, spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export const spaceLayoutSideBarIconSize = "1.125rem";
 

@@ -10,8 +10,8 @@ import {
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {contentMentionTextTruncatedSuffix} from "~/shared/content/truncate_content_mention_text.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();

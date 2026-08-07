@@ -1,6 +1,6 @@
 import {Mark} from "prosemirror-model";
 import {RefObject} from "react";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.open_source.js";
 
 export type ContentEditorPointerToolbarFloaterState = {
     readonly type: "PointerToolbar";

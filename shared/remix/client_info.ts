@@ -1,9 +1,9 @@
-import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Self-reported information about the client available on the server via a cookie.

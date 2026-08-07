@@ -5,9 +5,9 @@ import {getChannelPreviewItemForAuthorization} from "~/server/forum/data/interna
 import {getPostItemForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Load the post's access policy for a bot scoped to the post. Used when evaluating

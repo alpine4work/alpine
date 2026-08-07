@@ -2,10 +2,10 @@ import {
     ApiContentDecodedKey,
     ApiContentKeyDecoder,
 } from "~/shared/api/content/closed_source/api_content_key_encoder.js";
-import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.open_source.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export function getApiContentPositionPos(
     decoder: ApiContentKeyDecoder,

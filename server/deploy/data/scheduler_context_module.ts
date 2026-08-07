@@ -9,10 +9,10 @@ import {JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
  * Context module for scheduling events with [AWS EventBridge Scheduler][1].

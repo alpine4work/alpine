@@ -2,7 +2,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {getChannelPostContents} from "~/server/forum/data/get_channel_posts.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 const context = createTestContext();
 

@@ -6,9 +6,9 @@ import {
     createEmptySpellCheckIgnoredLintsForNewEntity,
     getSpellCheckIgnoredLints,
 } from "~/server/spell_check/get_spell_check_ignored_lints.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext();
 

@@ -1,11 +1,11 @@
 import {
     createAgentWebTaskQueryCursorHash,
     getAgentWebTaskQueryCursorForHashIfExists,
-} from "~/server/agents/web/agent_web_task_query_cursor_hash.js";
+} from "~/server/agents/web/agent_web_task_query_cursor_hash.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {generateId} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.open_source.js";
+import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 
 const spaceId = generateId<SpaceId>();
 const collectionId = generateId<TaskCollectionId>();

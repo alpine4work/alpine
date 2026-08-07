@@ -1,6 +1,6 @@
 import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
 import {disableScrollInteractions} from "~/client/web/helpers/disable_scroll_interactions.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 
 /**
  * Disable the default scroll behavior when touch moves on a non-scrollable element

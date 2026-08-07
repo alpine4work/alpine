@@ -3,13 +3,13 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeChannelItemAccessIfPossible} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {getChannelPreviewItemForAuthorizationIfExists} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {ChannelId, SiteId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {ChannelId, SiteId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Gets a preview channel object with the provided `ChannelId`. Returns null if the

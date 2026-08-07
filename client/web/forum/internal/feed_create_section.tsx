@@ -35,11 +35,11 @@ import {searchAffinityEntityViewMinHeightPx} from "~/client/web/styles/search_sh
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
 import {inputPlaceholderStyles} from "~/client/web/styles/styles.js";
 import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {
     markSearchAffinityEntityInteraction,

@@ -36,7 +36,7 @@ import {cloudflareIpV4s, cloudflareIpV6s} from "~/server/helpers/node/cloudflare
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {ecsStopTimeoutMs} from "~/server/helpers/node/shutdown_timeouts.js";
 import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 
 export class AwsTaskRealtimeService extends Construct {
     public readonly autoScalingGroup: AutoScalingGroup;

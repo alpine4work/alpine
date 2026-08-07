@@ -8,12 +8,16 @@ import {CollaborativeContentStepCache} from "~/server/content/collaboration/coll
 import {TaskNotesCollaborationEventStub} from "~/server/tasks/notes_collaboration/task_notes_collaboration_connection.js";
 import {getContentReferencedIdsForSteps} from "~/shared/content/content_referenced_ids.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
-import {DataLossError, FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {
+    DataLossError,
+    FailedPreconditionError,
+    InternalError,
+} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {ContentEditorClientId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {ContentEditorClientId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     getTaskNotesContentSteps,
     updateTaskNotesContent,

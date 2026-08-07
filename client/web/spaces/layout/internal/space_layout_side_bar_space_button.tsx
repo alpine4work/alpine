@@ -15,7 +15,7 @@ import {SpaceAvatar} from "~/client/web/spaces/space_avatar.js";
 import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
 import {buttonStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {neverPromise} from "~/shared/helpers/async/never_promise.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {getOurAccountSpaces, loadSpaceInviteContent} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";

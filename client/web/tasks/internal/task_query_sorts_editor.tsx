@@ -22,10 +22,10 @@ import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {TaskMissingAccountAvatar} from "~/client/web/tasks/task_missing_account_avatar.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskQuerySortsEditor({

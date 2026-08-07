@@ -10,14 +10,14 @@ import {
     ApiBotWebhookEvent,
     ApiMentionReference,
     ApiMessageRoomReference,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {isId} from "~/shared/id/id.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -28,7 +28,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Any API path supported by our system.

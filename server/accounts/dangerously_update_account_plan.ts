@@ -1,8 +1,8 @@
 import {AccountItem, AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {Context} from "~/shared/context/context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * You should not call this function! It does not authorize that you are allowed to

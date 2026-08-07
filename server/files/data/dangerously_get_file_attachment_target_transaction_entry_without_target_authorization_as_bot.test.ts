@@ -7,8 +7,8 @@ import {dangerouslyGetFileAttachmentTargetTransactionEntryWithoutTargetAuthoriza
 import {getFileFromAttachment, startUploadingFile} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     documentsInjection: {

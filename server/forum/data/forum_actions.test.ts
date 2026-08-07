@@ -105,7 +105,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
     UnauthenticatedError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     ChannelContributorsModel,
@@ -117,16 +117,16 @@ import {
     assertPostContent,
     createSimplePostContent,
 } from "~/shared/forum/post_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -135,7 +135,7 @@ import {
     SiteId,
     SiteSideBarId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {

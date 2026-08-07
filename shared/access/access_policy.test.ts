@@ -13,9 +13,9 @@ import {
     minAccessLevel,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SiteId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SiteId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Test wrapper schema that contains an AccessPolicy. This simulates how

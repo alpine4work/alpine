@@ -10,9 +10,9 @@ import {
     trimContentFragmentStart,
     trimContentStart,
 } from "~/shared/content/trim_content.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const {
     doc,

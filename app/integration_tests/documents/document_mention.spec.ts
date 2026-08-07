@@ -2,8 +2,8 @@ import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const {context, services} = createTestServices();
 

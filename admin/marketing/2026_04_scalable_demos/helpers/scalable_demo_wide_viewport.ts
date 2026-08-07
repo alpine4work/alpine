@@ -1,8 +1,8 @@
 import {
     SpacingScale,
     mediumSpacingScaleMinWindowWidth,
-} from "~/shared/design/core/spacing_scale.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+} from "~/shared/design/core/spacing_scale.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
 /**

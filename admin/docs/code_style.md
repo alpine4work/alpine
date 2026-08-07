@@ -273,8 +273,8 @@ explicitly return a not found or permission denied case.
 For example, we have a lot of server functions that look like this.
 
 ```ts
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 
 async function getChannel(channelId: ChannelId): Promise<ChannelModel> {
     const channel = await getChannelIfExists(channelId);

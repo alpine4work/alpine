@@ -7,10 +7,10 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 const mobileViewport = {width: 390, height: 844};
 

@@ -1,6 +1,6 @@
 import {Input} from "@lezer/common";
 import {Node} from "prosemirror-model";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Create an `Input` object for the Lezer parser from a code block node. We

@@ -3,8 +3,8 @@
 import {Action} from "@remix-run/router";
 import {ReactNode, createContext, useContext, useEffect, useMemo, useState} from "react";
 import {useLocation, useNavigationType} from "react-router";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const NavigationStateContext = createContext<NavigationState | null>(null);
 

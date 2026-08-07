@@ -7,8 +7,8 @@ import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export async function seedTestSpaces(
     context: Context<

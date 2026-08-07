@@ -1,11 +1,11 @@
 import {TaskCollectionIndexDocBase} from "~/server/tasks/data/task_collection_index_doc.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {TaskCollectionAction} from "~/shared/tasks/actions/task_collection_action.js";
 
 /**

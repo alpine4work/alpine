@@ -2,11 +2,11 @@
 // time
 
 import {ApiBotWebhookCreatedMessageEventParentSchema} from "~/server/notifications/core/notification_event.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageStreamPartPayloadSchema} from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 // smaller than future times.
 const MessageStreamPartCreatedTimeSchema = Schema.date.default(

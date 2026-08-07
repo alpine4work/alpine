@@ -4,7 +4,7 @@ import {updateOurStripeCustomerId} from "~/server/accounts/update_our_stripe_cus
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.open_source.js";
 
 const context = createTestContext({
     notificationsInjection: {

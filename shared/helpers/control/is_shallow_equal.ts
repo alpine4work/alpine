@@ -1,6 +1,6 @@
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 /**
  * Determines if two plain objects or arrays are shallowly equal to one another.

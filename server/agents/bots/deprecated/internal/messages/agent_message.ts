@@ -2,18 +2,18 @@ import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o2
 import {RootContent} from "mdast";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {visitApiContent} from "~/shared/api/content/visit_api_content.js";
+import {visitApiContent} from "~/shared/api/content/visit_api_content.open_source.js";
 import {
     ApiContent,
     ApiMessageContentPayloadParentResponse,
     ApiMessageContentPayloadResponse,
     ApiMessageResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {DateString} from "~/shared/helpers/date/date_string.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {DateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export class AgentMessage {
     public readonly index: number;

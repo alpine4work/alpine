@@ -4,7 +4,7 @@ import {getFeedEntryChannelId} from "~/server/feed/internal/get_feed_entry_chann
 import {rankFeedEntriesWithDiversity} from "~/server/feed/internal/rank_feed_entries_with_diversity.js";
 import {searchAffinityEntityVeryLowIntentUpdateInteractionPoints} from "~/server/spaces/search_affinity_entity_interaction_points.js";
 import {FeedEntry, getFeedEntryTime} from "~/shared/feed/feed_entry_schema.js";
-import {AccountId, ChannelId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Rank feed entries using affinity scores and diversity constraints.

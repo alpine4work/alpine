@@ -16,7 +16,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const testFileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     [

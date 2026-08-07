@@ -17,14 +17,14 @@ import {
     ApiMessageExperimentalApprovalResponse,
     ApiMessageStreamPartPayloadResponse,
     ApiMessageStreamToolCallPartCreateCallReferenceResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageExperimentalApproval,
     MessageExperimentalApprovalDecisionOption,

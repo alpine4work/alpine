@@ -1,4 +1,4 @@
-import {isObject} from "~/shared/helpers/object/is_object.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 
 /**
  * Does the provided value adhere to the promise interface? If the object has a

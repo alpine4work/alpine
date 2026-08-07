@@ -8,7 +8,7 @@ import {
 } from "~/client/web/docs/internal/documentation_header.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {DocumentationSearchIndex} from "~/shared/docs/search_documentation_entries.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 const documentationHeaderHeight = 56;
 

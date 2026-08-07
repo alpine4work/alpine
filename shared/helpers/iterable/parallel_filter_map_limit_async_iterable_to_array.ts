@@ -1,5 +1,8 @@
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
 
 /**
  * Function that allows the user to perform a couple transformations on an async

@@ -1,7 +1,7 @@
 import {MutableRefObject, createContext, useContext, useEffect, useMemo} from "react";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 
 // We have a separate context for the active tooltip symbol because it updates
 // frequently. Our second context, updates rarely.

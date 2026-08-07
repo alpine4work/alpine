@@ -7,10 +7,10 @@ import {contentStyles} from "~/client/web/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {fileClassName} from "~/shared/design/core/constant_class_names.js";
 import {parseRemLength, screenPaddingXRem} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 export type ContentEditorFileDropTarget = {
     readonly offsetParent: Element | null;

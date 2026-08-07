@@ -1,6 +1,6 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {deregisterWebPushSubscriptionWithoutAuthorization} from "~/server/notifications/data/internal/push/deregister_web_push_subscription_without_authorization.js";
-import {BrowserId} from "~/shared/id/types/id_types.js";
+import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Deregisters a web push subscription for a given account and browser. If the

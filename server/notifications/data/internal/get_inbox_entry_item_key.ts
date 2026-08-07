@@ -1,6 +1,6 @@
 import {InboxEntryItemKey} from "~/server/notifications/data/internal/inbox_table.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxEntryKey} from "~/shared/notifications/inbox_model.js";
 
 export function getInboxEntryItemKey({

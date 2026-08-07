@@ -6,7 +6,7 @@ import {
     RynamoEvent,
     RynamoIndexQueryResult,
 } from "~/shared/dynamo/rynamo_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 

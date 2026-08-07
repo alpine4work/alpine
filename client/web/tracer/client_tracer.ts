@@ -6,13 +6,13 @@ import {
     unstable_scheduleCallback,
 } from "scheduler";
 import {getClientTracerSynchronizedSystemClock} from "~/client/web/tracer/client_tracer_synchronized_system_clock.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {TracerEvent} from "~/shared/tracer/tracer_event.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 
 /**
  * Creates a tracer to be used in a web browser.

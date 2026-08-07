@@ -10,8 +10,8 @@ import {
     formatContentDateString,
     parseContentDateString,
 } from "~/shared/content/format_content_date_string.js";
-import {InternalError} from "~/shared/error/error.js";
-import {dateFullMonthNames} from "~/shared/helpers/date/date_month_names.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {dateFullMonthNames} from "~/shared/helpers/date/date_month_names.open_source.js";
 
 export function formatContentDate(date: string, today: string): string {
     const parsedDate = parseDateString(date);

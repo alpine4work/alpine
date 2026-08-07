@@ -1,16 +1,16 @@
 import {RootContent} from "mdast";
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {
     AgentWebMessagingPage,
     agentWebMessagingPageMessageNouns,
-} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
-import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/normalize_agent_web_messaging_page.js";
-import {parseAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/parse_agent_web_messaging_page.js";
-import {printAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
-import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
-import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.open_source.js";
+import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/normalize_agent_web_messaging_page.open_source.js";
+import {parseAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/parse_agent_web_messaging_page.open_source.js";
+import {printAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.open_source.js";
+import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.open_source.js";
+import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
-import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementMark,
@@ -18,15 +18,15 @@ import {
     ApiContentParagraphBlockElementResponseWithoutKeys,
     ApiContentResponseWithoutKeys,
     ApiContentTextInlineElement,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {assertId, generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChatId, FileId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, ChatId, FileId} from "~/shared/id/types/id_types.open_source.js";
 
 const apostrophe = String.fromCharCode(39);
 const doubleQuote = String.fromCharCode(34);

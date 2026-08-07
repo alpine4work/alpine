@@ -11,7 +11,10 @@ import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    runAllPromiseThunks,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {

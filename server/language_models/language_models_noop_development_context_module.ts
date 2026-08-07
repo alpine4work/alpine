@@ -8,8 +8,8 @@ import {
     LanguageModelsGenerateTextOptions,
     LanguageModelsGenerateTextResult,
 } from "~/server/language_models/language_models_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {SchemaSerializedObjectValue} from "~/shared/schema/schema.open_source.js";
 
 /**
  * No-op LLM context module for tests and development without Bedrock configured.

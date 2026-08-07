@@ -17,8 +17,8 @@ import {backgroundColorVar, spinAnimationClassName, sprinkles} from "~/client/we
 import {addRemLengths, negateRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
 export function AccountAvatarPile({

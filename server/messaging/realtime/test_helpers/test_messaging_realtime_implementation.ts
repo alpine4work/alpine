@@ -32,15 +32,15 @@ import {
 } from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
-import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
+import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.open_source.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
-import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {MessageModel, MessagePayloadModel} from "~/shared/messaging/message_model.js";
 import {
     MessagingRealtimeEvent,

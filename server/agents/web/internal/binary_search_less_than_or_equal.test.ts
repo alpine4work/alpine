@@ -1,4 +1,4 @@
-import {binarySearchLessThanOrEqual} from "~/server/agents/web/internal/binary_search_less_than_or_equal.js";
+import {binarySearchLessThanOrEqual} from "~/server/agents/web/internal/binary_search_less_than_or_equal.open_source.js";
 
 test("finds an exact matching value", () => {
     expect(binarySearchLessThanOrEqual([2, 4, 6], 4)).toEqual({index: 1, value: 4});

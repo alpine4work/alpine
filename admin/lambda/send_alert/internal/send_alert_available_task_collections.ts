@@ -1,5 +1,5 @@
-import {assertId} from "~/shared/id/id.js";
-import type {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import type {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Maps alert task collection names used by webhook sources to Alpine task

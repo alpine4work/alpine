@@ -16,8 +16,8 @@ import {
 import {spacing} from "~/shared/design/core/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
 
 export function DocumentCommentThreadHeader({
     commentThread,

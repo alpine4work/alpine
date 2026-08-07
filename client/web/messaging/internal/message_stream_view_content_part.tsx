@@ -11,7 +11,7 @@ import {
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";

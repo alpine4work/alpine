@@ -3,7 +3,7 @@ import {dispatchOutsideInteractionEvent} from "~/client/web/design/helpers/use_o
 import {isModifiedPointerEvent} from "~/client/web/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/web/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const pendingUrlByEventTarget = new Map<EventTarget, URL>();
 

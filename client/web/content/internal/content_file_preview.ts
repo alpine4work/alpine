@@ -59,16 +59,16 @@ import {
 
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {ColorWithShade} from "~/shared/design/core/inverted_colors.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {
     FileImagePreviewPlaceholder,
     fileImagePreviewPlaceholderBaseSize,
@@ -81,23 +81,26 @@ import {
 } from "~/shared/files/file_preview.js";
 import {FileProcessorError} from "~/shared/files/file_processor_error.js";
 import {getContentFileDownloadNameFromContentType} from "~/shared/files/get_content_file_download_name_from_content_type.js";
-import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.open_source.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 
 /**

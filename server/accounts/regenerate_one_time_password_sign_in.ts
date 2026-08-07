@@ -5,9 +5,9 @@ import {getAccountItemWithoutAvatarWithEventualThenStrongConsistency} from "~/se
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {Context} from "~/shared/context/context.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Generates a new one time password for signing into an account with the provided

@@ -2,15 +2,15 @@ import {MessageContentWithReferencesSchema} from "~/shared/content/message_conte
 import {FileEntityIdSchema, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {Id} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {Id} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageContentPayloadClericalSchema,
     MessageContentPayloadContentUpdateSchema,
@@ -20,7 +20,7 @@ import {
 } from "~/shared/messaging/message_schema.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {isDeepEqualWithSchema} from "~/shared/schema/helpers/is_deep_equal_with_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type MessageRoomKeyType<Message extends MessageModelBase> =

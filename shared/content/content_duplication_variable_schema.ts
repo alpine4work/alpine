@@ -4,17 +4,17 @@ import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {SimpleContentProsemirrorSchema} from "~/shared/content/simple_content_schema.js";
 import {trimContent} from "~/shared/content/trim_content.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Plain data representation for marks used in duplication. This doesn't depend on

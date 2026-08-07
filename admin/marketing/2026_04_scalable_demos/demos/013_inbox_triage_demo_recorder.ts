@@ -6,10 +6,10 @@ import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {getInbox} from "~/server/notifications/data/get_inbox.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {

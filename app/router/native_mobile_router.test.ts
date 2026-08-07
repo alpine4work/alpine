@@ -9,7 +9,7 @@ import {createPath} from "react-router";
 import {NativeMobileMemoryHistory} from "~/app/router/native_mobile_router.js";
 // eslint-disable-next-line import/no-duplicates
 import {NativeMobileBridgeForTest} from "~/client/web/remix/register_native_mobile_bridge_for_test.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 beforeEach(() => {
     history.replaceState(null, "", "/home");

@@ -5,9 +5,9 @@ import {
 } from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

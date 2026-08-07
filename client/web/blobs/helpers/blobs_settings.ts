@@ -1,5 +1,5 @@
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 // https://jhildenbiddle.github.io/canvas-size/#/?id=test-results
 const maxPossibleCanvasSize = 10_000;

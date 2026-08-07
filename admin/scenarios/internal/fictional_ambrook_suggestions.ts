@@ -9,7 +9,7 @@ import {
     addSearchAffinityEntityPointsForTest,
     favoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_actions.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 const debug = createDebug(import.meta.url);
 

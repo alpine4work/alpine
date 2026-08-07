@@ -39,18 +39,21 @@ import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_col
 import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {fromApiContentBlockElements} from "~/shared/api/content/closed_source/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {
+    generateOrderKeysBetween,
+    initialOrderKey,
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,

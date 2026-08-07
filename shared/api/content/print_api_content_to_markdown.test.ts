@@ -1,15 +1,15 @@
 /* eslint-disable cyberworlds/string-quotes */
 
-import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {Tuple} from "~/shared/helpers/types/tuple.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -19,7 +19,7 @@ import {
     PostId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 type PrintMarkdownFixtureTestCase = {
     only?: CommitBlocker;

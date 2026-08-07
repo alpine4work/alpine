@@ -3,7 +3,7 @@ import {FileProcessorActionContext} from "~/server/files/data/file_processor_con
 import {ProcessFileAnalysisTranscriptResult} from "~/server/files/processor/process_file_analysis.js";
 import {FileAnalysisResult} from "~/shared/files/file_analysis.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {
     FileAudioPreviewMetadata,
@@ -11,9 +11,9 @@ import {
     FileImagePreviewSize,
 } from "~/shared/files/file_preview.js";
 import {If} from "~/shared/helpers/types/if.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * File processor object.

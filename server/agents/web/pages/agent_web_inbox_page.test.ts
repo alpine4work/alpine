@@ -6,7 +6,7 @@ import {
     normalizeAgentWebInboxPage,
     parseAgentWebInboxPage,
     printAgentWebInboxPage,
-} from "~/server/agents/web/pages/agent_web_inbox_page.js";
+} from "~/server/agents/web/pages/agent_web_inbox_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
     ApiAccountReferenceResponse,
@@ -16,10 +16,10 @@ import {
     ApiInboxEntryResponse,
     ApiPostReferenceResponse,
     ApiTaskReferenceResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -28,7 +28,7 @@ import {
     DocumentId,
     PostId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 const calebId = generateId<AccountId>();
 const engineeringChannelId = generateId<ChannelId>();

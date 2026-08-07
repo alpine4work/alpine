@@ -10,10 +10,10 @@ import {loadAgentTaskCollectionLinkContent} from "~/server/agents/bots/deprecate
 import {loadAgentTaskLinkContent} from "~/server/agents/bots/deprecated/internal/link_references/load_agent_task_link_content.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 export async function loadAgentLinkContent(options: {
     tracer: TracerBase;

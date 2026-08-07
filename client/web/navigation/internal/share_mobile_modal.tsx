@@ -24,10 +24,10 @@ import {
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

@@ -20,23 +20,33 @@ import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {BatchContextModule, ContextBatcherBase} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {
+    DeadlineExceededError,
+    InternalError,
+    InvalidArgumentError,
+} from "~/shared/error/error.open_source.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {SchemaSerializedObjectValue, SchemaSerializedValue} from "~/shared/schema/schema.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {
+    SchemaSerializedObjectValue,
+    SchemaSerializedValue,
+} from "~/shared/schema/schema.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 /**
  * Our client interface to DynamoDB.

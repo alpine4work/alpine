@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export type IntegerMapping<Mapping extends {[key: string]: number}> = {
     readonly is: (number: number) => number is Mapping[keyof Mapping];

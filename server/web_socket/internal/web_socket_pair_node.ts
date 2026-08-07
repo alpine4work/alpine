@@ -39,8 +39,8 @@
 
 import {once} from "events";
 import StandardWebSocket from "ws";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 // This should only run in Node.js. In Cloudflare Workers we should use the global
 // `WebSocket` and `WebSocketPair` constructors.

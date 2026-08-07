@@ -1,8 +1,8 @@
 import {intoApiInboxEntry} from "~/server/api/internal/spaces/internal/into_api_inbox_entry.js";
 import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChatId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, ChatId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxChatEntryModel, InboxTaskEntryModel} from "~/shared/notifications/inbox_model.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

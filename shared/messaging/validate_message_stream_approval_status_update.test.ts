@@ -1,6 +1,6 @@
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageStreamExperimentalApprovalsPartPayload} from "~/shared/messaging/message_schema.js";
 import {validateMessageStreamApprovalStatusUpdate} from "~/shared/messaging/validate_message_stream_approval_status_update.js";
 

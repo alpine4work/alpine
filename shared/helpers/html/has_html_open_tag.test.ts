@@ -1,4 +1,4 @@
-import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
+import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.open_source.js";
 
 const doubleQuote = String.fromCodePoint(34);
 

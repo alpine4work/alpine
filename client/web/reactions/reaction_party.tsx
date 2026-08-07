@@ -20,11 +20,11 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.open_source.js";
 import {getValueByReaction, mapReactionMap} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 

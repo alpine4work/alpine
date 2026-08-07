@@ -2,12 +2,12 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraftSurfaceKey} from "~/shared/messaging/message_draft_surface.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export const MessageDraftsTable = DynamoTableSchema.new({
     name: "MessageDrafts",

@@ -7,7 +7,7 @@ import {
     AgentWebMessagingPagePagination,
     AgentWebMessagingPagePaginationPageLink,
     AgentWebMessagingPageTimeBlock,
-} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
+} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.open_source.js";
 import {
     ApiAccountReferenceArbitrary,
     ApiChatReferenceArbitrary,
@@ -18,7 +18,7 @@ import {
     createIdArbitrary,
     createUnionArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.open_source.js";
 
 export const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagingPageTimeBlock> =
     fc.record({

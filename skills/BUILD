@@ -34,7 +34,7 @@ js_run_binary(
     name = "skills_generated",
     srcs = MARKDOWN_FILES,
     args = MARKDOWN_FILES,
-    outs = ["agent_web_skill_content_by_path.js"] + ["{}.open_source.generated.md".format(file[:-len(".internal.md")]) for file in MARKDOWN_FILES],
+    outs = ["agent_web_skill_content_by_path.open_source.js"] + ["{}.open_source.generated.md".format(file[:-len(".internal.md")]) for file in MARKDOWN_FILES],
     tool = ":generate_skills",
     chdir = package_name(),
     visibility = ["//server/agents/web:__pkg__"],

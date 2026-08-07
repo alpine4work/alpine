@@ -1,5 +1,5 @@
 import {Memo, useMemo} from "react";
-import {JsonStringifiableValue} from "~/shared/helpers/types/json_value.js";
+import {JsonStringifiableValue} from "~/shared/helpers/types/json_value.open_source.js";
 
 /**
  * Returns the same value reference over time if the value is deeply equal to its

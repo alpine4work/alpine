@@ -1,5 +1,5 @@
 import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SiteOrSiteEntryModelSchema} from "~/shared/sites/site_model.js";
 import {
     WebSocketProtocolEventType,

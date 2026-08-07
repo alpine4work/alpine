@@ -2,8 +2,8 @@ import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {createBotNotFoundError} from "~/shared/bots/bot_error_messages.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 type BotWithoutAvatar = {
     readonly name: string;

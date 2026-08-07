@@ -90,13 +90,13 @@ import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 // This file should only run in a Node.js development environment.
 assert(process.release.name === "node");

@@ -45,17 +45,17 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResult} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {
     HtmlElementGenerator,
     HtmlFragmentGenerator,
     HtmlGenerator,
 } from "~/shared/helpers/html/html_generator.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadModelFile} from "~/shared/messaging/message_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 

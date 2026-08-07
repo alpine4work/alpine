@@ -8,7 +8,7 @@ import {getInboxForAccount} from "~/server/notifications/data/get_inbox_for_acco
 import {processNotificationEvent} from "~/server/notifications/data/process/process_notification_event.js";
 import {createNotificationsTestScenario} from "~/server/notifications/data/test_helpers/create_notifications_test_scenario.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 const context = createTestContext({
     processJob: async (context, job, _jobStartTime, span) => {

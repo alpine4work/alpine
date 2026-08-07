@@ -23,15 +23,15 @@ import {
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
 
 /**
  * Route requests to `TaskRealtimeService` by getting information about running EC2

@@ -1,11 +1,11 @@
 import {FileAttachmentTargetSchema} from "~/shared/files/file_attachment_target.js";
-import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
+import {FileContentTypeSchema} from "~/shared/files/file_content_type.open_source.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export const startUploadingFile = defineRpc({
     name: "startUploadingFile",

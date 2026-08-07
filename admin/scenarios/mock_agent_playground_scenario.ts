@@ -9,10 +9,10 @@ import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {runAllObjectPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {runAllObjectPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
+import {JsonObjectValue} from "~/shared/helpers/types/json_value.open_source.js";
 
 export async function createMockAgentPlaygroundScenario(context: TestContext) {
     const space = await TestSpace.create(context, {name: "Mock Agent Playground"});

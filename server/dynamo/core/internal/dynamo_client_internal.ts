@@ -6,17 +6,21 @@ import {dynamoClientGetItemTestCounter} from "~/server/dynamo/core/dynamo_client
 import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo_error.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/tracer_event_data_dynamo.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {DeadlineExceededError, InternalError, UnavailableError} from "~/shared/error/error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateId} from "~/shared/id/id.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
+import {
+    DeadlineExceededError,
+    InternalError,
+    UnavailableError,
+} from "~/shared/error/error.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 /**
  * Actions supported by our DynamoDB client.

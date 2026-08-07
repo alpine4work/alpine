@@ -1,6 +1,6 @@
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
+import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.open_source.js";
 
 export function getAccountInitials(accountData: AccountModelWithoutSpaceData) {
     // TODO(calebmer): If we ever support eastern name order of family name first then

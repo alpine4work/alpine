@@ -2,10 +2,10 @@ import {
     fromApiTaskQueryFilter,
     intoApiTaskQueryFilter,
 } from "~/shared/api/content/closed_source/into_api_task_query_filter.js";
-import {ApiTaskQueryFilter} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {ApiTaskQueryFilter} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {taskQueryFilterTestCases} from "~/shared/tasks/test_helpers/task_query_filter_test_cases.js";
 

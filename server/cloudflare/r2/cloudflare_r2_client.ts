@@ -14,12 +14,12 @@ import {
     S3Client,
 } from "@aws-sdk/client-s3";
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
-import {CancelledError, ErrorBase, UnknownError} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
-import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {CancelledError, ErrorBase, UnknownError} from "~/shared/error/error.open_source.js";
+import {ErrorCode} from "~/shared/error/error_code.open_source.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 // This Cloudflare R2 client uses the Node.js AWS SDK so shouldn't be used in a
 // Cloudflare Worker. In a Cloudflare Worker there's the `R2Bucket` binding you

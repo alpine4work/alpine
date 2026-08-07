@@ -1,6 +1,6 @@
-import {InternalError} from "~/shared/error/error.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {JsonScalarValue} from "~/shared/helpers/types/json_value.open_source.js";
 
 /**
  * Create a function that caches its results. The function will always return the

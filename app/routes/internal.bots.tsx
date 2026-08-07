@@ -29,11 +29,11 @@ import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {assertId} from "~/shared/id/id.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     BotId,
@@ -42,7 +42,7 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {
     createBot,
@@ -54,9 +54,9 @@ import {
     rotateApiKeyForBot,
 } from "~/shared/rpc/bots_rpc_definitions.js";
 import {instantiateBotSpaceAccount} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {getAvatarDefaultDesign} from "~/shared/spaces/get_avatar_default_design.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 export function meta() {
     return [{title: `Bot Account Management${metaTitlePostfix}`}];

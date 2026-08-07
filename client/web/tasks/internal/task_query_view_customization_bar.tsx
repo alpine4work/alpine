@@ -27,8 +27,8 @@ import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/int
 import {TaskQuerySortsEditor} from "~/client/web/tasks/internal/task_query_sorts_editor.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";

@@ -2,15 +2,15 @@ import {Tree} from "@lezer/common";
 import {FileModelRegistryData} from "~/client/web/content/file_registry.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/web/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {InternalError, UnknownError} from "~/shared/error/error.js";
-import {getFileContentTypeContentCodeBlockLanguageIdIfExists} from "~/shared/files/file_content_type.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {InternalError, UnknownError} from "~/shared/error/error.open_source.js";
+import {getFileContentTypeContentCodeBlockLanguageIdIfExists} from "~/shared/files/file_content_type.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * The maximum number of pixels in a preview image we'll render on mobile. If

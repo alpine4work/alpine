@@ -4,7 +4,7 @@ import {
     isContentEditorRetypingInputRule,
     trackContentEditorRetypedInputRule,
 } from "~/client/web/content/state/content_editor_state.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 /**
  * Forked from [ProseMirror's default input rule `stringHandler`][1] with a couple

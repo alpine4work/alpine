@@ -1,6 +1,6 @@
-import {parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible} from "~/shared/api/content/parse_api_content_from_markdown_url_if_possible.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible} from "~/shared/api/content/parse_api_content_from_markdown_url_if_possible.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     ChannelId,
     ChatId,
@@ -10,7 +10,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 test("returns null for invalid URL", () => {
     expect(

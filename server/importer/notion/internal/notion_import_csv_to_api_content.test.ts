@@ -1,6 +1,6 @@
 /* eslint-disable cyberworlds/string-quotes -- Tests need straight quotes for CSV content */
 import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 describe("notionImportCsvToApiContent", () => {
     test("converts simple CSV to table", () => {

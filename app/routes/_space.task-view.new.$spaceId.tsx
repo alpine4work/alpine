@@ -15,11 +15,11 @@ import {isTaskQueryMissingRequiredFilters} from "~/client/web/tasks/use_task_que
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
-import {BrowserId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     deserializeTaskQueryFiltersSearchParam,

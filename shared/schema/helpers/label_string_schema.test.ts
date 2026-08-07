@@ -1,4 +1,4 @@
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
 test("empty strings are not valid", () => {

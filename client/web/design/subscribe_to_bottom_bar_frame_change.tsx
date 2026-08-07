@@ -20,10 +20,10 @@ import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {getRemPxWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
 
 function useBottomBarFrameContext(): BottomBarFrameContext {
     const context = useContext(BottomBarFrameContext);

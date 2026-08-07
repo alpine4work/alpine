@@ -3,8 +3,8 @@ import {
     TaskClientStoreCollectionEntry,
 } from "~/client/web/tasks/core/task_client_store.js";
 import {getAccountAccessLevelAssumingSpaceAccess} from "~/shared/access/access_policy.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";

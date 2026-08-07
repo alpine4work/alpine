@@ -8,7 +8,7 @@ import {SpaceRouteScrollView} from "~/client/web/navigation/space_route_scroll_v
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
 import {colorSchemeVars, contentStyles} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

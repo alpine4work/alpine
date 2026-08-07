@@ -48,8 +48,8 @@ import {
     convertRemLengthToPx,
 } from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 

@@ -3,7 +3,7 @@ import {BotApiKeysIndex, BotsTable} from "~/server/bots/internal/bots_table.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Permanently delete a bot and all its associated data (API keys, avatar, settings

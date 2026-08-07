@@ -1,4 +1,4 @@
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {
     DataBuilderView,
     type DataViewInterface,

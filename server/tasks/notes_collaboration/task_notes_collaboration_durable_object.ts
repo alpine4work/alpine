@@ -20,16 +20,16 @@ import {
     hasAccessLevel,
     isAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
@@ -37,7 +37,7 @@ import {
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {authorizeTaskAccess, getTaskNotesContent} from "~/shared/rpc/tasks_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {
     TaskNotesCollaborationProtocol,
     TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,

@@ -1,7 +1,7 @@
 import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/web/navigation/internal/get_default_share_overlay_account_input_access_level.js";
 import {AccessLevel, ResolvedAccessPolicy} from "~/shared/access/access_policy.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 function createEffectiveAccessPolicy({
     defaultGrant,

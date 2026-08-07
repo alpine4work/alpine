@@ -8,7 +8,7 @@ import {
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 export async function loadAgentTaskLinkContent({
     tracer,

@@ -1,8 +1,8 @@
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 
 async function wait(ms: number = 0) {
     return new Promise(resolve => setTimeout(resolve, ms));

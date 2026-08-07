@@ -6,8 +6,8 @@ import {createInitialMessageInputState} from "~/client/web/messaging/create_init
 import {hasMessageInputContent} from "~/client/web/messaging/has_message_input_content.js";
 import {MessageInputDraftSyncState} from "~/client/web/messaging/message_input_draft_sync_state.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 
 /**

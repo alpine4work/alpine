@@ -1,15 +1,15 @@
 import {KinesisClient, KinesisPutRecordsRequestEntry} from "~/server/kinesis/kinesis_client.js";
-import {DataLossError, UnavailableError, UnknownError} from "~/shared/error/error.js";
-import {debugRedactedString} from "~/shared/error/render_debug_error_display_message.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {generateId} from "~/shared/id/id.js";
-import {TraceId} from "~/shared/id/types/id_types.js";
-import {TracerEvent} from "~/shared/tracer/tracer_event.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {DataLossError, UnavailableError, UnknownError} from "~/shared/error/error.open_source.js";
+import {debugRedactedString} from "~/shared/error/render_debug_error_display_message.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TraceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 
 export type HoneycombDataset =
     | "tracer"

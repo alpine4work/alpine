@@ -4,12 +4,18 @@
 // bazel run //server/agents/web:agent_web_markdown_stream_parser_test -- --updateSnapshot
 // ```
 
-import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
-import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.open_source.js";
+import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, DocumentId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    DocumentId,
+    FileId,
+    SpaceId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 const spaceId = generateId<SpaceId>();
 const storage = createAgentWebSessionStorageForTest(spaceId);

@@ -10,10 +10,10 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     chatInjection,

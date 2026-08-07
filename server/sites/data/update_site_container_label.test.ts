@@ -3,10 +3,10 @@ import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {updateSiteContainerLabel} from "~/server/sites/data/update_site_container_label.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {SiteSideBarSectionId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SiteSideBarSectionId} from "~/shared/id/types/id_types.open_source.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 const context = createTestContext();

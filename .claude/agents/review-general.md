@@ -22,11 +22,11 @@ Your job is to write a thorough general review covering bugs, performance, and c
 
 ## Key utility locations to check
 
-- `shared/helpers/control/assert.ts` — `assert()`, `assertExists()`
-- `shared/helpers/control/result.ts` — Result union types
-- `shared/helpers/control/exhaustive.ts` — `exhaustive()` for switch defaults
-- `shared/helpers/async/run_all_promises.ts` — `runAllPromises()`
-- `shared/helpers/object/has_own_property.ts` — `hasOwnProperty()`
+- `shared/helpers/control/assert.open_source.ts` — `assert()`, `assertExists()`
+- `shared/helpers/control/result.open_source.ts` — Result union types
+- `shared/helpers/control/exhaustive.open_source.ts` — `exhaustive()` for switch defaults
+- `shared/helpers/async/run_all_promises.open_source.ts` — `runAllPromises()`
+- `shared/helpers/object/has_own_property.open_source.ts` — `hasOwnProperty()`
 - `shared/helpers/cast.ts` — `cast<T>()` safe casting
 
 List `shared/helpers` to know what files are there. During your review process, if you believe there
@@ -234,16 +234,8 @@ Write your findings to the file path provided in the task prompt. Use this forma
 
 `path/to/file.ts:42`
 
-\`\`\`ts
-// surrounding context
-//////////////
-//
-// Review comment explaining the issue
-//
-//////////////
-const problematicLine = something();
-// more context
-\`\`\`
+\`\`\`ts // surrounding context ////////////// // // Review comment explaining the issue //
+////////////// const problematicLine = something(); // more context \`\`\`
 
 ## Performance Issues
 
@@ -251,15 +243,8 @@ const problematicLine = something();
 
 `path/to/file.ts:88`
 
-\`\`\`ts
-// context
-//////////////
-//
-// Explanation of the performance concern
-//
-//////////////
-await sequentialCall();
-\`\`\`
+\`\`\`ts // context ////////////// // // Explanation of the performance concern // //////////////
+await sequentialCall(); \`\`\`
 
 ## Code Style
 
@@ -267,15 +252,8 @@ await sequentialCall();
 
 `path/to/file.ts:15`
 
-\`\`\`ts
-// context
-//////////////
-//
-// Style issue explanation
-//
-//////////////
-const SCREAMING_CASE = "bad";
-\`\`\`
+\`\`\`ts // context ////////////// // // Style issue explanation // ////////////// const
+SCREAMING_CASE = "bad"; \`\`\`
 ```
 
 IMPORTANT:
@@ -317,7 +295,7 @@ use `as never` to silence `exhaustive()` checks. **Always use `assertExists(x)` 
 The non-null assertion operator `!` silently lies to the compiler. `assertExists()` throws a clear
 error at runtime if the value is actually null/undefined. Flag every `x!` usage in the diff outside
 of test files (`*.test.ts`) and recommend `assertExists(x)` from
-`shared/helpers/control/assert_exists.ts`. For example: `batch[0]!.fileId` →
+`shared/helpers/control/assert_exists.open_source.ts`. For example: `batch[0]!.fileId` →
 `assertExists(batch[0]).fileId`.
 
 #### B4: Race conditions in concurrent state updates

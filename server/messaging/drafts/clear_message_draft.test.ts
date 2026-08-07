@@ -6,9 +6,9 @@ import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {emptyMessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageDraftSurface} from "~/shared/messaging/message_draft_surface.js";
 

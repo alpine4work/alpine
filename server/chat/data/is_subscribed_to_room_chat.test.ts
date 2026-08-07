@@ -14,9 +14,9 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     chatInjection,

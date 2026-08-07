@@ -1,5 +1,5 @@
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {TaskTitle, TaskTitleUpdate} from "~/shared/tasks/title/task_title.js";
 
 assert(process.env.NODE_ENV === "test");

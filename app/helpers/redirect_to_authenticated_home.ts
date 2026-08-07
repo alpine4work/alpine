@@ -1,8 +1,8 @@
 import {redirect} from "@remix-run/router";
 import {getOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/get_our_last_opened_space_id.js";
 import {LoaderContext} from "~/server/remix/loader_context.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 // Search params that we allow to be forwarded when redirecting to the
 // authenticated home

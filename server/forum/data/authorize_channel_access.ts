@@ -6,9 +6,9 @@ import {
 } from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {getChannelPreviewItemForAuthorization} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Authorize that the current user has access to a channel. Implicitly also

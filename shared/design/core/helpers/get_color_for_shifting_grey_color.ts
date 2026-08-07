@@ -7,9 +7,9 @@ import {
     printRawColor,
 } from "~/shared/design/core/helpers/raw_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 
 export type GreyShade =
     | "0"

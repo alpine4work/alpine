@@ -34,20 +34,20 @@ import {
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {
     AccountId,
     DocumentCommentThreadId,
     FileId,
     SpaceId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type DocumentContentEditorState = CollaborativeContentEditorState<

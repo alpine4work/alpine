@@ -1,5 +1,5 @@
-import {assert} from "~/shared/helpers/control/assert.js";
-import {OrderKey, isOrderKey, orderKeyDigits} from "~/shared/helpers/sort/order_key.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {OrderKey, isOrderKey, orderKeyDigits} from "~/shared/helpers/sort/order_key.open_source.js";
 
 const orderKeyDigitIndexByChar = new Map<string, number>(
     orderKeyDigits.split("").map((char, index) => [char, index]),

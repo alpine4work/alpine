@@ -4,16 +4,16 @@
 
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_document.js";
-import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
+import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.open_source.js";
+import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const {span} = testTracer.startSpan("call_agent_web_read_tool.test.ts");

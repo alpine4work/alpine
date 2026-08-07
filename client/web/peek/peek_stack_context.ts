@@ -1,8 +1,8 @@
 import {useContext} from "react";
 import {PeekStackContextDefinition} from "~/client/web/peek/internal/peek_stack_context_definition.js";
 import {PeekStackContext} from "~/client/web/peek/peek_stack_context_types.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const mockPeekStackContextForTest: PeekStackContext | null = import.meta.jest
     ? {

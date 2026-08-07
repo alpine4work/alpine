@@ -6,7 +6,7 @@ import {
     transformChunkForTest as transformChunk,
     writeWithStdioPrefixForTest as writeWithStdioPrefix,
 } from "~/admin/dev/stdio_coordinator.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 
 beforeEach(() => {
     resetWriteWithStdioPrefixForTest();

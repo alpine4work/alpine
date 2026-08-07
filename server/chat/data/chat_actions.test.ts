@@ -48,15 +48,15 @@ import {
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {generateId} from "~/shared/id/id.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
-import {AccountId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 const context = createTestContext({

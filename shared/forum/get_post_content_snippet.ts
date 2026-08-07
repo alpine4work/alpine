@@ -1,6 +1,6 @@
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 
 export function getPostContentSnippet(

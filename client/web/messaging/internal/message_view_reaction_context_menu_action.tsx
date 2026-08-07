@@ -8,7 +8,7 @@ import {
     OnUpdateMessagesOptimisticallyFunction,
 } from "~/client/web/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {findMessageReactionPosIfPossible} from "~/shared/messaging/compute_set_message_reaction.js";
 import {getMessageReactionsByCanonicalPos} from "~/shared/messaging/get_message_reactions_by_canonical_pos.js";
 import {MessageModel, fromMessagePayloadModel} from "~/shared/messaging/message_model.js";

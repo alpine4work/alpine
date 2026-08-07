@@ -1,5 +1,5 @@
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {JsonStringifiableUint8Array} from "~/shared/schema/schema.js";
+import {JsonStringifiableUint8Array} from "~/shared/schema/schema.open_source.js";
 
 test("can serialize/deserialize a file preview placeholder", () => {
     const serializedPlaceholder = [

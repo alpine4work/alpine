@@ -4,12 +4,12 @@ import {
     areHybridLogicalTimesEqual,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Time zones are fun. We represent filterable times in our task system with both

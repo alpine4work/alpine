@@ -1,7 +1,7 @@
 import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * No-op billing context module for development environments. This module is used

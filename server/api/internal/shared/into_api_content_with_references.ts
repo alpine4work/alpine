@@ -14,18 +14,18 @@ import {prepareApiMentionTitle} from "~/shared/api/content/closed_source/prepare
 import {
     ApiContentResponse,
     ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {AccountId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
     deletedSearchEntityTitle,

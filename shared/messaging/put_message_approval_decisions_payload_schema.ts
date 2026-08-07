@@ -1,5 +1,5 @@
 import {MessageExperimentalApprovalDecisionValueWithoutDeciderSchema} from "~/shared/messaging/message_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export type PutMessageApprovalDecisionsPayload = SchemaType<
     typeof PutMessageApprovalDecisionsPayloadSchema

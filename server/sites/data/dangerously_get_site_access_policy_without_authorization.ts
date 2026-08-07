@@ -2,7 +2,7 @@ import {ServerMinimalActionContext} from "~/server/context/server_minimal_action
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getSiteItemForAuthorization} from "~/server/sites/data/internal/get_site_item_for_authorization.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function dangerouslyGetSiteAccessPolicyWithoutAuthorization(
     context: ServerMinimalActionContext,

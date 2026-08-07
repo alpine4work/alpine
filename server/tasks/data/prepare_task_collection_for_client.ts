@@ -1,5 +1,5 @@
 import {TaskCollectionIndexDocBase} from "~/server/tasks/data/task_collection_index_doc.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 
 export function prepareTaskCollectionForClient(

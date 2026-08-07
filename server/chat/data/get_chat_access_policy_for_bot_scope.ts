@@ -4,10 +4,10 @@ import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_act
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Load the chat's accounts for a bot scoped to the chat. Used when evaluating

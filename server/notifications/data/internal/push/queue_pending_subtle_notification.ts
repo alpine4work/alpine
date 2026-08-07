@@ -4,7 +4,7 @@ import {getInboxEntryKey} from "~/server/notifications/data/internal/get_inbox_e
 import {InboxEntryItem} from "~/server/notifications/data/internal/inbox_table.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
 import {getPushNotificationEntryId} from "~/server/notifications/data/push/get_push_notification_entry_id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function queuePendingSubtleNotification(
     context: ServerActionContext,

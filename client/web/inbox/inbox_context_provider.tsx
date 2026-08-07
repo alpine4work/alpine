@@ -13,9 +13,9 @@ import {
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 
 export function InboxContextProvider({

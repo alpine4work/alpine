@@ -40,19 +40,24 @@ import {
     FailedPreconditionError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+} from "~/shared/error/error.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {generateId} from "~/shared/id/id.js";
-import {BrowserId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    BrowserId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {
     TaskDueDateRegister,

@@ -27,7 +27,7 @@ import {FileEntityIdObject, parseFileEntityId} from "~/shared/files/file_entity_
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {FileTaskCollectionEntityModelSchema} from "~/shared/tasks/file_task_collection_entity_model.js";
 import {FileTaskEntityModelSchema} from "~/shared/tasks/file_task_entity_model.js";
 

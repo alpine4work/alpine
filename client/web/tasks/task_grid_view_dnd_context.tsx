@@ -37,9 +37,9 @@ import {
 import {TaskGridViewHasDndContext} from "~/client/web/tasks/internal/task_grid_view_has_dnd_context.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {AccountId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

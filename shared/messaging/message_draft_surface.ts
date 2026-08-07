@@ -1,12 +1,12 @@
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     ChatId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Identifies the entity whose messaging surface a draft belongs to.

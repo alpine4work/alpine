@@ -1,11 +1,11 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
 import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {FileSiteEntityModel} from "~/shared/sites/file_site_entity_model_schema.js";
 import {createSiteNotFoundError} from "~/shared/sites/site_error_messages.js";
 

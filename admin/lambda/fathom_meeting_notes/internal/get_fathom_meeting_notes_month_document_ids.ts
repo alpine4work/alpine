@@ -1,6 +1,6 @@
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 export interface GetFathomMeetingNotesMonthDocumentIdsOptions {
     readonly content: ApiContent;

@@ -1,13 +1,13 @@
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {lezerClassHighlighterClasses} from "~/shared/lezer/lezer_class_highlighter.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {lezerClassHighlighterClasses} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {
     JsonStringifiableUint8Array,
     Schema,
     SchemaDeserializationError,
-} from "~/shared/schema/schema.js";
+} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Preview content for a code file. To preview a code file we take the first couple

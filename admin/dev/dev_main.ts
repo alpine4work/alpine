@@ -36,22 +36,22 @@ import {
 } from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {DeadlineExceededError, InvalidArgumentError} from "~/shared/error/error.js";
+import {DeadlineExceededError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {waitMicrotask} from "~/shared/helpers/async/wait_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {Id} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {Id} from "~/shared/id/id.open_source.js";
 
 assert(process.env.NODE_ENV === "development");
 
@@ -1016,7 +1016,7 @@ type BazelPackage = {
 
 /**
  * Get the Bazel package for an absolute file path like
- * `/Users/calebmer/Projects/cyberworlds/shared/helpers/control/assert.ts`.
+ * `/Users/calebmer/Projects/cyberworlds/shared/helpers/control/assert.open_source.ts`.
  */
 function getBazelPackageByAbsoluteFilePath(path: string): BazelPackage {
     const workspacePath = getWorkspacePath();

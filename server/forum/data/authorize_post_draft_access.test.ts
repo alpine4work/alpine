@@ -7,9 +7,9 @@ import {
 } from "~/server/forum/data/authorize_post_draft_access.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {AccountId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {AccountId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     forumInjection,

@@ -1,4 +1,4 @@
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
 
 /**
  * Map every value in the async iterable in parallel and return the result as an

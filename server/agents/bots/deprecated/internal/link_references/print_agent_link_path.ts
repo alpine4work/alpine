@@ -6,7 +6,7 @@ import {
 } from "~/server/agents/bots/deprecated/internal/link_references/agent_link.js";
 import {normalizeMarkdownLinkLabelForPath} from "~/server/agents/bots/deprecated/internal/link_references/agent_link_collection.js";
 import {ApiPath} from "~/shared/api/specification/parse_api_path.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export function printAgentLinkPath(link: AgentLink) {
     if (isLinkMessageRoomPage(link)) {

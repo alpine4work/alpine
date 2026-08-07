@@ -3,9 +3,9 @@ import fs from "fs-extra";
 import path from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
 
 /**
  * Parses our `.env` files synchronously and returns an object with the resulting

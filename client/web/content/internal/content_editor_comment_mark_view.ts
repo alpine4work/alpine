@@ -3,10 +3,10 @@ import {MarkViewConstructor} from "prosemirror-view";
 import {addParentScrollWhenPointerDownAndOverListener} from "~/client/web/content/state/parent_scroll_when_pointer_down_and_over_event.js";
 import {isModifiedPointerEvent} from "~/client/web/helpers/events/is_modified_pointer_event.js";
 import {commentClassName, fileClassName} from "~/shared/design/core/constant_class_names.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
 
 export function createContentEditorCommentMarkViewConstructor({
     getRouteLayout,

@@ -5,7 +5,7 @@ import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_ta
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 const context = createTestContext();
 

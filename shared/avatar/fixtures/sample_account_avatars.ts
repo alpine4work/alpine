@@ -1,4 +1,4 @@
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 
 /**
  * These are sample account avatars for testing or demo purposes.

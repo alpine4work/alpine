@@ -28,17 +28,17 @@ import {getProcessEnvToPropagate, runProcess} from "~/server/helpers/node/run_pr
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {InternalError, UnknownError} from "~/shared/error/error.js";
+import {InternalError, UnknownError} from "~/shared/error/error.open_source.js";
 import {
     FileContentType,
     FileMp4VideoContentType,
     getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 
 export function createFileMp4VideoProcessor(contentType: FileMp4VideoContentType): FileProcessor {
     return {

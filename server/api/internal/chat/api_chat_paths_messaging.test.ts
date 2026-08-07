@@ -7,8 +7,8 @@ import {
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     chatInjection,

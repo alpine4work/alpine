@@ -6,8 +6,8 @@ import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_with
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, DocumentId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;

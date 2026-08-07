@@ -5,7 +5,7 @@ import {shouldRenderSiteBreadcrumb} from "~/client/web/sites/breadcrumb/should_r
 import {useOpenSiteBreadcrumb} from "~/client/web/sites/breadcrumb/use_open_site_breadcrumb.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export function useSiteNavigationBarTitleBreadcrumb({accessPolicy}: {accessPolicy: AccessPolicy}) {
     const routeLayout = useRouteLayout();

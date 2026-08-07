@@ -1,6 +1,6 @@
-import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /* eslint-disable cyberworlds/string-quotes */
 /**

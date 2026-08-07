@@ -11,12 +11,12 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
-import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 

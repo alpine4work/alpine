@@ -2,12 +2,12 @@ import {Node} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey} from "prosemirror-state";
 import {Decoration, DecorationSet} from "prosemirror-view";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {
     CalendarDateParserFormat,
     CalendarDateParserMatch,
     parseCalendarDates,
-} from "~/shared/helpers/date/parse_calendar_dates.js";
+} from "~/shared/helpers/date/parse_calendar_dates.open_source.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 
 export type ContentEditorDateDecorationMatch = {

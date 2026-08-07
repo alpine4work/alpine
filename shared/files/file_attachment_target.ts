@@ -1,8 +1,8 @@
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChatId,
@@ -11,8 +11,8 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Files may be attached to various entities in our system. A file may be attached

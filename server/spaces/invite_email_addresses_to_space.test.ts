@@ -10,12 +10,12 @@ import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const context = createTestContext({searchInjection});
 

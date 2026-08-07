@@ -12,8 +12,8 @@ import {
 import {
     ApiContent,
     ApiGetChannelResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
 
 type FetchAlpineApiResult<T> =
     | {ok: true; value: T}

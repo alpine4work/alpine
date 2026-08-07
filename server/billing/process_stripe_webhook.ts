@@ -10,10 +10,10 @@ import {
     FailedPreconditionError,
     InvalidArgumentError,
     UnknownError,
-} from "~/shared/error/error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+} from "~/shared/error/error.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 async function processCheckoutSessionCompletedEvent({
     context,

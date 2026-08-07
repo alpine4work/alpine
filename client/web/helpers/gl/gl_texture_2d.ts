@@ -5,8 +5,8 @@ import {
     GlTextureWrap,
     glEnum,
 } from "~/client/web/helpers/gl/gl_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export type GlTexture2dData = {
     readonly data: ArrayBufferView;

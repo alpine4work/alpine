@@ -1,8 +1,8 @@
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {BotId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {AccountModelDataForAvatarDesign} from "~/shared/spaces/get_account_avatar_design.js";
 

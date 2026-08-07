@@ -5,8 +5,12 @@ import {
 } from "~/client/web/spaces/context/space_context_definition.js";
 import {SpaceContext} from "~/client/web/spaces/context/space_context_types.js";
 import {unauthenticatedErrorDisplayMessage} from "~/shared/error/common_error_display_messages.js";
-import {InternalError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {
+    InternalError,
+    PermissionDeniedError,
+    UnauthenticatedError,
+} from "~/shared/error/error.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {MyAccountEvent} from "~/shared/notifications/my_account_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {spaceAccessPermissionDeniedErrorDisplayMessage} from "~/shared/spaces/space_error_messages.js";

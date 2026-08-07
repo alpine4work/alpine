@@ -2,7 +2,7 @@ import {authorizeInternalAccess} from "~/server/accounts/authorize_internal_acce
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ApiKey, generateApiKey} from "~/shared/id/api_key.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function createUnscopedApiKeyForBot(
     context: ServerActionContext,

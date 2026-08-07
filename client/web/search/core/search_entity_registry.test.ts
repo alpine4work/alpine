@@ -2,8 +2,8 @@ import {
     SearchEntityRegistry,
     SearchEntityRegistryFriend,
 } from "~/client/web/search/core/search_entity_registry.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {TaskTitleSnapshot} from "~/shared/tasks/title/task_title.js";

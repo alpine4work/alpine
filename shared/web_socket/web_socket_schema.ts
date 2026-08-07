@@ -1,9 +1,9 @@
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
-import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
+import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
 import {
     ServerSynchronizationCheckpoint,
     ServerSynchronizationCheckpointSchema,

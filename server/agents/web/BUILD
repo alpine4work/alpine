@@ -44,14 +44,14 @@ ts_project(
 
 copy_file(
     name = "copy_agent_web_skill_content_by_path",
-    src = "//skills:agent_web_skill_content_by_path.js",
-    out = "agent_web_skill_content_by_path.js",
+    src = "//skills:agent_web_skill_content_by_path.open_source.js",
+    out = "agent_web_skill_content_by_path.open_source.js",
 )
 
 js_library(
     name = "agent_web_skill_content_by_path",
     srcs = [
-        "agent_web_skill_content_by_path.d.ts",
-        "agent_web_skill_content_by_path.js",
+        "agent_web_skill_content_by_path.open_source.d.ts",
+        "agent_web_skill_content_by_path.open_source.js",
     ],
 )

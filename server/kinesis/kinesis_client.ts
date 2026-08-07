@@ -1,8 +1,8 @@
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
-import {DataLossError, UnavailableError} from "~/shared/error/error.js";
-import {debugRedactedString} from "~/shared/error/render_debug_error_display_message.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {DataLossError, UnavailableError} from "~/shared/error/error.open_source.js";
+import {debugRedactedString} from "~/shared/error/render_debug_error_display_message.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 
 /**
  * Input for a single record in a PutRecords request [1].

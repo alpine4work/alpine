@@ -102,20 +102,20 @@ import {
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {generateId} from "~/shared/id/id.js";
-import {PeekId} from "~/shared/id/types/id_types.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {PeekId} from "~/shared/id/types/id_types.open_source.js";
 import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,
 } from "~/shared/remix/peek_path_helpers.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];

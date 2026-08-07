@@ -13,9 +13,9 @@ import {
     getBedrockTracerData,
 } from "~/server/language_models/internal/bedrock_tracer_data.js";
 import {LanguageModelsGenerateTextOptions} from "~/server/language_models/language_models_types.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 /**
  * The subset of a Bedrock `converse` response we rely on for shared LLM text

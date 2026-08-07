@@ -4,11 +4,11 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {getTaskTitleText} from "~/shared/tasks/title/task_title.js";
 
 const {context, services} = createTestServices();

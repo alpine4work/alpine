@@ -4,11 +4,11 @@ import {ServerMinimalActionContext} from "~/server/context/server_minimal_action
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {SiteAttributesItem} from "~/server/sites/data/internal/sites_table.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {
     createSiteNotFoundError,
     sitePermissionDeniedErrorDisplayMessageByExpectedAccessLevel,

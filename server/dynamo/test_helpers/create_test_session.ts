@@ -11,10 +11,10 @@ import {
 } from "~/server/spaces/create_space_for_test.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 import {createTestAccountModelWithoutSpace} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 

@@ -1,6 +1,6 @@
 import {Attrs, NodeType} from "prosemirror-model";
 import {Command} from "prosemirror-state";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Creates a command that toggles the provided block type on and off in the

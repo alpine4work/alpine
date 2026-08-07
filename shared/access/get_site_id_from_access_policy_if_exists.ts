@@ -1,5 +1,5 @@
 import {AccessPolicy, ResolvedAccessPolicy} from "~/shared/access/access_policy.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * If the access policy inherits from a site, return that site's id. Otherwise

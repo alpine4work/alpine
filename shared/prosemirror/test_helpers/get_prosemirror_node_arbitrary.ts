@@ -4,24 +4,27 @@ import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_la
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {maxContentListItemIndentation} from "~/shared/content/content_schema.js";
 import {highlightColors} from "~/shared/design/core/highlight_color.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {LinkedList, fromLinkedList} from "~/shared/helpers/immutable/linked_list.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {LinkedList, fromLinkedList} from "~/shared/helpers/immutable/linked_list.open_source.js";
 import {averageIterable} from "~/shared/helpers/iterable/average_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {intersectSets} from "~/shared/helpers/set/intersect_sets.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {ChronologicalId, generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {RandomId, generateId} from "~/shared/id/id.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {
+    ChronologicalId,
+    generateChronologicalId,
+} from "~/shared/id/chronological_id.open_source.js";
+import {RandomId, generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 const prosemirrorNodeArbitraryByParentMarkSetByType = new Map<
     NodeType,

@@ -2,8 +2,8 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {IntegrationsTable} from "~/server/integrations/internal/integrations_table.js";
 import {getConnectedSlackWorkspaceIfExists} from "~/server/integrations/slack/get_connected_slack_workspace_if_exists.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SlackAccount} from "~/shared/integrations/slack/slack_space_integration_schema.js";
 
 /**

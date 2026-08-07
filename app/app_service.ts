@@ -103,18 +103,18 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_tracer_event_propagated_data_for_pathname.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 let appService: {
     constants: AppServiceConstants;

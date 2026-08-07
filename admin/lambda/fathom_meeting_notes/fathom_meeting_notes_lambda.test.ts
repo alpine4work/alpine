@@ -2,7 +2,7 @@ import type {APIGatewayProxyEventV2} from "aws-lambda";
 import {createHmac} from "crypto";
 import {handler} from "~/admin/lambda/fathom_meeting_notes/fathom_meeting_notes_lambda.js";
 import {FathomWebhookPayload} from "~/admin/lambda/fathom_meeting_notes/internal/fathom_webhook_payload_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 type LambdaFunctionUrlResult = {
     statusCode: number;

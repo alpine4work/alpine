@@ -1,8 +1,8 @@
 import fs from "fs/promises";
 import {join, relative, resolve} from "path";
 import {mergeResponsiveDocumentationImageManifests} from "~/app/docs/codegen/images/merge_responsive_documentation_image_manifests.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /** Merge per-source responsive documentation image manifest fragments. */
 async function main() {

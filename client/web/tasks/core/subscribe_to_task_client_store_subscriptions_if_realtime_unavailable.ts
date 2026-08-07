@@ -5,17 +5,17 @@ import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {TaskClientStore} from "~/client/web/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 /**
  * Accounts which don't have access to the space aren't allowed to connect to a

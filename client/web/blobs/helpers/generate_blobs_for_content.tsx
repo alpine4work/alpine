@@ -1,10 +1,10 @@
 import {BlobFactoryBlobs} from "~/client/web/blobs/helpers/blobs_types.js";
 import {BlobFactoryBlob} from "~/client/web/blobs/helpers/draw_blobs_factory.js";
 import {ThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
 
 type BlobGenerationSettings = {
     contentWidthPx: number;

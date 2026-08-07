@@ -9,10 +9,10 @@ import {
     FailedPreconditionError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceRole, hasSpaceRole} from "~/shared/spaces/space_model.js";
 

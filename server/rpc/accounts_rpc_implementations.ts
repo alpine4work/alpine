@@ -12,8 +12,8 @@ import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js
 import {updateOurAccountSettings} from "~/server/accounts/update_our_account_settings.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import * as definitions from "~/shared/rpc/accounts_rpc_definitions.js";
 
 export default implementRpcs(definitions, {

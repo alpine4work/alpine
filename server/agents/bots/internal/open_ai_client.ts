@@ -1,12 +1,12 @@
 import OpenAi, {APIConnectionTimeoutError, APIError} from "openai";
 import {SupportedAgentModels} from "~/server/agents/bots/internal/supported_agent_models.js";
-import {InternalError, UnknownError} from "~/shared/error/error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {InternalError, UnknownError} from "~/shared/error/error.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 const retryableResponseErrorCodes: ReadonlySet<OpenAi.Responses.ResponseError["code"]> = new Set([
     "rate_limit_exceeded",

@@ -22,28 +22,28 @@ import {createFileWebUnsafeImageProcessor} from "~/server/files/processor/proces
 import {createFileWebUnsafeVideoProcessor} from "~/server/files/processor/processors/file_web_unsafe_video_processor.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
 import {
     AbortedError,
     DeadlineExceededError,
     FailedPreconditionError,
     InternalError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {fileProcessorTimeoutMs} from "~/shared/files/file_constants.js";
 import {
     FileContentType,
     canonicalizeFileContentTypeIfExists,
-} from "~/shared/files/file_content_type.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export async function processFile(
     context: FileProcessorActionContext,

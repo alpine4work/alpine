@@ -2,7 +2,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const context = createTestContext();
 const space = createTestSpace(context);

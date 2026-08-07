@@ -6,7 +6,7 @@ import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {ChatGptConversationItem} from "~/shared/debug/chat_gpt/chat_gpt_conversation_item.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export function ChatGptDebugView({items}: {items: ReadonlyArray<ChatGptConversationItem>}) {
     return (

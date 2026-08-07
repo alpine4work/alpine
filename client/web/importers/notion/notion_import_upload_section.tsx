@@ -20,10 +20,14 @@ import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {ErrorBase, FailedPreconditionError, UnknownError} from "~/shared/error/error.js";
+import {
+    ErrorBase,
+    FailedPreconditionError,
+    UnknownError,
+} from "~/shared/error/error.open_source.js";
 import {importMultipartUploadPartSize} from "~/shared/files/file_constants.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.open_source.js";
 import {notionImportMaxZipSize} from "~/shared/importer/notion/notion_import_max_zip_size.js";
 import {
     cancelNotionImport,

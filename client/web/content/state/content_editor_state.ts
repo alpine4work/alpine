@@ -39,21 +39,21 @@ import {
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {undoMergeTextUpdatesDelayMs} from "~/shared/design/core/timing.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {Id, generateId, isId} from "~/shared/id/id.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {Id, generateId, isId} from "~/shared/id/id.open_source.js";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     FileId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";

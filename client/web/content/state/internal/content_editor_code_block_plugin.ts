@@ -1,9 +1,9 @@
 import {EditorState, Plugin, PluginKey} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {Store} from "~/shared/store/store.js";
 

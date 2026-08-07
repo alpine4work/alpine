@@ -1,6 +1,6 @@
 import {AgentMessageStream} from "~/server/agents/bots/deprecated/internal/agent_message_stream.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();

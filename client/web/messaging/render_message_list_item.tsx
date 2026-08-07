@@ -24,9 +24,9 @@ import {
 } from "~/client/web/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewItem} from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 
 /**

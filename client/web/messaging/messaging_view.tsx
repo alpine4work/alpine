@@ -60,9 +60,9 @@ import {
 } from "~/shared/access/access_policy.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
 import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageDraftSurface} from "~/shared/messaging/message_draft_surface.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";

@@ -16,18 +16,18 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -40,7 +40,7 @@ import {
     TaskRealtimeLoadQueriesOutput,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 /**
  * Helps perform work related to tasks that needs to interact with other systems.

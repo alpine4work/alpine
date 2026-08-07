@@ -5,7 +5,7 @@ import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 
 /**

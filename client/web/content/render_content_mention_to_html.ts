@@ -21,17 +21,17 @@ import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {truncateContentMentionText} from "~/shared/content/truncate_content_mention_text.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {Spacing, addRemLengths} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     HtmlElementGenerator,
     HtmlGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
     deletedSearchEntityTitle,

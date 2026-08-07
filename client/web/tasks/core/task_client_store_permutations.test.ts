@@ -1,14 +1,19 @@
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {TaskClientStore} from "~/client/web/tasks/core/task_client_store.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 

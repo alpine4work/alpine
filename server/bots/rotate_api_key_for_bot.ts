@@ -1,9 +1,9 @@
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {ServerAuthenticatedActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
 import {ApiKey, generateApiKey} from "~/shared/id/api_key.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Atomically revoke an existing `ApiKey` and issue a replacement for the same bot

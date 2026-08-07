@@ -3,7 +3,7 @@ import {createSlackWorkspaceIntegration} from "~/server/integrations/slack/creat
 import {getConnectedSlackWorkspaceBotCredentialsIfExists} from "~/server/integrations/slack/get_connected_slack_workspace_bot_credentials_if_exists.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 
 const context = createTestContext();
 

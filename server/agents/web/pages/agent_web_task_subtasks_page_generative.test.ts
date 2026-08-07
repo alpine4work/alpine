@@ -4,15 +4,15 @@ import {
     normalizeAgentWebTaskSubtasksPage,
     parseAgentWebTaskSubtasksPage,
     printAgentWebTaskSubtasksPage,
-} from "~/server/agents/web/pages/agent_web_task_subtasks_page.js";
+} from "~/server/agents/web/pages/agent_web_task_subtasks_page.open_source.js";
 import {
     AgentWebTaskQueryPagePaginationArbitrary,
     AgentWebTaskQueryPageUniqueSubtasksArbitrary,
 } from "~/server/agents/web/test_helpers/agent_web_task_query_page_arbitrary.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {ApiTaskReferenceArbitrary} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 const parentTaskId = generateId<TaskId>();
 

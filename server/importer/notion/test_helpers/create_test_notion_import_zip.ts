@@ -3,7 +3,7 @@ import {strFromU8, strToU8, zipSync} from "fflate";
 import {readFileSync} from "fs";
 import {join} from "path";
 
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Generates a 32 hex character ID matching Notion's format (UUID without dashes).

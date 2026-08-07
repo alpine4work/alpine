@@ -4,9 +4,9 @@ import {
 } from "~/client/web/content/internal/spell_check_content.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 const spaceId = generateId<SpaceId>();

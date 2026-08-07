@@ -7,8 +7,8 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskCommentsFromStart} from "~/server/tasks/data/task_messaging.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 const {context, services} = createTestServices();
 

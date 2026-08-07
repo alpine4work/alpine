@@ -1,12 +1,12 @@
 /* eslint-disable cyberworlds/no-model-initial-data */
 
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
-import {InternalError} from "~/shared/error/error.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {
     SearchEntityModel,
     SearchEntityModelData,

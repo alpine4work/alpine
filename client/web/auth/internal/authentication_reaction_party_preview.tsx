@@ -2,8 +2,8 @@ import {useState} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {ReactionPartyBase} from "~/client/web/reactions/reaction_party.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {Reaction, ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 

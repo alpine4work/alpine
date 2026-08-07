@@ -9,8 +9,8 @@ import {
     allAccessLevels,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     chatInjection,

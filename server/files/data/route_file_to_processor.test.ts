@@ -1,5 +1,5 @@
 import {routeFileToProcessor} from "~/server/files/data/route_file_to_processor.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 
 const oneKb = 1024;
 const oneMb = 1024 * oneKb;

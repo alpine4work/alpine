@@ -1,9 +1,9 @@
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 export const contextCacheMissTestCounter = new TestCounter<string | number>();
 

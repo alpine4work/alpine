@@ -6,11 +6,14 @@ import {
     LanguageModelsGenerateObjectOptions,
     LanguageModelsGenerateObjectResult,
 } from "~/server/language_models/language_models_types.js";
-import {InternalError} from "~/shared/error/error.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {SchemaSerializedValue, SchemaWithoutValidation} from "~/shared/schema/schema.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {
+    SchemaSerializedValue,
+    SchemaWithoutValidation,
+} from "~/shared/schema/schema.open_source.js";
 import {serializeSchemaDescriptionToJsonSafeValue} from "~/shared/schema/schema_description_json.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Generate a typed object response from a shared Alpine model wrapper.

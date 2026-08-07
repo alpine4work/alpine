@@ -1,6 +1,6 @@
 import {Node} from "prosemirror-model";
 import {clampHeadingLevel} from "~/shared/content/content_schema.js";
-import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.js";
+import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.open_source.js";
 
 /**
  * A section of content rooted at a top-level heading node. A heading's section

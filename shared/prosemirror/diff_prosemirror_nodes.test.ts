@@ -17,16 +17,16 @@ import {
     DocumentContentProsemirrorSchema,
     DocumentWithoutTitleContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
-import {InternalError} from "~/shared/error/error.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {diff} from "~/shared/helpers/diff/diff.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {assertId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {ExhaustiveStep} from "~/shared/prosemirror/exhaustive_step.js";
 

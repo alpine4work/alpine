@@ -7,8 +7,8 @@ import {TaskGridViewVirtualizedListState} from "~/client/web/tasks/internal/task
 import {TaskGridViewColumn, TaskRowViewRef} from "~/client/web/tasks/internal/task_row_view.js";
 import {TaskUndoStackEntry} from "~/client/web/tasks/internal/use_task_undo_stack_state.js";
 import {VirtualizedScrollViewRef} from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 

@@ -19,12 +19,12 @@ import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_fro
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema.js";
 import {RynamoEvent, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**

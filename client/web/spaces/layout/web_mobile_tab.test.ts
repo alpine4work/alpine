@@ -1,7 +1,7 @@
 import {Location} from "@remix-run/router";
 import {getWebMobileTabFromLocation} from "~/client/web/spaces/layout/web_mobile_tab.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 function createLocation(pathname: string, search: string = ""): Location {
     return {

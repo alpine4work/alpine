@@ -1,9 +1,9 @@
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.open_source.js";
 import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";
 
 export interface NotionImporterProgressStateConfig {

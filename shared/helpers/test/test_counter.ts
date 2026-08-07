@@ -1,8 +1,8 @@
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {
     StringifiableValueForDeepEqualCheck,
     stringifyForDeepEqualCheck,
-} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
+} from "~/shared/helpers/control/stringify_for_deep_equal_check.open_source.js";
 
 /**
  * A test helper for determining how often a given operation happens over the

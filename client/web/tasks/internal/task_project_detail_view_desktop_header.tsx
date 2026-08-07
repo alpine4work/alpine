@@ -22,8 +22,8 @@ import {TaskQueryViewCustomizationBar} from "~/client/web/tasks/internal/task_qu
 import {TaskStatusButton} from "~/client/web/tasks/internal/task_status_button.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";

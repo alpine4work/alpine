@@ -1,5 +1,5 @@
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 let indiscriminatelyDisableAllTaskGridViewAnimations = 0;
 const disableTaskGridViewAnimationsForTaskIds = new Map<TaskId, number>();

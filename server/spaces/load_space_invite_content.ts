@@ -2,9 +2,9 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
 import {getSpace} from "~/server/spaces/get_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function loadSpaceInviteContent(
     context: ServerSessionActionContext,

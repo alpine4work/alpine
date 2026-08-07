@@ -2,7 +2,7 @@ import {newTaskCollectionNamePlaceholder} from "~/client/web/styles/tasks_shared
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {defaultOpenGraphImageUrl, getOpenGraphTitle} from "~/shared/content/open_graph_content.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 type HeadMetaDescriptor = {[key: string]: string};
 

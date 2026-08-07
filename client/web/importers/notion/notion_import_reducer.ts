@@ -5,7 +5,7 @@ import {
     NotionImportState,
     TeamspaceImportOptionsMap,
 } from "~/client/web/importers/notion/notion_import_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 function buildTeamspaceOptionsMap(
     options: LocalNotionImportItem["teamspaceImportOptions"],

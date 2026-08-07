@@ -3,18 +3,18 @@
 // `server/agents/web/call_agent_web_create_tool_document.test.ts`.
 
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
-import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
-import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
-import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.js";
-import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
+import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.open_source.js";
+import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
+import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.open_source.js";
+import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const {span} = testTracer.startSpan("call_agent_web_create_tool.test.ts");

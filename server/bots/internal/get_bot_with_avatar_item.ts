@@ -4,7 +4,7 @@ import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistenc
 import {createBotNotFoundError} from "~/shared/bots/bot_error_messages.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the information associated with a bot. Currently, basic information about a

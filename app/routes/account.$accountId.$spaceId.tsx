@@ -4,7 +4,7 @@ import {
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 /**
  * This route automatically redirects from `/account/:accountId/:spaceId` to

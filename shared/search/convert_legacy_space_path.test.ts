@@ -1,6 +1,6 @@
-import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
 import {convertLegacySpacePath} from "~/shared/search/convert_legacy_space_path.js";
 
 type LegacySpaceRoute =

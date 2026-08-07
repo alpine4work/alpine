@@ -3,9 +3,9 @@ import {authorizeTaskCollectionItemAccessIfPossible} from "~/server/tasks/data/i
 import {createTaskCollectionModelSearchResultFromItem} from "~/server/tasks/data/internal/create_task_collection_model_search_result_from_item.js";
 import {isTaskCollectionItemDeleted} from "~/server/tasks/data/internal/is_task_collection_item_deleted.js";
 import {TaskTable} from "~/server/tasks/data/internal/task_table.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
 export async function getTaskCollectionSearchResultIfPossible(

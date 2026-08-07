@@ -8,9 +8,9 @@ import {
 } from "~/server/agents/bots/internal/d1/agent_usage_database.js";
 
 import {refreshAccountEntitlements} from "~/server/agents/bots/internal/refresh_account_entitlements.js";
-import {DeadlineExceededError} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {DeadlineExceededError} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 // If you update this, be sure to also update the token used in

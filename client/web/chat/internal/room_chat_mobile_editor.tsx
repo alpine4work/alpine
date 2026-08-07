@@ -17,8 +17,8 @@ import {
 } from "~/client/web/styles/forum_shared_styles.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 export function RoomChatMobileEditor({

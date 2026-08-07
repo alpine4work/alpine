@@ -3,7 +3,7 @@ import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/
 import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
     const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());

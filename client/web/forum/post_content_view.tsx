@@ -78,17 +78,17 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountId, FileId, PostId} from "~/shared/id/types/id_types.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {AccountId, FileId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {

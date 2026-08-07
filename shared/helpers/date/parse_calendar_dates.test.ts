@@ -3,7 +3,7 @@ import {parseDate} from "@internationalized/date";
 import {
     parseCalendarDates,
     printCalendarDateInOriginalFormat,
-} from "~/shared/helpers/date/parse_calendar_dates.js";
+} from "~/shared/helpers/date/parse_calendar_dates.open_source.js";
 
 describe("parseCalendarDates()", () => {
     describe("full month name with year", () => {

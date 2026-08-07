@@ -3,7 +3,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {SubscribeToSpellCheckIgnoredLintEventsFunction} from "~/client/web/documents/use_document_content_editor_web_socket.js";
 import {useRynamoQuery} from "~/client/web/dynamo/use_rynamo_query.js";
 import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {
     backfillSpellCheckIgnoredLints,
     getSpellCheckIgnoredLints,

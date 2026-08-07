@@ -1,8 +1,8 @@
 import {Mark, Node} from "prosemirror-model";
-import {assertApiCheckListBlockElementItem} from "~/shared/api/content/assert_api_check_list_block_element_item.js";
+import {assertApiCheckListBlockElementItem} from "~/shared/api/content/assert_api_check_list_block_element_item.open_source.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
-import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.js";
-import {intoApiContentParagraphBlockElement} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.open_source.js";
+import {intoApiContentParagraphBlockElement} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -15,7 +15,7 @@ import {
     ApiContentPreviewBlockElement,
     ApiContentTableBlockElementCellBlockElement,
     ApiPreviewReference,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {
@@ -23,13 +23,13 @@ import {
     maxContentListItemIndentation,
 } from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**

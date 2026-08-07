@@ -7,7 +7,7 @@ import {
     normalizeAgentWebPostPage,
     parseAgentWebPostPage,
     printAgentWebPostPage,
-} from "~/server/agents/web/pages/agent_web_post_page.js";
+} from "~/server/agents/web/pages/agent_web_post_page.open_source.js";
 import {
     AgentWebMessagingPageBlockArbitrary,
     AgentWebMessagingPagePaginationArbitrary,
@@ -21,7 +21,7 @@ import {
     ApiContentWithoutCommentMarkArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 const ApiPostReferenceArbitrary = fc.record({
     type: fc.constant("Post"),

@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
-import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
+import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {ApiContentArbitrary} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 

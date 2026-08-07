@@ -9,9 +9,9 @@ import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {generateApiKey} from "~/shared/id/api_key.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const context = createTestContext({
     chatInjection,

@@ -1,5 +1,5 @@
-import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {Store} from "~/shared/store/internal/store.js";
 
 /**

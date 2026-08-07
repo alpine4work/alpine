@@ -7,13 +7,13 @@ import {
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {getApiContentPositionPos} from "~/shared/api/content/closed_source/get_api_content_position_pos.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
-import {findApiContentRanges} from "~/shared/api/content/find_api_content_ranges.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {findApiContentRanges} from "~/shared/api/content/find_api_content_ranges.open_source.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 const fileId1 = generateChronologicalId<FileId>();
 const fileId2 = generateChronologicalId<FileId>();

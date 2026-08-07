@@ -9,9 +9,9 @@ import {
     searchMentionByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
 import {addSearchAffinityEntityPointsForTest} from "~/server/search/data/table/search_entity_actions.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();

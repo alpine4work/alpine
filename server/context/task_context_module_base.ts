@@ -11,9 +11,9 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {PartialBy} from "~/shared/helpers/types/partial_by.js";
 import {
@@ -22,7 +22,7 @@ import {
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

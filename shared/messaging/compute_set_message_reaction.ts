@@ -1,8 +1,8 @@
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {getMessageReactionContentRanges} from "~/shared/messaging/get_message_reaction_content_ranges.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
 import {

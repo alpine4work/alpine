@@ -2,10 +2,10 @@ import {defaultAccessLevelText} from "~/client/web/navigation/access_level_text.
 import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export function createTaskDetailViewInheritedAccessPolicyExplanations({

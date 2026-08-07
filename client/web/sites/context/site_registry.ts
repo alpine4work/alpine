@@ -1,10 +1,10 @@
 /* eslint-disable cyberworlds/no-model-initial-data */
 
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {SitePreviewModel, SitePreviewModelData} from "~/shared/sites/site_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {Store} from "~/shared/store/store.js";

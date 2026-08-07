@@ -1,8 +1,8 @@
 import {ContentReferences, ContentWithReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 

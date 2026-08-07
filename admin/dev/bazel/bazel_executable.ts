@@ -1,6 +1,6 @@
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
 
 /**
  * The path to the Bazel executable.

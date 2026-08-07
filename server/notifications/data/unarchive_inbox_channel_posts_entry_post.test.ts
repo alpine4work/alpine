@@ -13,8 +13,8 @@ import {testGetInboxEntries} from "~/server/notifications/data/test_helpers/test
 import {unarchiveInboxChannelPostsEntryPost} from "~/server/notifications/data/unarchive_inbox_channel_posts_entry_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const context = createTestContext({
     processJob: async (context, job, jobStartTime, span) => {

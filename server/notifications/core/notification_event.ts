@@ -2,7 +2,7 @@ import {
     ApiBotWebhookCreatedMessageEventMessageParent,
     ApiBotWebhookCreatedMessageEventParent,
     ApiBotWebhookCreatedMessageEventPostParent,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {
@@ -15,10 +15,10 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SearchMentionEntityIdSchema} from "~/shared/search/search_entity_id.js";
 
 const ApiBotWebhookNewMessageEventMessageParentSchema: Schema<ApiBotWebhookCreatedMessageEventMessageParent> =

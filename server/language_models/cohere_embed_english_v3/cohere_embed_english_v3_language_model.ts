@@ -2,12 +2,12 @@ import {
     LanguageModelBase,
     LanguageModelBaseClass,
 } from "~/server/language_models/core/language_model_base.js";
-import {UnknownError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 const cohereModelIdentifier = "embed-english-v3.0";
 

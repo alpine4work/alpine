@@ -3,10 +3,10 @@ import {jumpAnimationDurationMs} from "~/client/web/content/run_content_view_jum
 import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {VirtualizedScrollViewRef} from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 export type JumpToPostRangeState = {
     readonly key: symbol;

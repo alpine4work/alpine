@@ -8,16 +8,16 @@ import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {ShutdownManager, ShutdownReason} from "~/server/node/shutdown_manager.js";
 import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
 import {HoneycombDataset, TracerClient} from "~/server/tracer/tracer_client.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
 
 // This file is for running a Node.js service. It shouldn't be used in Cloudflare
 // Workers.
@@ -432,7 +432,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         //
         // eslint-disable-next-line no-console
         console.error(
-            "Event loop has emptied before service finished running. This is likely due to awaiting a promise that never resolves. The simplest example of this is: `await new Promise(() => {})`. Another cause we\u2019ve seen is a deadlock in our promise-based mutex implementation (`shared/helpers/async/mutex.ts`).",
+            "Event loop has emptied before service finished running. This is likely due to awaiting a promise that never resolves. The simplest example of this is: `await new Promise(() => {})`. Another cause we\u2019ve seen is a deadlock in our promise-based mutex implementation (`shared/helpers/async/mutex.open_source.ts`).",
         );
 
         process.exitCode = 1;

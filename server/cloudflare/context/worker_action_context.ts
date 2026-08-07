@@ -10,7 +10,7 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 
 type WorkerActionContextModulesBase = WorkerProcessContextModules & {

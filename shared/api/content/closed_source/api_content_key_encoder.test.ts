@@ -2,9 +2,9 @@ import {
     ApiContentKeyDecoder,
     ApiContentKeyEncoder,
 } from "~/shared/api/content/closed_source/api_content_key_encoder.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {generateId} from "~/shared/id/id.js";
-import type {DocumentId} from "~/shared/id/types/id_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import type {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const documentEntityId = "Document:2hxv0y1b6zye9q87w2bt7fks3g";
 

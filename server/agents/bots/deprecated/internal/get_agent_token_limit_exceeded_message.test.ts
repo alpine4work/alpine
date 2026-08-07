@@ -1,5 +1,5 @@
 import {getAgentTokenLimitExceededMessage} from "~/server/agents/bots/deprecated/internal/get_agent_token_limit_exceeded_message.js";
-import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 describe("getAgentTokenLimitExceededMessage", () => {
     describe("with upsell", () => {

@@ -2,8 +2,8 @@ import {InjectedFileAuthorizer} from "~/server/context/injection_context_module.
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getFileAttachmentTargetAuthorizer} from "~/server/files/data/get_file_attachment_target_authorizer.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChatId,
@@ -12,7 +12,7 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     chatInjection: {

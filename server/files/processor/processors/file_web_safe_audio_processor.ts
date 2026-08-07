@@ -16,15 +16,15 @@ import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {InternalError, UnknownError} from "~/shared/error/error.js";
+import {InternalError, UnknownError} from "~/shared/error/error.open_source.js";
 import {
     FileMp4AudioContentType,
     FileWebSafeAudioContentType,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileAudioPreviewMetadata} from "~/shared/files/file_preview.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 
 /**
  * To process a safe audio file we only need the file's duration. We'll serve the

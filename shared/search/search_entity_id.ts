@@ -1,13 +1,13 @@
-import {InternalError} from "~/shared/error/error.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
-import {isId} from "~/shared/id/id.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -19,8 +19,8 @@ import {
     SpaceId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
 
 /**
  * The identifier of an entity in our search system. Search entities are a

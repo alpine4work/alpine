@@ -5,10 +5,10 @@ import {NotionImporterProgressState} from "~/server/importer/notion/internal/not
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {parseNotionImportAndMapReferences} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {uploadNotionImportFiles} from "~/server/importer/notion/internal/upload_notion_import_files.js";
-import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {DataLossError, FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Processes the actual Notion import. Fetches the uploaded zip file and imports

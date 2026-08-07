@@ -28,23 +28,23 @@ import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {getSearchDirectChatEntityTitleAndMedia} from "~/server/search/data/index/search_entity_index.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
-import {ApiDirectChatResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiDirectChatResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";

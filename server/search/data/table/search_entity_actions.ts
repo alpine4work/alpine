@@ -40,15 +40,19 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {ErrorBase, InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {
+    ErrorBase,
+    InvalidArgumentError,
+    UnavailableError,
+} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     defaultUncertaintyWindowMs,
     isDateDefinitelyLessThanWithUncertaintyWindow,
@@ -56,20 +60,20 @@ import {
 } from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterAsyncIterableIterator} from "~/shared/helpers/iterable/filter_async_iterable_iterator.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {
     OrderKey,
     generateOrderKeyBetween,
     initialOrderKey,
-} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
-import {Id, assertId, generateId} from "~/shared/id/id.js";
+import {Id, assertId, generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -78,7 +82,7 @@ import {
     SpaceId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 import {SearchAffinityEntityId, SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 

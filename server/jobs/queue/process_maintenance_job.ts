@@ -7,8 +7,8 @@ import {MaintenanceJobQueueSystemActionContext} from "~/server/jobs/queue/job_qu
 import {processEnqueueScheduledNotificationDigestsJob} from "~/server/notifications/data/digest/notifications_digest_jobs.js";
 import {processSendAllPendingSubtleNotificationsJob} from "~/server/notifications/data/push/notifications_push_jobs.js";
 import {retryUnprocessedTaskActionTransactions} from "~/server/tasks/data/retry_unprocessed_task_action_transactions.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export async function processMaintenanceJob(
     context: MaintenanceJobQueueSystemActionContext,

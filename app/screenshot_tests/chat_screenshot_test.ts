@@ -6,11 +6,11 @@ import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_fi
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     const {space, accounts} = await runner.createDemoSpace(context);

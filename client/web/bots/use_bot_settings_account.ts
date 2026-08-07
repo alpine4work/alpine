@@ -2,8 +2,8 @@ import {useMemo} from "react";
 import {useAccountModel} from "~/client/web/accounts/account_registry_context.js";
 import {BotSettingsAccount} from "~/shared/bots/bot_settings_account_schema.js";
 import {SettingsDefaultKnownBotAccountModelDataBase} from "~/shared/bots/settings_default_known_bot_account_model_data_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export function useBotSettingsAccount(
     account: BotSettingsAccount,

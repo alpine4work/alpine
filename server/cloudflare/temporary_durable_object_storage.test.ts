@@ -1,5 +1,5 @@
 import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durable_object_storage.js";
-import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.open_source.js";
 
 async function seedStorage(storage: TemporaryDurableObjectStorage) {
     const entries: Array<[string, number]> = [

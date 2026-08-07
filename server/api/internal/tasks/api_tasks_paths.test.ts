@@ -21,14 +21,14 @@ import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_
 import {
     ApiTaskBatchPatchResult,
     ApiTaskPatchResult,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {assertId, generateId} from "~/shared/id/id.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {encodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";

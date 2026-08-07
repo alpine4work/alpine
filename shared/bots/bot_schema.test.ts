@@ -1,5 +1,5 @@
 import {BotWebhookSchema} from "~/shared/bots/bot_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const BotAttributesWebhookSchema = Schema.object({
     webhook: BotWebhookSchema.wrapOriginalPropertyInObject("url", {

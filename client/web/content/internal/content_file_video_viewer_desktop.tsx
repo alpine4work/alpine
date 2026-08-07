@@ -19,8 +19,8 @@ import {
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {HtmlFragmentGenerator} from "~/shared/helpers/html/html_generator.js";
 
 export function ContentFileVideoViewerDesktop({

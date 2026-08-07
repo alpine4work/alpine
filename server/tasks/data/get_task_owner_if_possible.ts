@@ -5,9 +5,9 @@ import {
     getTaskCollectionItemForAuthorization,
     getTaskItemForAuthorization,
 } from "~/server/tasks/data/internal/authorize_task_item_access.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export async function getTaskOwnerIfPossible(

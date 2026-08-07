@@ -9,12 +9,12 @@ import {
     ApiMessageRoomPath,
     printApiMessageRoomPath,
 } from "~/shared/api/specification/parse_api_path.js";
-import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 type AgentServiceRoute =
     | {type: "ChatGptWebhook"}

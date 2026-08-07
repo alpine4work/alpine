@@ -7,9 +7,9 @@ import sharp from "sharp";
 import {decompress} from "wawoff2";
 import {LogoWordmarkBase} from "~/shared/design/logo_wordmark_base.js";
 import {DocumentationApiMethod} from "~/shared/docs/documentation_api_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export type DocumentationOpenGraphImageDocument =
     | {

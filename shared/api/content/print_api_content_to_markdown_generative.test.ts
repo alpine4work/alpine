@@ -1,7 +1,7 @@
 import fc from "fast-check";
-import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
+import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {ApiContentArbitrary} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 
 import.meta.jest.setTimeout(30 * 1000);

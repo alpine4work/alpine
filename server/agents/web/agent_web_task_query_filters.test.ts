@@ -2,26 +2,31 @@ import {
     ApiTaskQueryFilterResponseWithoutAccountSpace,
     parseAgentWebTaskQueryFilters,
     printAgentWebTaskQueryFilters,
-} from "~/server/agents/web/agent_web_task_query_filters.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
+} from "~/server/agents/web/agent_web_task_query_filters.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
-import {normalizeApiTaskQueryFilters} from "~/shared/api/content/normalize_api_task_query_filters.js";
+import {normalizeApiTaskQueryFilters} from "~/shared/api/content/normalize_api_task_query_filters.open_source.js";
 import {
     fromApiAccountReference,
     intoApiAccountReference,
-} from "~/shared/api/specification/into_api_account_reference.js";
+} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {
     ApiAccountResponse,
     ApiAccountWithoutSpaceResponse,
     ApiTaskCollectionPreviewResponse,
     ApiTaskQueryFilterResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ErrorBase, InternalError} from "~/shared/error/error.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    BotId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 const storage = createAgentWebSessionStorageForTest(generateId<SpaceId>());
 

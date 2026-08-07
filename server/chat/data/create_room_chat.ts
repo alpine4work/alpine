@@ -9,11 +9,11 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**

@@ -4,10 +4,10 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileWithUploaderIdIfExists} from "~/server/files/data/files_actions.js";
 import {getFileFromAnyAttachment} from "~/server/files/data/get_file_from_any_attachment.js";
 import {FilesTable} from "~/server/files/data/internal/files_table.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Verifies a bot has access to a file and returns a transaction entry that

@@ -7,10 +7,10 @@ import {
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {getPostItemForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {RynamoChannelOrPostEvent} from "~/shared/forum/channel_realtime_protocol.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Converts realtime event stubs into full realtime event objects.

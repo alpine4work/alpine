@@ -8,8 +8,8 @@ import {updateBotSpaceSettingsPropertyValue} from "~/server/bots/with_spaces/upd
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {emptySimpleContent} from "~/shared/content/simple_content_schema.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext();
 

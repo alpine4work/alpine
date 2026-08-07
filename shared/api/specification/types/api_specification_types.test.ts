@@ -1,5 +1,5 @@
-import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
-import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
+import {ApiReference} from "~/shared/api/specification/types/api_reference.open_source.js";
+import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.open_source.js";
 import {
     ApiBotWebhookCreatedMessageEventParent,
     ApiContentFileBlockElementResponseWithoutKeys,
@@ -19,9 +19,9 @@ import {
     ApiSearchResultBodySnippet,
     ApiSearchResultMatch,
     ApiSearchResultParsedFilter,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 
 type ApiCreateDocumentRequestBody =
     ApiSpecification.paths["/documents"]["post"]["requestBody"]["content"]["application/json"];

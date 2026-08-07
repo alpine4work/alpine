@@ -6,8 +6,8 @@ import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 const screenshotTime = new Date("2025-10-02T15:48:00-04:00");
 

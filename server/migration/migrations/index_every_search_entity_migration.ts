@@ -8,12 +8,12 @@ import {scheduleIndexSearchEntityEmbeddingChunksJob} from "~/server/search/data/
 import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/expensive_scan_every_space_account_for_migration.js";
 import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/migrations/expensive_scan_every_task_and_task_collection_for_migration.js";
 import {Context} from "~/shared/context/context.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     SearchDynamicEntityIdObject,
     printSearchDynamicEntityId,

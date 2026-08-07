@@ -1,4 +1,4 @@
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";

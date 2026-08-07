@@ -7,8 +7,8 @@ import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_
 import {AccountSettings} from "~/shared/accounts/accounts_settings.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Get the actor's account.

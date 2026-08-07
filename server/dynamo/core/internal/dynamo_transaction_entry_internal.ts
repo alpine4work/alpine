@@ -4,7 +4,7 @@ import type * as types from "@aws-sdk/client-dynamodb";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTransactionEntry as DynamoTransactionEntryExternal} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {DynamoClientDebugItemType} from "~/server/dynamo/core/internal/dynamo_client_internal.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 export type DynamoTransactionEntryInternal = InstanceType<typeof DynamoTransactionEntryInternal>;
 

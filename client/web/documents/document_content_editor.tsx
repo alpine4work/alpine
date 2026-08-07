@@ -153,15 +153,15 @@ import {
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {paragraphClassName} from "~/shared/design/core/constant_class_names.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -179,26 +179,33 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {assertId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    FileId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftWithFiles,
     emptyMessageDraftWithFiles,
@@ -208,7 +215,7 @@ import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemir
 import {createDocument, duplicateDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {getMessageDraft} from "~/shared/rpc/message_drafts_rpc_definitions.js";
 import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";

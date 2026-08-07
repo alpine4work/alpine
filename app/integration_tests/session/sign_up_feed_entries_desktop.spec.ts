@@ -2,10 +2,10 @@ import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {getAccountEmailAddressForTest} from "~/server/accounts/create_account_for_test.js";
 import {getFeedAccountCandidateEntriesForTest} from "~/server/feed/feed_actions.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {AccountId, DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {AccountId, DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
 const {context, services} = createTestServices();

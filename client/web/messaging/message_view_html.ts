@@ -43,8 +43,8 @@ import {
 } from "~/client/web/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {
     RemLength,
     convertRemLengthToPx,
@@ -52,22 +52,22 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {InternalError} from "~/shared/error/error.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {
     NonEmptyReadonlyArray,
     assertNonEmptyReadonlyArray,
-} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     HtmlElementGenerator,
     HtmlFragmentGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {cutMessageContentPayloadWithReferences} from "~/shared/messaging/cut_message_content_payload.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";

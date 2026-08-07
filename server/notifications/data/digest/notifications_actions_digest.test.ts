@@ -25,8 +25,8 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {DigestNotificationsSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
 
 const sendNotificationDigestMock = import.meta.jest.fn();

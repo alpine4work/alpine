@@ -6,8 +6,8 @@ import {
     ContentHeadingSection,
     getContentHeadingSections,
 } from "~/shared/content/get_content_heading_sections.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 
 type ContentEditorHeadingCollapseState = {
     /**

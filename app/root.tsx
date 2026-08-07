@@ -65,26 +65,26 @@ import {getFontsCriticalCss} from "~/client/web/styles/core/fonts_critical_css.j
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {colors} from "~/shared/design/core/colors.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {generateId} from "~/shared/id/id.js";
-import {getRealmId} from "~/shared/id/realm_id.js";
-import {BrowserId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {getRealmId} from "~/shared/id/realm_id.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
 import {ClientInfo, ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_tracer_event_propagated_data_for_pathname.js";
-import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
+import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.open_source.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 /**
  * Build root metadata while allowing public content to own its robots policy.

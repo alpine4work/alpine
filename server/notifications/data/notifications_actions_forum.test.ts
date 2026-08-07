@@ -43,17 +43,21 @@ import {
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {NotFoundError, PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
+import {
+    NotFoundError,
+    PermissionDeniedError,
+    UnimplementedError,
+} from "~/shared/error/error.open_source.js";
 import {
     assertPostContent,
     PostContentProsemirrorSchema as schema,
 } from "~/shared/forum/post_content_schema.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {MyAccountBroadcastInboxRealtimeEventsSchema} from "~/shared/notifications/my_account_protocol.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";

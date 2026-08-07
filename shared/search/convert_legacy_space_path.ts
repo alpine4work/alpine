@@ -1,5 +1,5 @@
-import {isId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * A current Alpine route produced from a legacy space-scoped URL.

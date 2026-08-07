@@ -66,14 +66,14 @@ import {
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     moveSearchFavoriteEntity,
     unfavoriteSearchEntity,

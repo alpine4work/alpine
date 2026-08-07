@@ -22,8 +22,8 @@ import {
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 
 // Node.js ESM interop (#node-esm-migration)

@@ -37,26 +37,26 @@ import {
     DocumentContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
-import {generateId, isId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     DocumentCommentThreadId,
     DocumentId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
@@ -72,9 +72,9 @@ import {
     getDocumentContentForCollaborationServiceInitialization,
     getResolvedDocumentCommentThreadRanges,
 } from "~/shared/rpc/documents_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 type DocumentCollaborationDurableObjectRoute =
     | {type: "Main"; accessLevel: AccessLevel | null}

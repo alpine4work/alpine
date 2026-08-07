@@ -4,7 +4,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Button} from "~/client/web/design/button.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
 import {postFauxInputCreateButtonInnerButtonHeight} from "~/client/web/styles/forum_shared_styles.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 import {subscribeToChannel, unsubscribeFromChannel} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function ChannelViewSubscribeButton({

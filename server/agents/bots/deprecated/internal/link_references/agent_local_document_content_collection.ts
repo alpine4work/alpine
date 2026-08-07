@@ -2,9 +2,9 @@ import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
 } from "~/server/cloudflare/durable_object_storage_collection.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Uniquely identifies a document in local storage. Every time the _document_ is

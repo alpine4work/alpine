@@ -4,15 +4,18 @@ import {TokenPayload} from "~/server/tokens/token_payload.js";
 import {BatchContextModule, ContextBatcherBase} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
-import {RpcCallId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {CookieJar} from "~/shared/helpers/http/cookie_jar.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
 import {deserializeRpcBatchResponse} from "~/shared/rpc/deserialize_rpc_batch_response.js";
 import {
     RpcHttpBatchByActorCallInputSchema,
@@ -23,10 +26,10 @@ import {
 } from "~/shared/rpc/helpers/rpc_http_schema.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {printSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Executes an RPC from our edge service.

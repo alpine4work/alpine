@@ -4,18 +4,23 @@ import {
     applyContentDuplicationVariableValuesToText,
 } from "~/shared/content/content_duplication_variable_schema.js";
 import {generateDuplicateContentTitle} from "~/shared/content/generate_duplicate_content_title.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskUpdateTaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
 import {

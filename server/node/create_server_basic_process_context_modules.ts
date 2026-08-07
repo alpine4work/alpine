@@ -7,8 +7,8 @@ import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 
 export const serverBasicProcessContextOptions = {
     ensureLocalCachePath: {type: "string"},

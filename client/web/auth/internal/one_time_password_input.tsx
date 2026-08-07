@@ -13,7 +13,7 @@ import {
 } from "~/shared/design/core/font_metrics.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export type OneTimePasswordInputRef = {
     focus(): void;

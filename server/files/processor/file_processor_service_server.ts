@@ -11,13 +11,16 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {deserializeDateString, isDateString} from "~/shared/helpers/date/date_string.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {
+    deserializeDateString,
+    isDateString,
+} from "~/shared/helpers/date/date_string.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type FileProcessorServiceRoute =
     | {readonly type: "HealthCheck"}

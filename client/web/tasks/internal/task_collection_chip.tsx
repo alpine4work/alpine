@@ -3,7 +3,7 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {TaskClientReadonlyStore} from "~/client/web/tasks/core/task_client_store.js";
 import {TaskCollectionChipBase} from "~/client/web/tasks/task_collection_chip_base.js";
 import {Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 

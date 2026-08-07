@@ -18,8 +18,8 @@ import {
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export type MessageViewEditorRef = {
     focus(): void;

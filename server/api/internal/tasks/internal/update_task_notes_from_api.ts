@@ -9,11 +9,11 @@ import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.
 import {
     ApiTaskNotesPatch,
     ApiTaskNotesResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
     TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,

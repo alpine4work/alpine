@@ -1,7 +1,7 @@
 import {FathomWebhookPayload} from "~/admin/lambda/fathom_meeting_notes/internal/fathom_webhook_payload_types.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 type ApiContentBlockElement = ApiContent["elements"][number];
 

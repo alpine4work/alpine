@@ -48,10 +48,10 @@ import {
 } from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContentWithReferencesSchema} from "~/shared/content/simple_content_schema.js";
 import {addRemLengths} from "~/shared/design/core/spacing.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
 import {
     updateBotSpaceAccountSettingsPropertyValue,
     updateBotSpaceSettingsPropertyValue,
@@ -61,7 +61,7 @@ import {
     instantiateBotSpaceAccount,
     removeSpaceAccount,
 } from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {hasSpaceRole} from "~/shared/spaces/space_model.js";
 
 const LoaderSchema = Schema.object({

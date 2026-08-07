@@ -1,7 +1,7 @@
-import {ApiMessageContentPayloadFile} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMessageContentPayloadFile} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Extract a `FileId` or `FileEntityId` from an API message file wrapper.

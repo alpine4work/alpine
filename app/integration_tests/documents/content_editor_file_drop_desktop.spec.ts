@@ -9,12 +9,12 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.open_source.js";
 
 const {context, services} = createTestServices();
 

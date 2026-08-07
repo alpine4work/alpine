@@ -5,7 +5,7 @@ import {basename, join as joinPath} from "path";
 import {SourceMapConsumer} from "source-map";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
 import {isProcessExitErrorWithCode, runProcess} from "~/server/helpers/node/run_process.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 
 const githubOwner = "cyberworlds";
 const githubRepo = "cyberworlds";

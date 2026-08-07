@@ -1,7 +1,7 @@
 import {ReactElement, ReactNode, createContext, useContext, useState} from "react";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 
 let nextGlobalContextId = 1;
 let actualGlobalContext: Map<number, any> | null = null;

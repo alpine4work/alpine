@@ -9,19 +9,19 @@ import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {Context} from "~/shared/context/context.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 import {deserializeFileAttachmentTargetString} from "~/shared/files/file_attachment_target.js";
 import {maxFileContentLength} from "~/shared/files/file_constants.js";
 import {UploadFileResponseSchema} from "~/shared/files/upload_file_protocol.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     finishUploadingAndStartProcessingFile,
     startUploadingFile,
 } from "~/shared/rpc/files_rpc_definitions.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // This file is used both by `EdgeService` and in tests. So we don't want to depend
 // on anything `EdgeService` specific here.

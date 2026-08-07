@@ -10,16 +10,16 @@ import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {
     FileMicrosoftOfficeDocumentContentType,
     getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
  * Lookup system installed [LibreOffice][1] executable path using common

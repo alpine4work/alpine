@@ -1,5 +1,5 @@
 import {getOpenGraphTitle} from "~/shared/content/open_graph_content.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 type DocumentationMetaPageBase = {
     type: "Blog" | "Documentation" | "APIReference";

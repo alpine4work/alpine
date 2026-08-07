@@ -6,7 +6,7 @@ import {
 } from "~/client/web/styles/search_shared_styles.js";
 import {fontSizes, navigationBarStyles} from "~/client/web/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {
     RemLength,
     Spacing,

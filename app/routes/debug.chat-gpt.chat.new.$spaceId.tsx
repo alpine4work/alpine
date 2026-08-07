@@ -5,7 +5,7 @@ import {
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 
 export async function loader({request, context: unauthenticatedContext, params}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();

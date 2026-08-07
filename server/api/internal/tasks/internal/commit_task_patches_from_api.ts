@@ -24,33 +24,38 @@ import {
     ApiTaskCreateRequest,
     ApiTaskPatch,
     ApiTaskPatchResult,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {diff} from "~/shared/helpers/diff/diff.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {
     OrderKey,
     generateOrderKeyBetween,
     initialOrderKey,
-} from "~/shared/helpers/sort/order_key.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";

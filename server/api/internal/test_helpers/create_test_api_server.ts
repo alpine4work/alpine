@@ -8,8 +8,8 @@ import {createApiServiceRequestListener} from "~/server/api/internal/shared/api_
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentJobQueueServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllObjectPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllObjectPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 type TestApiServerRequest = (
     path: string,

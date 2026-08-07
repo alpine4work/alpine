@@ -1,7 +1,7 @@
 import {minAspectRatioIfNotSingleFileRow} from "~/shared/content/compute_file_row_layout.js";
 import {contentLargeFallbackFileWidthPx} from "~/shared/design/core/content_shared_styles.js";
 import {FilePreview} from "~/shared/files/file_preview.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * The maximum width:height aspect ratio we support when rendering images. Images

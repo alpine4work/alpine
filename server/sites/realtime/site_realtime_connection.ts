@@ -5,7 +5,7 @@ import {
 import {authorizeSiteAccessForDurableObject} from "~/server/sites/realtime/authorize_site_access_for_durable_object.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
 import {getSiteRealtimeEvent} from "~/shared/rpc/sites_rpc_definitions.js";
 import {SiteRealtimeEvent} from "~/shared/sites/site_realtime_protocol.js";

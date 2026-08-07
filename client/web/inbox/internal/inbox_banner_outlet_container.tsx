@@ -34,7 +34,7 @@ import {inboxBannerHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {createInboxDocumentCommentThreadEntryDynamoItemKey} from "~/shared/notifications/create_inbox_document_comment_thread_entry_dynamo_item_key.js";
 import {createInboxPostCommentsEntryDynamoItemKey} from "~/shared/notifications/create_inbox_post_comments_entry_dynamo_item_key.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";

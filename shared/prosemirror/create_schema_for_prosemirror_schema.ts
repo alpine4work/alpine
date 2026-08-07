@@ -10,21 +10,25 @@ import {
     ReplaceStep,
     Step,
 } from "prosemirror-transform";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {hasAnyOwnProperties} from "~/shared/helpers/object/has_any_own_properties.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {StepByJsonId} from "~/shared/prosemirror/exhaustive_step.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
-import {Schema, SchemaDeserializationError, UnionSchema} from "~/shared/schema/schema.js";
+import {
+    Schema,
+    SchemaDeserializationError,
+    UnionSchema,
+} from "~/shared/schema/schema.open_source.js";
 
 declare module "prosemirror-model" {
     interface Fragment {

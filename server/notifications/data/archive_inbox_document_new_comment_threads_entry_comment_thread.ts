@@ -4,9 +4,13 @@ import {
     InboxTable,
 } from "~/server/notifications/data/internal/inbox_table.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Archive an individual comment thread in a new comment threads inbox entry. If

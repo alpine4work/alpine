@@ -7,7 +7,7 @@ import {
 } from "~/server/notifications/data/internal/notifications_table.js";
 import {Context} from "~/shared/context/context.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {AppleDeviceTarget} from "~/shared/notifications/push_notification_target.js";
 
 /**

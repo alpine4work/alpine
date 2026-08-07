@@ -1,7 +1,7 @@
 /* eslint-disable cyberworlds/string-quotes */
 
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 
 test("can serialize and deserialize code preview content", () => {
     const space = {type: "String", classes: "", string: " "} as const;

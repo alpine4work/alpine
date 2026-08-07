@@ -43,25 +43,29 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {
+    DeadlineExceededError,
+    InternalError,
+    InvalidArgumentError,
+} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isTransientError} from "~/shared/error/is_transient_error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {isTransientError} from "~/shared/error/is_transient_error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {CookieJar} from "~/shared/helpers/http/cookie_jar.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     RpcHttpBatchCallErrorOutputSchema,
     RpcHttpCallOutputSchema,
 } from "~/shared/rpc/helpers/rpc_http_schema.js";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // Cache some shared resources across requests.
 let sharedResources: EdgeServiceSharedResources | null = null;

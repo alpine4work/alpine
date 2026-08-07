@@ -1,7 +1,7 @@
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {ContentSelectionSchema} from "~/shared/content/content_selection_schema.js";
 import {
     MessageContentSchema,
@@ -26,7 +26,7 @@ import {
     DocumentCommentThreadId,
     SpaceId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
@@ -37,7 +37,7 @@ import {
 import {PutMessageApprovalDecisionsPayloadSchema} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";

@@ -20,11 +20,11 @@ import {ShareNotification} from "~/shared/access/share_notification.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export async function updateChannelAccessPolicyBase(

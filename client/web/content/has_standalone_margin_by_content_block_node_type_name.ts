@@ -1,5 +1,5 @@
 import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 
 /**
  * True for all the block nodes that get standalone block margin in

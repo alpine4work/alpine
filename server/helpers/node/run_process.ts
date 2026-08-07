@@ -2,10 +2,10 @@ import {ChildProcessByStdio, spawn} from "child_process";
 import path from "path";
 import {Readable as ReadableStream, Writable as WritableStream} from "stream";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 export type ProcessArgs = Array<string | undefined | null | false | ProcessArgs>;
 

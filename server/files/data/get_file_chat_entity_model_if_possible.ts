@@ -4,9 +4,9 @@ import {createFileEntitySitePreviewPrefetcher} from "~/server/files/data/interna
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
 import {FileChatEntityModel} from "~/shared/chat/file_chat_entity_model_schema.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export async function getFileChatEntityModelIfPossible(

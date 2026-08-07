@@ -21,7 +21,7 @@ import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/life
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {HighlightColor, colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
 export type ContentEditorHighlightSelectorRef = {

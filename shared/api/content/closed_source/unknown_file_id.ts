@@ -1,5 +1,5 @@
-import {assertId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 // The `FileId` tries to spell "unknown file" with no spaces. We substitute 0 for
 // "o" and since "u" is not allowed in IDs we use "n" in place of "u" since "n" is

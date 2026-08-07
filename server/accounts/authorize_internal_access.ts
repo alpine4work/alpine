@@ -5,9 +5,9 @@ import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_e
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Authorizes the account for this request has internal access. Throws a

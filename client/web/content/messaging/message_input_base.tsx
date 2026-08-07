@@ -136,18 +136,18 @@ import {
     getFileAudioContentTypes,
     getFileImageContentTypes,
     getFileVideoContentTypes,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {Id} from "~/shared/id/id.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {Id} from "~/shared/id/id.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {hasGifPickerFeature} from "~/shared/spaces/has_gif_picker_feature.js";
 import {computeStore} from "~/shared/store/compute_store.js";

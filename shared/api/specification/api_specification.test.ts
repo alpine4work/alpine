@@ -3,15 +3,15 @@ import {OpenAPIV3} from "openapi-types";
 import {join as joinPath} from "path";
 import Yaml from "yaml";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
 
 const apiSpecificationPath = joinPath(
     runfilesPath,

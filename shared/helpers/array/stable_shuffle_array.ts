@@ -1,4 +1,4 @@
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
 
 /**
  * Randomize the order of items in an array using `StableRandom`. Performs a

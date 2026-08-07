@@ -5,12 +5,15 @@ import {
     ApiSearchPostMessageResult,
     ApiSearchResultMatch,
     ApiSearchTaskMessageResult,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {countGraphemes, iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
-import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.js";
+import {
+    countGraphemes,
+    iterateGraphemes,
+} from "~/shared/helpers/string/iterate_graphemes.open_source.js";
+import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.open_source.js";
 import {missingSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
 
 type ApiSearchMessageResult =

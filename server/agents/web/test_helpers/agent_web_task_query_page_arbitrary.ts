@@ -3,7 +3,7 @@ import {
     AgentWebTaskQueryPagePagination,
     AgentWebTaskQueryPageQuery,
     AgentWebTaskQueryPageTask,
-} from "~/server/agents/web/pages/agent_web_task_query_page.js";
+} from "~/server/agents/web/pages/agent_web_task_query_page.open_source.js";
 import {
     ApiAccountReferenceArbitrary,
     ApiContentTextArbitrary,
@@ -14,7 +14,7 @@ import {
     ApiTaskPriority,
     ApiTaskQueryFilterResponse,
     ApiTaskQuerySort,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 const ApiTaskPriorityArbitrary: Arbitrary<ApiTaskPriority> = fc.oneof(
     fc.constant({type: "Low"}),

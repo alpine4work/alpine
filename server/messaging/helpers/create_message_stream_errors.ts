@@ -1,6 +1,6 @@
 import {messageStreamTimeoutMs} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 
 const timeoutInSeconds = Math.round(messageStreamTimeoutMs / 1000);
 

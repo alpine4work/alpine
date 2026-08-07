@@ -15,9 +15,9 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/backfill_task_action_transaction_history.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const context = createTestContext({
     spacesInjection,

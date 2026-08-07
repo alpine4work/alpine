@@ -56,7 +56,7 @@ import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/space
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
-import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -68,8 +68,8 @@ import {
     FailedPreconditionError,
     InternalError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {
     createPostCommentNotFoundError,
@@ -77,23 +77,29 @@ import {
 } from "~/shared/forum/forum_error_messages.js";
 import {PostContent, assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, FileId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    ChannelId,
+    FileId,
+    PostId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";

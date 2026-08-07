@@ -3,7 +3,7 @@ import {ContentEditorRef} from "~/client/web/content/content_editor.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export function getContentEditorScrollAnchorPosition<Content extends ContentWithReferences>(
     editorRef: RefObject<ContentEditorRef<Content> | null>,

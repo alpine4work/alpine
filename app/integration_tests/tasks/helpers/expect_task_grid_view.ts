@@ -1,6 +1,6 @@
 import {Locator, Page, expect, test} from "@playwright/test";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.open_source.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 type ExpectTaskGridViewTaskDefinitionAttributes = [

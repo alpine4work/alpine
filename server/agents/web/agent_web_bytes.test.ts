@@ -1,4 +1,7 @@
-import {parseAgentWebBytes, printAgentWebBytes} from "~/server/agents/web/agent_web_bytes.js";
+import {
+    parseAgentWebBytes,
+    printAgentWebBytes,
+} from "~/server/agents/web/agent_web_bytes.open_source.js";
 
 test.each([
     {number: 0, expected: "0b"},

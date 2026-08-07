@@ -10,9 +10,9 @@ import {createMockAgentPlaygroundScenario} from "~/admin/scenarios/mock_agent_pl
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {JsonObjectValue} from "~/shared/helpers/types/json_value.open_source.js";
 
 type ScenarioFunction = (
     context: TestContext,

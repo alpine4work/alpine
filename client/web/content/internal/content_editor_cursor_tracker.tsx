@@ -11,7 +11,7 @@ import {
     removeResizeListenerForElement,
 } from "~/client/web/helpers/use_resize_observer.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const ContentEditorCursorTrackerForwardRef = forwardRef(ContentEditorCursorTracker);
 export {ContentEditorCursorTrackerForwardRef as ContentEditorCursorTracker};

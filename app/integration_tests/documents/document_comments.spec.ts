@@ -10,8 +10,8 @@ import {
     assertDocumentContent,
     createSimpleDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const {context, services} = createTestServices();
 

@@ -18,9 +18,9 @@ import {
 } from "react-router";
 import {PeekErrorBoundary} from "~/client/web/peek/peek_error_boundary.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {convertSpacePathToPeekPath, isPeekPath} from "~/shared/remix/peek_path_helpers.js";
 
 export type PeekRemixEmbedRouter = Router & {

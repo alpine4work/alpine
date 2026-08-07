@@ -1,10 +1,10 @@
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {realmTaskTitleClientId} from "~/shared/id/realm_task_title_client_id.js";
 import {TaskTitleSnapshot, decodeTaskTitleSnapshot} from "~/shared/tasks/title/task_title.js";
 

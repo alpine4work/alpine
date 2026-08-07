@@ -44,8 +44,8 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     ChannelContributorsModel,
@@ -53,10 +53,10 @@ import {
     ChannelOrMetadataModel,
     ChannelPostFilesModel,
 } from "~/shared/forum/channel_model.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {AccountId, PostId} from "~/shared/id/types/id_types.js";
+import {AccountId, PostId} from "~/shared/id/types/id_types.open_source.js";
 
 export function ChannelViewAside({
     channel,

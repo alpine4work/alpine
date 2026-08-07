@@ -1,6 +1,6 @@
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 
 /**
  * Name of all node types for any kind of content in our system.

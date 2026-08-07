@@ -1,18 +1,18 @@
 import {parseISO} from "date-fns";
 import {OpensearchIndexConfigBuilder} from "~/server/opensearch/opensearch_index.js";
 import {OpensearchIndexAnalysisAnalyzer} from "~/server/opensearch/opensearch_index_analysis.js";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
-import {ObjectSchema, UnionSchema} from "~/shared/schema/schema.js";
+import {ObjectSchema, UnionSchema} from "~/shared/schema/schema.open_source.js";
 
 export type OpensearchIndexTypeType<Type extends OpensearchIndexTypeBase<any, any, any>> =
     Type extends OpensearchIndexTypeBase<infer Value, any, any> ? Value : never;

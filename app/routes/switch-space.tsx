@@ -19,10 +19,10 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {neverPromise} from "~/shared/helpers/async/never_promise.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getOurAccountSpaces, loadSpaceInviteContent} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 

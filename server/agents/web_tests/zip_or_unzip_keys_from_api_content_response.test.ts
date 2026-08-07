@@ -1,16 +1,16 @@
-import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
-import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.open_source.js";
+import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {apiContentArbitrarySpaceId} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {
     unzipKeysFromApiContentResponse,
     zipKeysIntoApiContentResponse,
-} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
-import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.open_source.js";
+import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const storage = createAgentWebSessionStorageForTest(apiContentArbitrarySpaceId);
 

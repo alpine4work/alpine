@@ -6,7 +6,7 @@ import {
     normalizeAgentWebTaskCollectionPage,
     parseAgentWebTaskCollectionPage,
     printAgentWebTaskCollectionPage,
-} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
+} from "~/server/agents/web/pages/agent_web_task_collection_page.open_source.js";
 import {
     AgentWebTaskQueryPagePaginationArbitrary,
     AgentWebTaskQueryPageQueryArbitrary,
@@ -17,7 +17,7 @@ import {
     ApiContentTextArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 
 // Filters that reference accounts or task collections are left to the task query
 // filter generative test since they need stored links to print.

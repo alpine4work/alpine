@@ -3,7 +3,7 @@ import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {SiteAttributesItem, SitesTable} from "~/server/sites/data/internal/sites_table.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {createSiteNotFoundError} from "~/shared/sites/site_error_messages.js";
 
 export const SiteItemAuthorizationCache = new DynamoContextCache<

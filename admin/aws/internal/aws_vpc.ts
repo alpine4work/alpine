@@ -2,9 +2,9 @@ import {CfnOutput, Fn, Stack} from "aws-cdk-lib";
 import {Vpc} from "aws-cdk-lib/aws-ec2";
 import {Construct} from "constructs";
 import {AwsBastionHost} from "~/admin/aws/internal/aws_bastion_host.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
 
 // NOTE(calebmer): This doesn't extend from `Construct` for historical reasons.
 // Before we adopted the `Construct` sub-class convention (which is common among

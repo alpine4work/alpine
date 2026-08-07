@@ -1,7 +1,7 @@
 import * as Y from "yjs";
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 import {
     TaskTitle,

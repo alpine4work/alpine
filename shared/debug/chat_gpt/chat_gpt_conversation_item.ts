@@ -1,6 +1,6 @@
 import OpenAi from "openai";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export type ChatGptConversationItem = SchemaType<typeof ChatGptConversationItemSchema>;
 

@@ -1,6 +1,6 @@
 import {validate as validateEmail} from "email-validator";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 
 /**
  * A correctly formatted [email address][1].

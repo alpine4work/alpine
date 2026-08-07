@@ -1,7 +1,7 @@
 import {AppContext} from "~/client/web/context/app_context.js";
 import {RpcCache} from "~/client/web/rpc/rpc_cache.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 

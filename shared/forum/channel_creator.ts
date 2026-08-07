@@ -1,5 +1,5 @@
-import {AccountId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Metadata about what created a channel on behalf of its creator.

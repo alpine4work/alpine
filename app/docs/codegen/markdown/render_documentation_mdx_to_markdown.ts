@@ -3,9 +3,9 @@ import {
     DocumentationMarkdownProps,
     flattenDocumentationMarkdownChildren,
 } from "~/shared/docs/documentation_markdown_component.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 // A JSX runtime that renders to markdown strings instead of React elements. Docs
 // MDX is compiled to a function body that reads its runtime from `arguments[0]`

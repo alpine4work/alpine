@@ -1,8 +1,8 @@
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
-import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
+import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {
     TaskSortableAccountSchema,

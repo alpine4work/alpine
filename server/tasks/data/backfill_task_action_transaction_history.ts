@@ -4,8 +4,8 @@ import {
 } from "~/server/spaces/authorize_space_access.js";
 import {backfillTaskActionTransactionHistoryTestCounter} from "~/server/tasks/data/backfill_task_action_transaction_history_test_counter.js";
 import {TaskActionTable} from "~/server/tasks/data/internal/task_table.js";
-import {getMinId} from "~/shared/id/id.js";
-import {SpaceId, TaskActionTransactionId} from "~/shared/id/types/id_types.js";
+import {getMinId} from "~/shared/id/id.open_source.js";
+import {SpaceId, TaskActionTransactionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 /**

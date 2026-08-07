@@ -22,11 +22,11 @@ import {
 } from "~/client/web/styles/forum_shared_styles.js";
 import {reactionRadialPickerSizeRem} from "~/client/web/styles/reaction_shared_styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 

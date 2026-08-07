@@ -4,17 +4,21 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {Key, ReactNode} from "react";
-import {InternalError, OutOfRangeError, UnimplementedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {
+    InternalError,
+    OutOfRangeError,
+    UnimplementedError,
+} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {
     OrderKey,
     generateOrderKeyBetween,
     generateOrderKeysBetween,
-} from "~/shared/helpers/sort/order_key.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 // HACK(calebmer): Hackishly get the constructor for a `functional-red-black-tree`
 // iterator so we can construct it since there's not an official API. This happens

@@ -1,6 +1,6 @@
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {
     Reaction,

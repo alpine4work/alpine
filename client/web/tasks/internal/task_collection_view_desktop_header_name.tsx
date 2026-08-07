@@ -37,9 +37,9 @@ import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 
 export type TaskCollectionViewDesktopHeaderNameRef = {

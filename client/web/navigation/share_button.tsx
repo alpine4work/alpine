@@ -24,8 +24,8 @@ import {ShareNotification} from "~/shared/access/share_notification.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {addRemLengths} from "~/shared/design/core/spacing.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 const shareButtonGap = "1.5";

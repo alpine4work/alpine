@@ -7,7 +7,7 @@ import {addSearchAffinityEntityPointsForTest} from "~/server/search/data/table/s
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {

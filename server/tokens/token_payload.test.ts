@@ -1,5 +1,5 @@
 import {TokenPayload, TokenPayloadSchema} from "~/server/tokens/token_payload.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChatId,
@@ -8,7 +8,7 @@ import {
     SessionId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 describe("TokenPayloadSchema deserialization", () => {
     describe("anonymous claims", () => {

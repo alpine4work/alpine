@@ -1,5 +1,5 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
-import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export function mockApiGetChat(
     api: ApiClientMock,

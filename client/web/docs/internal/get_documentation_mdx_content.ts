@@ -1,7 +1,7 @@
 import type {MDXContent} from "mdx/types.js";
 import {Fragment, jsx, jsxs} from "react/jsx-runtime";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 // Documentation MDX is compiled to a function body during docs codegen, shipped to
 // routes in loader data, and evaluated here on both sides so server render and

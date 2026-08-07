@@ -8,8 +8,8 @@ import {spinnerGapIconSvg} from "~/client/web/icons/spinner_gap_icon_svg.js";
 import {contentStyles, spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {
     HtmlContainerGenerator,
     HtmlElementGenerator,

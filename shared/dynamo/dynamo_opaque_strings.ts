@@ -1,4 +1,4 @@
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * An opaque string representing the primary key of a DynamoDB item.

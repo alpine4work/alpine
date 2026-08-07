@@ -3,9 +3,9 @@ import {createSite} from "~/server/sites/data/create_site.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {SiteId, SiteSideBarId, SiteTopBarId} from "~/shared/id/types/id_types.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SiteId, SiteSideBarId, SiteTopBarId} from "~/shared/id/types/id_types.open_source.js";
 import {SitePreviewModel, SiteSideBarModel} from "~/shared/sites/site_model.js";
 
 const context = createTestContext();

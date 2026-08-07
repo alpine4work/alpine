@@ -4,11 +4,11 @@ import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_tas
 import {
     ApiSearchResultMatch,
     ApiSearchResultResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {contentMentionTextTruncatedSuffix} from "~/shared/content/truncate_content_mention_text.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {missingSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {SearchDynamicEntityType} from "~/shared/search/search_entity_id.js";

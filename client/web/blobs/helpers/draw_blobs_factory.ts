@@ -35,10 +35,10 @@ import {
 } from "~/shared/design/core/constant_class_names.js";
 import {easeInOutSin} from "~/shared/design/core/easing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 import {invLerp} from "~/shared/helpers/number/inv_lerp.js";
 

@@ -5,10 +5,10 @@ import {
     DocumentContent,
     DocumentWithOptionalTitleContent,
 } from "~/shared/documents/document_content_schema.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 
 export type DocumentCommentThreadSnippet = {

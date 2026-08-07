@@ -8,7 +8,7 @@ import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInput} from "~/client/web/design/text_input.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 // NOTE(calebmer): Apps like Google Docs put a search under the URL input to allow
 // easy linking to headings or other docs. Could be nice to have this capability

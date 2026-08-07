@@ -1,6 +1,6 @@
 import {ReactionEmotion} from "~/shared/reactions/reaction.js";
 import {ReactionEmotionSchema} from "~/shared/reactions/reaction_emotion_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const thirtyDaysDurationMs = 1000 * 60 * 60 * 24 * 30;
 

@@ -1,7 +1,7 @@
-import {InternalError} from "~/shared/error/error.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {DocumentId, TaskId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {DocumentId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export type SpellCheckEntityId = `Document:${DocumentId}` | `Task:${TaskId}`;
 

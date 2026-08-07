@@ -15,15 +15,15 @@ import {AuthenticationSignInOrSignUpView} from "~/client/web/auth/internal/authe
 import {AuthenticationSignUpInviteView} from "~/client/web/auth/internal/authentication_sign_up_invite_view.js";
 import {AuthenticationSignUpProfileView} from "~/client/web/auth/internal/authentication_sign_up_profile_view.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {routeNotFoundError} from "~/shared/remix/route_not_found_error.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 export function AuthenticationView() {
     const context = useAppContext();

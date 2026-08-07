@@ -4,10 +4,10 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {getSearchEntityIndexesForTest} from "~/server/search/data/index/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 const {context, services} = createTestServices();
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();

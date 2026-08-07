@@ -1,6 +1,6 @@
 import {compareArrays} from "~/shared/helpers/array/compare_arrays.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {
     decodeId,
     encodeId,
@@ -9,7 +9,7 @@ import {
     getMinId,
     idLength,
     isId,
-} from "~/shared/id/id.js";
+} from "~/shared/id/id.open_source.js";
 
 test("max ID and min ID are IDs", () => {
     expect(isId(getMinId())).toEqual(true);

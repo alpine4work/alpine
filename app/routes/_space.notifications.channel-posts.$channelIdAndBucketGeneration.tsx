@@ -31,17 +31,17 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {RynamoItem, createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {throwError} from "~/shared/helpers/control/throw_error.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {isId} from "~/shared/id/id.js";
-import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {ChannelId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraftWithFilesSchema} from "~/shared/messaging/message_draft_schema.js";
 import {
     InboxChannelPostsEntryModel,
@@ -52,7 +52,7 @@ import {
     archiveInboxChannelPostsEntryPost,
     unarchiveInboxChannelPostsEntryPost,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {
     ServerSynchronizationCheckpointSchema,
     generateServerSynchronizationCheckpoint,

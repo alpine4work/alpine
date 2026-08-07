@@ -1,5 +1,5 @@
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 
 export let storeUpdatesBatch: {
     readonly listeners: Set<() => void>;

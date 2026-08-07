@@ -1,10 +1,10 @@
 import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
 import {getLatestAvatarVersion} from "~/shared/avatar/get_latest_avatar_version.js";
 import {defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Since Each `document`/`channel`/`task collection` itself has permissions, we

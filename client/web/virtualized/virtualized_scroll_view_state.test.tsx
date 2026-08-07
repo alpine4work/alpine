@@ -4,10 +4,10 @@ import {
     VirtualizedScrollViewState,
     withRealVirtualizationWindowHeightForTest,
 } from "~/client/web/virtualized/virtualized_scroll_view_state.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 
 function stableShuffleArray<Item>(
     stableRandom: StableRandom,

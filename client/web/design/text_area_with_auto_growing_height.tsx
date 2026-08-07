@@ -3,7 +3,7 @@ import {ScriptBeforeAppInitialRender} from "~/client/web/helpers/lifecycle/scrip
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {safe} from "~/shared/helpers/string/safe_string.js";
 
 const TextAreaWithAutoGrowingHeightForwardRef = forwardRef(TextAreaWithAutoGrowingHeight);

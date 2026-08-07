@@ -23,18 +23,18 @@ import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {InternalError, UnknownError} from "~/shared/error/error.js";
+import {InternalError, UnknownError} from "~/shared/error/error.open_source.js";
 import {
     FileContentType,
     FileMp4VideoContentType,
     FileWebUnsafeVideoContentType,
     getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 
 /**
  * For video formats that don't have broad browser support we convert them to WebM

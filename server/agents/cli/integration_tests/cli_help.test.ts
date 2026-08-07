@@ -1,7 +1,7 @@
 /* eslint-disable cyberworlds/string-quotes */
 
 import {setupCliForTest} from "~/server/agents/cli/integration_tests/setup_cli_for_test.js";
-import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.open_source.js";
 
 const cli = setupCliForTest();
 

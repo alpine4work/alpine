@@ -14,9 +14,9 @@ import {
 } from "~/server/agents/bots/internal/d1/agent_usage_database.js";
 import {AgentUsageWindowType} from "~/server/agents/bots/internal/d1/agent_usage_schema.js";
 import {alpioneers, joshKnownAccountId} from "~/shared/accounts/known_account_ids.js";
-import {UnknownError} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const mockAgentUsageDatabase: jest.Mocked<AgentUsageDatabaseInterface> = {

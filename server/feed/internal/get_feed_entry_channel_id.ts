@@ -1,6 +1,6 @@
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the channel ID associated with a feed entry, if any. Only Post and Channel

@@ -10,8 +10,8 @@ import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/print_task_collection_search_result_body_text_snippet.js";

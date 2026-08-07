@@ -5,8 +5,8 @@ import {
     TaskActionTable,
     TaskActionTransactionItem,
 } from "~/server/tasks/data/internal/task_table.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskActionTransactionId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId, TaskActionTransactionId} from "~/shared/id/types/id_types.open_source.js";
 
 export function internalGetUpdateOurAccountNameTaskTransactionEntries(
     context: ServerSessionActionContext,

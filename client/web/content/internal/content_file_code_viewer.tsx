@@ -25,8 +25,8 @@ import {
 } from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
 
 export function ContentFileCodeViewer({
     file,

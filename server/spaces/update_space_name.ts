@@ -3,8 +3,8 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {createSpaceModelFromItem} from "~/server/spaces/internal/create_space_model_from_item.js";
 import {getSpaceItem} from "~/server/spaces/internal/get_space_item.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 

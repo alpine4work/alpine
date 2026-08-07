@@ -6,12 +6,12 @@ import {
     GitHubWorkflowRunEventPayload,
 } from "~/admin/lambda/send_alert/internal/github_alert_source_types.js";
 import {sendAlertAvailableChannels} from "~/admin/lambda/send_alert/internal/send_alert_available_channels.js";
-import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
-import {assertDateString} from "~/shared/helpers/date/date_string.js";
-import {assertId} from "~/shared/id/id.js";
-import {AccountId, BotId, PostId} from "~/shared/id/types/id_types.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {assertDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, PostId} from "~/shared/id/types/id_types.open_source.js";
 
 type ApiCreatePostRequestBody =
     ApiSpecification.paths["/posts"]["post"]["requestBody"]["content"]["application/json"];

@@ -29,12 +29,16 @@ import {
 } from "~/shared/design/core/constant_class_names.js";
 import {HighlightColor, isHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {DocumentContentCoverSchema} from "~/shared/documents/document_content_cover.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, DocumentCommentThreadId, SiteId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    DocumentCommentThreadId,
+    SiteId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {

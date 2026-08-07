@@ -1,7 +1,13 @@
 import {getFileIdOrFileEntityIdFromApiMessageContentPayloadFile} from "~/server/api/internal/shared/get_file_id_or_file_entity_id_from_api_message_content_payload_file.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, FileId, PostId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    ChannelId,
+    DocumentId,
+    FileId,
+    PostId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 test("extracts FileId from a File element", () => {
     const fileId = generateChronologicalId<FileId>();

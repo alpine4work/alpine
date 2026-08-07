@@ -25,10 +25,10 @@ import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Locale} from "~/shared/helpers/intl/locale.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Locale} from "~/shared/helpers/intl/locale.open_source.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
 import {
     MessageExperimentalApproval,
     MessageExperimentalApprovalDecisionOption,

@@ -81,14 +81,14 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";

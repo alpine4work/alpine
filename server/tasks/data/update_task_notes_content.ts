@@ -18,10 +18,10 @@ import {
 import {withSendTaskIndexSearchEntityJobIfNeeded} from "~/server/tasks/data/task_index.js";
 import {TaskStepCountByAccountId} from "~/server/tasks/data/task_step_count_by_account_id.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {ContentEditorClientId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {ContentEditorClientId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     emptyTaskNotesContent,
     isTaskNotesContent,

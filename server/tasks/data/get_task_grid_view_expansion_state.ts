@@ -8,7 +8,7 @@ import {
 } from "~/server/tasks/data/internal/get_task_grid_view_expansion_state_key.js";
 import {TaskTable} from "~/server/tasks/data/internal/task_table.js";
 import {TaskRealtimeSessionActionContext} from "~/server/tasks/data/task_realtime_context.js";
-import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
+import {BrowserId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";

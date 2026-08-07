@@ -1,5 +1,5 @@
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {
     ReactionCharacter,
     allReactionCharacterTypes,

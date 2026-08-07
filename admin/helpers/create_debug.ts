@@ -1,6 +1,6 @@
 import actuallyCreateDebug from "debug";
 import {basename, relative as relativePath, resolve as resolvePath} from "path";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const ourImportMetaUrl = import.meta.url;
 assert(ourImportMetaUrl.startsWith("file://"));

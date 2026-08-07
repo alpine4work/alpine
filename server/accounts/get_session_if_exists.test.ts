@@ -7,9 +7,9 @@ import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
 
 import.meta.jest.useFakeTimers();
 

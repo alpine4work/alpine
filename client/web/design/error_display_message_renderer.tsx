@@ -12,12 +12,12 @@ import {invertColor} from "~/shared/design/core/inverted_colors.js";
 import {
     getErrorDisplayMessage,
     hasErrorDisplayMessage,
-} from "~/shared/error/default_error_display_message.js";
-import {getErrorCode} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {getErrorOriginalTracerSpan} from "~/shared/error/error_original_tracer_span.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+} from "~/shared/error/default_error_display_message.open_source.js";
+import {getErrorCode} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {getErrorOriginalTracerSpan} from "~/shared/error/error_original_tracer_span.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 
 const isBrowserRuntime = typeof window !== "undefined";
 

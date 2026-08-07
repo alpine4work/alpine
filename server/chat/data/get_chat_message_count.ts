@@ -1,4 +1,4 @@
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * The total number of messages in a chat.

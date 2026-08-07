@@ -1,8 +1,8 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Send a `ShareNotification` for the channel without updating the channel's

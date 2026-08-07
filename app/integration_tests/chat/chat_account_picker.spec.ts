@@ -5,9 +5,9 @@ import {getSearchEntityIndexesForTest} from "~/server/search/data/index/search_e
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.open_source.js";
+import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const {context, services} = createTestServices();
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();

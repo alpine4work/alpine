@@ -3,8 +3,8 @@ import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_ap
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {getTaskNotesContentWithCustomReferences} from "~/server/tasks/data/get_task_notes_content_with_custom_references.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
-import {ApiTaskNotesResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {ApiTaskNotesResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Reads a task's notes and returns them as an `ApiTaskNotesResponse`. The notes

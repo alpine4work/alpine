@@ -29,7 +29,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
     UnauthenticatedError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {
     FileContentType,
@@ -38,13 +38,16 @@ import {
     isFileDocumentContentType,
     isFileImageContentType,
     isFileVideoContentType,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel as SharedFileModel} from "~/shared/files/file_model.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
-import {PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {
+    generateChronologicalId,
+    getChronologicalIdTime,
+} from "~/shared/id/chronological_id.open_source.js";
+import {PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext();
 

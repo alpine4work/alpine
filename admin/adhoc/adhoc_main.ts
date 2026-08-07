@@ -5,8 +5,8 @@ import "~/server/helpers/node/register_noop_react_refresh.js";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {InternalError} from "~/shared/error/error.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 // Make our adhoc process easy to find in process managers so we can hunt down
 // runaway scripts. We include "cyberworlds" and "node" so you can grep by those

@@ -6,10 +6,10 @@ import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {getSiteItemForAuthorizationIfExists} from "~/server/sites/data/internal/get_site_item_for_authorization.js";
 import {SiteAttributesItem} from "~/server/sites/data/internal/sites_table.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {
     createSiteNotFoundError,
     sitePermissionDeniedErrorDisplayMessageByExpectedAccessLevel,

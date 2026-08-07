@@ -20,7 +20,7 @@ import {
 } from "~/client/web/tasks/task_collection_chip_base_html.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 
 const TaskCollectionChipBaseForwardRef = forwardRef(TaskCollectionChipBase);
 export {TaskCollectionChipBaseForwardRef as TaskCollectionChipBase};

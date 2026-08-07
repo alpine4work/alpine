@@ -1,9 +1,9 @@
 import {encodeStringAsQWord} from "~/server/emails/mime/encode_string_as_q_word.js";
 import {CRLF, reservedMimeHeaders} from "~/server/emails/mime/mime_constants.js";
 import type {EmailMessage} from "~/shared/emails/email_message.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 // RFC 2045 §6.8: base64 lines must be no more than 76 characters.
 const base64LineLength = 76;

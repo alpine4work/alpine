@@ -22,8 +22,8 @@ import {
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getSpaceAutoAddAccountsFromEmailDomains} from "~/server/spaces/get_space_auto_add_accounts_from_email_domains.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
 import {
     FeedChannelEntryModel,
@@ -36,21 +36,21 @@ import {
     FeedWelcomeEntryModel,
 } from "~/shared/feed/feed_entry_model.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {Id} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {Id} from "~/shared/id/id.open_source.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {parseSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {
     createTaskCollectionNotFoundError,

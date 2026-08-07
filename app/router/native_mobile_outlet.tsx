@@ -23,11 +23,11 @@ import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js"
 import {UpdateMetaTitleContextProvider} from "~/client/web/remix/use_update_meta_title.js";
 import {GlobalLoadingIndicatorChip} from "~/client/web/spaces/global_loading_indicator_context_provider.js";
 import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 
 export function NativeMobileOutlet({
     parentRouteIds,

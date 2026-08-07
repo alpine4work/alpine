@@ -1,9 +1,9 @@
 import {useCallback} from "react";
 import {removeLocalStorage, useLocalStorage} from "~/client/web/helpers/use_local_storage.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const AuthenticationSignUpInviteEmailAddressesSchema = Schema.array(Schema.string);
 

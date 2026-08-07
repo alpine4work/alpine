@@ -3,8 +3,8 @@ import {
     nameToAlpineId,
     pagerDutyIdToAlpineId,
 } from "~/admin/lambda/send_alert/internal/send_alert_user_mappings.js";
-import {ApiContentMentionInlineElement} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
+import {ApiContentMentionInlineElement} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
 
 type CreateUserElementOptions = {
     tagUser?: boolean;

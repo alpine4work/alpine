@@ -5,9 +5,9 @@ import {
     parseAbsolute,
     toCalendarDate,
 } from "@internationalized/date";
-import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 export function getAgentUsageLocalResetTimeString(
     resetTime: Date,

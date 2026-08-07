@@ -3,7 +3,7 @@ import {AgentAccountLink} from "~/server/agents/bots/deprecated/internal/link_re
 import {printApiContentToAgentMarkdownTreeWithFrontmatter} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown_tree_with_frontmatter.ts.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 // TODO(ifitzsimmons, #ai): Add sample content once we land on content format
 export async function loadAgentAccountLinkContent({

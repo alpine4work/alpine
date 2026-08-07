@@ -2,18 +2,18 @@ import {unwrapAccessPolicyModelForServer} from "~/server/access/unwrap_access_po
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {createFileEntitySitePreviewPrefetcher} from "~/server/files/data/internal/create_file_entity_site_preview_prefetcher.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {FileChannelEntityModel} from "~/shared/forum/file_channel_entity_model_schema.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export async function getFileChannelEntityModelIfPossible(

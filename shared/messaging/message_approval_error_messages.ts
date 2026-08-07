@@ -1,5 +1,5 @@
-import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 
 // NOTE(ifitzsimmons, 2026-07-09): The error messages here have display messages so
 // that our API clients can display more helpful error messages to users.

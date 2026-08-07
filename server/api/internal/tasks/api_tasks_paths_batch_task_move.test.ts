@@ -12,13 +12,13 @@ import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_
 import {
     ApiGetTaskCollectionTasksResponse,
     ApiTaskBatchPatch,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
 
 const baseContext = createTestContext({
     shouldStartOpensearch: true,

@@ -4,8 +4,8 @@ import type {BertTokenizer} from "@xenova/transformers";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {createTransformersTokenizer} from "~/server/language_models/core/create_transformers_tokenizer.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 
 /**
  * Tokenizer for Cohere's `embed-english-v3.0` model. [Read more][1].

@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {getProsemirrorNodeArbitrary} from "~/shared/prosemirror/test_helpers/get_prosemirror_node_arbitrary.js";
 

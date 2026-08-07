@@ -1,7 +1,7 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * The type of our API implementation.

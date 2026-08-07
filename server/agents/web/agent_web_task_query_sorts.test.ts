@@ -1,9 +1,9 @@
 import {
     parseAgentWebTaskQuerySorts,
     printAgentWebTaskQuerySorts,
-} from "~/server/agents/web/agent_web_task_query_sorts.js";
-import {ApiTaskQuerySort} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
+} from "~/server/agents/web/agent_web_task_query_sorts.open_source.js";
+import {ApiTaskQuerySort} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ErrorBase, InternalError} from "~/shared/error/error.open_source.js";
 
 /**
  * Asserts that `sorts` print to exactly `searchParamsString` and that parsing

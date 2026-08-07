@@ -1,7 +1,7 @@
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {TaskTable} from "~/server/tasks/data/internal/task_table.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Scan every task and task collection in our database. Use when migrating data.

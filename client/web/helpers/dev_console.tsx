@@ -5,17 +5,17 @@ import {
     setColorScheme,
     toggleColorScheme,
 } from "~/client/web/helpers/color_scheme.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {
     generateOrderKeyBetween,
     generateOrderKeysBetween,
-} from "~/shared/helpers/sort/order_key.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 const devConsole = {
     // Some helper functions that are useful to have easily accessible.

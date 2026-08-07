@@ -1,6 +1,6 @@
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {findMessageReactionPosIfPossible} from "~/shared/messaging/compute_set_message_reaction.js";
 import {
     MessageContentPayload,

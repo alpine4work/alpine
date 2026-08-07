@@ -10,14 +10,14 @@ import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_col
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskDueDateRegister,
     TaskParentTaskIdRegister,

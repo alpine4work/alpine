@@ -1,8 +1,8 @@
 import {getAccountSettingsItem} from "~/server/accounts/internal/get_account_settings_item.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the last opened `SpaceId` for the current session actor.

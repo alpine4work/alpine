@@ -5,10 +5,10 @@ import {
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/documents/document_content_schema.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.open_source.js";
 
 const {
     doc,

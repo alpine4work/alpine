@@ -1,5 +1,5 @@
 import {TaskClientStoreTaskEntry} from "~/client/web/tasks/core/task_client_store.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
+import {ErrorCode} from "~/shared/error/error_code.open_source.js";
 
 /**
  * Should we consider the provided task entry to be a deleted task? It's not as

@@ -1,6 +1,6 @@
 import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {authorizeChannelAccess} from "~/shared/rpc/forum_rpc_definitions.js";
 
 const ChannelAccessCache = new ContextCache<ChannelId, {spaceId: SpaceId}>({

@@ -1,4 +1,4 @@
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {MessageContentPayloadContentUpdate} from "~/shared/messaging/message_schema.js";
 
 export function mapMessagePosFromContentVersion(

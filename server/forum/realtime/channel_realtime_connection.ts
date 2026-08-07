@@ -6,7 +6,7 @@ import {authorizeChannelAccessForDurableObject} from "~/server/forum/realtime/au
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {ChannelRealtimeEvent} from "~/shared/forum/channel_realtime_protocol.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
 import {getChannelRealtimeEvent} from "~/shared/rpc/forum_rpc_definitions.js";
 

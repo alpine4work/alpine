@@ -26,8 +26,8 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 
 export type TaskQueryFilterEditorMultiSelectComboBoxItemBase = {
     readonly key: string;

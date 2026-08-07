@@ -1,5 +1,5 @@
 import {getRemPxWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 /**
  * Get the value of the `--safe-area-inset-top` CSS variable in pixels.

@@ -5,8 +5,8 @@ import {
     InvalidArgumentError,
     PermissionDeniedError,
     UnknownError,
-} from "~/shared/error/error.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+} from "~/shared/error/error.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 
 export function rethrowClassifiedSharpError(error: unknown): never {
     throw classifySharpError(error);

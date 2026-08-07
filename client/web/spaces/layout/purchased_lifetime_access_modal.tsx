@@ -16,7 +16,7 @@ import {XLogo} from "~/client/web/icons/socials/x_logo.js";
 import {ReactionPartyBase} from "~/client/web/reactions/reaction_party.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {colorSchemeVars, invertLightSelectionColorsClassName} from "~/client/web/styles/styles.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 

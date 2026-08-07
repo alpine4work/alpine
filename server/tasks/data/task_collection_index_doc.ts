@@ -22,10 +22,10 @@ import {
     compareHybridLogicalTimes,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskActorFromSchema} from "~/shared/tasks/task_creator.js";

@@ -5,8 +5,8 @@ import {createDebug} from "~/admin/helpers/create_debug.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);

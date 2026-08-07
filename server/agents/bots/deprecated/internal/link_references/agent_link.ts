@@ -1,5 +1,5 @@
 import {AgentLocalDocumentKey} from "~/server/agents/bots/deprecated/internal/link_references/agent_local_document_content_collection.js";
-import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -10,7 +10,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * When paginating message content, we use "page" when loading messages from the

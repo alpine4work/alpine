@@ -8,8 +8,8 @@ import {
     ApiTaskQueryDefaultsResponse,
     ApiTaskQueryFilter,
     ApiTaskQueryFilterResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskQueryDefaults} from "~/shared/tasks/task_query_defaults.js";

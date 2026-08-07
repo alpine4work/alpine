@@ -2,11 +2,11 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_message_mock.js";
 import {mockApiGetDocumentThreadMessages} from "~/server/agents/api/test_helpers/mock_api_get_document_thread_messages.js";
-import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
-import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
-import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
+import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.open_source.js";
+import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
+import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
@@ -15,19 +15,19 @@ import {
     ApiContentResponse,
     ApiContentResponseWithoutKeys,
     ApiMessageResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
-import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
+import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     BotId,
     DocumentCommentThreadId,
     DocumentId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();

@@ -8,11 +8,11 @@ import {createAccountModelFromItem} from "~/server/spaces/internal/create_accoun
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {getSpaceItem} from "~/server/spaces/internal/get_space_item.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {hasSpaceRole} from "~/shared/spaces/space_model.js";
 

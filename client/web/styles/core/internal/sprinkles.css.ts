@@ -27,7 +27,7 @@ import {
 import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 
 const overscrollBehaviorVar = createVar("overscroll-behavior");
 

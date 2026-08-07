@@ -1,7 +1,7 @@
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * A sort determines what order tasks are in when showing a query to the user. The

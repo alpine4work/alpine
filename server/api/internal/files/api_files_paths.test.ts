@@ -8,8 +8,8 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({documentsInjection}).cloneWithHelpers({
     edge: new TestLocalEdgeServiceContextModule({

@@ -6,8 +6,8 @@ import {
     ApiContentInlineElement,
     ApiContentTableBlockElement,
     ApiContentTableBlockElementCell,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Options for converting CSV to API content with file resolution.

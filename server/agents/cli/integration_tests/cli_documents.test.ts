@@ -4,8 +4,8 @@ import {setupCliForTest} from "~/server/agents/cli/integration_tests/setup_cli_f
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {processIndexSearchEntityJob} from "~/server/search/data/index/search_entity_index.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const cli = setupCliForTest();

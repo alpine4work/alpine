@@ -4,7 +4,7 @@ import {addUnfocusableButtonBehaviorToElement} from "~/client/web/content/state/
 import {toggleContentEditorHeadingCollapsed} from "~/client/web/content/state/content_editor_heading_collapse_plugin.js";
 import {caretRightIconSvg} from "~/client/web/icons/caret_right_icon_svg.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Node view for the content schema's heading node. The heading itself renders

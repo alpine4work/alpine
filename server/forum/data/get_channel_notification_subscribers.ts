@@ -6,7 +6,7 @@ import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
 import {getChannelPreviewItemForAuthorization} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
-import {AccountId, ChannelId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get all subscribers to the channel.

@@ -9,13 +9,13 @@ import {fromApiContent} from "~/shared/api/content/closed_source/from_api_conten
 import {
     ApiContent,
     ApiContentBlockElement,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {AccountId, DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export interface CreateNotionImportTeamspaceRootDocumentOptions {
     spaceId: SpaceId;

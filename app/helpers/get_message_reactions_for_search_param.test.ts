@@ -1,7 +1,7 @@
 import {getMessageReactionsForSearchParam} from "~/app/helpers/get_message_reactions_for_search_param.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 
 test("returns stream reactions stored at a stale position from the canonical URL position", () => {

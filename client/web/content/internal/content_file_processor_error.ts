@@ -1,11 +1,11 @@
 import {withoutErrorDisplayMessageRendererReporting} from "~/client/web/design/without_error_display_message_renderer_reporting.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileProcessorError} from "~/shared/files/file_processor_error.js";
-import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * An error class representing a `FileProcessorError`. Generates a display message

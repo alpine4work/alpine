@@ -1,6 +1,6 @@
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskDueDateRegister,
     TaskParentTaskIdRegister,

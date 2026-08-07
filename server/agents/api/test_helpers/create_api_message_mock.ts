@@ -5,10 +5,13 @@ import {
     ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {
+    assertDateString,
+    serializeDateString,
+} from "~/shared/helpers/date/date_string.open_source.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 export type ApiMessageMockParent = {
     author: ApiAccountResponse;

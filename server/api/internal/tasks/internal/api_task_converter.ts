@@ -4,12 +4,12 @@ import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_tas
 import {
     ApiTaskParentResponse,
     ApiTaskResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";

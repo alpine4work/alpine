@@ -4,8 +4,8 @@ import {getOwnAccountWithoutSpace} from "~/server/accounts/get_own_account_witho
 import {updateOurStripeCustomerId} from "~/server/accounts/update_our_stripe_customer_id.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {getLatestEmailAddressByAccountId} from "~/server/spaces/get_latest_email_address_by_account_id.js";
-import {UnknownError} from "~/shared/error/error.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Our IDs are all seeded for development environments. This means we can't enable

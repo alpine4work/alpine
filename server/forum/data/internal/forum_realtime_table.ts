@@ -36,27 +36,33 @@ import {PostActor, PostActorSchema} from "~/shared/forum/post_actor.js";
 import {PostContent, PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostModel, maxPostPreviewCommentAuthorCount} from "~/shared/forum/post_model.js";
 import {PostBroadcastRealtimeEventsSchema} from "~/shared/forum/post_realtime_protocol.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountId, ChannelId, FileId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {
+    AccountId,
+    ChannelId,
+    FileId,
+    PostId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const ForumRealtimeTable = RynamoTableSchema.new({

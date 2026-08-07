@@ -4,25 +4,25 @@ import {
     createApiMessage,
     pingApiMessageStream,
     putApiMessageStreamPart,
-} from "~/server/agents/api/api_client.js";
+} from "~/server/agents/api/api_client.open_source.js";
 import {AgentMessageStream} from "~/server/agents/bots/deprecated/internal/agent_message_stream.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/bots/internal/convert_api_content_to_proper_quotes.js";
 import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
     ApiMessageResponse,
     ApiMessageStreamExperimentalApprovalsPartPayload,
     ApiMessageStreamPartPayload,
     ApiMessageStreamToolCallPartPayloadCall,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 interface AgentMessageStreamSessionInterface {
     /**

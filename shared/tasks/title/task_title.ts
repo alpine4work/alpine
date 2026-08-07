@@ -8,15 +8,15 @@ import {
 import * as Y from "yjs";
 import {Snapshot} from "yjs";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {deepFreeze} from "~/shared/helpers/control/deep_freeze.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {Id, decodeId} from "~/shared/id/id.js";
-import {getRealmId} from "~/shared/id/realm_id.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {Id, decodeId} from "~/shared/id/id.open_source.js";
+import {getRealmId} from "~/shared/id/realm_id.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export const taskTitleMaxLength = 512;
 

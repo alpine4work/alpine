@@ -4,10 +4,10 @@ import {getAccountItem} from "~/server/accounts/internal/get_account_item.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
 export const updateOurAccountNameBeforeExecuteTestCheckpoint = new TestCheckpoint<AccountId>();

@@ -8,8 +8,8 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {linkClassName} from "~/shared/design/core/constant_class_names.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {allSpacingScales} from "~/shared/design/core/spacing_scale.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 

@@ -5,7 +5,7 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExitWithAnyCode} from "~/server/helpers/node/wait_for_process_exit.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 
 const maxCloudflareDeployAttempts = 3;
 const sleepBetweenAttemptsMs = 3000;

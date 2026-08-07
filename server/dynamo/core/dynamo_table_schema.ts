@@ -50,36 +50,39 @@ import {
     InvalidArgumentError,
     NotFoundError,
     UnimplementedError,
-} from "~/shared/error/error.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+} from "~/shared/error/error.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual, isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {
+    isDeepEqual,
+    isDeepEqualForUnknownValues,
+} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {
     OrderKey,
     generateOrderKeysBetween,
     orderKeyDigits,
-} from "~/shared/helpers/sort/order_key.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {PartialBy} from "~/shared/helpers/types/partial_by.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {checkSchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {checkSchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.open_source.js";
 import {
     ObjectSchema,
     Schema,
@@ -87,7 +90,7 @@ import {
     SchemaSerializedObjectValue,
     SchemaSerializedValue,
     objectSchemaMissingPropertySymbol,
-} from "~/shared/schema/schema.js";
+} from "~/shared/schema/schema.open_source.js";
 
 // Never actually used at runtime. Only used by the type system.
 declare const typesSymbol: unique symbol;

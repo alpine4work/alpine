@@ -1,4 +1,4 @@
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 
 /**
  * A 1000px x 1000px PNG image completely filled with #ff0000.

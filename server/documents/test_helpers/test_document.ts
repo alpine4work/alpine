@@ -18,21 +18,25 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {fromApiContentBlockElements} from "~/shared/api/content/closed_source/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
     dangerousLegacyDefaultDocumentAccessPolicy,
 } from "~/shared/documents/document_content_schema.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SiteId} from "~/shared/id/types/id_types.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    SiteId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 const schema = DocumentContentProsemirrorSchema;

@@ -9,10 +9,10 @@ import {withLambdaTimeout} from "~/server/lambda/helpers/with_lambda_timeout.js"
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {deploySearchEntityIndexes} from "~/server/search/data/index/search_entity_index.js";
 import {deployTaskIndexes} from "~/server/tasks/data/task_index.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 
 const opensearchDomainEndpoint = assertExists(process.env.OPENSEARCH_DOMAIN_ENDPOINT);
 

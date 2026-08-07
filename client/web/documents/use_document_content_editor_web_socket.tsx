@@ -49,15 +49,18 @@ import {
 } from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {
     AccountId,
@@ -66,7 +69,7 @@ import {
     SiteId,
     SpaceId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {createDocument, getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";

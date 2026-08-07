@@ -2,7 +2,7 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentJobQueueServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {BotTokenPayload} from "~/server/tokens/token_payload.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 
 // Subset of `TokenAgent<TokenAgentJobQueueServicePrivateSide>`. Tests only need to
 // implement this subset.

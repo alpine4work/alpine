@@ -14,10 +14,10 @@ import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_col
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId, PostId} from "~/shared/id/types/id_types.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 const schema = DocumentContentProsemirrorSchema;

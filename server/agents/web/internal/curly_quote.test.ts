@@ -1,4 +1,4 @@
-import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.open_source.js";
 
 test("quotes plain text content", () => {
     expect(curlyQuote([{type: "text", value: "Hello, world!"}])).toBe("\u201CHello, world!\u201D");

@@ -1,8 +1,8 @@
 import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeTaskAccessAndGetCommentsSummaryItem} from "~/server/tasks/data/internal/authorize_task_item_access.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {AccountId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function getTaskNotificationSubscribers(
     context: ServerSystemActionContext,

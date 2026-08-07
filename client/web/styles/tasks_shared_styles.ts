@@ -6,7 +6,7 @@ import {
     navigationBarStyles,
     tasksStyles,
 } from "~/client/web/styles/styles.js";
-import {allPlatforms} from "~/shared/design/core/platform.js";
+import {allPlatforms} from "~/shared/design/core/platform.open_source.js";
 import {
     RemLength,
     Spacing,
@@ -16,7 +16,7 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
+import {allSpacingScales} from "~/shared/design/core/spacing_scale.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 

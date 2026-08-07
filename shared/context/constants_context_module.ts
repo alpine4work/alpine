@@ -1,8 +1,8 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 
 export type ConstantsContextModuleOptions = {
     readonly edgeServiceUrl: MaybeThunk<string>;

@@ -6,11 +6,11 @@ import {
     TokenPayloadSchema,
 } from "~/server/tokens/token_payload.js";
 import {TokenServiceName, tokenServiceShortNameByName} from "~/server/tokens/token_service_name.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {SchemaSerializedObjectValue} from "~/shared/schema/schema.open_source.js";
 
 /**
  * The token agent class is responsible for RSA key cryptography between services

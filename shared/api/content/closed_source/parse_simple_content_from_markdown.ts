@@ -1,5 +1,5 @@
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
     SimpleContent,
     SimpleContentProsemirrorSchema,

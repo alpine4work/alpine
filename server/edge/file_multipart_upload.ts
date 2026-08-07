@@ -5,13 +5,13 @@ import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {Context} from "~/shared/context/context.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 import {
     maxFileContentLength,
     maxFileMultipartUploadPartContentLength,
 } from "~/shared/files/file_constants.js";
-import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
+import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.open_source.js";
 import {
     CompleteFileMultipartUploadRequestSchema,
     CreateFileMultipartUploadRequestSchema,
@@ -19,15 +19,15 @@ import {
     PutFileMultipartUploadPartResponseSchema,
     UploadFileResponseSchema,
 } from "~/shared/files/upload_file_protocol.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     finishUploadingAndStartProcessingFile,
     getFileWithoutSignedUrlAsUploader,
     startUploadingFile,
 } from "~/shared/rpc/files_rpc_definitions.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 interface R2BucketInterface {
     put(

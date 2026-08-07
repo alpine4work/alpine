@@ -1,12 +1,12 @@
 import createTree, {Tree} from "functional-red-black-tree";
 import {ContentReferences, mergeContentReferences} from "~/shared/content/content_references.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
-import {InvalidArgumentError, OutOfRangeError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {InvalidArgumentError, OutOfRangeError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {Id} from "~/shared/id/id.js";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {Id} from "~/shared/id/id.open_source.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageModel,
     OptimisticMessageModel,

@@ -7,10 +7,10 @@ import {
     getInitialCollaborativeContentEditorState,
 } from "~/client/web/content/collaborative_content_editor_state.js";
 import {reduceContentReferences} from "~/client/web/content/state/content_editor_state.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskNotesContent,
     TaskNotesContentWithReferences,

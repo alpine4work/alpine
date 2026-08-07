@@ -3,10 +3,10 @@ import {BotAvatarItem, BotItem, BotsTable} from "~/server/bots/internal/bots_tab
 import {createBotFromItem} from "~/server/bots/internal/create_bot_from_item.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {BotForAdmin} from "~/shared/bots/bot_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {ApiKey} from "~/shared/id/api_key.js";
-import {BotId, SpaceId} from "~/shared/id/types/id_types.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 // NOTE(ifitzsimmons, #bots): In order to support an internal bot management page,
 // we need to load all bots (with their avatars). Eventually, we should introduce

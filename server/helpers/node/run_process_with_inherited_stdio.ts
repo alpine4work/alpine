@@ -3,9 +3,9 @@ import path from "path";
 import {Readable as ReadableStream, Writable as WritableStream} from "stream";
 import {ProcessArgs, getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
  * Convenient function for running a process to completion. Throws if the process

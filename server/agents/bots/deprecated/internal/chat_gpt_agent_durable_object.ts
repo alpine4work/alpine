@@ -6,7 +6,7 @@ import {
     createApiClient,
     getApiMessagesFromStart,
     getApiReference,
-} from "~/server/agents/api/api_client.js";
+} from "~/server/agents/api/api_client.open_source.js";
 import {agentMaxTokenCountPerWebhookCall} from "~/server/agents/bots/deprecated/internal/agent_limits.js";
 import {AgentMessageStream} from "~/server/agents/bots/deprecated/internal/agent_message_stream.js";
 import {AgentMessageStreamSession} from "~/server/agents/bots/deprecated/internal/agent_message_stream_session.js";
@@ -93,36 +93,36 @@ import {
     ApiLabelContent,
     ApiMentionReferenceResponse,
     ApiMessageRoomReference,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
 import {
     DataLossError,
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {serializeError} from "~/shared/error/error_schema.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {
     generateOrderKeyBetween,
     generateOrderKeysBetween,
-} from "~/shared/helpers/sort/order_key.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // The `/webhook` route is shared across all agents and parsed/handled in
 // `AgentDurableObjectBase`.

@@ -15,10 +15,10 @@ import {
 } from "~/client/web/styles/styles.js";
 import {parseCubicBezier} from "~/shared/design/core/easing.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 const OverlayAnimatedForwardRef = forwardRef(OverlayAnimated);
 export {OverlayAnimatedForwardRef as OverlayAnimated};

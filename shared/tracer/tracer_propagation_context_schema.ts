@@ -1,6 +1,6 @@
-import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
-import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
+import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data.open_source.js";
 
 export const TracerPropagationContextSchema = Schema.object({
     traceId: Schema.id<TraceId>(),

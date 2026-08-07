@@ -3,7 +3,7 @@ import {createDebug} from "~/admin/helpers/create_debug.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {ApiKey} from "~/shared/id/api_key.js";
 
 const debug = createDebug(import.meta.url);

@@ -1,6 +1,6 @@
 import {NotionImportProgressStore} from "~/client/web/importers/notion/notion_import_progress_store.js";
 import {LocalNotionImportItem} from "~/client/web/importers/notion/notion_import_types.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
 import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";
 
 const mb = 1024 * 1024;

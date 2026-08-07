@@ -10,12 +10,12 @@ import {
     LanguageModelBase,
     LanguageModelBaseClass,
 } from "~/server/language_models/core/language_model_base.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 assertAssignableTypes<typeof AllMiniLmL6V2LanguageModel, LanguageModelBaseClass>();
 

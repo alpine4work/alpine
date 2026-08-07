@@ -1,11 +1,11 @@
 import type {StackEvent} from "@aws-sdk/client-cloudformation";
 import {HistoryActivityPrinter, exec} from "aws-cdk/lib";
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {generateId} from "~/shared/id/id.js";
-import {TraceSpanId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {ErrorBase, InternalError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TraceSpanId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // Derived from:
 // https://github.com/aws/aws-cdk-cli/blob/4bd61490bf8d65b952f260bc99af93b9f70befe2/packages/%40aws-cdk/tmp-toolkit-helpers/src/payloads/stack-activity.ts#L36-L61

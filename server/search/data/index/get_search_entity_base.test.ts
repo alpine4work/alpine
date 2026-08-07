@@ -8,7 +8,7 @@ import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {TestActionContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 import.meta.jest.useFakeTimers();

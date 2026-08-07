@@ -7,7 +7,7 @@ import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboar
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const {context, services} = createTestServices();
 

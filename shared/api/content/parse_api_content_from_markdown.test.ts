@@ -4,15 +4,15 @@ import {
     intoApiContentParagraphBlockElement,
     parseApiContentFromMarkdown,
     parseMarkdownTree,
-} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     ChannelId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 // Inline HTML elements tests
 test("inline HTML <strong> tag", () => {

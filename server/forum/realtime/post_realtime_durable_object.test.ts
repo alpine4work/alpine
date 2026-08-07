@@ -9,13 +9,13 @@ import {
     testMessagingRealtimeImplementation,
     testMessagingRealtimeImplementationSearchInjection,
 } from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {createSimplePostContent, emptyPostContent} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 import {
     createPostComment,
     deletePostComment,

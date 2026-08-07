@@ -55,7 +55,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/web/spaces/context/space_context.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/web/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {
     RemLength,
     Spacing,
@@ -63,10 +63,10 @@ import {
     isSpacing,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 
 export type NavigationBarContentRef = {
     getElement(): HTMLElement;

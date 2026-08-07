@@ -1,7 +1,7 @@
 import {MessageInputFile} from "~/client/web/content/messaging/add_message_input_files.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 function getMessageInputFileId(inputFile: MessageInputFile): FileId | FileEntityId {
     switch (inputFile.type) {

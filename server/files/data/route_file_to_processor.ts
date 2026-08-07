@@ -3,7 +3,7 @@ import {
     fileProcessorRoutingConfig,
 } from "~/server/files/data/file_processor_routing_config.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 
 // Sort rules by priority (lower number = higher priority)
 const sortedRules = [...fileProcessorRoutingConfig.rules].sort((a, b) => a.priority - b.priority);

@@ -6,7 +6,7 @@ import {DocumentBrandIcon} from "~/client/web/icons/brand/document_brand_icon.js
 import {TaskBrandIcon} from "~/client/web/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/web/icons/brand/task_collection_brand_icon.js";
 import {useSiteMutations} from "~/client/web/sites/internal/use_site_mutations.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 /**

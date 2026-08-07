@@ -3,7 +3,7 @@ import {
     ApiTaskMockOptions,
     createApiTaskMock,
 } from "~/server/agents/api/test_helpers/create_api_task_mock.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export function mockApiGetTaskWithNotes(
     api: ApiClientMock,

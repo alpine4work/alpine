@@ -34,7 +34,7 @@ import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * A keyboard toolbar that's basically the same as

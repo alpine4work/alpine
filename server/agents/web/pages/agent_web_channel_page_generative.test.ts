@@ -5,7 +5,7 @@ import {
     normalizeAgentWebChannelPage,
     parseAgentWebChannelPage,
     printAgentWebChannelPage,
-} from "~/server/agents/web/pages/agent_web_channel_page.js";
+} from "~/server/agents/web/pages/agent_web_channel_page.open_source.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {
     ApiAccountReferenceArbitrary,
@@ -13,7 +13,7 @@ import {
     ApiContentWithoutCommentMarkArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
+import {ChannelId, PostId} from "~/shared/id/types/id_types.open_source.js";
 
 const ApiPostReferenceArbitrary = fc.record({
     type: fc.constant("Post"),

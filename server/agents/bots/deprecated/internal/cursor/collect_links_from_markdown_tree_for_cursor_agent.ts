@@ -1,5 +1,5 @@
 import {Parent, Root} from "mdast";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
+import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 
 export function collectLinksFromMarkdownTreeForCursorAgent(root: Root) {
     const linkLabelByUrl = new Map<string, string>();

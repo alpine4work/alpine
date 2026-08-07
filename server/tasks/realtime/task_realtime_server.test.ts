@@ -30,12 +30,12 @@ import {
     waitForIndexActionTransactionsWithoutClearingActionHistory,
 } from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     TaskQueryNormalizedFilters,
     defaultTaskQueryNormalizedFilters,

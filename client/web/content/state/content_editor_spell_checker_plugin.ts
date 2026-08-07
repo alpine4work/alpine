@@ -6,14 +6,14 @@ import {
     ContentSpellCheckLintKey,
 } from "~/client/web/content/state/content_editor_spell_checker_configuration.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.open_source.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 
 type ContentEditorSpellCheckerPluginState = {
     readonly lints: ReadonlyArray<ContentSpellCheckLint>;

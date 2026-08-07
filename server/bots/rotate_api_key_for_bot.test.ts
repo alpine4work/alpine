@@ -5,10 +5,10 @@ import {rotateApiKeyForBot} from "~/server/bots/rotate_api_key_for_bot.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
 import {ApiKey} from "~/shared/id/api_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext();
 

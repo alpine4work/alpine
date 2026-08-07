@@ -6,12 +6,12 @@ import {
 } from "~/server/spaces/authorize_space_access.js";
 import {createSpaceModelFromItem} from "~/server/spaces/internal/create_space_model_from_item.js";
 import {getSpaceItem, getSpaceItemIfExists} from "~/server/spaces/internal/get_space_item.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 /**

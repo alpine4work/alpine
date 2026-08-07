@@ -1,5 +1,5 @@
 import {getAgentUsageLocalResetTimeString} from "~/server/agents/bots/deprecated/internal/get_agent_usage_local_reset_time_string.js";
-import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 describe("getAgentUsageLocalResetTimeString", () => {
     describe("today scenarios", () => {

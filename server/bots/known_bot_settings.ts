@@ -5,9 +5,9 @@ import {
 import {parseSimpleContentFromMarkdown} from "~/shared/api/content/closed_source/parse_simple_content_from_markdown.js";
 import {BotSettingsSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContent} from "~/shared/content/simple_content_schema.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 export type KnownBotSettings = {
     readonly description: SimpleContent;

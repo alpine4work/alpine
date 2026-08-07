@@ -15,15 +15,15 @@ import {
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 type ChatRealtimeDurableObjectRoute =
     | "Main"

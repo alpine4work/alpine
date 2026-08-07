@@ -6,8 +6,8 @@ import {
     AccountModelWithoutSpace,
     unknownAccountId,
 } from "~/shared/accounts/account_model_without_space.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get any `AccountModelWithoutSpace` by `AccountId`. The actor must have internal

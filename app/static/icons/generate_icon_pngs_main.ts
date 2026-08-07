@@ -16,7 +16,7 @@ import {PostBrandIcon} from "~/client/web/icons/brand/post_brand_icon.js";
 import {SearchBrandBigIcon} from "~/client/web/icons/brand/search_brand_big_icon.js";
 import {TaskBrandBigIcon} from "~/client/web/icons/brand/task_brand_big_icon.js";
 import {TaskBrandIcon} from "~/client/web/icons/brand/task_brand_icon.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 async function main() {
     await runAllPromises([

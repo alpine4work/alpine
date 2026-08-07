@@ -3,7 +3,7 @@ import {
     formatContentDateString,
     parseContentDateString,
 } from "~/shared/content/format_content_date_string.js";
-import {dateFullMonthNames} from "~/shared/helpers/date/date_month_names.js";
+import {dateFullMonthNames} from "~/shared/helpers/date/date_month_names.open_source.js";
 
 export type ContentDateSuggestion = {
     readonly label: string;

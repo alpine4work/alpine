@@ -1,4 +1,4 @@
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileHasPreview} from "~/shared/files/file_preview.js";
 
 /**

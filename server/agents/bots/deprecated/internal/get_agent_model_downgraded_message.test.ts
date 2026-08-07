@@ -1,5 +1,5 @@
 import {getAgentModelDowngradedMessage} from "~/server/agents/bots/deprecated/internal/get_agent_model_downgraded_message.js";
-import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 describe("getAgentModelDowngradedMessage", () => {
     test("returns message with \u2018today at\u2019 when reset is same day", () => {

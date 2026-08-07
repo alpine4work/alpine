@@ -23,8 +23,8 @@ import {
 } from "~/shared/content/message_content_schema.js";
 import {trimContent} from "~/shared/content/trim_content.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

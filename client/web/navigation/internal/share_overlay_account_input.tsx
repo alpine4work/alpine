@@ -48,15 +48,15 @@ import {
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.open_source.js";
 import {isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
-import {assertId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 

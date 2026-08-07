@@ -5,7 +5,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 
 const {context, services} = createTestServices();
 

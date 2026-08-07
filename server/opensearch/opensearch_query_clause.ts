@@ -1,7 +1,7 @@
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {JsonValue} from "~/shared/helpers/types/json_value.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
 
 /**
  * All dynamic values in an OpenSearch query must be wrapped in this class. When

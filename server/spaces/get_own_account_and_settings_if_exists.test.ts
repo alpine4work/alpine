@@ -2,8 +2,8 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {getOwnAccountAndSettingsIfExists} from "~/server/spaces/get_own_account_and_settings_if_exists.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {assertTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 const context = createTestContext();
 

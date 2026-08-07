@@ -11,14 +11,14 @@ import {createNotificationEventProcessor} from "~/server/notifications/data/proc
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadClerical} from "~/shared/messaging/message_schema.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
 import {

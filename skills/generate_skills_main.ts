@@ -3,16 +3,16 @@ import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Root, RootContent} from "mdast";
 import {dirname, relative as relativePath, resolve as resolvePath} from "path";
 import Yaml from "yaml";
-import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 main().then(
     () => {
@@ -276,7 +276,7 @@ async function main() {
     );
 
     await fs.writeFile(
-        resolvePath(directoryPath, "agent_web_skill_content_by_path.js"),
+        resolvePath(directoryPath, "agent_web_skill_content_by_path.open_source.js"),
         `export const agentWebSkillContentByPath = new Map([
 ${Array.from(filterIterable(formattedMarkdownEntriesForCli, isNonNullable), ([path, content]) => {
     return `    [${JSON.stringify(path)}, ${JSON.stringify(content.trimEnd())}],\n`;

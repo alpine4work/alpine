@@ -26,15 +26,15 @@ import {ContentMention} from "~/shared/content/content_mention.js";
 import {MessageContentProsemirrorSchema as messageSchema} from "~/shared/content/message_content_schema.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {
     createSimplePostContent,
     PostContentProsemirrorSchema as schema,
 } from "~/shared/forum/post_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {generateId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {SearchMentionEntityId, SearchMentionEntityType} from "~/shared/search/search_entity_id.js";
 import {

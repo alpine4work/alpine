@@ -1,12 +1,12 @@
 import murmurhash from "murmurhash";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {DataBuilderView} from "~/shared/helpers/binary/data_builder_view.js";
 import {scrambleBytes, unscrambleBytes} from "~/shared/helpers/binary/scramble_bytes.js";
 import {getVarInt, pushVarInt} from "~/shared/helpers/binary/var_int.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {isSearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
 

@@ -7,12 +7,12 @@ import {
     NotionImporterTable,
 } from "~/server/importer/notion/internal/notion_importer_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {importMultipartUploadPartSize} from "~/shared/files/file_constants.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {notionImportMaxZipSize} from "~/shared/importer/notion/notion_import_max_zip_size.js";
 
 /**

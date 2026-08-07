@@ -76,12 +76,12 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
+import {SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {getSearchDynamicEntityPath} from "~/shared/search/path/get_search_entity_path.js";

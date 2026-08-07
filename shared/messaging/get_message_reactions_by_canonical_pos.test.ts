@@ -2,9 +2,9 @@ import {
     MessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {getMessageReactionsByCanonicalPos} from "~/shared/messaging/get_message_reactions_by_canonical_pos.js";
 import {MessageContentPayload, MessageStream} from "~/shared/messaging/message_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";

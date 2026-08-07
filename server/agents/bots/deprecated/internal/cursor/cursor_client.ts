@@ -5,20 +5,20 @@ import {
     ResourceExhaustedError,
     UnauthenticatedError,
     UnknownError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {
     ErrorDisplayMessage,
     ErrorDisplayMessageSegment,
-} from "~/shared/error/types/error_display_message_type.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+} from "~/shared/error/types/error_display_message_type.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
-import {BotId, SpaceId} from "~/shared/id/types/id_types.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 export class CursorClient {
     private readonly _cloudAgentApiKey: string;

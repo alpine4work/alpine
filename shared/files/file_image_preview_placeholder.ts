@@ -1,7 +1,7 @@
-import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
-import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
+import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * A placeholder of base size 5 generates at most 60 pixels (if width is 5, then

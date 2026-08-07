@@ -1,5 +1,8 @@
 import {Memo, useCallback, useEffect, useRef} from "react";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
 
 /**
  * Creates a function that returns a promise which waits for a condition on some

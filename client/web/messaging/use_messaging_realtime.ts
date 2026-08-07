@@ -4,7 +4,7 @@ import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     BackfillMessagesProcedureOutput,

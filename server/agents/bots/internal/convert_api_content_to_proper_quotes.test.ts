@@ -1,10 +1,10 @@
 /* eslint-disable cyberworlds/string-quotes */
 
 import {convertApiContentToProperQuotes} from "~/server/agents/bots/internal/convert_api_content_to_proper_quotes.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
 
 function testConvertApiContentToProperQuotes(input: ApiContent, expected: ApiContent) {
     const result = convertApiContentToProperQuotes(input);

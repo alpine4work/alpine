@@ -43,39 +43,39 @@ import {
     InvalidArgumentError,
     NotFoundError,
     UnimplementedError,
-} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {
     MaybeNonEmptyReadonlyArray,
     MaybeReadonlyArray,
-} from "~/shared/helpers/types/maybe_array.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+} from "~/shared/helpers/types/maybe_array.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
-import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema.js";
+import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema.open_source.js";
 import {
     ServerSynchronizationCheckpoint,
     generateServerSynchronizationCheckpoint,

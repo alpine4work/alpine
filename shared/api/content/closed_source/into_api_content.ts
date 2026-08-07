@@ -4,9 +4,9 @@ import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_conte
 import {computeApiContentFileRowWidths} from "~/shared/api/content/closed_source/compute_api_content_file_row_widths.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
-import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.js";
-import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.js";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.open_source.js";
+import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.open_source.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {
     ApiContentBlockElementResponseWithOptionalKeys,
     ApiContentCheckListBlockElementItemResponseWithOptionalKeys,
@@ -18,7 +18,7 @@ import {
     ApiContentResponseWithOptionalKeys,
     ApiContentTableBlockElementCellResponseWithOptionalKeys,
     ApiContentTableBlockElementRowResponseWithOptionalKeys,
-} from "~/shared/api/specification/types/api_content_response_with_optional_keys.js";
+} from "~/shared/api/specification/types/api_content_response_with_optional_keys.open_source.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
@@ -31,7 +31,7 @@ import {
     ApiContentResponseWithoutKeys,
     ApiMentionReferenceResponse,
     ApiPreviewReferenceResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     ContentBlockNodeTypeName,
@@ -41,17 +41,17 @@ import {
 } from "~/shared/content/content_node_type_name.js";
 import {clampHeadingLevel} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModelData} from "~/shared/files/file_model.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     SearchMentionEntityId,
     parseSearchMentionEntityId,

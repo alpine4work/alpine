@@ -1,15 +1,15 @@
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {allRpcImplementations} from "~/server/rpc/all_rpc_implementations.js";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {
     RpcHttpBatchCallErrorOutputSchema,
     RpcHttpBatchCallEventOutputSchema,
     RpcHttpBatchCallInputSchema,
 } from "~/shared/rpc/helpers/rpc_http_schema.js";
-import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
+import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export async function action({request, context: loaderContext, span}: LoaderArgs) {
     try {

@@ -20,8 +20,8 @@ import {contentStyles} from "~/client/web/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
 
 export function ContentFilePreview({

@@ -8,7 +8,7 @@ import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_
 import {backgroundColorVar, contentStyles, fontSizes} from "~/client/web/styles/styles.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {Spacing, addRemLengths, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export function ContentViewWithSeeMoreToggle<Content extends ContentWithReferences>({
     content,

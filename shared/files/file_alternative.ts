@@ -1,6 +1,6 @@
-import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
+import {FileContentTypeSchema} from "~/shared/files/file_content_type.open_source.js";
 import {FileProcessorErrorSchema} from "~/shared/files/file_processor_error.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export type FileAlternative = SchemaType<typeof FileAlternativeSchema>;
 

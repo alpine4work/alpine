@@ -7,10 +7,10 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {ErrorBase, PermissionDeniedError} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {ErrorBase, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 
 /**

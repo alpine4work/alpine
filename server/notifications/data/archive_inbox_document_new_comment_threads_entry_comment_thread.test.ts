@@ -15,9 +15,9 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {MessageContentProsemirrorSchema as schema} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {generateId} from "~/shared/id/id.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const context = createTestContext({
     processJob: async (context, job, jobStartTime, span) => {

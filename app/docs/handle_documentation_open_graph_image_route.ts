@@ -1,5 +1,5 @@
 import {getDocumentationOpenGraphImageRoute} from "~/app/docs/get_documentation_open_graph_image_route.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export type HandledDocumentationOpenGraphImageRoute<RouteMatches> = [
     string,

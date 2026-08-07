@@ -4,18 +4,18 @@ import {
     createApiTaskMock,
 } from "~/server/agents/api/test_helpers/create_api_task_mock.js";
 import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
-import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
+import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
     ApiTaskResponse,
     ApiTaskWithNotesResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();

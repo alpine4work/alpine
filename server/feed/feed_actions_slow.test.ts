@@ -10,7 +10,7 @@ import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FeedPostEntryModel} from "~/shared/feed/feed_entry_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 import.meta.jest.useFakeTimers();
 

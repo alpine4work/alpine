@@ -5,7 +5,11 @@ import {
 } from "~/shared/content/message_content_schema.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {ContentEditorClientId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {
+    ContentEditorClientId,
+    SpaceId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
@@ -16,7 +20,7 @@ import {
 import {PutMessageApprovalDecisionsPayloadSchema} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {
     TaskNotesContentNodeSchema,

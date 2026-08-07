@@ -1,9 +1,9 @@
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Locale} from "~/shared/helpers/intl/locale.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Locale} from "~/shared/helpers/intl/locale.open_source.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,

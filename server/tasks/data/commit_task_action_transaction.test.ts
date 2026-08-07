@@ -31,14 +31,14 @@ import {
     FailedPreconditionError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId, getMinId} from "~/shared/id/id.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId, getMinId} from "~/shared/id/id.open_source.js";
 import {
     ContentEditorClientId,
     SpaceId,
@@ -46,7 +46,7 @@ import {
     TaskActionTransactionLeaseId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema as schema} from "~/shared/tasks/task_notes_content_schema.js";
 import {

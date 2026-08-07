@@ -1,10 +1,10 @@
 import jsonStableStringify from "json-stable-stringify";
 import {PathsWithMethod} from "openapi-typescript-helpers";
-import {ApiClient} from "~/server/agents/api/api_client.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {ApiClient} from "~/server/agents/api/api_client.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 type HttpMethod = "GET" | "PUT" | "POST" | "DELETE" | "PATCH";
 

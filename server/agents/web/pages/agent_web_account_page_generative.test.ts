@@ -4,7 +4,7 @@ import {
     normalizeAgentWebAccountPage,
     parseAgentWebAccountPage,
     printAgentWebAccountPage,
-} from "~/server/agents/web/pages/agent_web_account_page.js";
+} from "~/server/agents/web/pages/agent_web_account_page.open_source.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {
     ApiContentTextArbitrary,
@@ -13,8 +13,8 @@ import {
 import {
     ApiAccountSpace,
     ApiAccountSpaceInactive,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const AgentWebAccountPageStateArbitrary: Arbitrary<ApiAccountSpaceInactive | null> = fc.oneof(
     fc.constant({type: "Removed"}),

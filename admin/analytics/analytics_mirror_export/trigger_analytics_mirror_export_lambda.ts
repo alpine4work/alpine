@@ -1,7 +1,7 @@
 import {DynamoDBClient, ExportTableToPointInTimeCommand} from "@aws-sdk/client-dynamodb";
 import {ScheduledHandler} from "aws-lambda";
 import {withLambdaTimeout} from "~/server/lambda/helpers/with_lambda_timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const dynamoClient = new DynamoDBClient({});
 

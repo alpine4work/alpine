@@ -1,4 +1,4 @@
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 
 /**
  * Shared interface between `DataView` and `DataBuilderView`.

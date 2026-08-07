@@ -5,9 +5,9 @@ import {
     CollaborativeContentStepCache,
 } from "~/server/content/collaboration/collaborative_content_step_cache.js";
 import {MessageContentProsemirrorSchema as schema} from "~/shared/content/message_content_schema.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 // Context doesn't matter for these tests so we can use an empty object.
 const context = {};

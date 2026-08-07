@@ -52,10 +52,10 @@ import {
     createDocumentationSearchTags,
     getApiMethodSearchTags,
 } from "~/shared/docs/search_documentation_entries.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 const runfilesPath = assertExists(process.env.RUNFILES);
 

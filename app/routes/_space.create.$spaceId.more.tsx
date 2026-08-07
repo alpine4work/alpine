@@ -3,7 +3,7 @@ import {SpaceRouteScrollView} from "~/client/web/navigation/space_route_scroll_v
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {CreateWidgetSecondaryMenuBar} from "~/client/web/spaces/layout/create_widget_secondary_menu_bar.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 
 export function meta() {
     return [{title: `Create${metaTitlePostfix}`}];

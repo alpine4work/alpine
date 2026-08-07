@@ -23,10 +23,10 @@ import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {emptyMessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
 export function ContentEditorMobileCommentInputBottomBar({

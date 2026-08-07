@@ -6,11 +6,11 @@ import {DynamoIndexCursor, DynamoIndexPartitionKey} from "~/shared/dynamo/dynamo
 import {RynamoBackfillResult, RynamoIndexQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
-import {getMinId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getMinId} from "~/shared/id/id.open_source.js";
+import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export function getChannelPostsIndexName(): string {

@@ -7,7 +7,7 @@ import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {parseTestMessageContent} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);

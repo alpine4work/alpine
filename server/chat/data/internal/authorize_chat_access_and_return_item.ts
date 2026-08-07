@@ -19,13 +19,13 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {chatPermissionDeniedErrorDisplayMessageByAccessLevel} from "~/shared/chat/chat_error_messages.js";
-import {ErrorBase, PermissionDeniedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ErrorBase, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {AccountId, ChatId, SiteId} from "~/shared/id/types/id_types.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {AccountId, ChatId, SiteId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function authorizeChatAccessAndReturnItem(
     context: ServerActionContext,

@@ -1,9 +1,9 @@
-import {AccountId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     NotionImportStatusSchema,
     NotionImportTeamspaceOptionsSchema,
 } from "~/shared/importer/notion/notion_import_item.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /** The type of import option for a teamspace. */
 export type TeamspaceImportOptionType = "Public" | "Private" | "DoNotImport";

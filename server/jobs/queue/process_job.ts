@@ -19,8 +19,8 @@ import {
     processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
 } from "~/server/search/data/index/search_entity_index.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Processes a single background job.

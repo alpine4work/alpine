@@ -3,8 +3,8 @@ import opentype from "opentype.js";
 import {join as joinPath} from "path";
 import wawoff2 from "wawoff2";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 main().catch(error => {
     // eslint-disable-next-line no-console

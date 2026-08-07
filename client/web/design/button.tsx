@@ -36,10 +36,10 @@ import {
 } from "~/client/web/styles/styles.js";
 import {Color} from "~/shared/design/core/colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 
 export const buttonMinWidth = "16";
 

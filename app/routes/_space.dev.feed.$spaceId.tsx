@@ -8,14 +8,14 @@ import {createFeedEntryModelIfPossible} from "~/server/feed/feed_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {searchByAffinity} from "~/server/search/data/index/search_entity_index.js";
-import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {FeedEntryCursorSchema} from "~/shared/feed/feed_entry_cursor.js";
 import {FeedEntryModelSchema} from "~/shared/feed/feed_entry_model.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import * as searchRpcDefinitions from "~/shared/rpc/search_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const LoaderSchema = Schema.object({
     affinitySearch: searchRpcDefinitions.searchByAffinity.outputSchema,

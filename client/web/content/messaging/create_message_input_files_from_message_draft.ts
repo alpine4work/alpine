@@ -1,9 +1,9 @@
 import {Memo} from "react";
 import {MessageInputFile} from "~/client/web/content/messaging/add_message_input_files.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {generateId} from "~/shared/id/id.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     MessageDraft,
     MessageDraftFile,

@@ -12,11 +12,11 @@ import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**

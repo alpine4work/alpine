@@ -52,7 +52,8 @@ package with a `package.json` file.
 - To run all tests in a single package use `bazel test //shared/helpers/...`.
 
 - `dev check` runs type check and lint tests for code affected by changes in the current branch.
-  Generally you should always run this before finishing a turn to make sure your changes are correct.
+  Generally you should always run this before finishing a turn to make sure your changes are
+  correct.
 
 - `dev test` runs Jest unit tests for code affected by changes in the current branch. This command
   is expensive, only run it if the user has explicitly asked you to run `dev test`. Prefer running
@@ -93,9 +94,9 @@ The full code style ruleset can be found in `admin/docs/code_style.md`, if neede
 - Our person type is called "account" instead of "user".
 - Don’t use `SCREAMING_SNAKE_CASE` for constant names, instead use `camelCase`.
 - Use direct coding style: functions should read naturally, assertions are preferred to null checks
-  (see `shared/helpers/control/assert.ts`).
+  (see `shared/helpers/control/assert.open_source.ts`).
 - Don’t use try/catch for control flow. If your code needs to handle an error case return a union
-  object with "ok" and "not ok" variants (e.g. `shared/helpers/control/result.ts`).
+  object with "ok" and "not ok" variants (e.g. `shared/helpers/control/result.open_source.ts`).
 - Prefer named arguments after 4 parameters (e.g. `f({a: 1, b: 2})` instead of `f(1, 2)`).
 
 ### Naming

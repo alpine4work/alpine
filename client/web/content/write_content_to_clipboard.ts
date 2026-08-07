@@ -7,8 +7,8 @@ import {ContentEditorState} from "~/client/web/content/state/content_editor_stat
 import {writeTextToClipboardFallback} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Write some content including its rich styles to the clipboard.

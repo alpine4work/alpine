@@ -10,13 +10,13 @@ import {
 } from "~/server/context/server_action_context.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function actuallyGetChatAndInitialMessages(
     context: ServerActionContext,

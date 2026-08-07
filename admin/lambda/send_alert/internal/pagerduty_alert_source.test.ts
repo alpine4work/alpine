@@ -1,8 +1,8 @@
 import {createHmac} from "crypto";
 import {PagerDutyAlertSource} from "~/admin/lambda/send_alert/internal/pagerduty_alert_source.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/internal/pagerduty_alert_source_types.js";
-import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
 
 type ApiCreatePostRequestBody =
     ApiSpecification.paths["/posts"]["post"]["requestBody"]["content"]["application/json"];

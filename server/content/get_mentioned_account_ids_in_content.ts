@@ -1,7 +1,7 @@
 import {Node} from "prosemirror-model";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor.js";
 
 /**

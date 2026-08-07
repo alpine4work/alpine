@@ -5,7 +5,7 @@ import {
     SwrCacheContext,
     swrDefaultDedupingIntervalMs,
 } from "~/client/web/rpc/internal/swr_cache.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 let scheduledIdlePreloadRpcCallbacks: Array<() => void> | null = null;
 

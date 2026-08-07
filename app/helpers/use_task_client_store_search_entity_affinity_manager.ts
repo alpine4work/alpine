@@ -6,7 +6,7 @@ import {useSiteActivation} from "~/client/web/sites/context/site_context.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
 import {TaskClientStoreSearchAffinityManager} from "~/client/web/tasks/core/task_client_store.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 /**

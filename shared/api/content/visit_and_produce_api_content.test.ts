@@ -1,8 +1,8 @@
-import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
 import {
     ApiContent,
     ApiContentInlineElement,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 describe("visitAndProduceApiContent", () => {
     test("returns same object when no changes made (immer optimization)", () => {

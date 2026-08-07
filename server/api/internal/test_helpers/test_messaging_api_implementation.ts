@@ -8,7 +8,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
-import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
     ApiMessageRoomPath,
     parseApiMessageRoomPath,
@@ -17,19 +17,22 @@ import {
     ApiMessageExperimentalApprovalDecisionOption,
     ApiMessageExperimentalApprovalDecisionValue,
     ApiMessageStreamExperimentalApprovalsPartPayload,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {
+    deserializeDateString,
+    serializeDateString,
+} from "~/shared/helpers/date/date_string.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {

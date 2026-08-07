@@ -7,20 +7,25 @@ import {
     TaskClientStoreUndoManagerStackEntry,
 } from "~/client/web/tasks/core/task_client_store.js";
 import {Context} from "~/shared/context/context.js";
-import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
+import {DeadlineExceededError, InternalError} from "~/shared/error/error.open_source.js";
+import {ErrorCode} from "~/shared/error/error_code.open_source.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {
     HybridLogicalTime,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {assertId, generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {
     commitTaskActionTransaction,

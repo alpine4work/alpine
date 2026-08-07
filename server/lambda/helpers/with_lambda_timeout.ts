@@ -1,6 +1,6 @@
 import {Context as LambdaContext} from "aws-lambda";
-import {DeadlineExceededError} from "~/shared/error/error.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {DeadlineExceededError} from "~/shared/error/error.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 
 // NOTE(ifitzsimmons, 2025-07-30): Because of the way the node event loop schedules
 // timers, all we can do is guarantee that this will run somewhere between T and

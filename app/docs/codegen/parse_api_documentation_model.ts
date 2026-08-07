@@ -11,8 +11,8 @@ import {
     createDocumentationApiOperationSlug,
     getDocumentationApiSchemaRefName,
 } from "~/shared/docs/documentation_api_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 const documentationApiMethods = ["get", "post", "put", "patch", "delete"] as const;
 

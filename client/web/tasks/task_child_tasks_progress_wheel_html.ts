@@ -1,7 +1,7 @@
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 
 export const taskChildTasksProgressWheelTrackClassName = sprinkles({

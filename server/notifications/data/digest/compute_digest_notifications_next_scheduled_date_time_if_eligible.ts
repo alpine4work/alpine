@@ -4,7 +4,7 @@ import {isInboxEligibleForDigestNotification} from "~/server/notifications/data/
 import {InboxAttributesItem} from "~/server/notifications/data/internal/inbox_table.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 /**
  * Computes the next date and time when we should send a digest notification to an

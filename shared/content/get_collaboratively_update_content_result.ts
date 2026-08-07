@@ -2,13 +2,17 @@ import {Node} from "prosemirror-model";
 import {AttrStep, Mapping, Step} from "prosemirror-transform";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DataLossError, FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {
+    DataLossError,
+    FailedPreconditionError,
+    InternalError,
+} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.open_source.js";
 import {ExhaustiveStep} from "~/shared/prosemirror/exhaustive_step.js";
 
 declare module "prosemirror-transform" {

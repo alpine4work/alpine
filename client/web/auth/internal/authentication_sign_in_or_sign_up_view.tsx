@@ -18,16 +18,16 @@ import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {generateEmailAddressForDevConsole} from "~/client/web/helpers/generate_email_address_for_dev_console.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
 import {isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
 import {
     regenerateOneTimePasswordSignIn,
     signUpAccountWithEmailAddress,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 export function AuthenticationSignInOrSignUpView({
     state,

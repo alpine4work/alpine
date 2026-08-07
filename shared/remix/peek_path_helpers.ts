@@ -1,7 +1,7 @@
 import {Path} from "@remix-run/router";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {assertId} from "~/shared/id/id.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {getSearchDynamicEntityPathFromEntityIdObjectWithoutAccount} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSiteItemSearchEntityIdIfPossible} from "~/shared/search/site_item_search_entity_id.js";
 

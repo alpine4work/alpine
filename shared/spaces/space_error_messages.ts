@@ -1,8 +1,8 @@
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 /**

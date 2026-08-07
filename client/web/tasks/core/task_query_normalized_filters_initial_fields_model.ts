@@ -2,7 +2,7 @@ import {CalendarDate} from "@internationalized/date";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {TaskClientStoreCollectionEntry} from "~/client/web/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskLayout} from "~/shared/tasks/task_layout.js";

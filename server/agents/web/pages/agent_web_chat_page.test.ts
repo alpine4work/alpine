@@ -3,7 +3,7 @@ import {
     normalizeAgentWebChatPage,
     parseAgentWebChatPage,
     printAgentWebChatPage,
-} from "~/server/agents/web/pages/agent_web_chat_page.js";
+} from "~/server/agents/web/pages/agent_web_chat_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
     ApiAccountReferenceResponse,
@@ -11,10 +11,10 @@ import {
     ApiContentParagraphBlockElementResponseWithoutKeys,
     ApiContentResponseWithoutKeys,
     ApiContentTextInlineElement,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChatId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 const chatId = generateId<ChatId>();
 const paginationChatId = generateId<ChatId>();
