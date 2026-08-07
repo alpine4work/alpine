@@ -53,8 +53,8 @@ test("space search returns bot account title, short name, and bot id", async () 
                     type: "Account",
                     id: bot.id,
                     title: "Zephyr Assistant",
-                    titleMatches: [{index: 0, length: 6}],
                     bodySnippet: null,
+                    matches: [{type: "Title", index: 0, length: 6}],
                     shortName: "Zephyr",
                     bot: {id: bot.bot.id},
                 },
@@ -287,11 +287,11 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("body match at start"),
                         title: "Alice in Search Channel: Startquokka appears in the opening title sentence",
-                        titleMatches: [{index: 25, length: 11}],
-                        bodySnippet: {
-                            text: "A later sentence repeats startquokka in body context.",
-                            matches: [{index: 25, length: 11}],
-                        },
+                        bodySnippet: "A later sentence repeats startquokka in body context.",
+                        matches: [
+                            {type: "Title", index: 25, length: 11},
+                            {type: "BodySnippet", index: 25, length: 11},
+                        ],
                     }),
                 ],
             },
@@ -312,11 +312,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("body match at end"),
                         title: "Alice in Search Channel: Opening sentence creates the title",
-                        titleMatches: [],
-                        bodySnippet: {
-                            text: "Endwombat appears at the end.",
-                            matches: [{index: 0, length: 9}],
-                        },
+                        bodySnippet: "Endwombat appears at the end.",
+                        matches: [{type: "BodySnippet", index: 0, length: 9}],
                     }),
                 ],
             },
@@ -337,11 +334,11 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("unordered list"),
                         title: "Alice in Search Channel: Unorderedyak title item",
-                        titleMatches: [{index: 25, length: 12}],
-                        bodySnippet: {
-                            text: "A second unordered item contains unorderedyak.",
-                            matches: [{index: 33, length: 12}],
-                        },
+                        bodySnippet: "A second unordered item contains unorderedyak.",
+                        matches: [
+                            {type: "Title", index: 25, length: 12},
+                            {type: "BodySnippet", index: 33, length: 12},
+                        ],
                     }),
                 ],
             },
@@ -362,11 +359,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("unordered list with only a title match"),
                         title: "Alice in Search Channel: Unorderedkoala title item",
-                        titleMatches: [{index: 25, length: 14}],
-                        bodySnippet: {
-                            text: "A second unordered item has no match.",
-                            matches: [],
-                        },
+                        bodySnippet: "A second unordered item has no match.",
+                        matches: [{type: "Title", index: 25, length: 14}],
                     }),
                 ],
             },
@@ -387,11 +381,11 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("ordered list"),
                         title: "Alice in Search Channel: 1. Orderedlynx title item",
-                        titleMatches: [{index: 28, length: 11}],
-                        bodySnippet: {
-                            text: "2. A second ordered item contains orderedlynx.",
-                            matches: [{index: 34, length: 11}],
-                        },
+                        bodySnippet: "2. A second ordered item contains orderedlynx.",
+                        matches: [
+                            {type: "Title", index: 28, length: 11},
+                            {type: "BodySnippet", index: 34, length: 11},
+                        ],
                     }),
                 ],
             },
@@ -412,11 +406,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("ordered list with only a title match"),
                         title: "Alice in Search Channel: 1. Orderedpanda title item",
-                        titleMatches: [{index: 28, length: 12}],
-                        bodySnippet: {
-                            text: "2. A second ordered item has no match.",
-                            matches: [],
-                        },
+                        bodySnippet: "2. A second ordered item has no match.",
+                        matches: [{type: "Title", index: 28, length: 12}],
                     }),
                 ],
             },
@@ -437,11 +428,11 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("check list"),
                         title: "Alice in Search Channel: Checklistibis title item",
-                        titleMatches: [{index: 25, length: 13}],
-                        bodySnippet: {
-                            text: "A second checklist item contains checklistibis.",
-                            matches: [{index: 33, length: 13}],
-                        },
+                        bodySnippet: "A second checklist item contains checklistibis.",
+                        matches: [
+                            {type: "Title", index: 25, length: 13},
+                            {type: "BodySnippet", index: 33, length: 13},
+                        ],
                     }),
                 ],
             },
@@ -462,11 +453,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("check list with only a title match"),
                         title: "Alice in Search Channel: Checklisttern title item",
-                        titleMatches: [{index: 25, length: 13}],
-                        bodySnippet: {
-                            text: "A second checklist item has no match.",
-                            matches: [],
-                        },
+                        bodySnippet: "A second checklist item has no match.",
+                        matches: [{type: "Title", index: 25, length: 13}],
                     }),
                 ],
             },
@@ -487,11 +475,11 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("table"),
                         title: "Alice in Search Channel: Tableorca title",
-                        titleMatches: [{index: 25, length: 9}],
-                        bodySnippet: {
-                            text: "First row. A second cell. Last row contains tableorca",
-                            matches: [{index: 44, length: 9}],
-                        },
+                        bodySnippet: "First row. A second cell. Last row contains tableorca",
+                        matches: [
+                            {type: "Title", index: 25, length: 9},
+                            {type: "BodySnippet", index: 44, length: 9},
+                        ],
                     }),
                 ],
             },
@@ -512,11 +500,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("table with only a title match"),
                         title: "Alice in Search Channel: Tablebadger title",
-                        titleMatches: [{index: 25, length: 11}],
-                        bodySnippet: {
-                            text: "First row. A second cell. Last row has no match",
-                            matches: [],
-                        },
+                        bodySnippet: "First row. A second cell. Last row has no match",
+                        matches: [{type: "Title", index: 25, length: 11}],
                     }),
                 ],
             },
@@ -540,14 +525,11 @@ describe("space search removes post title overlap from body snippets", () => {
                             "Alice in Search Channel: This is a very long sentence that contains " +
                             "word word word word word word" +
                             contentMentionTextTruncatedSuffix,
-                        titleMatches: [],
-                        bodySnippet: {
-                            text:
-                                "word word word word word word word word word word word word " +
-                                "word word word word word word word word word word word word " +
-                                "truncatedfox body match.",
-                            matches: [{index: 120, length: 12}],
-                        },
+                        bodySnippet:
+                            "word word word word word word word word word word word word " +
+                            "word word word word word word word word word word word word " +
+                            "truncatedfox body match.",
+                        matches: [{type: "BodySnippet", index: 120, length: 12}],
                     }),
                 ],
             },
@@ -571,11 +553,9 @@ describe("space search removes post title overlap from body snippets", () => {
                             "Alice in Search Channel: Truncatedotter starts a very long sentence " +
                             "that contains word word word" +
                             contentMentionTextTruncatedSuffix,
-                        titleMatches: [{index: 25, length: 14}],
-                        bodySnippet: {
-                            text: "word word word word word word word word word word word word word word word word word word word word word word word word word word word ending.",
-                            matches: [],
-                        },
+                        bodySnippet:
+                            "word word word word word word word word word word word word word word word word word word word word word word word word word word word ending.",
+                        matches: [{type: "Title", index: 25, length: 14}],
                     }),
                 ],
             },
@@ -596,8 +576,8 @@ describe("space search removes post title overlap from body snippets", () => {
                         type: "Post",
                         id: postIdByCase.get("fuzzy title match"),
                         title: "Alice in Search Channel: Canonicalquokka",
-                        titleMatches: [{index: 25, length: 15}],
                         bodySnippet: null,
+                        matches: [{type: "Title", index: 25, length: 15}],
                     }),
                 ],
             },

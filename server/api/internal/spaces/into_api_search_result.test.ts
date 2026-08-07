@@ -49,8 +49,8 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 title: "Test User",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
                 type: "Account",
                 id: accountId,
                 shortName: "Test",
@@ -86,8 +86,8 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 title: "Test Bot",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
                 type: "Account",
                 id: accountId,
                 shortName: "Test",
@@ -122,8 +122,8 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 id: documentId,
                 title: "Test Document",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
             });
         });
 
@@ -158,11 +158,8 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 id: documentId,
                 title: "Test Document",
-                titleMatches: [],
-                bodySnippet: {
-                    text: "This is\u2003highlighted text",
-                    matches: [{index: 5, length: 14}],
-                },
+                bodySnippet: "This is\u2003highlighted text",
+                matches: [{type: "BodySnippet", index: 5, length: 14}],
             });
         });
 
@@ -191,8 +188,8 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 id: documentId,
                 title: "Test Document",
-                titleMatches: [],
-                bodySnippet: {text: "Plain text", matches: []},
+                bodySnippet: "Plain text",
+                matches: [],
             });
         });
     });
@@ -228,8 +225,8 @@ describe("intoApiSearchResult", () => {
                 type: "Chat",
                 id: chatId,
                 title: "Direct chat setup",
-                titleMatches: [{index: 0, length: 17}],
                 bodySnippet: null,
+                matches: [{type: "Title", index: 0, length: 17}],
             });
         });
     });
@@ -260,8 +257,8 @@ describe("intoApiSearchResult", () => {
                 type: "Channel",
                 id: channelId,
                 title: "General Channel",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
             });
         });
 
@@ -290,8 +287,8 @@ describe("intoApiSearchResult", () => {
                 type: "Channel",
                 id: channelId,
                 title: "Unknown channel",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
             });
         });
     });
@@ -327,8 +324,8 @@ describe("intoApiSearchResult", () => {
                 type: "Chat",
                 id: chatId,
                 title: "Team Discussion",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
             });
         });
 
@@ -362,8 +359,8 @@ describe("intoApiSearchResult", () => {
                 type: "Chat",
                 id: chatId,
                 title: "Unknown chat",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
             });
         });
     });
@@ -403,11 +400,8 @@ describe("intoApiSearchResult", () => {
                 id: chatId,
                 index: messageIndex,
                 title: null,
-                titleMatches: null,
-                bodySnippet: {
-                    text: "Hello world",
-                    matches: [{index: 0, length: 11}],
-                },
+                bodySnippet: "Hello world",
+                matches: [{type: "BodySnippet", index: 0, length: 11}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Message Author",
@@ -442,8 +436,8 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 id: documentId,
                 title: "Project Proposal",
-                titleMatches: [],
-                bodySnippet: {text: "Document content", matches: []},
+                bodySnippet: "Document content",
+                matches: [],
             });
         });
 
@@ -472,8 +466,8 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 id: documentId,
                 title: "Unknown document",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
             });
         });
     });
@@ -516,11 +510,8 @@ describe("intoApiSearchResult", () => {
                 threadId: commentThreadId,
                 index: commentIndex,
                 title: null,
-                titleMatches: null,
-                bodySnippet: {
-                    text: "Great point!",
-                    matches: [{index: 0, length: 12}],
-                },
+                bodySnippet: "Great point!",
+                matches: [{type: "BodySnippet", index: 0, length: 12}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Comment Author",
@@ -563,8 +554,8 @@ describe("intoApiSearchResult", () => {
                 type: "Post",
                 id: postId,
                 title: "Post Announcement",
-                titleMatches: [],
-                bodySnippet: {text: "Post content", matches: []},
+                bodySnippet: "Post content",
+                matches: [],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Post Author",
@@ -605,8 +596,8 @@ describe("intoApiSearchResult", () => {
                 type: "Post",
                 id: postId,
                 title: "Unknown post",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Post Author",
@@ -650,11 +641,8 @@ describe("intoApiSearchResult", () => {
                 id: postId,
                 index: commentIndex,
                 title: null,
-                titleMatches: null,
-                bodySnippet: {
-                    text: "Nice post!",
-                    matches: [{index: 0, length: 10}],
-                },
+                bodySnippet: "Nice post!",
+                matches: [{type: "BodySnippet", index: 0, length: 10}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Comment Author",
@@ -693,8 +681,8 @@ describe("intoApiSearchResult", () => {
                 type: "Task",
                 id: taskId,
                 title: "Fix the bug",
-                titleMatches: [],
-                bodySnippet: {text: "Task description", matches: []},
+                bodySnippet: "Task description",
+                matches: [],
                 status: {type: "Open", isActive: false},
             });
         });
@@ -728,8 +716,8 @@ describe("intoApiSearchResult", () => {
                 type: "Task",
                 id: taskId,
                 title: "Implement feature",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
                 status: {type: "Open", isActive: true},
             });
         });
@@ -763,8 +751,8 @@ describe("intoApiSearchResult", () => {
                 type: "Task",
                 id: taskId,
                 title: "Completed task",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
                 status: {type: "Closed"},
             });
         });
@@ -798,8 +786,8 @@ describe("intoApiSearchResult", () => {
                 type: "Task",
                 id: taskId,
                 title: "Unknown task",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
                 status: {type: "Open", isActive: true},
             });
         });
@@ -835,8 +823,8 @@ describe("intoApiSearchResult", () => {
                 type: "TaskCollection",
                 id: collectionId,
                 title: "Sprint 1 Tasks",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
             });
         });
 
@@ -869,8 +857,8 @@ describe("intoApiSearchResult", () => {
                 type: "TaskCollection",
                 id: collectionId,
                 title: "Unknown task collection",
-                titleMatches: [],
                 bodySnippet: null,
+                matches: [],
             });
         });
     });
@@ -910,11 +898,8 @@ describe("intoApiSearchResult", () => {
                 id: taskId,
                 index: commentIndex,
                 title: null,
-                titleMatches: null,
-                bodySnippet: {
-                    text: "Working on it",
-                    matches: [{index: 0, length: 13}],
-                },
+                bodySnippet: "Working on it",
+                matches: [{type: "BodySnippet", index: 0, length: 13}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Task Commenter",

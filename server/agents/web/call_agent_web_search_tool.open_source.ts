@@ -185,16 +185,21 @@ async function createAgentWebSearchEntityResultListItem(
 
     const resultLinkLabel = printAgentWebPageStoredLinkLabel(result);
 
-    // We need to use the title highlighted by `titleMatches` to start the link label.
-    // But some link labels will include extra information (like tasks which include
-    // the status).
+    // We need to use the title matches to start the highlighted link label. But some
+    // link labels will include extra information (like tasks which include the
+    // status).
     assert(resultLinkLabel.startsWith(result.title));
 
     const resultLink: Link = {
         type: "link",
         url: resultLinkPathname,
         children: [
-            ...intoPhrasingContent(zipApiSearchResultMatches(result.title, result.titleMatches)),
+            ...intoPhrasingContent(
+                zipApiSearchResultMatches(
+                    result.title,
+                    result.matches.filter(match => match.type === "Title"),
+                ),
+            ),
             ...(resultLinkLabel.length > result.title.length
                 ? [{type: "text" as const, value: resultLinkLabel.slice(result.title.length)}]
                 : []),
@@ -203,7 +208,10 @@ async function createAgentWebSearchEntityResultListItem(
 
     const bodyMatchContent = result.bodySnippet
         ? intoPhrasingContent(
-              zipApiSearchResultMatches(result.bodySnippet.text, result.bodySnippet.matches),
+              zipApiSearchResultMatches(
+                  result.bodySnippet,
+                  result.matches.filter(match => match.type === "BodySnippet"),
+              ),
           )
         : [];
 

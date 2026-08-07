@@ -7,20 +7,18 @@ import {generateId} from "~/shared/id/id.open_source.js";
 import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 function createTestSearchResult(bodyMatch: ZippedApiSearchResultMatches) {
-    const matches: Array<{index: number; length: number}> = [];
+    const matches: Array<{type: "BodySnippet"; index: number; length: number}> = [];
     let index = 0;
     for (const segment of bodyMatch) {
         if (segment.isMatch && segment.text.length > 0) {
-            matches.push({index, length: segment.text.length});
+            matches.push({type: "BodySnippet", index, length: segment.text.length});
         }
         index += segment.text.length;
     }
 
     return {
-        bodySnippet: {
-            text: bodyMatch.map(segment => segment.text).join(""),
-            matches,
-        },
+        bodySnippet: bodyMatch.map(segment => segment.text).join(""),
+        matches,
         author: createApiAccountMock({name: "John"}),
         type: "ChatMessage",
         id: generateId<ChatId>(),

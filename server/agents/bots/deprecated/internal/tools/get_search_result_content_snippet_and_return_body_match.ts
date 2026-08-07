@@ -74,14 +74,14 @@ const maxGraphemeCount = 50;
  * ```
  */
 export function getSearchResultContentSnippetAndReturnBodyMatch(
-    result: Pick<ApiSearchMessageResult, "bodySnippet" | "author" | "type">,
+    result: Pick<ApiSearchMessageResult, "bodySnippet" | "matches" | "author" | "type">,
 ): {
     preview: ZippedApiSearchResultMatches;
     newBodyMatch: ZippedApiSearchResultMatches;
 } {
     const bodyMatch = zipApiSearchResultMatches(
-        result.bodySnippet.text,
-        result.bodySnippet.matches,
+        result.bodySnippet,
+        result.matches.filter(match => match.type === "BodySnippet"),
     );
     const previewMessagePrefix = {
         text: `${result.author.shortName}: `,

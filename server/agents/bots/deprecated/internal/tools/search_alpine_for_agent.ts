@@ -346,7 +346,10 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult): Li
 
     const bodyMatchContent: Array<PhrasingContent> = result.bodySnippet
         ? intoPhrasingContent(
-              zipApiSearchResultMatches(result.bodySnippet.text, result.bodySnippet.matches),
+              zipApiSearchResultMatches(
+                  result.bodySnippet,
+                  result.matches.filter(match => match.type === "BodySnippet"),
+              ),
           )
         : [];
 

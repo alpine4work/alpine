@@ -16,7 +16,6 @@ import {
     ApiMessageExperimentalApprovalDecisionValue,
     ApiMessageStreamToolCallPartCreateCallReference,
     ApiSearchResult,
-    ApiSearchResultBodySnippet,
     ApiSearchResultMatch,
     ApiSearchResultParsedFilter,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
@@ -37,8 +36,8 @@ test("all search results have the same common properties", () => {
         ApiSearchResult,
         {
             title: string | null;
-            titleMatches: ReadonlyArray<ApiSearchResultMatch> | null;
-            bodySnippet: ApiSearchResultBodySnippet | null;
+            bodySnippet: string | null;
+            matches: ReadonlyArray<ApiSearchResultMatch>;
             parsedFilter?: ApiSearchResultParsedFilter;
         }
     >();

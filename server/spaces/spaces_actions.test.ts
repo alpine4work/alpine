@@ -4806,6 +4806,10 @@ test("`addSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn\u2019t add t
         withoutInviteForTest: true,
     });
 
+    // Don't treat the expected rejection as an uncaught exception while we wait for
+    // the other operation to reach its checkpoint.
+    promise1.catch(() => {});
+
     const promise2 = moveSpaceAccountOwnerRoleForTest(space.systemAction(), {
         spaceId: space.id,
         oldOwnerAccountId: ownerSession.account.id,

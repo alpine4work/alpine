@@ -50,14 +50,14 @@ const hardMaxGraphemeCount = softMaxGraphemeCount + maxReasonableEnglishWordGrap
  * or at the hard maximum grapheme count when no whitespace follows.
  */
 export function splitApiSearchMessageResultBodyMatch(
-    result: Pick<ApiSearchMessageResultResponse, "bodySnippet" | "type">,
+    result: Pick<ApiSearchMessageResultResponse, "bodySnippet" | "matches" | "type">,
 ): {
     preview: ZippedApiSearchResultMatches;
     newBodyMatch: ZippedApiSearchResultMatches;
 } {
     const bodyMatch = zipApiSearchResultMatches(
-        result.bodySnippet.text,
-        result.bodySnippet.matches,
+        result.bodySnippet,
+        result.matches.filter(match => match.type === "BodySnippet"),
     );
 
     // If there's no body match, use the missing search entity title.

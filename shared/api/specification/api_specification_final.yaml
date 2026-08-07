@@ -7803,8 +7803,8 @@ components:
                 - type
                 - id
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - shortName
             additionalProperties: false
             properties:
@@ -7814,12 +7814,12 @@ components:
                     $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
-                titleMatches:
+                bodySnippet:
+                    const: null
+                matches:
                     type: array
                     items:
                         $ref: "#/components/schemas/SearchResultMatch"
-                bodySnippet:
-                    const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 shortName:
@@ -7838,8 +7838,8 @@ components:
                 - type
                 - id
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
             additionalProperties: false
             properties:
                 type:
@@ -7848,14 +7848,14 @@ components:
                     $ref: "#/components/schemas/ChannelId"
                 title:
                     type: string
-                titleMatches:
+                bodySnippet:
+                    oneOf:
+                        - type: string
+                        - type: "null"
+                matches:
                     type: array
                     items:
                         $ref: "#/components/schemas/SearchResultMatch"
-                bodySnippet:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodySnippet"
-                        - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
         SearchChatResult:
@@ -7864,8 +7864,8 @@ components:
                 - type
                 - id
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
             additionalProperties: false
             properties:
                 type:
@@ -7874,12 +7874,12 @@ components:
                     $ref: "#/components/schemas/ChatId"
                 title:
                     type: string
-                titleMatches:
+                bodySnippet:
+                    const: null
+                matches:
                     type: array
                     items:
                         $ref: "#/components/schemas/SearchResultMatch"
-                bodySnippet:
-                    const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
         SearchChatMessageResult:
@@ -7889,8 +7889,8 @@ components:
                 - id
                 - index
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - author
             additionalProperties: false
             properties:
@@ -7903,10 +7903,12 @@ components:
                     minimum: 0
                 title:
                     const: null
-                titleMatches:
-                    const: null
                 bodySnippet:
-                    $ref: "#/components/schemas/SearchResultBodySnippet"
+                    type: string
+                matches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/SearchResultMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
@@ -7917,8 +7919,8 @@ components:
                 - type
                 - id
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
             additionalProperties: false
             properties:
                 type:
@@ -7927,14 +7929,14 @@ components:
                     $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
-                titleMatches:
+                bodySnippet:
+                    oneOf:
+                        - type: string
+                        - type: "null"
+                matches:
                     type: array
                     items:
                         $ref: "#/components/schemas/SearchResultMatch"
-                bodySnippet:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodySnippet"
-                        - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
         SearchDocumentMessageResult:
@@ -7945,8 +7947,8 @@ components:
                 - threadId
                 - index
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - author
             additionalProperties: false
             properties:
@@ -7961,10 +7963,12 @@ components:
                     minimum: 0
                 title:
                     const: null
-                titleMatches:
-                    const: null
                 bodySnippet:
-                    $ref: "#/components/schemas/SearchResultBodySnippet"
+                    type: string
+                matches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/SearchResultMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
@@ -7975,8 +7979,8 @@ components:
                 - type
                 - id
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - author
             additionalProperties: false
             properties:
@@ -7986,14 +7990,14 @@ components:
                     $ref: "#/components/schemas/PostId"
                 title:
                     type: string
-                titleMatches:
+                bodySnippet:
+                    oneOf:
+                        - type: string
+                        - type: "null"
+                matches:
                     type: array
                     items:
                         $ref: "#/components/schemas/SearchResultMatch"
-                bodySnippet:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodySnippet"
-                        - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
@@ -8005,8 +8009,8 @@ components:
                 - id
                 - index
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - author
             additionalProperties: false
             properties:
@@ -8019,10 +8023,12 @@ components:
                     minimum: 0
                 title:
                     const: null
-                titleMatches:
-                    const: null
                 bodySnippet:
-                    $ref: "#/components/schemas/SearchResultBodySnippet"
+                    type: string
+                matches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/SearchResultMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
@@ -8031,20 +8037,20 @@ components:
             type: object
             required:
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - type
                 - id
             additionalProperties: false
             properties:
                 title:
                     type: string
-                titleMatches:
+                bodySnippet:
+                    const: null
+                matches:
                     type: array
                     items:
                         $ref: "#/components/schemas/SearchResultMatch"
-                bodySnippet:
-                    const: null
                 type:
                     const: Site
                 id:
@@ -8057,8 +8063,8 @@ components:
                 - type
                 - id
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - status
             additionalProperties: false
             properties:
@@ -8068,14 +8074,14 @@ components:
                     $ref: "#/components/schemas/TaskId"
                 title:
                     type: string
-                titleMatches:
+                bodySnippet:
+                    oneOf:
+                        - type: string
+                        - type: "null"
+                matches:
                     type: array
                     items:
                         $ref: "#/components/schemas/SearchResultMatch"
-                bodySnippet:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodySnippet"
-                        - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 status:
@@ -8087,8 +8093,8 @@ components:
                 - id
                 - index
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - author
             additionalProperties: false
             properties:
@@ -8101,10 +8107,12 @@ components:
                     minimum: 0
                 title:
                     const: null
-                titleMatches:
-                    const: null
                 bodySnippet:
-                    $ref: "#/components/schemas/SearchResultBodySnippet"
+                    type: string
+                matches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/SearchResultMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
@@ -8115,8 +8123,8 @@ components:
                 - type
                 - id
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
             additionalProperties: false
             properties:
                 type:
@@ -8125,34 +8133,49 @@ components:
                     $ref: "#/components/schemas/TaskCollectionId"
                 title:
                     type: string
-                titleMatches:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/SearchResultMatch"
                 bodySnippet:
                     const: null
-                parsedFilter:
-                    $ref: "#/components/schemas/SearchResultParsedFilter"
-        SearchResultBodySnippet:
-            type: object
-            required:
-                - text
-                - matches
-            additionalProperties: false
-            properties:
-                text:
-                    type: string
                 matches:
                     type: array
                     items:
                         $ref: "#/components/schemas/SearchResultMatch"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
         SearchResultMatch:
+            oneOf:
+                - $ref: "#/components/schemas/SearchResultTitleMatch"
+                - $ref: "#/components/schemas/SearchResultBodySnippetMatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Title: "#/components/schemas/SearchResultTitleMatch"
+                    BodySnippet: "#/components/schemas/SearchResultBodySnippetMatch"
+        SearchResultTitleMatch:
             type: object
             required:
+                - type
                 - index
                 - length
             additionalProperties: false
             properties:
+                type:
+                    const: Title
+                index:
+                    type: integer
+                    minimum: 0
+                length:
+                    type: integer
+                    minimum: 1
+        SearchResultBodySnippetMatch:
+            type: object
+            required:
+                - type
+                - index
+                - length
+            additionalProperties: false
+            properties:
+                type:
+                    const: BodySnippet
                 index:
                     type: integer
                     minimum: 0
@@ -9007,8 +9030,8 @@ components:
                 - id
                 - index
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - author
             additionalProperties: false
             properties:
@@ -9021,10 +9044,12 @@ components:
                     minimum: 0
                 title:
                     const: null
-                titleMatches:
-                    const: null
                 bodySnippet:
-                    $ref: "#/components/schemas/SearchResultBodySnippet"
+                    type: string
+                matches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/SearchResultMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
@@ -9037,8 +9062,8 @@ components:
                 - threadId
                 - index
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - author
             additionalProperties: false
             properties:
@@ -9053,10 +9078,12 @@ components:
                     minimum: 0
                 title:
                     const: null
-                titleMatches:
-                    const: null
                 bodySnippet:
-                    $ref: "#/components/schemas/SearchResultBodySnippet"
+                    type: string
+                matches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/SearchResultMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
@@ -9067,8 +9094,8 @@ components:
                 - type
                 - id
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - author
             additionalProperties: false
             properties:
@@ -9078,14 +9105,14 @@ components:
                     $ref: "#/components/schemas/PostId"
                 title:
                     type: string
-                titleMatches:
+                bodySnippet:
+                    oneOf:
+                        - type: string
+                        - type: "null"
+                matches:
                     type: array
                     items:
                         $ref: "#/components/schemas/SearchResultMatch"
-                bodySnippet:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodySnippet"
-                        - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
@@ -9097,8 +9124,8 @@ components:
                 - id
                 - index
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - author
             additionalProperties: false
             properties:
@@ -9111,10 +9138,12 @@ components:
                     minimum: 0
                 title:
                     const: null
-                titleMatches:
-                    const: null
                 bodySnippet:
-                    $ref: "#/components/schemas/SearchResultBodySnippet"
+                    type: string
+                matches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/SearchResultMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
@@ -9126,8 +9155,8 @@ components:
                 - id
                 - index
                 - title
-                - titleMatches
                 - bodySnippet
+                - matches
                 - author
             additionalProperties: false
             properties:
@@ -9140,10 +9169,12 @@ components:
                     minimum: 0
                 title:
                     const: null
-                titleMatches:
-                    const: null
                 bodySnippet:
-                    $ref: "#/components/schemas/SearchResultBodySnippet"
+                    type: string
+                matches:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/SearchResultMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:

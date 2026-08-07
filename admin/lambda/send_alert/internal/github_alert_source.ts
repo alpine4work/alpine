@@ -267,7 +267,7 @@ export class GitHubAlertSource extends AlertSource {
                 result =>
                     result.type === "Post" &&
                     (result.title.includes(shortHash) ||
-                        result.bodySnippet?.text.includes(shortHash) === true),
+                        result.bodySnippet?.includes(shortHash) === true),
             );
 
             if (posts.length === 0) {

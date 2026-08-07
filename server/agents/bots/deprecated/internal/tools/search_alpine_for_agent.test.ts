@@ -6,6 +6,7 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {searchAlpineForAgent} from "~/server/agents/bots/deprecated/internal/tools/search_alpine_for_agent.js";
 import {
     ApiMessageRoomReference,
+    ApiSearchResultMatch,
     ApiSearchResultResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
@@ -46,7 +47,7 @@ type ApiSearchResultMatchItemWithText = {text: string; isMatch?: true};
 
 type TestApiSearchResultResponse = ApiSearchResultResponse extends infer Result
     ? Result extends ApiSearchResultResponse
-        ? Omit<Result, "bodySnippet" | "titleMatches"> & {
+        ? Omit<Result, "bodySnippet" | "matches"> & {
               bodyMatch: Array<ApiSearchResultMatchItemWithText> | null;
           }
         : never
@@ -57,25 +58,20 @@ function intoApiSearchResultResponses(
 ): Array<ApiSearchResultResponse> {
     return results.map(result => {
         const {bodyMatch, ...resultWithoutBodyMatch} = result;
-        const matches: Array<{index: number; length: number}> = [];
+        const matches: Array<ApiSearchResultMatch> = [];
         let index = 0;
         for (const segment of bodyMatch ?? []) {
             if (segment.isMatch && segment.text.length > 0) {
-                matches.push({index, length: segment.text.length});
+                matches.push({type: "BodySnippet", index, length: segment.text.length});
             }
             index += segment.text.length;
         }
 
         return {
             ...resultWithoutBodyMatch,
-            titleMatches: result.title === null ? null : [],
+            matches,
             bodySnippet:
-                bodyMatch === null
-                    ? null
-                    : {
-                          text: bodyMatch.map(segment => segment.text).join(""),
-                          matches,
-                      },
+                bodyMatch === null ? null : bodyMatch.map(segment => segment.text).join(""),
         };
     }) as Array<ApiSearchResultResponse>;
 }

@@ -1,10 +1,7 @@
 import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
-import {
-    ApiSearchResultMatch,
-    ApiSearchResultResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {contentMentionTextTruncatedSuffix} from "~/shared/content/truncate_content_mention_text.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -23,7 +20,7 @@ export function intoApiSearchResult(
 ): ApiSearchResultResponse | null {
     let bodySnippet: {
         text: string;
-        matches: Array<ApiSearchResultMatch>;
+        matches: Array<{type: "BodySnippet"; index: number; length: number}>;
     } | null;
 
     if (bodyTextSnippet.length === 0) {
@@ -39,7 +36,11 @@ export function intoApiSearchResult(
             bodySnippet.text += text;
 
             if (isHighlighted && text.length > 0) {
-                bodySnippet.matches.push({index: bodyIndex, length: text.length});
+                bodySnippet.matches.push({
+                    type: "BodySnippet",
+                    index: bodyIndex,
+                    length: text.length,
+                });
             }
 
             bodyIndex += text.length;
@@ -60,8 +61,8 @@ export function intoApiSearchResult(
             type: "Account",
             id: model.id,
             title,
-            titleMatches: createApiSearchResultTitleMatches(title, queryText),
             bodySnippet: null,
+            matches: createApiSearchResultTitleMatches(title, queryText),
             parsedFilter,
             shortName: getAccountShortNameWithoutFullNameTooltip(model.initialData),
             bot: model.botId !== undefined ? {id: model.botId} : undefined,
@@ -87,8 +88,8 @@ export function intoApiSearchResult(
                 type: "Channel",
                 id: entity.channel.id,
                 title,
-                titleMatches: createApiSearchResultTitleMatches(title, queryText),
                 bodySnippet: null,
+                matches: createApiSearchResultTitleMatches(title, queryText),
                 parsedFilter,
             };
         }
@@ -99,8 +100,8 @@ export function intoApiSearchResult(
                 type: "Chat",
                 id: entity.chat.id,
                 title,
-                titleMatches: createApiSearchResultTitleMatches(title, queryText),
                 bodySnippet: null,
+                matches: createApiSearchResultTitleMatches(title, queryText),
                 parsedFilter,
             };
         }
@@ -113,8 +114,8 @@ export function intoApiSearchResult(
                 id: entity.message.chatId,
                 index: entity.message.index,
                 title: null,
-                titleMatches: null,
-                bodySnippet,
+                bodySnippet: bodySnippet.text,
+                matches: bodySnippet.matches,
                 parsedFilter,
                 author: intoApiAccount(entity.message.author.initialData),
             };
@@ -126,8 +127,11 @@ export function intoApiSearchResult(
                 type: "Document",
                 id: entity.document.id,
                 title,
-                titleMatches: createApiSearchResultTitleMatches(title, queryText),
-                bodySnippet,
+                bodySnippet: bodySnippet?.text ?? null,
+                matches: [
+                    ...createApiSearchResultTitleMatches(title, queryText),
+                    ...(bodySnippet?.matches ?? []),
+                ],
                 parsedFilter,
             };
         }
@@ -140,8 +144,8 @@ export function intoApiSearchResult(
                 threadId: entity.comment.commentThreadId,
                 index: entity.comment.index,
                 title: null,
-                titleMatches: null,
-                bodySnippet,
+                bodySnippet: bodySnippet.text,
+                matches: bodySnippet.matches,
                 parsedFilter,
                 author: intoApiAccount(entity.comment.author.initialData),
             };
@@ -252,6 +256,7 @@ export function intoApiSearchResult(
                         if (length <= 0) return;
 
                         return {
+                            type: "Title" as const,
                             index: titleIndexOffset + match.index,
                             length,
                         };
@@ -270,12 +275,13 @@ export function intoApiSearchResult(
 
                         bodySnippet.matches = filterMapArray(bodySnippet.matches, match => {
                             const index = match.index - dropLength;
-                            if (index >= 0) return {index, length: match.length};
+                            if (index >= 0)
+                                return {type: "BodySnippet" as const, index, length: match.length};
 
                             const length = match.length + index;
                             if (length <= 0) return;
 
-                            return {index: 0, length};
+                            return {type: "BodySnippet" as const, index: 0, length};
                         });
                     }
                 }
@@ -287,8 +293,8 @@ export function intoApiSearchResult(
                 // Posts start with "in ${channelName}: " and expect client rendering code to add
                 // the post author name to the start of the title.
                 title,
-                titleMatches,
-                bodySnippet,
+                bodySnippet: bodySnippet?.text ?? null,
+                matches: [...titleMatches, ...(bodySnippet?.matches ?? [])],
                 parsedFilter,
                 author: intoApiAccount(entity.post.author.initialData),
             };
@@ -301,8 +307,8 @@ export function intoApiSearchResult(
                 id: entity.comment.postId,
                 index: entity.comment.index,
                 title: null,
-                titleMatches: null,
-                bodySnippet,
+                bodySnippet: bodySnippet.text,
+                matches: bodySnippet.matches,
                 parsedFilter,
                 author: intoApiAccount(entity.comment.author.initialData),
             };
@@ -314,8 +320,11 @@ export function intoApiSearchResult(
                 type: "Task",
                 id: entity.task.id,
                 title,
-                titleMatches: createApiSearchResultTitleMatches(title, queryText),
-                bodySnippet,
+                bodySnippet: bodySnippet?.text ?? null,
+                matches: [
+                    ...createApiSearchResultTitleMatches(title, queryText),
+                    ...(bodySnippet?.matches ?? []),
+                ],
                 parsedFilter,
                 status: intoApiTaskStatus(entity.task.displayStatus.value),
             };
@@ -327,8 +336,8 @@ export function intoApiSearchResult(
                 type: "TaskCollection",
                 id: entity.collection.id,
                 title,
-                titleMatches: createApiSearchResultTitleMatches(title, queryText),
                 bodySnippet: null,
+                matches: createApiSearchResultTitleMatches(title, queryText),
                 parsedFilter,
             };
         }
@@ -340,8 +349,8 @@ export function intoApiSearchResult(
                 id: entity.comment.taskId,
                 index: entity.comment.index,
                 title: null,
-                titleMatches: null,
-                bodySnippet,
+                bodySnippet: bodySnippet.text,
+                matches: bodySnippet.matches,
                 parsedFilter,
                 author: intoApiAccount(entity.comment.author.initialData),
             };
@@ -351,8 +360,8 @@ export function intoApiSearchResult(
 
             return {
                 title,
-                titleMatches: createApiSearchResultTitleMatches(title, queryText),
                 bodySnippet: null,
+                matches: createApiSearchResultTitleMatches(title, queryText),
                 parsedFilter,
                 type: "Site",
                 id: entity.site.id,
@@ -366,14 +375,14 @@ export function intoApiSearchResult(
 function createApiSearchResultTitleMatches(
     title: string,
     queryText: string,
-): Array<ApiSearchResultMatch> {
+): Array<{type: "Title"; index: number; length: number}> {
     const queryTokens = new Set(
         approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(queryText).map(
             token => token.text,
         ),
     );
 
-    const titleMatches: Array<ApiSearchResultMatch> = [];
+    const titleMatches: Array<{type: "Title"; index: number; length: number}> = [];
 
     // As of 2023-12-18 our in-process highlighter doesn't have full compatibility with
     // OpenSearch's highlighter. For example, we don't support highlighting tokens that
@@ -385,6 +394,7 @@ function createApiSearchResultTitleMatches(
         if (!queryTokens.has(token.text)) continue;
 
         titleMatches.push({
+            type: "Title",
             index: token.sourceStartIndex,
             length: token.sourceLength,
         });
@@ -393,11 +403,10 @@ function createApiSearchResultTitleMatches(
     return mergeApiSearchResultMatchesSeparatedByWhitespace(title, titleMatches);
 }
 
-function mergeApiSearchResultMatchesSeparatedByWhitespace(
-    text: string,
-    matches: Array<ApiSearchResultMatch>,
-): Array<ApiSearchResultMatch> {
-    const mergedMatches: Array<ApiSearchResultMatch> = [];
+function mergeApiSearchResultMatchesSeparatedByWhitespace<
+    Match extends {index: number; length: number},
+>(text: string, matches: Array<Match>): Array<Match> {
+    const mergedMatches: Array<Match> = [];
 
     const sortedMatches = matches.toSorted((match1, match2) => match1.index - match2.index);
     for (const match of sortedMatches) {
@@ -416,9 +425,10 @@ function mergeApiSearchResultMatchesSeparatedByWhitespace(
             /^\p{White_Space}*$/u.test(textBetweenMatches)
         ) {
             mergedMatches[mergedMatches.length - 1] = {
+                ...previousMatch,
                 index: previousMatch.index,
                 length: Math.max(previousMatchEndIndex, matchEndIndex) - previousMatch.index,
-            };
+            } as Match;
         } else {
             mergedMatches.push(match);
         }
