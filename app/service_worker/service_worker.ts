@@ -66,6 +66,7 @@ self.addEventListener("push", (event: PushEvent) => {
     event.waitUntil(
         self.registration.showNotification(title, {
             ...notificationData,
+            badge: "/notification-badge.svg",
         }),
     );
 });

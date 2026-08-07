@@ -936,5 +936,6 @@ export const appStaticManifestPaths: ReadonlySet<string> = new Set<string>([
     "/images/og.jpg",
     "/manifest.json",
     "/notes/file-data-transfer-readme.md",
+    "/notification-badge.svg",
     "/service-worker.js",
 ]);
