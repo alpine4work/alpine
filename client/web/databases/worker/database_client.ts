@@ -196,10 +196,11 @@ export class DatabaseClient {
      * connection manager primes it on every (re)connect and every action execution
      * awaits the same promise, so a burst of cold reads collapses into a single
      * registration round trip instead of each racing ahead into its own server
-     * fallback. Best-effort — a failed registration is reported and swallowed so the
-     * promise never rejects; the tables stay unregistered and the next action's server
-     * fallback re-registers them alongside the action. Callers await this to close the
-     * connect race, not to gate on its success.
+     * fallback. The connection retries transient transport failures. A terminal
+     * registration failure is reported and swallowed so the promise never rejects; the
+     * tables stay unregistered and the next action's server fallback re-registers them
+     * alongside the action. Callers await this to close the connect race, not to gate
+     * on its success.
      */
     ensureCachedTablesRegistered(conn: DatabaseClientConnection): Promise<void> {
         return (this.pendingRegistration ??= this.registerCachedTables(conn).catch(error => {
@@ -661,12 +662,28 @@ export class DatabaseClient {
     }
 
     private removeOptimisticMutation(mutationId: DatabaseMutationId): void {
+        // Capture every page in the current overlay before throwing it away. Replaying the
+        // remaining queue marks its new after-images, but pages changed only by the failed
+        // mutation are reverting to durable storage and must invalidate reactive reads
+        // too.
+        const buffered = this.database.getBufferedWrites();
+        let anyRevertedPageMarked = false;
+        if (buffered !== null) {
+            const revertedPages = new Map<DatabaseTableId, Set<number>>();
+            for (const [tableId, pages] of buffered.pages) {
+                revertedPages.set(tableId, new Set(pages.keys()));
+            }
+            anyRevertedPageMarked = this.markWrittenPages(revertedPages);
+        }
         this.optimisticQueue = this.optimisticQueue.filter(m => m.mutationId !== mutationId);
         // The buffer still holds writes from the failed mutation (and any subsequent
         // queued mutations that ran on top of it). Drop it and rebuild from the remaining
         // queue.
         this.database.discardBuffer();
         this.replayOptimisticQueue();
+        if (anyRevertedPageMarked) {
+            this.scheduleInvalidation();
+        }
     }
 
     private replayOptimisticQueue(): void {
@@ -796,42 +813,43 @@ export class DatabaseClient {
                 store !== undefined,
                 `registration response references unknown table ${tableId}`,
             );
-            if (result.watermark >= store.getWatermark()) {
-                switch (result.catchUp.type) {
-                    case "current":
-                        break;
-                    case "pages":
-                        for (const [pageIndex, {version, data}] of result.catchUp.pages) {
-                            if (store.writePageIfNewer(pageIndex, version, data)) {
-                                this.addPageToInvalidate(tableId, pageIndex);
-                                anyChanged = true;
-                            }
-                        }
-                        break;
-                    case "stale": {
-                        const pages = new Map<number, number>();
-                        for (const pageIndex of result.catchUp.pageIndexes) {
-                            const page = store.readPage(pageIndex);
-                            if (page !== null) {
-                                // `stale` only names pages the registration said it held. The next canonical image
-                                // must be newer than that held version, but can legitimately be older than the
-                                // table's global watermark.
-                                pages.set(pageIndex, page.version + 1);
-                            }
+            switch (result.catchUp.type) {
+                case "current":
+                    break;
+                case "pages":
+                    for (const [pageIndex, {version, data}] of result.catchUp.pages) {
+                        if (store.writePageIfNewer(pageIndex, version, data)) {
                             this.addPageToInvalidate(tableId, pageIndex);
-                        }
-                        if (pages.size > 0) {
-                            store.tombstonePages(pages);
                             anyChanged = true;
                         }
-                        break;
                     }
-                    default:
-                        throw exhaustive(result.catchUp);
+                    break;
+                case "stale": {
+                    // Unlike inline pages, stale page indexes have no versions with which to resolve a
+                    // race against a newer realtime event.
+                    if (result.watermark < store.getWatermark()) break;
+                    const pages = new Map<number, number>();
+                    for (const pageIndex of result.catchUp.pageIndexes) {
+                        const page = store.readPage(pageIndex);
+                        if (page !== null) {
+                            // `stale` only names pages the registration said it held. The next canonical image
+                            // must be newer than that held version, but can legitimately be older than the
+                            // table's global watermark.
+                            pages.set(pageIndex, page.version + 1);
+                        }
+                        this.addPageToInvalidate(tableId, pageIndex);
+                    }
+                    if (pages.size > 0) {
+                        store.tombstonePages(pages);
+                        anyChanged = true;
+                    }
+                    break;
                 }
-                this.advanceStoreSnapshot(store, result.watermark, result.fileSizeInPages);
-                store.sync();
+                default:
+                    throw exhaustive(result.catchUp);
             }
+            this.advanceStoreSnapshot(store, result.watermark, result.fileSizeInPages);
+            store.sync();
             this.registeredTables.add(tableId);
             this.attachRegisteredTableIfPossible(tableId, store);
         }
