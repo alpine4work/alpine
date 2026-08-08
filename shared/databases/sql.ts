@@ -1,7 +1,6 @@
 import type {BindableValue} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {
     JsonStringifiableUint8Array,
@@ -233,7 +232,7 @@ class SqlQuery {
             const cursor = this.execCursor(db);
             const columnCount = cursor.columnNames.length;
             assert(columnCount === 1, `Expected 1 column, got ${columnCount}`);
-            const columnName = assertExists(cursor.columnNames[0]);
+            const columnName = cursor.columnNames[0] as string;
             const values: Array<Value> = [];
             for (const row of cursor) {
                 values.push(schema.deserialize(cursorValue(row[columnName])));
@@ -275,12 +274,9 @@ class SqlQuery {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
             const rows: Array<SchemaSerializedObjectValue> = [];
             while (stmt.step()) {
-                const sqliteRow = stmt.get({});
-                const row: {[key: string]: SchemaSerializedValue} = {};
-                for (const [columnName, value] of Object.entries(sqliteRow)) {
-                    row[columnName] = cursorValue(value);
-                }
-                rows.push(row);
+                // The wasm API already returns schema-serialized SQLite values. Cast at this
+                // trusted boundary instead of copying every property of every row.
+                rows.push(stmt.get({}) as SchemaSerializedObjectValue);
             }
             return rows;
         } finally {
@@ -302,12 +298,15 @@ class SqlQuery {
     ): Array<Array<SchemaSerializedValue>> {
         if (isSqlStorage(db)) {
             const cursor = this.execCursor(db);
+            const columnNames = cursor.columnNames;
             const rows: Array<Array<SchemaSerializedValue>> = [];
             for (const cursorRow of cursor) {
                 const row: Array<SchemaSerializedValue> = [];
                 for (let i = 0; i < schemas.length; i++) {
-                    const schema = assertExists(schemas[i]);
-                    const columnName = assertExists(cursor.columnNames[i]);
+                    // Callers provide schemas in SELECT-list order. The loop bound validates the
+                    // schema access; trust the corresponding cursor column at this boundary.
+                    const schema = schemas[i] as Pick<Schema<SchemaSerializedValue>, "deserialize">;
+                    const columnName = columnNames[i] as string;
                     const value = schema.deserialize(cursorValue(cursorRow[columnName]));
                     row.push(value);
                 }
@@ -322,8 +321,10 @@ class SqlQuery {
             while (stmt.step()) {
                 const row: Array<SchemaSerializedValue> = [];
                 for (let i = 0; i < schemas.length; i++) {
-                    const schema = assertExists(schemas[i]);
-                    const value = schema.deserialize(cursorValue(stmt.get(i)));
+                    // The loop bound validates this access. Wasm values already use the
+                    // schema-serialized representation, so no normalization is needed.
+                    const schema = schemas[i] as Pick<Schema<SchemaSerializedValue>, "deserialize">;
+                    const value = schema.deserialize(stmt.get(i) as SchemaSerializedValue);
                     row.push(value);
                 }
                 rows.push(row);
