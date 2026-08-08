@@ -68,6 +68,14 @@ const durableObjectTest = DatabaseGroupDurableObject.test(context, {
 
 type DatabaseServerConnection = Awaited<ReturnType<typeof durableObjectTest.connectForTest>>;
 
+let nextTableMetadataVersionForTest = 1;
+function createPolicyRevisionForTest() {
+    return {
+        tableMetadataVersion: nextTableMetadataVersionForTest++,
+        sourcePolicyVersion: 0,
+    };
+}
+
 function createTableInputForTest(name: string) {
     return {
         tableId: generateChronologicalId<DatabaseTableId>(),
@@ -79,6 +87,7 @@ function createTableInputForTest(name: string) {
             ...databaseTableAccessPolicyForCreator(generateId<AccountId>()),
             defaultGrant: {level: "Manage" as const, generation: 0},
         },
+        policyRevision: createPolicyRevisionForTest(),
     };
 }
 
@@ -210,6 +219,7 @@ test("internal-only actions are available over HTTP but not public websocket pro
                     tableId: table.tableId,
                     name: "Projects",
                     accessPolicy: createTableInput.accessPolicy,
+                    policyRevision: createPolicyRevisionForTest(),
                 },
             } as DatabaseActionObject,
             mutationId: generateId(),
@@ -222,6 +232,7 @@ test("internal-only actions are available over HTTP but not public websocket pro
         tableId: table.tableId,
         name: "Projects",
         accessPolicy: createTableInput.accessPolicy,
+        policyRevision: createPolicyRevisionForTest(),
     });
 
     serverConnection.close();
@@ -1531,7 +1542,15 @@ async function deliverTableMetadataBroadcast(
                 body: JSON.stringify(
                     DatabaseTableMetadataBroadcastRealtimeEventsSchema.serialize({
                         events,
-                        resolvedAccessPolicyByTableId: new Map([[tableId, accessPolicy]]),
+                        resolvedAccessPolicyByTableId: new Map([
+                            [
+                                tableId,
+                                {
+                                    accessPolicy,
+                                    revision: createPolicyRevisionForTest(),
+                                },
+                            ],
+                        ]),
                     }),
                 ),
             },

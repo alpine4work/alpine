@@ -750,7 +750,10 @@ export class DatabaseServer {
                 kind = excluded.kind,
                 table_name = excluded.table_name,
                 schema_version = excluded.schema_version,
-                access_policy = excluded.access_policy,
+                access_policy = COALESCE(
+                    database_tables.access_policy,
+                    excluded.access_policy
+                ),
                 source_table_id = excluded.source_table_id,
                 target_table_id = excluded.target_table_id
         `.exec(this.sql);

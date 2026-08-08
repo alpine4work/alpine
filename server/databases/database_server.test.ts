@@ -1513,6 +1513,41 @@ describe("DatabaseServer — per-table access", () => {
         ).toThrow(`Permission denied for read on database table ${tableId}`);
     });
 
+    test("a stale metadata sync cannot restore a policy or table name", async () => {
+        const server = await createServer();
+        const viewer = generateId<AccountId>();
+        const {tableId} = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([[viewer, "View"]]),
+        );
+        const currentPolicy = localPolicyWithGrants([]);
+
+        server.executeAction<"syncTableMetadata">(testContext, {
+            name: "syncTableMetadata",
+            input: {
+                tableId,
+                name: "Current",
+                accessPolicy: currentPolicy,
+                policyRevision: {tableMetadataVersion: 2, sourcePolicyVersion: 5},
+            },
+        });
+        const staleResult = server.executeAction<"syncTableMetadata">(testContext, {
+            name: "syncTableMetadata",
+            input: {
+                tableId,
+                name: "Stale",
+                accessPolicy: localPolicyWithGrants([[viewer, "View"]]),
+                policyRevision: {tableMetadataVersion: 2, sourcePolicyVersion: 4},
+            },
+        }).result;
+
+        expect({
+            policy: server.getDatabaseTableAccessPolicy(tableId),
+            tableName: staleResult.tableName,
+        }).toEqual({policy: currentPolicy, tableName: "current"});
+    });
+
     // Linked-records scenario: Tasks и People joined by an "Assignee" relation.
     // Account access matrix — everyone has Edit on Tasks; People access varies.
     async function createLinkedTablesScenario() {
@@ -1879,7 +1914,10 @@ describe("DatabaseServer — built-in SQLite migrations", () => {
         runDatabaseDurableObjectSqlMigrations(storage);
         runDatabaseDurableObjectSqlMigrations(storage);
 
-        expect([...storage.sql.exec("SELECT version FROM _migrations")]).toEqual([{version: 2}]);
+        expect([...storage.sql.exec("SELECT version FROM _migrations")]).toEqual([
+            {version: 1},
+            {version: 2},
+        ]);
     });
 });
 

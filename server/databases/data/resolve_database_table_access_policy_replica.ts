@@ -4,7 +4,9 @@ import type {AccessPolicy, LocalAccessPolicy} from "~/shared/access/access_polic
 import type {DatabaseTableAccessPolicyRevision} from "~/shared/databases/database_table_access_policy_revision.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
-/** Resolve a table policy together with the versions needed to order its replicas. */
+/**
+ * Resolve a table policy together with the versions needed to order its replicas.
+ */
 export async function resolveDatabaseTableAccessPolicyReplica(
     context: ServerMinimalActionContext,
     accessPolicy: AccessPolicy,
