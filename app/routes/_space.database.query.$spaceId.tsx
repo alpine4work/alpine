@@ -21,7 +21,7 @@ const LoaderSchema = Schema.object({
     databaseGroupId: Schema.id<DatabaseGroupId>(),
 });
 
-export const meta = createMetaFunction(LoaderSchema, () => [{title: "New view"}]);
+export const meta = createMetaFunction(LoaderSchema, () => [{title: "Database query"}]);
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();

@@ -52,14 +52,14 @@ const metadataByRouteId: Record<
     "routes/_space.create.$spaceId.more": {
         errorTitle: "Couldn\u2019t open menu",
     },
-    "routes/_space.database.$tableId": {
+    "routes/_space.database.$tableOrViewId": {
         errorTitle: "Couldn\u2019t open table",
     },
     "routes/_space.database.new.$spaceId": {
         errorTitle: "Couldn\u2019t create database",
     },
-    "routes/_space.view.new.$spaceId": {
-        errorTitle: "Couldn\u2019t create view",
+    "routes/_space.database.query.$spaceId": {
+        errorTitle: "Couldn\u2019t query database",
     },
     "routes/_space.dev.empty.$spaceId": {
         errorTitle: "Couldn\u2019t open space",

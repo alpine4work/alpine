@@ -58,9 +58,9 @@ type IrrelevantAppSpaceRouteIdWithoutShimmer =
     | "routes/_space.site.$siteId._index"
     | "routes/_space.site.$siteId.navigate"
     // TODO(databases): Add shimmers for these routes.
-    | "routes/_space.database.$tableId"
+    | "routes/_space.database.$tableOrViewId"
     | "routes/_space.database.new.$spaceId"
-    | "routes/_space.view.new.$spaceId";
+    | "routes/_space.database.query.$spaceId";
 
 type ShimmerScreenshotSetup = () => Promise<ShimmerScreenshotSetupResult>;
 

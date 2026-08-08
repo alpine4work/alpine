@@ -92,8 +92,8 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This person doesn\u2019t exist")).toBeVisible();
         });
     },
-    "database.$tableId": () => {
-        test("not found error for route `database.$tableId`", async ({
+    "database.$tableOrViewId": () => {
+        test("not found error for route `database.$tableOrViewId`", async ({
             page,
             context: browserContext,
         }) => {

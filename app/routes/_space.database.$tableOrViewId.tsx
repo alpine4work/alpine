@@ -45,7 +45,9 @@ export const meta = createMetaFunction(LoaderSchema, ({data}) => [
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-    const tableId = deserializeDatabaseTableIdForLoader(params.tableId);
+    // Views are not first-class metadata models yet, so this route currently accepts
+    // only table IDs despite reserving a parameter name that can support both.
+    const tableId = deserializeDatabaseTableIdForLoader(params.tableOrViewId);
     const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(context, tableId);
     const {databaseGroupId} = tableMetadataItem.model;
 
