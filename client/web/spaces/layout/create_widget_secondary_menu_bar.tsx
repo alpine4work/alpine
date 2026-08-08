@@ -377,7 +377,7 @@ export function CreateWidgetSecondaryMenuBar({
                       createVerb: "Create",
                       pressErrorTitle: "Couldn\u2019t create database",
                       onPress: async () => {
-                          await navigate(`/databases/${space.id}/new?focus=name`);
+                          await navigate(`/database/new/${space.id}?focus=name`);
                       },
                   },
               ]

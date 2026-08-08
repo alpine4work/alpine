@@ -484,7 +484,6 @@ export function DatabaseGridView({
                                 }
 
                                 const result = await updateDatabaseTableAccessPolicy(context, {
-                                    spaceId,
                                     tableId,
                                     accessPolicy,
                                 });
@@ -492,7 +491,7 @@ export function DatabaseGridView({
                             }}
                             onCopyLink={async () => {
                                 const url = new URL(
-                                    `/databases/${spaceId}/${viewId}`,
+                                    `/database/${tableId}`,
                                     window.location.href,
                                 );
                                 await writeTextToClipboard(url.toString());

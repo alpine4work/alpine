@@ -142,7 +142,7 @@ async function createDatabase(
     spaceId: string,
     name: string,
 ): Promise<string> {
-    await gotoDatabasesPath(runner, `/databases/${spaceId}/new?focus=name`);
+    await gotoDatabasesPath(runner, `/database/new/${spaceId}?focus=name`);
     await runner.getByLabel("Name").fill(name);
     await runner.getByTestId("NavigationBar").getByRole("button", {name: "Create"}).click();
     await runner.getByText("New row", {exact: true}).waitFor();

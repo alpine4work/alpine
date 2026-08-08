@@ -214,12 +214,10 @@ const shimmerOptionsByRouteId: Record<
     "routes/_space.chat.with.$accountId.$spaceId": {component: ChatRouteShimmer},
     "routes/_space.create.$spaceId._index": {component: CreateRouteShimmer},
     "routes/_space.create.$spaceId.more": {component: CreateRouteShimmer},
-    // TODO(databases): Databases routes don't have a custom shimmer design yet.
-    "routes/_space.databases.$spaceId": false,
-    "routes/_space.databases.$spaceId._index": false,
-    "routes/_space.databases.$spaceId.$tableOrViewId": false,
-    "routes/_space.databases.$spaceId.new": false,
-    "routes/_space.databases.$spaceId.sql": false,
+    // TODO(databases): Database routes don't have a custom shimmer design yet.
+    "routes/_space.database.$tableId": false,
+    "routes/_space.database.new.$spaceId": false,
+    "routes/_space.view.new.$spaceId": false,
     // Empty route...empty shimmer.
     "routes/_space.dev.empty.$spaceId": {component: () => null},
     "routes/_space.dev.feed.$spaceId": {component: FeedRouteShimmer},

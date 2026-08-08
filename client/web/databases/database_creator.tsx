@@ -76,7 +76,7 @@ export function DatabaseCreator({initiallyFocus}: {initiallyFocus: "Name" | null
                             name,
                         });
 
-                        await navigate(`/databases/${space.id}/${tableId}`, {
+                        await navigate(`/database/${tableId}`, {
                             replace: true,
                             state: NativeMobileBridge ? {withPushAnimation: true} : undefined,
                         });

@@ -1,13 +1,14 @@
-import {redirect} from "@remix-run/node";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
+import {deserializeDatabaseTableIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
+import {DatabaseGroupConnectionProvider} from "~/client/web/databases/database_group_connection_provider.js";
 import {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import {DatabaseGridView} from "~/client/web/databases/grid_view/database_grid_view.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {useRynamoItem} from "~/client/web/dynamo/use_rynamo_item.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
@@ -17,7 +18,6 @@ import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_a
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
-import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
 import {LoaderDatabaseActionResultSchemas} from "~/shared/databases/database_protocol_schemas.js";
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
@@ -40,44 +40,34 @@ const LoaderSchema = Schema.object({
     }),
 });
 
-export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
+export const meta = createMetaFunction(LoaderSchema, ({data}) => [
+    {title: data.tableMetadataItem.model.name ?? "Database"},
+]);
+
+export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
-    const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
+    const tableId = deserializeDatabaseTableIdForLoader(params.tableId);
+    const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(context, tableId);
+    const {spaceId, databaseGroupId} = tableMetadataItem.model;
 
-    const tableOrViewId = params.tableOrViewId!;
-
-    // Fetch schema first — needed for the redirect check.
     const schemaResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewSchema",
-        input: {tableOrViewId},
+        input: {tableOrViewId: tableId},
     });
-
-    // If the user navigated with a table ID, redirect to the resolved view ID for a
-    // canonical URL. Uses a relative redirect so peek routes work correctly.
-    if (schemaResult.result.viewId !== tableOrViewId) {
-        const url = new URL(request.url);
-        url.pathname = url.pathname.replace(/\/[^/]+$/, `/${schemaResult.result.viewId}`);
-        return redirect(url.pathname + url.search);
-    }
 
     // Discover the cursor for the first page then fetch the page rows.
     const cursorResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewRowsPageCursor",
-        input: {tableOrViewId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
+        input: {tableOrViewId: tableId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
     });
 
     const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewRowsPage",
         input: {
-            tableOrViewId,
+            tableOrViewId: tableId,
             afterCursor: null,
             endCursor: cursorResult.result.endCursor,
         },
-    });
-    const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(context, {
-        spaceId,
-        tableId: schemaResult.result.tableId,
     });
     const accessPolicy = tableMetadataItem.model.accessPolicy;
     const accessPolicySiteById =
@@ -90,7 +80,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
         databaseGroupId,
         schema: {
             name: "getViewSchema",
-            input: {tableOrViewId},
+            input: {tableOrViewId: tableId},
             output: schemaResult.result,
         },
         tableMetadataItem,
@@ -100,7 +90,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             pageResult: {
                 name: "getViewRowsPage",
                 input: {
-                    tableOrViewId,
+                    tableOrViewId: tableId,
                     afterCursor: null,
                     endCursor: cursorResult.result.endCursor,
                 },
@@ -111,6 +101,16 @@ export async function loader({request, params, context: unauthenticatedContext}:
 }
 
 export default function DatabaseViewRoute() {
+    const loaderData = useLoaderDataWithSchema(LoaderSchema);
+
+    return (
+        <DatabaseGroupConnectionProvider databaseGroupId={loaderData.databaseGroupId}>
+            <DatabaseViewRouteContent />
+        </DatabaseGroupConnectionProvider>
+    );
+}
+
+function DatabaseViewRouteContent() {
     const context = useAppContext();
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
     const {tableOrViewId} = loaderData.schema.input;
@@ -136,11 +136,10 @@ export default function DatabaseViewRoute() {
             ),
             reloadItemWithStrongReadConsistency: useCallback(async () => {
                 const {item} = await getDatabaseTableMetadataItem(context, {
-                    spaceId: loaderData.spaceId,
                     tableId: loaderData.tableMetadataItem.model.tableId,
                 });
                 return item;
-            }, [context, loaderData.spaceId, loaderData.tableMetadataItem.model.tableId]),
+            }, [context, loaderData.tableMetadataItem.model.tableId]),
         },
     );
 

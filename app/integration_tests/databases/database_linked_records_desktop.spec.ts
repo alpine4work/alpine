@@ -43,7 +43,7 @@ async function createDatabaseWithRow(
     databaseName: string,
     rowName: string,
 ): Promise<string> {
-    await page.goto(`/databases/${spaceId}/new?focus=name`);
+    await page.goto(`/database/new/${spaceId}?focus=name`);
     await page.getByLabel("Name").fill(databaseName);
     await page.getByTestId("NavigationBar").getByRole("button", {name: "Create"}).click();
 

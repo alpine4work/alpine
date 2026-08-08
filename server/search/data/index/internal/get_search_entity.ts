@@ -1527,8 +1527,7 @@ async function getDatabaseTableSearchEntity(
     state: SearchEntityReadState,
     tableId: DatabaseTableId,
 ): Promise<SearchEntity> {
-    const spaceId = state.getSpaceId();
-    const table = await getDatabaseTableMetadataForSearchIndex(state.context, {spaceId, tableId});
+    const table = await getDatabaseTableMetadataForSearchIndex(state.context, tableId);
     const id: SearchDynamicEntityId = `DatabaseTable:${tableId}`;
 
     if (table.isDeleted || table.name === null) {
@@ -1539,7 +1538,7 @@ async function getDatabaseTableSearchEntity(
     const accessPolicyModel = await state.getAccessPolicy(accessPolicy);
     state.registerAdditionalWrite(context =>
         syncDatabaseTableMetadataToDurableObject(context, {
-            spaceId,
+            databaseGroupId: table.databaseGroupId,
             tableId,
             name,
             accessPolicy,

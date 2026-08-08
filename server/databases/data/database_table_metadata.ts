@@ -168,11 +168,7 @@ export async function getDatabaseTableMetadataRealtimeEvent(
     const eventStubs = events.map(eventStub => {
         const itemKey = DatabaseTablesTable.deserializeOpaqueItemKey(eventStub.item.key);
 
-        if (
-            itemKey.partitionType === "DatabaseGroup" &&
-            itemKey.databaseGroupId === databaseGroupId &&
-            itemKey.sortRangeType === "Table"
-        ) {
+        if (itemKey.partitionType === "Table" && itemKey.sortRangeType === "Attributes") {
             return {...eventStub, itemKey};
         }
 
@@ -188,8 +184,9 @@ export async function getDatabaseTableMetadataRealtimeEvent(
     // Redact rather than reject: a database group mixes tables the actor can and can't
     // see, so a denied event must not tear down the actor's realtime connection.
     // Withheld table ids are returned so receivers can update their access maps (a
-    // denial doubles as the revocation signal). Deleted metadata has no policy left to
-    // evaluate \u2014 treat it as inaccessible too.
+    // denial doubles as the revocation signal). Hard deletion is disabled for database
+    // table metadata because a delete event doesn't contain the group ID required to
+    // validate its routing.
     const visibleEvents: Array<RynamoEvent<DatabaseTableMetadataModel>> = [];
     const deniedTableIds: Array<DatabaseTableId> = [];
 
@@ -197,7 +194,12 @@ export async function getDatabaseTableMetadataRealtimeEvent(
         actualEvents.map(async (event, index) => {
             let isAuthorized = false;
             switch (event.type) {
-                case "PutItem":
+                case "PutItem": {
+                    if (event.item.model.databaseGroupId !== databaseGroupId) {
+                        throw new PermissionDeniedError(
+                            "Can’t get realtime event for a table outside the designated database group",
+                        );
+                    }
                     isAuthorized = await evaluateAccessPolicy(
                         context,
                         event.item.model.spaceId,
@@ -205,9 +207,11 @@ export async function getDatabaseTableMetadataRealtimeEvent(
                         "View",
                     );
                     break;
+                }
                 case "DeleteItem":
-                    isAuthorized = false;
-                    break;
+                    throw new PermissionDeniedError(
+                        "Can’t validate a deleted database table against the designated database group",
+                    );
                 default:
                     throw exhaustive(event);
             }
@@ -225,26 +229,25 @@ export async function getDatabaseTableMetadataRealtimeEvent(
 
 export async function getDatabaseTableMetadataForSearchIndex(
     context: ServerActionContext,
-    input: {spaceId: SpaceId; tableId: DatabaseTableId},
+    tableId: DatabaseTableId,
 ): Promise<DatabaseTableMetadataModel> {
-    return await getDatabaseTableMetadata(context, input);
+    return await getDatabaseTableMetadata(context, tableId);
 }
 
 export async function syncDatabaseTableMetadataToDurableObject(
     context: ServerActionContext,
     {
-        spaceId,
+        databaseGroupId,
         tableId,
         name,
         accessPolicy,
     }: {
-        spaceId: SpaceId;
+        databaseGroupId: DatabaseGroupId;
         tableId: DatabaseTableId;
         name: string;
         accessPolicy: AccessPolicy;
     },
 ): Promise<void> {
-    const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
     const localAccessPolicy = await resolveDatabaseTableAccessPolicyForDurableObject(
         context,
         accessPolicy,
@@ -278,13 +281,13 @@ export async function createDatabaseTableMetadataForTest(
 
     await DatabaseTablesTable.updateItem(
         context,
-        {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
+        {partitionType: "Table", sortRangeType: "Attributes", tableId},
         item =>
             DynamoItem.createOrUpdate(item, {
-                partitionType: "DatabaseGroup",
-                sortRangeType: "Table",
-                databaseGroupId,
+                partitionType: "Table",
+                sortRangeType: "Attributes",
                 tableId,
+                databaseGroupId,
                 spaceId,
                 name,
                 isDeleted,

@@ -838,7 +838,6 @@ test("access revocation drops the subscription until the next read", async () =>
     const reader = await createWarmClient(databaseGroupId, table);
 
     await updateDatabaseTableAccessPolicy(context.action(session), {
-        spaceId: space.id,
         tableId: table.tableId,
         accessPolicy: {...allowedAccessPolicy, defaultGrant: null},
     });
@@ -846,7 +845,6 @@ test("access revocation drops the subscription until the next read", async () =>
     await settle();
 
     await updateDatabaseTableAccessPolicy(context.action(session), {
-        spaceId: space.id,
         tableId: table.tableId,
         accessPolicy: allowedAccessPolicy,
     });

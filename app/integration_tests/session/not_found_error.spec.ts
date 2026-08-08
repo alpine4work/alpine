@@ -101,7 +101,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/databases/${space.id}/${generateId()}`);
+            await page.goto(`/database/${generateId()}`);
 
             await expect(page.getByText("Database not found")).toBeVisible();
         });
