@@ -94,7 +94,11 @@ export async function updateDatabaseTableAccessPolicy(
 
         const {spaceId} = item;
         await authorizeSpaceAccess(context, spaceId, "Member");
-        if (!(await evaluateAccessPolicy(context, spaceId, item.accessPolicy, "Manage"))) {
+        if (
+            !(await evaluateAccessPolicy(context, spaceId, item.accessPolicy, "Manage", {
+                consistency: "Strong",
+            }))
+        ) {
             throw new PermissionDeniedError(
                 `Account does not have Manage access to database table ${tableId}`,
             );
@@ -141,7 +145,11 @@ export async function getDatabaseTableMetadataItem(
     }
     const {spaceId} = item.model;
     await authorizeSpaceAccess(context, spaceId);
-    if (!(await evaluateAccessPolicy(context, spaceId, item.model.accessPolicy, "View"))) {
+    if (
+        !(await evaluateAccessPolicy(context, spaceId, item.model.accessPolicy, "View", {
+            consistency: "Strong",
+        }))
+    ) {
         throw new PermissionDeniedError(
             `Account does not have View access to database table ${tableId}`,
         );
@@ -197,7 +205,7 @@ export async function getDatabaseTableMetadataRealtimeEvent(
                 case "PutItem": {
                     if (event.item.model.databaseGroupId !== databaseGroupId) {
                         throw new PermissionDeniedError(
-                            "Can’t get realtime event for a table outside the designated database group",
+                            "Can\u2019t get realtime event for a table outside the designated database group",
                         );
                     }
                     isAuthorized = await evaluateAccessPolicy(
@@ -210,7 +218,7 @@ export async function getDatabaseTableMetadataRealtimeEvent(
                 }
                 case "DeleteItem":
                     throw new PermissionDeniedError(
-                        "Can’t validate a deleted database table against the designated database group",
+                        "Can\u2019t validate a deleted database table against the designated database group",
                     );
                 default:
                     throw exhaustive(event);

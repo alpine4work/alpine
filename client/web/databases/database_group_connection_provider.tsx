@@ -1,4 +1,4 @@
-import {useEffect, useState, type ReactNode} from "react";
+import {type ReactNode, useEffect, useState} from "react";
 import {createDatabaseGroupConnection} from "~/client/web/databases/connect_to_database.js";
 import {DatabaseConnectionContext} from "~/client/web/databases/database_connection_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -25,15 +25,12 @@ export function DatabaseGroupConnectionProvider({
                 databaseGroupId,
                 webSocketUrl,
                 reportError: message => {
-                    reporter.displayError(
-                        "Couldn’t save changes",
-                        new InternalError(message),
-                    );
+                    reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
                 },
             })
             .catch((error: unknown) => {
                 reporter.displayError(
-                    "Couldn’t connect to database",
+                    "Couldn\u2019t connect to database",
                     error instanceof Error ? error : new InternalError(String(error)),
                 );
             });

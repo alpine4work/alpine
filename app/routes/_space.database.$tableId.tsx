@@ -23,13 +23,12 @@ import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_pro
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
-import type {DatabaseGroupId, DatabaseRowId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseRowId, SiteId} from "~/shared/id/types/id_types.js";
 import {getDatabaseTableMetadataItem} from "~/shared/rpc/database_tables_rpc_definitions.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 const LoaderSchema = Schema.object({
-    spaceId: Schema.id<SpaceId>(),
     databaseGroupId: Schema.id<DatabaseGroupId>(),
     schema: LoaderDatabaseActionResultSchemas.getViewSchema,
     tableMetadataItem: createRynamoItemSchema(DatabaseTableMetadataModel.schema()),
@@ -48,7 +47,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
     const tableId = deserializeDatabaseTableIdForLoader(params.tableId);
     const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(context, tableId);
-    const {spaceId, databaseGroupId} = tableMetadataItem.model;
+    const {databaseGroupId} = tableMetadataItem.model;
 
     const schemaResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewSchema",
@@ -76,7 +75,6 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
             : new Map<SiteId, SitePreviewModel>();
 
     return jsonWithSchema(LoaderSchema, {
-        spaceId,
         databaseGroupId,
         schema: {
             name: "getViewSchema",
@@ -178,7 +176,6 @@ function DatabaseViewRouteContent() {
     }
     return (
         <DatabaseGridView
-            spaceId={loaderData.spaceId}
             tableId={schemaResult.value.tableId}
             viewId={schemaResult.value.viewId}
             tableName={schemaResult.value.tableName}

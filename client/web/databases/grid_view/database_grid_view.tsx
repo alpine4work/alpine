@@ -52,7 +52,6 @@ import type {
     DatabaseTableId,
     DatabaseViewId,
     SiteId,
-    SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {updateDatabaseTableAccessPolicy} from "~/shared/rpc/database_tables_rpc_definitions.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -130,7 +129,6 @@ function selectionReducer(
  * view field metadata for column names, widths, and field IDs for cell editing.
  */
 export function DatabaseGridView({
-    spaceId,
     tableId,
     viewId,
     tableName,
@@ -140,7 +138,6 @@ export function DatabaseGridView({
     fields,
     query,
 }: {
-    spaceId: SpaceId;
     tableId: DatabaseTableId;
     viewId: DatabaseViewId;
     tableName: string;
@@ -490,10 +487,7 @@ export function DatabaseGridView({
                                 onTableMetadataEvents(result.events);
                             }}
                             onCopyLink={async () => {
-                                const url = new URL(
-                                    `/database/${tableId}`,
-                                    window.location.href,
-                                );
+                                const url = new URL(`/database/${tableId}`, window.location.href);
                                 await writeTextToClipboard(url.toString());
                             }}
                         />

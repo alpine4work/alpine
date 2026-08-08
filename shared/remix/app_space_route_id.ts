@@ -11,11 +11,8 @@ export type AppSpaceRouteId =
     | "routes/_space.chat.with.$accountId.$spaceId"
     | "routes/_space.create.$spaceId._index"
     | "routes/_space.create.$spaceId.more"
-    | "routes/_space.databases.$spaceId.$tableOrViewId"
-    | "routes/_space.databases.$spaceId._index"
-    | "routes/_space.databases.$spaceId.new"
-    | "routes/_space.databases.$spaceId.sql"
-    | "routes/_space.databases.$spaceId"
+    | "routes/_space.database.$tableId"
+    | "routes/_space.database.new.$spaceId"
     | "routes/_space.dev.empty.$spaceId"
     | "routes/_space.dev.feed.$spaceId"
     | "routes/_space.doc.$documentId._index"
@@ -55,4 +52,5 @@ export type AppSpaceRouteId =
     | "routes/_space.task-view.new.$spaceId"
     | "routes/_space.task.$taskId._index"
     | "routes/_space.task.$taskId.comment.$index.reactions"
-    | "routes/_space.task.$taskId.duplicate";
+    | "routes/_space.task.$taskId.duplicate"
+    | "routes/_space.view.new.$spaceId";

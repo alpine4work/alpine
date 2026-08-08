@@ -824,7 +824,7 @@ test("access revocation drops the subscription until the next read", async () =>
     const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
     const session = await space.createSession();
     const allowedAccessPolicy = {
-        ...databaseTableAccessPolicyForCreator(generateId<AccountId>()),
+        ...databaseTableAccessPolicyForCreator(session.account.id),
         defaultGrant: {level: "Manage" as const, generation: 0},
     };
     await createDatabaseTableMetadataForTest(context.action(session), {
@@ -841,6 +841,7 @@ test("access revocation drops the subscription until the next read", async () =>
         tableId: table.tableId,
         accessPolicy: {...allowedAccessPolicy, defaultGrant: null},
     });
+    await settle();
     await deliverRecordedTableMetadataBroadcast(databaseGroupId, space.id);
     await settle();
 
@@ -848,6 +849,7 @@ test("access revocation drops the subscription until the next read", async () =>
         tableId: table.tableId,
         accessPolicy: allowedAccessPolicy,
     });
+    await settle();
     await deliverRecordedTableMetadataBroadcast(databaseGroupId, space.id);
     await settle();
 
