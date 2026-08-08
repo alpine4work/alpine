@@ -133,18 +133,18 @@ async function main() {
     );
     const config = toml.parse(configString);
 
-    const scriptFilePath = joinPath(runfilesPath, "cyberworlds/server/edge/edge_service_bundle.js");
-
-    // Pre-compile the SQLite WASM binary on the host so the sandboxed bundle can
-    // instantiate it without any file/network I/O. This avoids injecting `process`
-    // into the sandbox (which would activate Node.js code paths in all bundle code).
-    // See admin/patches/bazel/sqlite.patch.
-    const wasmPath = joinPath(runfilesPath, "sqlite/ext/wasm/jswasm/sqlite3.wasm");
-    const sqlite3WasmModule = await WebAssembly.compile(fs.readFileSync(wasmPath));
+    const scriptFilePath = joinPath(
+        runfilesPath,
+        "cyberworlds/server/edge/edge_service_bundle_file/edge_service_bundle.js",
+    );
 
     const miniflare = new Miniflare({
         name: config.name,
         modules: true,
+        // Miniflare 2 only reads module rules from Wrangler's deprecated
+        // `build.upload.rules` location, so provide the current top-level rule explicitly
+        // for local development.
+        modulesRules: [{type: "CompiledWasm", include: ["**/*.wasm"]}],
         scriptPath: scriptFilePath,
         wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.toml"),
         upstream: appServiceUrl,
@@ -168,9 +168,6 @@ async function main() {
         },
         globals: {
             __writeTracerEventToFileInDev: writeTracerEventToFileInDev,
-            // Pre-compiled WASM module for SQLite. Picked up by sqlite3_wasm_init_worker.ts
-            // (side-effect import in the bundle).
-            __sqlite3WasmModule: sqlite3WasmModule,
         },
     });
 

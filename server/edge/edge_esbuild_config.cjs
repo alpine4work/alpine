@@ -29,6 +29,11 @@ module.exports = {
     // Conditions from Wrangler:
     // https://github.com/cloudflare/workers-sdk/blob/478bed3b80ea353a5be4bd7056b92460a3cf4cd5/packages/wrangler/src/deployment-bundle/bundle.ts#L341
     conditions: ["workerd", "worker", "browser"],
+    // Keep WASM as a separate module. Wrangler and Miniflare compile the emitted file
+    // before exposing its default export to the Worker.
+    loader: {".wasm": "copy"},
+    entryNames: "edge_service_bundle",
+    assetNames: "[name]",
     define: {
         "process.env.NODE_ENV": JSON.stringify(
             compilationMode === "opt" ? "production" : "development",

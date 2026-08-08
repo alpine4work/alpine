@@ -11,6 +11,10 @@ import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
+import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {
@@ -20,22 +24,30 @@ import type {
 } from "~/shared/id/types/id_types.open_source.js";
 
 const createdViewId = generateChronologicalId<DatabaseViewId>();
-const createdTableId = generateChronologicalId<DatabaseTableId>();
+const failedBackingTableName = "Failed backing table";
+let failedCreationTableId: DatabaseTableId | undefined;
 const context = createTestContext({
-    sendRequestToDurableObject: () =>
-        Promise.resolve(
+    sendRequestToDurableObject: (_context, request) => {
+        const action = DatabaseActionObjectSchema.deserialize(request.body ?? null);
+        assert(action.name === "createTable");
+        if (action.input.name === failedBackingTableName) {
+            failedCreationTableId = action.input.tableId;
+            return Promise.reject(new InternalError("Failed to create backing table"));
+        }
+        return Promise.resolve(
             DatabaseActionFetchResponseSchema.serialize({
                 result: {
                     name: "createTable",
                     output: {
-                        tableId: createdTableId,
+                        tableId: action.input.tableId,
                         tableName: "projects",
                         viewId: createdViewId,
                     },
                 },
                 readPages: new Map(),
             }),
-        ),
+        );
+    },
 });
 
 test("creating the first database assigns its space a database group ID", async () => {
@@ -52,6 +64,23 @@ test("creating the first database assigns its space a database group ID", async 
         databaseGroupId,
         spaceId: space.id,
     });
+});
+
+test("failed backing table creation does not publish table metadata", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await createDatabaseTable(session.action(), {
+        spaceId: space.id,
+        name: failedBackingTableName,
+    }).catch(() => undefined);
+    const tableId = assertExists(failedCreationTableId);
+
+    await expect(
+        getDatabaseTableMetadataItem(session.action(), tableId, {
+            consistency: "Strong",
+        }),
+    ).rejects.toThrow(`Database table ${tableId} not found`);
 });
 
 test("updating a database table access policy requires Manage access", async () => {

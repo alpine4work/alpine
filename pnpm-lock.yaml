@@ -53,7 +53,7 @@ patchedDependencies:
     hash: vxrc5eza6myewzbsg2yiefwfam
     path: admin/patches/@miniflare__durable-objects@2.14.4.patch
   '@miniflare/runner-vm@2.14.4':
-    hash: lbrvemk64hprdioluzeifsrmne
+    hash: lwb754ypg2q2symfbn4u6pbkhe
     path: admin/patches/@miniflare__runner-vm@2.14.4.patch
   '@miniflare/shared@2.14.4':
     hash: mkotdi7nyq4frmqbvxak3qytue
@@ -13157,7 +13157,7 @@ snapshots:
       '@miniflare/shared': 2.14.4(patch_hash=mkotdi7nyq4frmqbvxak3qytue)
       undici: 5.28.4
 
-  '@miniflare/runner-vm@2.14.4(patch_hash=lbrvemk64hprdioluzeifsrmne)':
+  '@miniflare/runner-vm@2.14.4(patch_hash=lwb754ypg2q2symfbn4u6pbkhe)':
     dependencies:
       '@miniflare/shared': 2.14.4(patch_hash=mkotdi7nyq4frmqbvxak3qytue)
 
@@ -20011,7 +20011,7 @@ snapshots:
       '@miniflare/kv': 2.14.4
       '@miniflare/queues': 2.14.4
       '@miniflare/r2': 2.14.4
-      '@miniflare/runner-vm': 2.14.4(patch_hash=lbrvemk64hprdioluzeifsrmne)
+      '@miniflare/runner-vm': 2.14.4(patch_hash=lwb754ypg2q2symfbn4u6pbkhe)
       '@miniflare/scheduler': 2.14.4
       '@miniflare/shared': 2.14.4(patch_hash=mkotdi7nyq4frmqbvxak3qytue)
       '@miniflare/sites': 2.14.4
